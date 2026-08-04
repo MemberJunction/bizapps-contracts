@@ -72,6 +72,35 @@ applies with equal force here:
 The failure mode this prevents arrives by accretion — "just this one proration case" — so it is
 enforced by an integration check, not by a paragraph asking nicely.
 
+### This is not a rule against overriding prices
+
+Negotiated pricing is the entire point of an agreement, and this app exists to hold it.
+`ContractLine.ContractedUnitPrice` and `DiscountPct` are how — subject to approval at whatever level
+the organization configures (see [Approvals](#approvals-run-on-bizapps-tasks)).
+
+**An override is an input to the pricing pipeline, never a replacement for it.** Contracts names the
+price; orders honours it and **still** applies charges, tax and proration on top, then returns the
+totals. Contracts stamps what came back.
+
+```
+ContractLine.ContractedUnitPrice = 50,000    ← what was negotiated
+        │
+        ▼
+Orders.PreviewOrder                          ← honours it, THEN applies charges +
+        │                                       tax + proration on top
+        ▼
+ContractBillingEvent.ComputedAmount = 53,240 ← stamped, never derived here
+```
+
+Computing `quantity × contracted price` here would yield **50,000** — silently dropping tax and
+charges, so the contract's bill and an ad-hoc order for the same goods disagree. That, not the
+negotiated number, is what the rule forbids.
+
+**Contracted pricing goes further and does it cleaner:** `ContractPriceResolver` registers *inside*
+orders' `BasePriceResolver` walk, so contracts never overrides orders from the outside — it
+**participates in orders' own computation** as a registered plugin. That is precisely why contracted
+prices apply to ad-hoc orders too, and why the arithmetic stays in exactly one place.
+
 ---
 
 ## What This Is — and Is Not
@@ -422,6 +451,17 @@ linked to the contract or amendment and routed to an approver role. `TaskType` `
 Tasks is the **state machine for long-arc human review** across the BizApps family — the same
 substrate accounting uses for batch approval and sales uses for close-won routing. Contracts does not
 invent a second one.
+
+**Approval level is data, and it varies by organization.** The caps live in orders' `SalesAuthority`
+(`MaxDiscountPct`, `MaxOrderValue`, allowed payment terms and product categories); the audit trail
+lives on `OrderAdjustment` (`AuthorizedBySalesAuthorityID`, `ApprovedByUserID`, `ApprovedAt`); the
+routing lives in tasks. Nothing here is hardcoded.
+
+> **Open question — escalation ladders.** `SalesAuthority` is a *flat cap per rep*. It expresses
+> single-gate approval well ("Johanna clears up to 20%") but cannot express tiers (">20% to the
+> manager, >40% to the CFO") as configuration. If an org needs tiers, that is a threshold→role table
+> belonging in **orders** beside `SalesAuthority` — ad-hoc order confirm needs it too, not only
+> contracts and deals. Not built until confirmed.
 
 ---
 
