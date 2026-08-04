@@ -1,6 +1,6 @@
 {
   "name": "@mj-biz-apps/contracts-ng",
-  "version": "1.0.0",
+  "version": "0.1.0",
   "type": "module",
   "description": "Client bootstrap package - Angular components loaded by MJExplorer via the generated open-app bootstrap import. TODO(template): rename.",
   "main": "dist/public-api.js",

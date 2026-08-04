@@ -1,6 +1,6 @@
 {
   "name": "@mj-biz-apps/contracts-core-entities-server",
-  "version": "1.0.0",
+  "version": "0.1.0",
   "type": "module",
   "description": "Server-side entity subclass overrides (validation, computed fields, save hooks). TODO(template): rename.",
   "main": "dist/index.js",
