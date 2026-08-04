@@ -1,5 +1,5 @@
 #!/bin/bash
-# Validates repository.url in all @mj-sample-app packages
+# Validates repository.url in all @mj-biz-apps packages
 # Required for npm provenance verification (OIDC trusted publishing)
 
 # Derive the expected URL from the ROOT package.json so this script survives
@@ -11,13 +11,13 @@ if [ -z "$EXPECTED_URL" ]; then
 fi
 ERRORS=0
 
-echo "Checking repository.url in all @mj-sample-app packages..."
+echo "Checking repository.url in all @mj-biz-apps packages..."
 
 for pkg_json in $(find packages -name "package.json" -maxdepth 2 -not -path "*/node_modules/*" -not -path "*/dist/*"); do
   name=$(jq -r '.name // ""' "$pkg_json")
 
-  # Only check @mj-sample-app scoped packages
-  if [[ "$name" != @mj-sample-app/* ]]; then
+  # Only check @mj-biz-apps scoped packages
+  if [[ "$name" != @mj-biz-apps/contracts-* ]]; then
     continue
   fi
 
@@ -36,7 +36,7 @@ if [ $ERRORS -gt 0 ]; then
   echo ""
   echo "::error::Found $ERRORS package(s) with missing or invalid repository.url"
   echo ""
-  echo "All @mj-sample-app packages must have:"
+  echo "All @mj-biz-apps packages must have:"
   echo '  "repository": {'
   echo '    "type": "git",'
   echo "    \"url\": \"$EXPECTED_URL\""
@@ -44,4 +44,4 @@ if [ $ERRORS -gt 0 ]; then
   exit 1
 fi
 
-echo "All @mj-sample-app packages have valid repository.url"
+echo "All @mj-biz-apps packages have valid repository.url"

@@ -4,16 +4,34 @@
   "name": "mj-bizapps-contracts",
   "displayName": "BizApps Contracts",
   "description": "The agreement envelope for MemberJunction — commitment, term structure, escalation, renewal, and the billing event that consolidates many revenue streams onto one document. Produces orders through BizApps Orders' own operations; it never prices, taxes, or books.",
-  "version": "1.0.0",
+  "version": "0.1.0",
   "license": "<Set-this>",
-  "icon": "fa-solid fa-cube",
+  "icon": "fa-solid fa-file-signature",
   "color": "#264FAF",
   "publisher": {
     "name": "MemberJunction",
     "email": "support@memberjunction.com"
   },
   "repository": "https://github.com/MemberJunction/bizapps-contracts",
-  "mjVersionRange": ">=5.0.0 <6.0.0",
+  "mjVersionRange": ">=5.49.0 <6.0.0",
+  "dependencies": {
+    "mj-bizapps-common": {
+      "version": ">=1.0.0 <6.0.0",
+      "repository": "https://github.com/MemberJunction/bizapps-common"
+    },
+    "mj-bizapps-tasks": {
+      "version": ">=1.0.0 <2.0.0",
+      "repository": "https://github.com/MemberJunction/bizapps-tasks"
+    },
+    "mj-bizapps-accounting": {
+      "version": ">=0.1.0 <2.0.0",
+      "repository": "https://github.com/MemberJunction/bizapps-accounting"
+    },
+    "mj-bizapps-orders": {
+      "version": ">=0.1.0 <6.0.0",
+      "repository": "https://github.com/MemberJunction/bizapps-orders"
+    }
+  },
   "schema": {
     "name": "__mj_BizAppsContracts",
     "createIfNotExists": true
@@ -28,25 +46,25 @@
   "packages": {
     "server": [
       {
-        "name": "@mj-sample-app/server",
+        "name": "@mj-biz-apps/contracts-server",
         "role": "bootstrap",
-        "startupExport": "LoadSampleAppServer"
+        "startupExport": "LoadMjBizappsContractsServer"
       }
     ],
     "client": [
       {
-        "name": "@mj-sample-app/ng",
+        "name": "@mj-biz-apps/contracts-ng",
         "role": "bootstrap",
-        "startupExport": "LoadSampleAppClient"
+        "startupExport": "LoadMjBizappsContractsClient"
       }
     ],
     "shared": [
       {
-        "name": "@mj-sample-app/entities",
+        "name": "@mj-biz-apps/contracts-entities",
         "role": "library"
       },
       {
-        "name": "@mj-sample-app/actions",
+        "name": "@mj-biz-apps/contracts-actions",
         "role": "library"
       }
     ]

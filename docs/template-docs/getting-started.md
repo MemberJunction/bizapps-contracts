@@ -1,7 +1,7 @@
 # Getting started — filling in the template
 
 This repository is a **working, minimal Open App** that doubles as a template.
-Everything runs as-is (schema `sample_app`, packages `@mj-sample-app/*`), so you
+Everything runs as-is (schema `__mj_BizAppsContracts`, packages `@mj-biz-apps/contracts-*`), so you
 can try the whole loop first and rename after — or rename first. `TODO(template)`
 comments mark every fill-in point.
 
@@ -21,10 +21,10 @@ manual equivalent — and the reference for what the script touched.
 |---|---|---|
 | App id / display name / description / icon | `mj-app.json` (`name`, `displayName`, `description`, `icon`, `color`) | `name` is the permanent unique id |
 | Publisher + repository URL | `mj-app.json`, every `packages/*/package.json` `repository.url`, root `package.json` | CI validates `repository.url` (npm provenance) |
-| npm scope `@mj-sample-app/*` | all `packages/*/package.json` names + cross-deps, `mj-app.json` `packages` block, root `package.json` `build:packages`/`test` filters, `.changeset/config.json` `fixed`, `.github/workflows/*` + `.github/scripts/*` greps, `ci/merge_main_and_update_lock.mjs`, `mj.config.cjs` `entityPackageName` | `grep -r "mj-sample-app" .` finds them all |
-| Schema `sample_app` | `mj-app.json` `schema.name`, `mj.config.cjs` (`NameRulesBySchema`, `SQLOutput.schemaPlaceholders`), root `package.json` `mj:migrate`/`mj:migrate:convert`, `metadata/schema-info/` (activate + fill the `.template` — see `docs/template-docs/metadata.md` § Schema registration) | Lowercase + underscores. `__`-prefixed names are reserved for first-party MJ apps |
+| npm scope `@mj-biz-apps/contracts-*` | all `packages/*/package.json` names + cross-deps, `mj-app.json` `packages` block, root `package.json` `build:packages`/`test` filters, `.changeset/config.json` `fixed`, `.github/workflows/*` + `.github/scripts/*` greps, `ci/merge_main_and_update_lock.mjs`, `mj.config.cjs` `entityPackageName` | `grep -r "mj-sample-app" .` finds them all |
+| Schema `__mj_BizAppsContracts` | `mj-app.json` `schema.name`, `mj.config.cjs` (`NameRulesBySchema`, `SQLOutput.schemaPlaceholders`), root `package.json` `mj:migrate`/`mj:migrate:convert`, `metadata/schema-info/` (activate + fill the `.template` — see `docs/template-docs/metadata.md` § Schema registration) | Lowercase + underscores. `__`-prefixed names are reserved for first-party MJ apps |
 | Entity name prefix `Sample App: ` | `mj.config.cjs` + `metadata/schema-info/` (in the filled-out `.schema-info.json`) `EntityNamePrefix` | Prevents entity-name collisions across apps |
-| Bootstrap exports `LoadSampleAppServer` / `LoadSampleAppClient` | `mj-app.json` `startupExport`s ↔ `packages/Server/src/index.ts` / `packages/Angular/src/public-api.ts` | Must match exactly — this is how MJAPI/MJExplorer load your code |
+| Bootstrap exports `LoadMjBizappsContractsServer` / `LoadMjBizappsContractsClient` | `mj-app.json` `startupExport`s ↔ `packages/Server/src/index.ts` / `packages/Angular/src/public-api.ts` | Must match exactly — this is how MJAPI/MJExplorer load your code |
 | `mjVersionRange` | `mj-app.json` | Set to the MJ major you build against; the publish workflow re-derives it from your `@memberjunction/core` peer dep |
 
 ## 2. Decide which blocks you keep
@@ -44,9 +44,9 @@ Development happens **inside a MemberJunction checkout** — follow
 
 ```sh
 # from the MJ repo root
-npx mj migrate --schema sample_app --dir packages/dev-apps/mj-sample-open-app/migrations   # apply app migrations
+npx mj migrate --schema __mj_BizAppsContracts --dir packages/dev-apps/mj-sample-open-app/migrations   # apply app migrations
 npx mj codegen                                                                             # generate entities/resolvers/forms
-npx turbo build --filter="@mj-sample-app/*"                                                # build the app packages
+npx turbo build --filter="@mj-biz-apps/contracts-*"                                                # build the app packages
 # then start MJ's API + Explorer and your app is live
 ```
 

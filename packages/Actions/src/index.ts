@@ -1,5 +1,5 @@
 /**
- * @mj-sample-app/actions — the app's ACTIONS package (OPTIONAL — delete the
+ * @mj-biz-apps/contracts-actions — the app's ACTIONS package (OPTIONAL — delete the
  * package + its manifest entry if your app exposes no Actions).
  *
  * Actions are metadata-driven integration points for agents / workflows /
@@ -17,7 +17,7 @@
  *   import { BaseAction } from '@memberjunction/actions';
  *   import { ActionResultSimple, RunActionParams } from '@memberjunction/actions-base';
  *
- *   @RegisterClass(BaseAction, 'Sample App: Do Something')
+ *   @RegisterClass(BaseAction, 'MJ_BizApps_Contracts: Do Something')
  *   export class DoSomethingAction extends BaseAction {
  *       protected async InternalRunAction(params: RunActionParams): Promise<ActionResultSimple> {
  *           return { Success: true, ResultCode: 'SUCCESS' };
@@ -27,6 +27,6 @@
  * The Load function below is imported by the server bootstrap so bundlers
  * cannot tree-shake the @RegisterClass side effects away.
  */
-export function LoadSampleAppActions(): void {
+export function LoadMjBizappsContractsActions(): void {
     // No-op: importing this module registers the action classes above.
 }

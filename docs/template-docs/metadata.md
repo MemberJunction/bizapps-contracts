@@ -157,7 +157,7 @@ An `Applications` record gives your app a UI presence in MJ Explorer
           "Label": "Dashboard",
           "Icon": "fa-solid fa-chart-line",
           "ResourceType": "Custom",
-          "DriverClass": "SampleAppDashboard",
+          "DriverClass": "MjBizappsContractsDashboard",
           "isDefault": true
         }
       ]

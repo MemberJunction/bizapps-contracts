@@ -1,5 +1,5 @@
 /**
- * @mj-sample-app/entities — the app's ENTITY package.
+ * @mj-biz-apps/contracts-entities — the app's ENTITY package.
  *
  * WHAT LIVES HERE
  *   src/generated/entity_subclasses.ts — written by MemberJunction CodeGen

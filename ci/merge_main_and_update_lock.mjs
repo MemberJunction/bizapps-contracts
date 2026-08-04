@@ -27,7 +27,7 @@ try {
     await git.add('package-lock.json');
     await git.commit(
       `chore: Update package-lock.json with v${version} dependencies\n\n` +
-      `Updates @mj-sample-app/* package versions in lock file after publishing v${version}`
+      `Updates @mj-biz-apps/contracts-* package versions in lock file after publishing v${version}`
     );
     console.log('Committed package-lock.json updates');
   } else {

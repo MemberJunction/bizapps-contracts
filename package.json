@@ -1,5 +1,5 @@
 {
-  "name": "mj-sample-open-app",
+  "name": "mj-bizapps-contracts",
   "version": "1.0.0",
   "private": true,
   "license": "MIT",
@@ -12,11 +12,11 @@
     "init": "node scripts/init-template.mjs",
     "build": "npm run build:stream",
     "build:stream": "turbo --log-order=stream build",
-    "build:packages": "turbo --log-order=stream build --filter=\"@mj-sample-app/*\"",
-    "test": "turbo --log-order=stream test --filter=\"@mj-sample-app/*\"",
-    "mj:migrate": "mj migrate --schema sample_app --dir ./migrations",
+    "build:packages": "turbo --log-order=stream build --filter=\"@mj-biz-apps/contracts-*\"",
+    "test": "turbo --log-order=stream test --filter=\"@mj-biz-apps/contracts-*\"",
+    "mj:migrate": "mj migrate --schema __mj_BizAppsContracts --dir ./migrations",
     "mj:codegen": "mj codegen",
-    "mj:migrate:convert": "mj migrate convert --source-dir ./migrations --output-dir ./migrations-pg --schema sample_app",
+    "mj:migrate:convert": "mj migrate convert --source-dir ./migrations --output-dir ./migrations-pg --schema __mj_BizAppsContracts",
     "change": "changeset",
     "version": "changeset version",
     "commitpush": "node ci/commit_push.mjs",
@@ -25,7 +25,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/MemberJunction/mj-sample-open-app"
+    "url": "https://github.com/MemberJunction/bizapps-contracts"
   },
   "packageManager": "npm@10.5.0",
   "devDependencies": {

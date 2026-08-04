@@ -1,10 +1,10 @@
 /**
- * @mj-sample-app/ng — the CLIENT BOOTSTRAP package.
+ * @mj-biz-apps/contracts-ng — the CLIENT BOOTSTRAP package.
  *
  * This is the package named in mj-app.json under packages.client with role
  * "bootstrap". When the app is installed (or dev-linked), MJExplorer's
  * auto-generated open-app-bootstrap.generated.ts gains a static
- * `import '@mj-sample-app/ng';` — ESBuild bundles it and module evaluation
+ * `import '@mj-biz-apps/contracts-ng';` — ESBuild bundles it and module evaluation
  * fires the @RegisterClass decorators that make your components discoverable.
  *
  * WHAT LIVES HERE
@@ -16,7 +16,7 @@
  * decorators fire, and RE-EXPORT the generated module/components so the
  * host's class-registration manifest can import them by name:
  *
- *   import '@mj-sample-app/entities';
+ *   import '@mj-biz-apps/contracts-entities';
  *   import './lib/generated/generated-forms.module';
  *   export { GeneratedFormsModule } from './lib/generated/generated-forms.module';
  *   export { <YourEntity>FormComponent } from './lib/generated/Entities/<YourEntity>/<yourentity>.form.component';
@@ -29,13 +29,13 @@
  *   import { RegisterClass } from '@memberjunction/global';
  *   import { BaseResourceComponent, ResourceData } from '@memberjunction/ng-shared';
  *
- *   @RegisterClass(BaseResourceComponent, 'SampleAppDashboard')
+ *   @RegisterClass(BaseResourceComponent, 'MjBizappsContractsDashboard')
  *   @Component({
  *     selector: 'sample-app-dashboard',
- *     template: '<div><h2>Sample App</h2></div>',
+ *     template: '<div><h2>BizApps Contracts</h2></div>',
  *     standalone: false
  *   })
- *   export class SampleAppDashboardComponent extends BaseResourceComponent {
+ *   export class MjBizappsContractsDashboardComponent extends BaseResourceComponent {
  *     async GetResourceDisplayName(data: ResourceData): Promise<string> { return 'Sample App'; }
  *     async GetResourceIconClass(data: ResourceData): Promise<string> { return 'fa-solid fa-cube'; }
  *   }
@@ -47,7 +47,7 @@
  * TODO(template): rename the function to Load<YourApp>Client and keep it in
  * sync with mj-app.json "startupExport".
  */
-export function LoadSampleAppClient(): void {
+export function LoadMjBizappsContractsClient(): void {
     // No-op until you add components: importing this module is what
     // registers everything above.
 }

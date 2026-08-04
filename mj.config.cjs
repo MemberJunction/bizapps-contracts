@@ -7,7 +7,7 @@
 // NOT put credentials here. Most settings have sensible package defaults; this
 // file only declares what is specific to this app's directory structure.
 //
-// TODO(template): everywhere you see "sample" or "@mj-sample-app", replace with
+// TODO(template): everywhere you see "sample" or "@mj-biz-apps", replace with
 // your app's schema name and npm scope. The full rename checklist lives in
 // docs/template-docs/getting-started.md.
 //
@@ -18,7 +18,7 @@ module.exports = {
 
   // The npm package that receives generated entity subclasses. Must match
   // packages/Entities/package.json "name".
-  entityPackageName: '@mj-sample-app/entities',
+  entityPackageName: '@mj-biz-apps/contracts-entities',
 
   // Where each kind of generated artifact is written. These paths match this
   // template's packages/ layout — keep them in sync if you rename packages.
@@ -53,8 +53,8 @@ module.exports = {
   newEntityDefaults: {
     NameRulesBySchema: [
       { SchemaName: '${mj_core_schema}', EntityNamePrefix: 'MJ: ' },
-      // TODO(template): your schema + your prefix:
-      { SchemaName: 'sample_app', EntityNamePrefix: 'Sample App: ', EntityNameSuffix: '' },
+      // BizApps family convention (matches bizapps-common / accounting / orders).
+      { SchemaName: '__mj_BizAppsContracts', EntityNamePrefix: 'MJ_BizApps_Contracts: ', EntityNameSuffix: '' },
     ],
   },
 
@@ -85,7 +85,7 @@ module.exports = {
       // Order matters: more-specific schema names must come first (greedy
       // sequential substitution).
       // TODO(template): your schema name here:
-      { schema: 'sample_app', placeholder: '${flyway:defaultSchema}' },
+      { schema: '__mj_BizAppsContracts', placeholder: '${flyway:defaultSchema}' },
       { schema: '__mj', placeholder: '${mjSchema}' },
     ],
   },

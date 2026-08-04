@@ -1,5 +1,5 @@
 {
-  "name": "@mj-sample-app/ng",
+  "name": "@mj-biz-apps/contracts-ng",
   "version": "1.0.0",
   "type": "module",
   "description": "Client bootstrap package - Angular components loaded by MJExplorer via the generated open-app bootstrap import. TODO(template): rename.",
@@ -11,11 +11,11 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/MemberJunction/mj-sample-open-app"
+    "url": "https://github.com/MemberJunction/bizapps-contracts"
   },
   "license": "MIT",
   "dependencies": {
-    "@mj-sample-app/entities": "1.0.0"
+    "@mj-biz-apps/contracts-entities": "1.0.0"
   },
   "peerDependencies": {
     "@angular/common": ">=21.0.0 <22.0.0",

@@ -17,7 +17,7 @@ break — so the rules below are non-negotiable.
 
 You wrote a new migration (new table/column/constraint in your app schema):
 
-1. Apply it: `npx mj migrate --schema sample_app --dir <path-to>/migrations`
+1. Apply it: `npx mj migrate --schema __mj_BizAppsContracts --dir <path-to>/migrations`
    (from the MJ repo root when linked — see linking-to-mj.md).
 2. Run CodeGen: `npx mj codegen`. It will:
    - add the system columns (`__mj_CreatedAt`/`__mj_UpdatedAt`) + FK indexes
@@ -31,7 +31,7 @@ You wrote a new migration (new table/column/constraint in your app schema):
    `spUpdateExisting…FromSchema` refresh calls — CodeGen re-applies those
    automatically on every instance (that's exactly why your migrations must
    not contain them).
-4. Build (`npx turbo build --filter="@mj-sample-app/*"`), then **commit the
+4. Build (`npx turbo build --filter="@mj-biz-apps/contracts-*"`), then **commit the
    migration + all regenerated code together** with a changeset (≥ minor).
 
 Only THEN write TypeScript against the new fields — the generated types now

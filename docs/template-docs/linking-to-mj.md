@@ -71,15 +71,15 @@ Two edits in the MJ repo:
 
 1. `packages/MJAPI/package.json` — add your server bootstrap package:
    ```json
-   "dependencies": { "@mj-sample-app/server": "1.0.0" }
+   "dependencies": { "@mj-biz-apps/contracts-server": "1.0.0" }
    ```
 2. MJ root `mj.config.cjs` — tell MJAPI to load it at boot:
    ```js
    dynamicPackages: {
      server: [
        {
-         PackageName: '@mj-sample-app/server',
-         StartupExport: 'LoadSampleAppServer',   // must match mj-app.json
+         PackageName: '@mj-biz-apps/contracts-server',
+         StartupExport: 'LoadMjBizappsContractsServer',   // must match mj-app.json
          AppName: 'mj-sample-app',
          Enabled: true
        }
@@ -90,11 +90,11 @@ Two edits in the MJ repo:
 
 ## 4. Wire the client (MJExplorer) — only if you ship UI packages
 
-1. `packages/MJExplorer/package.json` — add `"@mj-sample-app/ng": "1.0.0"`.
+1. `packages/MJExplorer/package.json` — add `"@mj-biz-apps/contracts-ng": "1.0.0"`.
 2. Add a static import to
    `packages/MJExplorer/src/app/generated/open-app-bootstrap.generated.ts`:
    ```ts
-   import '@mj-sample-app/ng';
+   import '@mj-biz-apps/contracts-ng';
    ```
    (When an app is *installed* via `mj app install`, the CLI maintains this
    file; in a manual link you add the line yourself. Re-run `npm install`.)
@@ -113,7 +113,7 @@ depends on which manifest blocks you kept:
 For a schema-backed app, from the MJ repo root:
 
 ```sh
-npx mj migrate --schema sample_app --dir packages/dev-apps/mj-sample-open-app/migrations
+npx mj migrate --schema __mj_BizAppsContracts --dir packages/dev-apps/mj-sample-open-app/migrations
 ```
 
 This creates the schema (if missing) and applies your app's migrations to the
@@ -124,7 +124,7 @@ schema changes, run `npx mj codegen` (see codegen-and-metadata-migrations.md).
 
 ```sh
 # from the MJ repo root
-npx turbo build --filter="@mj-sample-app/*"   # build your app's packages
+npx turbo build --filter="@mj-biz-apps/contracts-*"   # build your app's packages
 npm run start:api                              # MJAPI — watch the log for your startupExport being called
 npm run start:explorer                         # MJExplorer (if you wired a client package)
 ```
@@ -147,6 +147,6 @@ app schema from your dev database.
 ## Verifying the link worked
 
 1. `npm ls @memberjunction/global` at the MJ root shows **one** resolved copy.
-2. MJAPI boot log shows your package loading + `LoadSampleAppServer` called.
+2. MJAPI boot log shows your package loading + `LoadMjBizappsContractsServer` called.
 3. Once you've added your first migration + run codegen, your entities appear
    in MJ metadata (queryable via GraphQL / visible in Explorer).

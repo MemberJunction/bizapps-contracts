@@ -56,7 +56,7 @@ const cur = {
   repo: manifest.repository,
   publisher: manifest.publisher?.name ?? '',
   email: manifest.publisher?.email ?? '',
-  schema: manifest.schema?.name ?? 'sample_app',
+  schema: manifest.schema?.name ?? '__mj_BizAppsContracts',
   pkgPrefix: stripped,
   scope: stripped.endsWith('/') ? stripped.slice(0, -1) : stripped.slice(0, -1),
   pascal: (manifest.packages?.server?.[0]?.startupExport?.match(/^Load(.+)Server$/) ?? [,'SampleApp'])[1],

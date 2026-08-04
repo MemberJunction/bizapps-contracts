@@ -1,5 +1,5 @@
 #!/bin/bash
-# Validates that all @mj-sample-app packages exist on npm before publishing
+# Validates that all @mj-biz-apps packages exist on npm before publishing
 
 echo "Checking for new packages that need npm placeholders..."
 
@@ -11,8 +11,8 @@ RETRY_DELAY=2
 for pkg_json in $(find packages -name "package.json" -maxdepth 2 -not -path "*/node_modules/*"); do
   name=$(jq -r '.name // ""' "$pkg_json")
 
-  # Only check @mj-sample-app scoped packages
-  if [[ "$name" != @mj-sample-app/* ]]; then
+  # Only check @mj-biz-apps scoped packages
+  if [[ "$name" != @mj-biz-apps/contracts-* ]]; then
     continue
   fi
 
@@ -40,7 +40,7 @@ for pkg_json in $(find packages -name "package.json" -maxdepth 2 -not -path "*/n
 
   # Progress indicator
   if [ $((CHECKED % 10)) -eq 0 ]; then
-    echo "  Checked $CHECKED @mj-sample-app packages..."
+    echo "  Checked $CHECKED @mj-biz-apps packages..."
   fi
 done
 
@@ -56,4 +56,4 @@ if [ ${#MISSING[@]} -gt 0 ]; then
   exit 1
 fi
 
-echo "All $CHECKED @mj-sample-app packages exist on npm"
+echo "All $CHECKED @mj-biz-apps packages exist on npm"

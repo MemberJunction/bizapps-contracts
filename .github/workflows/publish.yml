@@ -85,7 +85,7 @@ jobs:
           for f in .changeset/*.md; do
             [ "$f" = ".changeset/README.md" ] && continue
             [ ! -f "$f" ] && continue
-            if grep -qE '^"@mj-sample-app/.*":\s*major' "$f"; then
+            if grep -qE '^"@mj-biz-apps/contracts-.*":\s*major' "$f"; then
               HAS_MAJOR=true
               break
             fi
