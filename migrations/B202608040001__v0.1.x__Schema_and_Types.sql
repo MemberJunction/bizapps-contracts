@@ -25,9 +25,8 @@
 -- commitment, term structure, escalation, renewal, and the BILLING EVENT that
 -- consolidates many revenue streams onto one document.
 --
--- Design source of truth is NOT this repo. It is
---   BlueCypress/new-products/sales-deal-management/plans/02-bizapps-contracts.md
--- with the parent plan's decision log (L-10..L-12, L-15, L-18) governing.
+-- Design source of truth is plans/bizapps-contracts-master.md in this repo,
+-- with decisions L-10..L-12, L-15 and L-18 governing.
 --
 -- WHAT THIS APP DOES NOT DO, restated here because a schema is where the
 -- temptation starts: it does not price, tax, prorate, book journal entries, or
@@ -64,17 +63,15 @@
 --       ContractTerm.CurrencyID (recorded for forward-compatibility only; orders
 --       defers FX per D24 and NOTHING in this app converts between currencies)
 --
--- ONE reference stays SOFT, and the reason is narrow and temporary:
---   * ContractAmendment.ApprovalTaskID -> bizapps-tasks
---     Soft because the target app IS NOT INSTALLED in this chain yet, exactly the
---     reason orders left Order.ApprovalTaskID soft — NOT because the coupling is
---     unwanted, and NOT the withdrawn tooling-defect rationale. Tasks is a required
---     dependency of this app (approval gates on non-standard terms, discounts beyond
---     a rep's SalesAuthority, early-termination waivers). The day tasks joins the
---     install chain this becomes a hard, nullable FK. See the TODO at §4.B.
+--   * -> __mj_BizAppsTasks.Task
+--       ContractAmendment.ApprovalTaskID — the approval gate. Tasks is the state
+--       machine for long-arc human review across the family (accounting uses it for
+--       batch approval, sales for close-won routing) and is a REQUIRED dependency.
 --
--- INSTALL-ORDER DEPENDENCY: bizapps-common, bizapps-accounting and bizapps-orders
--- MUST be installed BEFORE bizapps-contracts. Applying this migration without them
+-- There are NO soft references in this schema.
+--
+-- INSTALL-ORDER DEPENDENCY: bizapps-common, bizapps-tasks, bizapps-accounting and
+-- bizapps-orders MUST be installed BEFORE bizapps-contracts. Applying this migration without them
 -- fails at §4.A — deliberately, as the dependency check.
 --
 -- CodeGen handles __mj_CreatedAt/__mj_UpdatedAt and FK indexes — do NOT add them here.

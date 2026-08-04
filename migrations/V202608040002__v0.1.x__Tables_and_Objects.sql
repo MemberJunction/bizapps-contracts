@@ -320,8 +320,8 @@ CREATE TABLE __mj_BizAppsContracts.ContractAmendment (
     Description NVARCHAR(MAX) NULL,
     DocumentFileID UNIQUEIDENTIFIER NULL,
     Status NVARCHAR(20) NOT NULL DEFAULT 'Draft',
-    -- SOFT reference -> bizapps-tasks. See §4.B for why, and for the TODO that
-    -- makes it a hard FK the day tasks joins the install chain.
+    -- Hard FK -> bizapps-tasks (§4.A). Approvals for non-standard terms, discounts
+    -- beyond a rep's SalesAuthority, and early-termination waivers all route through it.
     ApprovalTaskID UNIQUEIDENTIFIER NULL,
     CONSTRAINT PK_ContractAmendment PRIMARY KEY (ID),
     CONSTRAINT CK_ContractAmendment_AmendmentType CHECK (AmendmentType IN ('AddProduct','ChangeQuantity','ChangePrice','Coterm','PartialTerminate','Other')),
@@ -503,6 +503,16 @@ ALTER TABLE __mj_BizAppsContracts.ContractBillingEvent
     FOREIGN KEY (OrderID) REFERENCES __mj_BizAppsOrders.OrderHeader(ID);
 GO
 
+-- -> __mj_BizAppsTasks
+-- The approval gate. Tasks is the state machine for long-arc human review across the
+-- BizApps family — the same substrate accounting uses for batch approval and sales uses
+-- for close-won routing. TaskType OnComplete/OnReject Action hooks call back into
+-- contracts to advance or reject the amendment.
+ALTER TABLE __mj_BizAppsContracts.ContractAmendment
+    ADD CONSTRAINT FK_ContractAmendment_ApprovalTask
+    FOREIGN KEY (ApprovalTaskID) REFERENCES __mj_BizAppsTasks.Task(ID);
+GO
+
 -- Orders owns payment terms; accounting delegates to it and so do we.
 ALTER TABLE __mj_BizAppsContracts.ContractTerm
     ADD CONSTRAINT FK_ContractTerm_PaymentTermsType
@@ -518,30 +528,6 @@ ALTER TABLE __mj_BizAppsContracts.ContractTerm
     ADD CONSTRAINT FK_ContractTerm_Currency
     FOREIGN KEY (CurrencyID) REFERENCES __mj_BizAppsAccounting.Currency(ID);
 GO
-
----------------------------------------------------------------------------
--- 4.B THE ONE SOFT REFERENCE, and the TODO that closes it.
---
---     ContractAmendment.ApprovalTaskID -> __mj_BizAppsTasks.Task
---
---     Soft because bizapps-tasks IS NOT INSTALLED in this chain yet — the same
---     and only acceptable reason orders left Order.ApprovalTaskID soft. It is NOT
---     the withdrawn "CodeGen include-mode" rationale, and it is NOT a statement
---     that the coupling is unwanted.
---
---     Tasks is a REQUIRED dependency of this app. Approval gates on non-standard
---     terms, on discounts beyond a rep's SalesAuthority, and on early-termination
---     waivers all route through it, and TaskType OnComplete/OnReject Action hooks
---     call back into contracts to advance or reject an amendment.
---
---  TO-DO: make this a hard, nullable FK when bizapps-tasks joins the install chain.
---  Trigger: __mj_BizAppsTasks exists in the rebuild chain.
---  Change:  ALTER TABLE __mj_BizAppsContracts.ContractAmendment
---               ADD CONSTRAINT FK_ContractAmendment_ApprovalTask
---               FOREIGN KEY (ApprovalTaskID) REFERENCES __mj_BizAppsTasks.Task(ID);
---  Then delete this block. Under the pre-production practice this is an in-place
---  edit to this file plus a clean rebuild, not a fix-up migration.
----------------------------------------------------------------------------
 
 -- =============================================================================
 -- 5. EXTENDED PROPERTIES
@@ -601,7 +587,7 @@ GO
 
 -- ContractAmendment
 EXEC sp_addextendedproperty @name=N'MS_Description', @value=N'A mid-term change to a LIVE term. Renewals do NOT come through here — they start a new ContractTerm with RenewalOfTermID set.', @level0type=N'SCHEMA', @level0name=N'__mj_BizAppsContracts', @level1type=N'TABLE', @level1name=N'ContractAmendment';
-EXEC sp_addextendedproperty @name=N'MS_Description', @value=N'SOFT reference to a bizapps-tasks Task, soft ONLY because that app is not yet in the install chain. Becomes a hard nullable FK the day it is — see §4.B in this migration.', @level0type=N'SCHEMA', @level0name=N'__mj_BizAppsContracts', @level1type=N'TABLE', @level1name=N'ContractAmendment', @level2type=N'COLUMN', @level2name=N'ApprovalTaskID';
+EXEC sp_addextendedproperty @name=N'MS_Description', @value=N'The bizapps-tasks Task gating this amendment. Raised for non-standard terms, discounts beyond a rep''s SalesAuthority, and early-termination waivers; TaskType OnComplete/OnReject hooks call back into contracts to advance or reject.', @level0type=N'SCHEMA', @level0name=N'__mj_BizAppsContracts', @level1type=N'TABLE', @level1name=N'ContractAmendment', @level2type=N'COLUMN', @level2name=N'ApprovalTaskID';
 GO
 
 -- ContractEvent
