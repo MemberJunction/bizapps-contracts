@@ -1,0 +1,29 @@
+{
+  "name": "@mj-sample-app/core-entities-server",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Server-side entity subclass overrides (validation, computed fields, save hooks). TODO(template): rename.",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc && tsc-alias -f",
+    "test": "echo \"No tests configured yet\""
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/MemberJunction/mj-sample-open-app"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "@mj-sample-app/entities": "1.0.0"
+  },
+  "peerDependencies": {
+    "@memberjunction/core": "^5.44.0",
+    "@memberjunction/core-entities": "^5.44.0",
+    "@memberjunction/global": "^5.44.0",
+    "@memberjunction/sqlserver-dataprovider": "^5.44.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3"
+  }
+}

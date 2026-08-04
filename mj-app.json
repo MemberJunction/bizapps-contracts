@@ -1,0 +1,66 @@
+{
+  "$schema": "https://schema.memberjunction.org/mj-app/v1.json",
+  "manifestVersion": 1,
+  "name": "mj-bizapps-contracts",
+  "displayName": "BizApps Contracts",
+  "description": "The agreement envelope for MemberJunction — commitment, term structure, escalation, renewal, and the billing event that consolidates many revenue streams onto one document. Produces orders through BizApps Orders' own operations; it never prices, taxes, or books.",
+  "version": "1.0.0",
+  "license": "<Set-this>",
+  "icon": "fa-solid fa-cube",
+  "color": "#264FAF",
+  "publisher": {
+    "name": "MemberJunction",
+    "email": "support@memberjunction.com"
+  },
+  "repository": "https://github.com/MemberJunction/bizapps-contracts",
+  "mjVersionRange": ">=5.0.0 <6.0.0",
+  "schema": {
+    "name": "__mj_BizAppsContracts",
+    "createIfNotExists": true
+  },
+  "migrations": {
+    "directory": "migrations",
+    "engine": "skyway"
+  },
+  "metadata": {
+    "directory": "metadata"
+  },
+  "packages": {
+    "server": [
+      {
+        "name": "@mj-sample-app/server",
+        "role": "bootstrap",
+        "startupExport": "LoadSampleAppServer"
+      }
+    ],
+    "client": [
+      {
+        "name": "@mj-sample-app/ng",
+        "role": "bootstrap",
+        "startupExport": "LoadSampleAppClient"
+      }
+    ],
+    "shared": [
+      {
+        "name": "@mj-sample-app/entities",
+        "role": "library"
+      },
+      {
+        "name": "@mj-sample-app/actions",
+        "role": "library"
+      }
+    ]
+  },
+  "code": {
+    "visibility": "public",
+    "sourceDirectory": "packages"
+  },
+  "categories": [
+    "Template"
+  ],
+  "tags": [
+    "template",
+    "sample",
+    "starter"
+  ]
+}

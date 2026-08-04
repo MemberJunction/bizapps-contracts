@@ -1,0 +1,32 @@
+{
+  "name": "@mj-sample-app/server",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Server bootstrap package - loaded by MJAPI at startup via the manifest's startupExport. TODO(template): rename.",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc && tsc-alias -f",
+    "test": "echo \"No tests configured yet\""
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/MemberJunction/mj-sample-open-app"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "@mj-sample-app/actions": "1.0.0",
+    "@mj-sample-app/core-entities-server": "1.0.0",
+    "@mj-sample-app/entities": "1.0.0",
+    "class-validator": "^0.14.3"
+  },
+  "peerDependencies": {
+    "@memberjunction/core": "^5.44.0",
+    "@memberjunction/global": "^5.44.0",
+    "@memberjunction/server": "^5.44.0",
+    "@memberjunction/sqlserver-dataprovider": "^5.44.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3"
+  }
+}

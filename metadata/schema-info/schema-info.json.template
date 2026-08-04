@@ -1,0 +1,14 @@
+[
+  {
+    "fields": {
+      "SchemaName": "TODO_your_schema_name",
+      "EntityIDMin": 0,
+      "EntityIDMax": 0,
+      "EntityNamePrefix": "TODO Your Prefix",
+      "Description": "TODO: one-line description of your app's schema"
+    },
+    "primaryKey": {
+      "ID": "TODO-GENERATE-A-UUID-AND-KEEP-IT-STABLE-FOREVER"
+    }
+  }
+]

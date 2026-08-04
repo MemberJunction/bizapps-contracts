@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>CTR-001842 — Northwind Association</title>
+<link rel="stylesheet" href="mockup.css" />
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+</head>
+<body>
+
+<header class="mj-app-header">
+  <div class="logo"><span class="logo-mark">MJ</span> MemberJunction</div>
+  <div class="breadcrumbs"><a href="contracts-list.html">Contracts</a><span class="sep">/</span><span class="current">CTR-001842</span></div>
+  <div class="right"><i class="fa-regular fa-bell"></i><i class="fa-solid fa-gear"></i><span class="avatar">MT</span></div>
+</header>
+
+<div class="mj-shell">
+
+  <nav class="mj-rail">
+    <div class="group">Contracts</div>
+    <a class="item active" href="contracts-list.html"><i class="fa-solid fa-file-signature"></i> Contracts <span class="count">248</span></a>
+    <a class="item" href="billing-worklist.html"><i class="fa-solid fa-conveyor-belt"></i> Billing worklist <span class="count">31</span></a>
+    <a class="item" href="#"><i class="fa-solid fa-rotate"></i> Renewals</a>
+    <a class="item" href="#"><i class="fa-solid fa-file-pen"></i> Amendments <span class="count">4</span></a>
+    <div class="group">Setup</div>
+    <a class="item" href="#"><i class="fa-solid fa-sliders"></i> Contract types</a>
+  </nav>
+
+  <main class="mj-page-body-interior">
+
+    <div class="mj-page-header">
+      <div>
+        <h1 style="display:flex;align-items:center;gap:10px;">
+          CTR-001842
+          <span class="mj-stat-badge success"><i class="fa-solid fa-check"></i> Active</span>
+          <span class="mj-stat-badge"><i class="fa-solid fa-repeat"></i> Auto-renew</span>
+          <span class="mj-stat-badge"><i class="fa-solid fa-coins"></i> USD</span>
+        </h1>
+        <p class="sub"><strong>Northwind Association</strong> · MSA · sold by Blue Cypress ·
+          owner Dana Whitfield · effective Jan 1, 2024</p>
+      </div>
+      <div class="actions">
+        <button class="mj-btn"><i class="fa-solid fa-file-arrow-down"></i> Executed PDF</button>
+        <button class="mj-btn"><i class="fa-solid fa-file-pen"></i> Amend</button>
+        <button class="mj-btn primary"><i class="fa-solid fa-rotate"></i> Renew term</button>
+      </div>
+    </div>
+
+    <!-- Provenance strip: the whole point of the app in one line. -->
+    <div class="card" style="margin-bottom:16px;">
+      <div class="card-body" style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
+        <div class="pipeline">
+          <div class="step"><i class="fa-solid fa-handshake"></i> Deal <span class="muted">D-4471</span></div>
+          <span class="arrow"><i class="fa-solid fa-chevron-right"></i></span>
+          <div class="step here"><i class="fa-solid fa-file-signature"></i> Contract CTR-001842</div>
+          <span class="arrow"><i class="fa-solid fa-chevron-right"></i></span>
+          <div class="step"><i class="fa-solid fa-cart-shopping"></i> 9 orders</div>
+          <span class="arrow"><i class="fa-solid fa-chevron-right"></i></span>
+          <div class="step"><i class="fa-solid fa-book"></i> Booked in accounting</div>
+        </div>
+        <span class="sec" style="font-size:12.5px;margin-left:auto;">
+          Next bill <strong>Jul 1, 2026</strong> · $121,500 est.
+        </span>
+      </div>
+      <p class="annot" style="margin:0 16px 14px;">
+        <b>The deal step is a reverse lookup, not a column.</b> There is deliberately no <code>Contract.DealID</code> (L-15) —
+        it is one contract to many deals, since every renewal is its own deal. This strip queries sales for
+        <code>Deal.ContractID = this</code> and would show <em>all</em> of them; <code>bizapps-sales</code> does not exist yet, so today
+        this step renders empty.
+      </p>
+    </div>
+
+    <div class="workspace-card">
+
+      <div class="section-tabs">
+        <button class="active" data-tab="overview">Overview</button>
+        <button data-tab="terms">Terms <span class="n">3</span></button>
+        <button data-tab="coverage">Coverage <span class="n">7</span></button>
+        <button data-tab="billing">Billing <span class="n">12</span></button>
+        <button data-tab="commitments">Commitments <span class="n">2</span></button>
+        <button data-tab="amendments">Amendments <span class="n">1</span></button>
+        <button data-tab="history">History</button>
+      </div>
+
+      <!-- ============================ OVERVIEW ============================ -->
+      <section class="ws-body" data-panel="overview">
+        <div class="split">
+          <div class="stack">
+
+            <div class="card">
+              <div class="card-head"><i class="fa-solid fa-calendar-check"></i> Current term — Term 3</div>
+              <div class="card-body">
+                <div class="form-grid">
+                  <div class="field"><span>Period</span><output>Jan 1 – Dec 31, 2026</output></div>
+                  <div class="field"><span>Committed</span><output class="strong">$486,000.00</output></div>
+                  <div class="field"><span>Billing frequency</span><output>Quarterly · anchor Jan 1</output></div>
+                  <div class="field"><span>Escalation</span><output>4.0% on prior term</output></div>
+                  <div class="field"><span>Payment terms</span><output>Net 30 <span class="muted">(orders)</span></output></div>
+                  <div class="field"><span>Renewal probability</span><output>85%</output></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-head"><i class="fa-solid fa-box"></i> What is covered
+                <div class="actions"><button class="mj-btn sm">View all 7</button></div>
+              </div>
+              <div class="card-body flush">
+                <table class="grid">
+                  <thead><tr><th>Product</th><th>Type</th><th class="num">Qty</th><th class="num">Unit price</th><th>Period</th></tr></thead>
+                  <tbody>
+                    <tr><td class="strong">Association Platform — Enterprise</td><td class="sec">Subscription</td><td class="num">1</td><td class="num">$28,000.00</td><td class="sec">full term</td></tr>
+                    <tr><td class="strong">Member Portal add-on</td><td class="sec">Subscription</td><td class="num">1</td><td class="num">$6,500.00</td><td class="sec">full term</td></tr>
+                    <tr><td class="strong">Events module</td><td class="sec">Subscription</td><td class="num">1</td><td class="num muted">catalog</td><td class="sec">full term</td></tr>
+                    <tr><td class="strong">Data migration services</td><td class="sec">Milestone</td><td class="num">1</td><td class="num">$45,000.00</td><td class="sec">3 milestones</td></tr>
+                    <tr><td class="strong">Premium support</td><td class="sec">Subscription</td><td class="num">1</td><td class="num">$9,000.00</td><td class="sec"><span class="mj-stat-badge info">co-term · from Mar 15</span></td></tr>
+                  </tbody>
+                </table>
+              </div>
+              <p class="annot" style="margin:10px 16px 14px;">
+                <b>"catalog" means <code>ContractedUnitPrice IS NULL</code></b> — the line is covered by the agreement but priced
+                through orders' normal walk. Whether that price can move mid-term depends on which <code>AsOf</code> the
+                billing engine passes, which is <a href="https://github.com/MemberJunction/bizapps-contracts/pull/1">open on PR #1</a>.
+                Showing the word "catalog" rather than a number is deliberate: printing today's resolved price would
+                imply a fixity the schema does not yet guarantee.
+              </p>
+            </div>
+
+            <div class="card">
+              <div class="card-head"><i class="fa-solid fa-file-invoice-dollar"></i> Upcoming billing</div>
+              <div class="card-body flush">
+                <table class="grid">
+                  <thead><tr><th>Scheduled</th><th>Schedule</th><th class="num">Estimated</th><th>Status</th><th>Order</th></tr></thead>
+                  <tbody>
+                    <tr><td>Jul 1, 2026</td><td class="sec">Quarterly cadence</td><td class="num">$121,500.00</td><td><span class="mj-stat-badge info">Scheduled</span></td><td class="muted">—</td></tr>
+                    <tr><td>Aug 15, 2026</td><td class="sec">Migration milestone 2</td><td class="num">$15,000.00</td><td><span class="mj-stat-badge info">Scheduled</span></td><td class="muted">—</td></tr>
+                    <tr><td>Oct 1, 2026</td><td class="sec">Quarterly cadence</td><td class="num">$121,500.00</td><td><span class="mj-stat-badge info">Scheduled</span></td><td class="muted">—</td></tr>
+                    <tr><td>Apr 1, 2026</td><td class="sec">Quarterly cadence</td><td class="num">$121,500.00</td><td><span class="mj-stat-badge success">Generated</span></td><td class="mono"><a href="#">SO-20418</a></td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+          </div>
+
+          <div class="stack">
+            <div class="card">
+              <div class="card-head"><i class="fa-solid fa-building"></i> Parties</div>
+              <div class="card-body">
+                <fieldset class="plain">
+                  <legend class="sub-legend">Customer</legend>
+                  <div class="field"><output class="strong">Northwind Association</output></div>
+                  <div class="field" style="margin-top:8px;"><span>Primary contact</span><output>Ellen Vasquez</output></div>
+                </fieldset>
+                <fieldset class="plain" style="margin-top:16px;">
+                  <legend class="sub-legend">Us</legend>
+                  <div class="field"><span>Selling company</span><output>Blue Cypress</output></div>
+                  <div class="field" style="margin-top:8px;"><span>Owner</span><output>Dana Whitfield</output></div>
+                </fieldset>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-head"><i class="fa-solid fa-scale-balanced"></i> Commitment</div>
+              <div class="card-body">
+                <div class="field"><span>Annual minimum</span><output class="strong">$400,000.00</output></div>
+                <div class="tl-bar" style="margin:8px 0 6px;"><div class="tl-fill active" style="width:71%;">71% consumed</div></div>
+                <div class="sec" style="font-size:12px;">$284,000 consumed · $116,000 remaining · true-up bills the shortfall</div>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-head"><i class="fa-solid fa-file-contract"></i> Documents</div>
+              <div class="card-body">
+                <div style="display:flex;align-items:center;gap:9px;font-size:13px;">
+                  <i class="fa-solid fa-file-pdf" style="color:var(--mj-status-error)"></i>
+                  <a href="#">Northwind MSA — executed.pdf</a>
+                </div>
+                <div class="sec" style="font-size:12px;margin-top:5px;">Executed Dec 18, 2023</div>
+                <div class="note gap" style="margin-top:12px;">
+                  <i class="fa-solid fa-triangle-exclamation"></i>
+                  <div>Terms 2 and 3 were renewals and have no document of their own —
+                    <code>ContractTerm</code> has no <code>DocumentFileID</code>. Raised on PR #1.</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================ TERMS ============================ -->
+      <section class="ws-body" data-panel="terms" hidden>
+        <div class="card">
+          <div class="card-head"><i class="fa-solid fa-timeline"></i> Term history
+            <div class="actions"><button class="mj-btn sm primary"><i class="fa-solid fa-rotate"></i> Renew</button></div>
+          </div>
+          <div class="card-body">
+            <div class="timeline">
+              <div class="tl-row">
+                <div class="tl-when">Term 1<br /><span class="muted">2024</span></div>
+                <div>
+                  <div class="tl-bar"><div class="tl-fill done" style="width:100%;">Jan 1 – Dec 31, 2024 · Completed</div></div>
+                  <div class="tl-meta"><span>Committed <strong>$432,000</strong></span><span>Quarterly</span><span>Original term</span></div>
+                </div>
+              </div>
+              <div class="tl-row">
+                <div class="tl-when">Term 2<br /><span class="muted">2025</span></div>
+                <div>
+                  <div class="tl-bar"><div class="tl-fill done" style="width:100%;">Jan 1 – Dec 31, 2025 · Completed</div></div>
+                  <div class="tl-meta"><span>Committed <strong>$460,800</strong></span><span>Quarterly</span><span>Renewal of Term 1 · +6.7%</span></div>
+                </div>
+              </div>
+              <div class="tl-row">
+                <div class="tl-when">Term 3<br /><span class="muted">2026</span></div>
+                <div>
+                  <div class="tl-bar"><div class="tl-fill active" style="width:46%;">Jan 1 – Dec 31, 2026 · Active</div></div>
+                  <div class="tl-meta"><span>Committed <strong>$486,000</strong></span><span>Quarterly</span><span>Renewal of Term 2 · +4.0% on prior term</span><span>Renewal probability 85%</span></div>
+                </div>
+              </div>
+              <div class="tl-row">
+                <div class="tl-when">Term 4<br /><span class="muted">projected</span></div>
+                <div>
+                  <div class="tl-bar"><div class="tl-fill future" style="width:100%;">Jan 1 – Dec 31, 2027 · not created</div></div>
+                  <div class="tl-meta"><span class="muted">A renewal is a deal (L-18) — sales opens it and calls <code>Contracts.RenewTerm</code>. Auto-renew types skip the deal.</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="note warn" style="margin-top:16px;">
+          <i class="fa-solid fa-triangle-exclamation"></i>
+          <div><strong>Escalation is shown but not capped.</strong> Term 3 escalated 4.0% on the prior term. There is no
+            <code>MaxEscalationPercent</code> in the schema, so a <code>ListPrice</code>-basis term has no ceiling to display —
+            and an uncapped "then-current list" increase is the clause customers dispute. Raised on PR #1.</div>
+        </div>
+      </section>
+
+      <!-- ============================ COVERAGE ============================ -->
+      <section class="ws-body" data-panel="coverage" hidden>
+        <div class="card">
+          <div class="card-head"><i class="fa-solid fa-box"></i> Contract lines — Term 3
+            <div class="actions"><button class="mj-btn sm"><i class="fa-solid fa-plus"></i> Add product (amendment)</button></div>
+          </div>
+          <div class="card-body flush">
+            <table class="grid">
+              <thead><tr><th>Product</th><th>Line type</th><th class="num">Qty</th><th class="num">Contracted price</th><th class="num">Discount</th><th>Window</th><th>Subscription</th></tr></thead>
+              <tbody>
+                <tr><td class="strong">Association Platform — Enterprise</td><td><span class="mj-stat-badge">Subscription</span></td><td class="num">1</td><td class="num">$28,000.00</td><td class="num muted">—</td><td class="sec">full term</td><td class="mono sec">SUB-3312 <span class="mj-stat-badge info">External</span></td></tr>
+                <tr><td class="strong">Member Portal add-on</td><td><span class="mj-stat-badge">Subscription</span></td><td class="num">1</td><td class="num">$6,500.00</td><td class="num muted">—</td><td class="sec">full term</td><td class="mono sec">SUB-3313 <span class="mj-stat-badge info">External</span></td></tr>
+                <tr><td class="strong">Events module</td><td><span class="mj-stat-badge">Subscription</span></td><td class="num">1</td><td class="num muted">catalog</td><td class="num">10%</td><td class="sec">full term</td><td class="mono sec">SUB-3314 <span class="mj-stat-badge info">External</span></td></tr>
+                <tr><td class="strong">Data migration services</td><td><span class="mj-stat-badge">Milestone</span></td><td class="num">1</td><td class="num">$45,000.00</td><td class="num muted">—</td><td class="sec">3 milestones</td><td class="muted">—</td></tr>
+                <tr><td class="strong">Onboarding setup fee</td><td><span class="mj-stat-badge">OneTime</span></td><td class="num">1</td><td class="num">$8,000.00</td><td class="num muted">—</td><td class="sec">Jan 2026</td><td class="muted">—</td></tr>
+                <tr><td class="strong">Premium support</td><td><span class="mj-stat-badge">Subscription</span></td><td class="num">1</td><td class="num">$9,000.00</td><td class="num muted">—</td><td class="sec"><span class="mj-stat-badge info">Mar 15 – Dec 31</span></td><td class="mono sec">SUB-3390 <span class="mj-stat-badge info">External</span></td></tr>
+                <tr><td class="strong">Annual minimum</td><td><span class="mj-stat-badge">Minimum</span></td><td class="num">—</td><td class="num">$400,000.00</td><td class="num muted">—</td><td class="sec">full term</td><td class="muted">—</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="note gap" style="margin-top:16px;">
+          <i class="fa-solid fa-circle-half-stroke"></i>
+          <div><strong>Two discount surfaces meet in this table.</strong> The Events module shows a 10%
+            <code>ContractLine.DiscountPct</code>, but orders also applies promotions/adjustments <em>after</em> the price
+            resolves. Nothing currently states whether those compose or whether the contract suppresses them —
+            so this column may or may not be the whole discount story. Open on PR #1. (Also note
+            <code>DiscountPct</code> is stored 0–1, so "10%" is <code>0.10</code>.)</div>
+        </div>
+      </section>
+
+      <!-- ============================ BILLING ============================ -->
+      <section class="ws-body" data-panel="billing" hidden>
+        <div class="row">
+          <div class="grow card">
+            <div class="card-head"><i class="fa-solid fa-calendar"></i> Schedules</div>
+            <div class="card-body flush">
+              <table class="grid">
+                <thead><tr><th>Type</th><th>Frequency</th><th>Anchor</th><th>Active</th><th class="num">Events</th></tr></thead>
+                <tbody>
+                  <tr><td class="strong">Cadence</td><td>Quarterly</td><td>Jan 1, 2026</td><td><span class="mj-stat-badge success">Yes</span></td><td class="num">4</td></tr>
+                  <tr><td class="strong">Milestone</td><td class="muted">—</td><td>—</td><td><span class="mj-stat-badge success">Yes</span></td><td class="num">3</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <p class="annot" style="margin:10px 16px 14px;"><b>Two schedules on one term is the point</b> — a quarterly
+              subscription cadence <em>and</em> a milestone schedule for the attached services work, consolidating
+              onto one document when their dates coincide.</p>
+          </div>
+        </div>
+
+        <div class="card" style="margin-top:16px;">
+          <div class="card-head"><i class="fa-solid fa-file-invoice-dollar"></i> Billing events — Term 3</div>
+          <div class="card-body flush">
+            <table class="grid">
+              <thead><tr><th>Scheduled</th><th>Schedule</th><th>Status</th><th class="num">Computed</th><th>Order</th><th>Generated</th><th></th></tr></thead>
+              <tbody>
+                <tr><td>Jan 1, 2026</td><td class="sec">Quarterly</td><td><span class="mj-stat-badge success">Generated</span></td><td class="num">$129,500.00</td><td class="mono"><a href="#">SO-19844</a></td><td class="sec">Jan 1, 06:02</td><td></td></tr>
+                <tr><td>Mar 15, 2026</td><td class="sec">Milestone 1</td><td><span class="mj-stat-badge success">Generated</span></td><td class="num">$15,000.00</td><td class="mono"><a href="#">SO-20105</a></td><td class="sec">Mar 15, 06:01</td><td></td></tr>
+                <tr><td>Apr 1, 2026</td><td class="sec">Quarterly</td><td><span class="mj-stat-badge success">Generated</span></td><td class="num">$121,500.00</td><td class="mono"><a href="#">SO-20418</a></td><td class="sec">Apr 1, 06:03</td><td></td></tr>
+                <tr style="background:var(--mj-status-error-bg);"><td>Jun 1, 2026</td><td class="sec">Milestone 2</td><td><span class="mj-stat-badge error">Failed</span></td><td class="num muted">—</td><td class="muted">—</td><td class="sec">Jun 1, 06:01</td><td><a href="billing-worklist.html">Review</a></td></tr>
+                <tr><td>Jul 1, 2026</td><td class="sec">Quarterly</td><td><span class="mj-stat-badge info">Scheduled</span></td><td class="num muted">—</td><td class="muted">—</td><td class="muted">—</td><td></td></tr>
+                <tr><td>Oct 1, 2026</td><td class="sec">Quarterly</td><td><span class="mj-stat-badge info">Scheduled</span></td><td class="num muted">—</td><td class="muted">—</td><td class="muted">—</td><td></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================ COMMITMENTS ============================ -->
+      <section class="ws-body" data-panel="commitments" hidden>
+        <div class="card">
+          <div class="card-head"><i class="fa-solid fa-scale-balanced"></i> Commitments — Term 3</div>
+          <div class="card-body flush">
+            <table class="grid">
+              <thead><tr><th>Type</th><th>Period</th><th class="num">Committed</th><th class="num">Consumed</th><th class="num">Remaining</th><th>True-up</th><th>Status</th></tr></thead>
+              <tbody>
+                <tr><td class="strong">Minimum</td><td class="sec">Jan 1 – Dec 31, 2026</td><td class="num">$400,000.00</td><td class="num">$284,000.00</td><td class="num">$116,000.00</td><td><span class="mj-stat-badge">Bill shortfall</span></td><td><span class="mj-stat-badge info">Open</span></td></tr>
+                <tr><td class="strong">Prepaid</td><td class="sec">Jan 1 – Jun 30, 2026</td><td class="num">$60,000.00</td><td class="num">$60,000.00</td><td class="num">$0.00</td><td><span class="mj-stat-badge">Rollover</span></td><td><span class="mj-stat-badge success">Trued up</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="annot" style="margin:10px 16px 14px;"><b>Consumed can exceed committed on purpose.</b> The schema's CHECK
+            deliberately does not cap <code>ConsumedAmount</code> at <code>CommittedAmount</code> — over-consumption against a
+            minimum is a real state to report, not a write to reject.</p>
+        </div>
+      </section>
+
+      <!-- ============================ AMENDMENTS ============================ -->
+      <section class="ws-body" data-panel="amendments" hidden>
+        <div class="card">
+          <div class="card-head"><i class="fa-solid fa-file-pen"></i> Amendments — Term 3
+            <div class="actions"><button class="mj-btn sm"><i class="fa-solid fa-plus"></i> New amendment</button></div>
+          </div>
+          <div class="card-body flush">
+            <table class="grid">
+              <thead><tr><th>#</th><th>Type</th><th>Effective</th><th>Description</th><th>Approval</th><th>Status</th><th>Document</th></tr></thead>
+              <tbody>
+                <tr>
+                  <td class="num">1</td>
+                  <td><span class="mj-stat-badge">Coterm</span></td>
+                  <td>Mar 15, 2026</td>
+                  <td>Added Premium support, aligned to the Dec 31 anniversary</td>
+                  <td class="sec"><a href="#">Task #8812</a> <span class="mj-stat-badge success">Approved</span></td>
+                  <td><span class="mj-stat-badge success">Applied</span></td>
+                  <td class="sec"><i class="fa-solid fa-file-pdf" style="color:var(--mj-status-error)"></i> <a href="#">A1.pdf</a></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="annot" style="margin:10px 16px 14px;"><b>Amendments change a live term; renewals start a new one.</b>
+            This co-term amendment created a <code>ContractLine</code> starting Mar 15 and ending at the <em>term's</em>
+            end date, so the stub prorates on the next billing event.</p>
+        </div>
+      </section>
+
+      <!-- ============================ HISTORY ============================ -->
+      <section class="ws-body" data-panel="history" hidden>
+        <div class="split">
+          <div class="card">
+            <div class="card-head"><i class="fa-solid fa-clock-rotate-left"></i> Contract event log <span class="mj-stat-badge" style="margin-left:auto;">immutable</span></div>
+            <div class="card-body flush">
+              <table class="grid">
+                <thead><tr><th>When</th><th>Event</th><th>Term</th><th>By</th></tr></thead>
+                <tbody>
+                  <tr><td class="sec">Jun 1, 2026 06:01</td><td class="strong">BillingEventFailed</td><td>3</td><td class="sec">system</td></tr>
+                  <tr><td class="sec">Apr 1, 2026 06:03</td><td class="strong">BillingEventGenerated</td><td>3</td><td class="sec">system</td></tr>
+                  <tr><td class="sec">Mar 15, 2026 14:22</td><td class="strong">AmendmentApplied</td><td>3</td><td class="sec">D. Whitfield</td></tr>
+                  <tr><td class="sec">Jan 1, 2026 00:00</td><td class="strong">TermActivated</td><td>3</td><td class="sec">system</td></tr>
+                  <tr><td class="sec">Nov 12, 2025 09:40</td><td class="strong">TermRenewed</td><td>3</td><td class="sec">D. Whitfield</td></tr>
+                  <tr><td class="sec">Dec 18, 2023 16:05</td><td class="strong">ContractExecuted</td><td class="muted">—</td><td class="sec">D. Whitfield</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-head"><i class="fa-solid fa-timeline"></i> Account timeline</div>
+            <div class="card-body">
+              <p class="sec" style="margin:0 0 10px;font-size:12.5px;">Customer-visible events also write a
+                <code>common.Activity</code> row, so the agreement shows up on Northwind's timeline next to emails and meetings.</p>
+              <div class="note info"><i class="fa-solid fa-circle-info"></i>
+                <div>The event log is the <strong>system</strong> record; the Activity is the <strong>human</strong> one.
+                  Neither replaces the other — which is why a failed billing event appears on the left and not on the right.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </div>
+  </main>
+</div>
+
+<script>
+  document.querySelectorAll('.section-tabs button').forEach(function (b) {
+    b.addEventListener('click', function () {
+      document.querySelectorAll('.section-tabs button').forEach(function (x) { x.classList.remove('active'); });
+      b.classList.add('active');
+      var t = b.getAttribute('data-tab');
+      document.querySelectorAll('[data-panel]').forEach(function (p) { p.hidden = p.getAttribute('data-panel') !== t; });
+    });
+  });
+</script>
+</body>
+</html>

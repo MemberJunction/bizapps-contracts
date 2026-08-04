@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Billing worklist — BizApps Contracts</title>
+<link rel="stylesheet" href="mockup.css" />
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+</head>
+<body>
+
+<header class="mj-app-header">
+  <div class="logo"><span class="logo-mark">MJ</span> MemberJunction</div>
+  <div class="breadcrumbs"><span>Contracts</span><span class="sep">/</span><span class="current">Billing worklist</span></div>
+  <div class="right"><i class="fa-regular fa-bell"></i><i class="fa-solid fa-gear"></i><span class="avatar">MT</span></div>
+</header>
+
+<div class="mj-shell">
+
+  <nav class="mj-rail">
+    <div class="group">Contracts</div>
+    <a class="item" href="contracts-list.html"><i class="fa-solid fa-file-signature"></i> Contracts <span class="count">248</span></a>
+    <a class="item active" href="billing-worklist.html"><i class="fa-solid fa-conveyor-belt"></i> Billing worklist <span class="count">31</span></a>
+    <a class="item" href="#"><i class="fa-solid fa-rotate"></i> Renewals</a>
+    <a class="item" href="#"><i class="fa-solid fa-file-pen"></i> Amendments <span class="count">4</span></a>
+    <div class="group">Setup</div>
+    <a class="item" href="#"><i class="fa-solid fa-sliders"></i> Contract types</a>
+  </nav>
+
+  <main class="mj-page-body-interior">
+
+    <div class="mj-page-header">
+      <div>
+        <h1>Billing worklist</h1>
+        <p class="sub">What the scheduled job is about to do, and what it could not do. A failed event is never
+          retried automatically — retrying into a duplicate bill is worse than a late one — so anything red here
+          stays red until a person clears it.</p>
+      </div>
+      <div class="actions">
+        <button class="mj-btn"><i class="fa-solid fa-clock-rotate-left"></i> Run history</button>
+        <button class="mj-btn"><i class="fa-solid fa-flask"></i> Dry run</button>
+      </div>
+    </div>
+
+    <div class="kpi-row">
+      <div class="kpi"><div class="label">Due today</div><div class="value">6</div><div class="foot">next run 06:00 tomorrow</div></div>
+      <div class="kpi"><div class="label">Due in 7 days</div><div class="value">27</div><div class="foot">$1.94M estimated</div></div>
+      <div class="kpi"><div class="label">Failed</div><div class="value err">4</div><div class="foot">oldest 3 days ago</div></div>
+      <div class="kpi"><div class="label">Generated this month</div><div class="value">142</div><div class="foot">$3.31M billed</div></div>
+    </div>
+
+    <div class="note err" style="margin-bottom:16px;">
+      <i class="fa-solid fa-triangle-exclamation"></i>
+      <div><strong>4 events failed and are holding revenue.</strong> Each carries the reason the engine recorded.
+        None of these has produced an order, and none will until it is re-run deliberately.</div>
+    </div>
+
+    <div class="card" style="margin-bottom:18px;">
+      <div class="card-head"><i class="fa-solid fa-circle-exclamation" style="color:var(--mj-status-error)"></i> Failed
+        <div class="actions"><button class="mj-btn sm">Re-run selected</button></div>
+      </div>
+      <div class="card-body flush">
+        <table class="grid">
+          <thead><tr><th style="width:28px"></th><th>Scheduled</th><th>Contract</th><th>Customer</th><th>Schedule</th><th>Reason the engine recorded</th><th></th></tr></thead>
+          <tbody>
+            <tr>
+              <td><input type="checkbox" /></td>
+              <td>Jun 1, 2026</td>
+              <td class="mono"><a href="contract-workspace.html">CTR-001842</a></td>
+              <td class="strong">Northwind Association</td>
+              <td class="sec">Milestone 2</td>
+              <td><span class="mj-stat-badge error">Pricing refused</span>
+                <span class="sec"> Two active contracts cover Data migration services for this customer — CTR-001842 and CTR-001799</span></td>
+              <td><button class="mj-btn sm">Open</button></td>
+            </tr>
+            <tr>
+              <td><input type="checkbox" /></td>
+              <td>Jun 1, 2026</td>
+              <td class="mono"><a href="contract-workspace.html">CTR-001788</a></td>
+              <td class="strong">Granite Bay Society</td>
+              <td class="sec">Quarterly</td>
+              <td><span class="mj-stat-badge error">No price</span>
+                <span class="sec"> Events module has no applicable ProductPrice rule on Jun 1, 2026 — the customer's price list expired May 31</span></td>
+              <td><button class="mj-btn sm">Open</button></td>
+            </tr>
+            <tr>
+              <td><input type="checkbox" /></td>
+              <td>May 30, 2026</td>
+              <td class="mono"><a href="contract-workspace.html">CTR-001654</a></td>
+              <td class="strong">Pinnacle Federation</td>
+              <td class="sec">Quarterly</td>
+              <td><span class="mj-stat-badge error">Ambiguous rule</span>
+                <span class="sec"> 2 price rules apply to quantity 12 and share priority 100</span></td>
+              <td><button class="mj-btn sm">Open</button></td>
+            </tr>
+            <tr>
+              <td><input type="checkbox" /></td>
+              <td>May 30, 2026</td>
+              <td class="mono"><a href="contract-workspace.html">CTR-001501</a></td>
+              <td class="strong">Cedar Ridge Institute</td>
+              <td class="sec">Annual</td>
+              <td><span class="mj-stat-badge error">Term not active</span>
+                <span class="sec"> The term ended Apr 30 and no renewal exists</span></td>
+              <td><button class="mj-btn sm">Open</button></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="annot" style="margin:10px 16px 14px;">
+        <b>Three of these four are orders problems, not contracts problems.</b> Pricing refusals, missing rules and
+        ambiguous rules are all resolved by fixing a price list in orders — which is the strongest argument that
+        this worklist might belong there instead. The fourth (an expired term) is genuinely ours.
+        That question is open on PR #1.
+      </p>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><i class="fa-solid fa-calendar-day"></i> Scheduled — next 7 days
+        <div class="actions">
+          <select class="mj-input" style="width:160px"><option>All companies</option></select>
+          <select class="mj-input" style="width:150px"><option>All schedules</option><option>Cadence</option><option>Milestone</option></select>
+        </div>
+      </div>
+      <div class="card-body flush">
+        <table class="grid">
+          <thead><tr><th>Scheduled</th><th>Contract</th><th>Customer</th><th>Schedule</th><th>Lines it will assemble</th><th class="num">Estimated</th></tr></thead>
+          <tbody>
+            <tr><td class="strong">Jul 1</td><td class="mono"><a href="contract-workspace.html">CTR-001842</a></td><td>Northwind Association</td><td class="sec">Quarterly</td><td class="sec">4 subscriptions · 1 one-time</td><td class="num">$121,500.00</td></tr>
+            <tr><td class="strong">Jul 1</td><td class="mono"><a href="#">CTR-001839</a></td><td>Cascade Medical Society</td><td class="sec">Annual</td><td class="sec">2 subscriptions</td><td class="num">$96,000.00</td></tr>
+            <tr><td class="strong">Jul 1</td><td class="mono"><a href="#">CTR-001744</a></td><td>Lakeshore Credit Union</td><td class="sec">Annual</td><td class="sec">1 subscription</td><td class="num">$28,500.00</td></tr>
+            <tr><td class="strong">Jul 3</td><td class="mono"><a href="#">CTR-001820</a></td><td>Summit Trade Alliance</td><td class="sec">Monthly</td><td class="sec">3 subscriptions · 1 minimum true-up</td><td class="num">$41,220.00</td></tr>
+            <tr><td class="strong">Jul 5</td><td class="mono"><a href="#">CTR-001836</a></td><td>Harbor Point Institute</td><td class="sec">Milestone 2</td><td class="sec">1 milestone draw</td><td class="num">$60,000.00</td></tr>
+            <tr><td class="strong">Jul 6</td><td class="mono"><a href="#">CTR-001777</a></td><td>Bayside Guild</td><td class="sec">Quarterly</td><td class="sec">2 subscriptions</td><td class="num">$18,750.00</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="annot" style="margin:10px 16px 14px;">
+        <b>"Estimated" is honest, not hedging.</b> The number is what <code>Orders.PreviewOrder</code> returns for the draft
+        as it stands today; the actual bill is priced again at generation time. If those two ever disagree, the
+        cause is a pricing change between now and then — which is exactly the <code>AsOf</code> question on PR #1.
+      </p>
+    </div>
+
+    <div class="note gap" style="margin-top:16px;">
+      <i class="fa-solid fa-circle-half-stroke"></i>
+      <div><strong>"Dry run" is a proposal, not a built thing.</strong> The engine has one path —
+        <code>Contracts.GenerateBillingEvent</code>, all-or-none, which materializes an order. A preview that assembles the
+        draft and prices it through <code>Orders.PreviewOrder</code> <em>without</em> calling <code>CreateOrderInState</code> would be a
+        genuinely useful safety rail before a large run, and it costs one extra operation.</div>
+    </div>
+
+  </main>
+</div>
+</body>
+</html>

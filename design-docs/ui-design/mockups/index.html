@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>BizApps Contracts — UI mockups</title>
+<link rel="stylesheet" href="mockup.css" />
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+</head>
+<body>
+
+<header class="mj-app-header">
+  <div class="logo"><span class="logo-mark">MJ</span> MemberJunction</div>
+  <div class="breadcrumbs"><span>Explorer</span><span class="sep">/</span><span class="current">Contracts — mockups</span></div>
+  <div class="right"><span>Round 1 · 2026-08-04</span><span class="avatar">MT</span></div>
+</header>
+
+<div class="index-wrap">
+
+  <h1 style="margin:0 0 6px;font-size:24px;letter-spacing:-.02em;">BizApps Contracts — UI direction, round 1</h1>
+  <p class="sec" style="margin:0 0 20px;max-width:80ch;line-height:1.6;">
+    Four screens, built on the MJ design tokens and on <strong>bizapps-accounting's</strong> shell vocabulary
+    (<code>mj-page-body-interior</code>, <code>mj-page-header</code>, <code>mj-workspace-card</code> with its tab strip and identity band,
+    <code>mj-stat-badge</code>). Static HTML — nothing here is wired to anything.
+  </p>
+
+  <div class="note info" style="margin-bottom:22px;">
+    <i class="fa-solid fa-circle-info"></i>
+    <div>
+      <strong>The app's three jobs drive this layout.</strong> (1) Be the data substrate and pipeline automation
+      that turns a filed deal into a contract and the contract into orders; (2) let the relevant people
+      <em>see</em> a contract; (3) let an account director type one in by hand in the rare case it did not come
+      from a deal. Screens 1 and 2 serve job 2, screen 3 serves job 3, and screen 4 is the operational
+      surface of job 1 — the part of automation a human has to watch.
+    </div>
+  </div>
+
+  <div class="index-grid">
+
+    <a class="index-card" href="contracts-list.html">
+      <span class="mj-stat-badge brand tag"><i class="fa-solid fa-file-signature"></i> Job 2 · viewing</span>
+      <h3>1 — Contracts list</h3>
+      <p>The roster. Health of the book at the top (active value, renewing this quarter, billing due, failed
+        events), then a filterable grid. The entry point for everyone who is not doing data entry.</p>
+    </a>
+
+    <a class="index-card" href="contract-workspace.html">
+      <span class="mj-stat-badge brand tag"><i class="fa-solid fa-layer-group"></i> Job 2 · viewing</span>
+      <h3>2 — Contract workspace</h3>
+      <p>One agreement, section-tabbed: Overview · Terms · Coverage · Billing · Commitments · Amendments ·
+        History. Carries the provenance strip that answers "where did this come from, and where did it go."</p>
+    </a>
+
+    <a class="index-card" href="manual-entry.html">
+      <span class="mj-stat-badge info tag"><i class="fa-solid fa-keyboard"></i> Job 3 · manual entry</span>
+      <h3>3 — Manual contract entry</h3>
+      <p>The <code>mj-workspace-card</code> pattern accounting uses for journal entries: browser-style draft tabs,
+        an identity band, and a footer that owns commit / keep-as-draft / discard.</p>
+    </a>
+
+    <a class="index-card" href="billing-worklist.html">
+      <span class="mj-stat-badge warning tag"><i class="fa-solid fa-conveyor-belt"></i> Job 1 · automation</span>
+      <h3>4 — Billing worklist</h3>
+      <p>What the scheduled job is about to do, and what it could not do. Failed events are never auto-retried,
+        so this screen is the only place a stuck bill becomes visible.</p>
+    </a>
+
+  </div>
+
+  <h2 style="font-size:15px;margin:30px 0 10px;">What this round is asking you to decide</h2>
+  <div class="card"><div class="card-body">
+    <ol class="sec" style="margin:0;padding-left:20px;line-height:1.85;font-size:13px;">
+      <li><strong>Section tabs vs. sub-pages</strong> for the contract detail. Tabs keep one URL and one loaded
+        record; sub-pages deep-link better and let sales link straight to a term.</li>
+      <li><strong>Is the term the primary object?</strong> Screen 2 leads with the contract and nests terms. Terms carry
+        the money and the dates, so leading with the <em>active term</em> and treating the contract as its header
+        is a defensible alternative.</li>
+      <li><strong>Does the billing worklist belong to contracts or to orders?</strong> It shows contract billing events, but
+        the thing a human fixes is usually an order/pricing problem. Same question as "who owns billing," one
+        layer up.</li>
+      <li><strong>How loud should the provenance strip be?</strong> Deal → Contract → Order → JE is the whole pitch of the
+        app; it is currently a quiet strip, and it could be the headline.</li>
+    </ol>
+  </div></div>
+
+  <p class="annot" style="margin-top:22px;">
+    <b>Honest status.</b> Every screen is static HTML with invented data. Nothing is bound, no component exists yet,
+    and the schema underneath is Amith's baseline on <code>an-baseline-schema</code> (PR #1), which is unmerged and has
+    open questions against it. Where a screen shows something the schema cannot currently support, it says so
+    in a grey callout rather than pretending.
+  </p>
+
+</div>
+</body>
+</html>
