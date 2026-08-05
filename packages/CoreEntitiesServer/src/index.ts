@@ -38,6 +38,7 @@ import { LoadContractBillingEventEntityServer } from './ContractBillingEventEnti
 import { LoadActivateTermOperation } from './ActivateTermOperation.js';
 import { LoadRenewTermOperation } from './RenewTermOperation.js';
 import { LoadTerminateContractOperation } from './TerminateContractOperation.js';
+import { LoadSaveContractOperation } from './SaveContractOperation.js';
 
 export { ContractEntityServer, LoadContractEntityServer } from './ContractEntityServer.js';
 export { ContractTermEntityServer, LoadContractTermEntityServer } from './ContractTermEntityServer.js';
@@ -71,6 +72,12 @@ export type { RenewTermInput, RenewTermOutput, RenewedLine } from './RenewTermOp
 export { TerminateContractOperation, LoadTerminateContractOperation } from './TerminateContractOperation.js';
 export type { TerminateContractInput, TerminateContractOutput } from './TerminateContractOperation.js';
 
+// The BROWSER's way to compose a whole agreement. A client cannot use the entity's child
+// collections — it holds the generated entity, not the server subclass — so this rehydrates a
+// ContractDraft payload into the real tree and delegates to one Save().
+export { SaveContractOperation, LoadSaveContractOperation } from './SaveContractOperation.js';
+export type { SaveContractInput, SaveContractOutput } from './SaveContractOperation.js';
+
 /**
  * Called by the server bootstrap. The imports above are what fire @RegisterClass; these calls are
  * anti-tree-shake anchors — without a live reference a production build can drop the import and the
@@ -89,4 +96,5 @@ export function LoadMjBizappsContractsEntitiesServer(): void {
     LoadActivateTermOperation();
     LoadRenewTermOperation();
     LoadTerminateContractOperation();
+    LoadSaveContractOperation();
 }

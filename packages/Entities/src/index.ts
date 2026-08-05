@@ -23,3 +23,9 @@ export * from './generated/entity_subclasses';
 // what lets the UI call `new ContractsRenewTermOperation().Execute(input)` instead of reaching for
 // the stringly-typed `RouteOperation` seam.
 export * from './generated/remote_operations';
+
+// Hand-written, framework-free. The client-side model of a contract being composed, and the payload
+// `Contracts.SaveContract` accepts — a browser cannot compose a tree through BaseEntity, because the
+// class it holds is the GENERATED entity and the child collections live on the server subclass.
+// Mirrors bizapps-orders' OrderDraft.
+export * from './contract-draft';

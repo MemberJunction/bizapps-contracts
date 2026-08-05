@@ -18,12 +18,15 @@
  * checks as one bundle. Prefixing keeps every app's namespace its own.
  *
  * BUNDLES
- *   contracts-composition   CC1–CC14   the contract as one entity, one transaction, one tree
+ *   contracts-composition    CC1–CC16   the contract as one entity, one transaction, one tree
+ *   contracts-save-contract  SC1–SC9    the BROWSER's path to that tree, through a draft payload
  *
  * @module @mj-biz-apps/contracts-integration-tests
  */
 
 import './checks/composition.checks.js';
+import './checks/save-contract.checks.js';
 
 export { CompositionChecks } from './checks/composition.checks.js';
+export { SaveContractChecks } from './checks/save-contract.checks.js';
 export * from './fixture.js';

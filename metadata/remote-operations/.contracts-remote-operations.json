@@ -100,5 +100,46 @@
       "lastModified": "2026-08-05T07:33:44.842Z",
       "checksum": "cab79cb86709d9a8822fe4518c9e95a694b9b34de8814f261b1dcab1fad5afda"
     }
+  },
+  {
+    "_comments": [
+      "The one operation here that is NOT a lifecycle transition. SaveContract exists because a BROWSER",
+      "cannot compose a contract with its terms and coverage: the client holds the GENERATED entity, and",
+      "the child collections live on the server subclass. So the client builds a ContractDraft, and this",
+      "rehydrates it into the real tree and delegates to ONE ContractEntityServer.Save().",
+      "",
+      "It decides NOTHING. Every rule — escalation ceilings, term numbering, legal status moves, whether",
+      "coverage fits inside its term — stays in the entity subclasses, on the one path every write takes.",
+      "A rule added here would be invisible to fixtures, agents and other operations.",
+      "",
+      "A server-side caller does NOT need this: another app constructs ContractEntityServer and calls",
+      "Save() directly, which is simpler and typed. Remotable operations are for exposing server work to",
+      "the front end, and that is the whole reason this row exists."
+    ],
+    "fields": {
+      "Name": "Save Contract",
+      "OperationKey": "Contracts.SaveContract",
+      "CategoryID": "@lookup:MJ: Remote Operation Categories.Name=Contract Lifecycle",
+      "Description": "Create or update a whole agreement from one payload — contract, terms, coverage, billing schedules and commitments — in a single transaction. A failure anywhere rolls back everything, including the allocated contract number, so a half-written agreement cannot exist. Removals are named explicitly rather than inferred from absence, because a client that loaded a contract lazily holds only some of its terms. Returns the saved agreement re-read from the database, so the caller sees the values the server derived rather than its own guesses.",
+      "InputTypeName": "SaveContractInput",
+      "InputTypeDefinition": "@file:types/contracts-save-contract.input.ts",
+      "InputTypeIsArray": false,
+      "OutputTypeName": "SaveContractOutput",
+      "OutputTypeDefinition": "@file:types/contracts-save-contract.output.ts",
+      "OutputTypeIsArray": false,
+      "ExecutionMode": "Sync",
+      "RequiredScope": "contracts:write",
+      "RequiresSystemUser": false,
+      "GenerationType": "Manual",
+      "CodeApprovalStatus": "Approved",
+      "Status": "Active"
+    },
+    "primaryKey": {
+      "ID": "CFE84EC2-39FD-465E-B3F6-8D27A49C7E0C"
+    },
+    "sync": {
+      "lastModified": "2026-08-05T18:13:52.478Z",
+      "checksum": "97de2a3876698e0bf65247346f3a5cae5e7334f12a0d65df804b19638be9dfa9"
+    }
   }
 ]

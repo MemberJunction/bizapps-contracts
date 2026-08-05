@@ -131,6 +131,188 @@ export interface RenewTermOutput {
 }
 
 /**
+ * Input for `Contracts.SaveContract`.
+ *
+ * ONE PAYLOAD FOR THE WHOLE AGREEMENT — contract, terms, coverage, billing plans and commitments.
+ * A browser cannot compose that through `BaseEntity`: the class it holds is the generated entity,
+ * and the child collections live on the server subclass. So the client builds a `ContractDraft`,
+ * calls `ToInput()`, and the server rehydrates it into the real tree and saves it once.
+ *
+ * REMOVALS ARE NAMED, never inferred from absence. A client that loaded a contract lazily holds
+ * only some of its terms; inferring deletion from what is missing would silently delete the rest.
+ *
+ * NO import statements — definitions are emitted verbatim.
+ */
+export interface SaveContractInput {
+    Contract: {
+        /** Null on a new contract. Set to update an existing one. */
+        ID?: string | null;
+        /** Never honoured on a NEW contract — allocated from the sequence inside the transaction. */
+        ContractNumber?: string | null;
+        ContractTypeID: string;
+        CompanyID: string;
+        CustomerOrganizationID?: string | null;
+        CustomerPersonID?: string | null;
+        PrimaryContactPersonID?: string | null;
+        OwnerUserID?: string | null;
+        ParentContractID?: string | null;
+        Status: string;
+        Description?: string | null;
+        EffectiveDate?: string | null;
+        ExecutedDate?: string | null;
+        PricedAt?: string | null;
+        AutoRenew?: boolean;
+        CancellationWindowDays?: number | null;
+        TerminationPolicy?: string | null;
+        ExternalReferenceID?: string | null;
+        Terms: {
+            ID?: string | null;
+            StartDate: string;
+            EndDate: string;
+            Status: string;
+            BillingFrequency: string;
+            CommittedAmount?: number | null;
+            EscalationPercent?: number | null;
+            EscalationBasis?: string | null;
+            MaxEscalationPercent?: number | null;
+            RenewalNoticeDays?: number | null;
+            RenewalProbability?: number | null;
+            PaymentTermsTypeID?: string | null;
+            CurrencyID?: string | null;
+            EarlyTerminationDate?: string | null;
+            ExecutedDate?: string | null;
+            Notes?: string | null;
+            Lines: {
+                ID?: string | null;
+                ProductID: string;
+                LineType: string;
+                Quantity: number;
+                ContractedUnitPrice?: number | null;
+                DiscountPct?: number | null;
+                StartDate?: string | null;
+                EndDate?: string | null;
+                SubscriptionTypeID?: string | null;
+                Description?: string | null;
+            }[];
+            Schedules: {
+                ID?: string | null;
+                ScheduleType: string;
+                Frequency?: string | null;
+                AnchorDate?: string | null;
+                IsActive?: boolean;
+                Notes?: string | null;
+            }[];
+            Commitments: {
+                ID?: string | null;
+                CommitmentType: string;
+                CommittedAmount: number;
+                ConsumedAmount?: number;
+                PeriodStart?: string | null;
+                PeriodEnd?: string | null;
+                TrueUpPolicy?: string;
+                Status?: string;
+            }[];
+        }[];
+        RemovedTermIDs: string[];
+        RemovedLineIDs: string[];
+        RemovedScheduleIDs: string[];
+        RemovedCommitmentIDs: string[];
+    };
+}
+
+/**
+ * Output for `Contracts.SaveContract`.
+ *
+ * On success the WHOLE saved agreement comes back, re-read from the database, so the client sees
+ * what the server DERIVED rather than its own guesses: the allocated contract number, each term's
+ * derived number, the defaulted pricing date, and any defaults a contract type supplied.
+ *
+ * On failure `Issues` carries FIELD-LEVEL reasons in the same shape the client's own validator
+ * produces, so one renderer displays both. A save that fails with only a joined string forces the
+ * UI to either parse it or show a paragraph where a field marker belongs.
+ *
+ * NO import statements — definitions are emitted verbatim.
+ */
+export interface SaveContractOutput {
+    Success: boolean;
+    Message?: string;
+    Contract?: {
+        ID?: string | null;
+        ContractNumber?: string | null;
+        ContractTypeID: string;
+        CompanyID: string;
+        CustomerOrganizationID?: string | null;
+        CustomerPersonID?: string | null;
+        PrimaryContactPersonID?: string | null;
+        OwnerUserID?: string | null;
+        ParentContractID?: string | null;
+        Status: string;
+        Description?: string | null;
+        EffectiveDate?: string | null;
+        ExecutedDate?: string | null;
+        PricedAt?: string | null;
+        AutoRenew?: boolean;
+        CancellationWindowDays?: number | null;
+        TerminationPolicy?: string | null;
+        ExternalReferenceID?: string | null;
+        Terms: {
+            ID?: string | null;
+            StartDate: string;
+            EndDate: string;
+            Status: string;
+            BillingFrequency: string;
+            CommittedAmount?: number | null;
+            EscalationPercent?: number | null;
+            EscalationBasis?: string | null;
+            MaxEscalationPercent?: number | null;
+            RenewalNoticeDays?: number | null;
+            RenewalProbability?: number | null;
+            PaymentTermsTypeID?: string | null;
+            CurrencyID?: string | null;
+            EarlyTerminationDate?: string | null;
+            ExecutedDate?: string | null;
+            Notes?: string | null;
+            Lines: {
+                ID?: string | null;
+                ProductID: string;
+                LineType: string;
+                Quantity: number;
+                ContractedUnitPrice?: number | null;
+                DiscountPct?: number | null;
+                StartDate?: string | null;
+                EndDate?: string | null;
+                SubscriptionTypeID?: string | null;
+                Description?: string | null;
+            }[];
+            Schedules: {
+                ID?: string | null;
+                ScheduleType: string;
+                Frequency?: string | null;
+                AnchorDate?: string | null;
+                IsActive?: boolean;
+                Notes?: string | null;
+            }[];
+            Commitments: {
+                ID?: string | null;
+                CommitmentType: string;
+                CommittedAmount: number;
+                ConsumedAmount?: number;
+                PeriodStart?: string | null;
+                PeriodEnd?: string | null;
+                TrueUpPolicy?: string;
+                Status?: string;
+            }[];
+        }[];
+        RemovedTermIDs: string[];
+        RemovedLineIDs: string[];
+        RemovedScheduleIDs: string[];
+        RemovedCommitmentIDs: string[];
+    };
+    /** Field-level reasons on failure. Section maps to a workspace pane. */
+    Issues?: { Section: string; Field?: string; Message: string }[];
+}
+
+/**
  * Input for `Contracts.TerminateContract`.
  *
  * `Reason` is required, not optional: a termination with no stated reason is a future argument, and
@@ -2081,6 +2263,22 @@ export class ContractsActivateTermOperation extends BaseRemotableOperation<Activ
  */
 export class ContractsRenewTermOperation extends BaseRemotableOperation<RenewTermInput, RenewTermOutput> {
     public readonly OperationKey = "Contracts.RenewTerm";
+    public readonly ExecutionMode = 'Sync' as const;
+    public readonly RequiredScope = "contracts:write";
+    public readonly RequiresSystemUser = false;
+}
+
+// ============================================================
+// Contracts.SaveContract — Save Contract
+// ============================================================
+/**
+ * Save Contract
+ * Create or update a whole agreement from one payload — contract, terms, coverage, billing schedules and commitments — in a single transaction. A failure anywhere rolls back everything, including the allocated contract number, so a half-written agreement cannot exist. Removals are named explicitly rather than inferred from absence, because a client that loaded a contract lazily holds only some of its terms. Returns the saved agreement re-read from the database, so the caller sees the values the server derived rather than its own guesses.
+ * GenerationType=Manual — the server body is supplied by a hand-authored subclass registered
+ * under 'Contracts.SaveContract'. This generated base provides the typed contract only (client-safe).
+ */
+export class ContractsSaveContractOperation extends BaseRemotableOperation<SaveContractInput, SaveContractOutput> {
+    public readonly OperationKey = "Contracts.SaveContract";
     public readonly ExecutionMode = 'Sync' as const;
     public readonly RequiredScope = "contracts:write";
     public readonly RequiresSystemUser = false;
