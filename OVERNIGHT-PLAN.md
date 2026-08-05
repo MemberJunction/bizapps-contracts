@@ -144,6 +144,20 @@ workspace edit pane on this before adding any more hand-built fields.
 
 ## Log
 
+- **07:20** — **Final sweep, all green, demo pristine.** 85 tier-2 + 65 tier-5 assertions passing;
+  both writing flows run and restore cleanly. **Invariants moved into MJ's `Validate()` /
+  `ValidateAsync()`** so a refusal reaches the caller instead of only the server console — the
+  workspace used to show "Save failed: unknown error" for a rule that had a perfectly good reason.
+  That refactor **silently killed the cross-contract renewal guard** (`DefaultSkipAsyncValidation` is
+  TRUE, so a rule in `ValidateAsync` is dead code without an override) and only the constraints
+  harness noticed — the argument for asserting refusals, not just successes, in one incident.
+  The status control now offers only the moves that will succeed, so the good error message is one
+  nobody has to read.
+  **Also caught by checking rather than trusting:** `restore-demo-after-loop.sql` deleted by
+  EventType and so ate the SEEDED `TermActivated` event, quietly shrinking the demo's history by one
+  entry every run. Now identifies the loop's events structurally; proven idempotent across two full
+  loop+restore cycles (terms=3 lines=3 audit=4 billing=3, both times).
+
 - **05:25** — **Coverage ledger + gap closing.** `testing.md` now exists (the protocol requires it and
   it did not): how to run every tier, a feature×tier matrix, and every remaining gap CODED with the
   reason. **80 tier-2 + 63 tier-5 assertions, all passing.** Closed gaps 5a/5b/5c with a new
