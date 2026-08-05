@@ -150,6 +150,10 @@ export const mjBizAppsContractsContractBillingEventSchema = z.object({
         * * Display Name: Updated At
         * * SQL Data Type: datetimeoffset
         * * Default Value: getutcdate()`),
+    Order: z.string().nullable().describe(`
+        * * Field Name: Order
+        * * Display Name: Order
+        * * SQL Data Type: nvarchar(40)`),
 });
 
 export type mjBizAppsContractsContractBillingEventEntityType = z.infer<typeof mjBizAppsContractsContractBillingEventSchema>;
@@ -439,6 +443,10 @@ export const mjBizAppsContractsContractLineSchema = z.object({
         * * Field Name: SubscriptionType
         * * Display Name: Subscription Type
         * * SQL Data Type: nvarchar(200)`),
+    Subscription: z.string().nullable().describe(`
+        * * Field Name: Subscription
+        * * Display Name: Subscription
+        * * SQL Data Type: nvarchar(40)`),
 });
 
 export type mjBizAppsContractsContractLineEntityType = z.infer<typeof mjBizAppsContractsContractLineSchema>;
@@ -1232,6 +1240,15 @@ export class mjBizAppsContractsContractBillingEventEntity extends BaseEntity<mjB
     get __mj_UpdatedAt(): Date {
         return this.Get('__mj_UpdatedAt');
     }
+
+    /**
+    * * Field Name: Order
+    * * Display Name: Order
+    * * SQL Data Type: nvarchar(40)
+    */
+    get Order(): string | null {
+        return this.Get('Order');
+    }
 }
 
 
@@ -1959,6 +1976,15 @@ export class mjBizAppsContractsContractLineEntity extends BaseEntity<mjBizAppsCo
     */
     get SubscriptionType(): string | null {
         return this.Get('SubscriptionType');
+    }
+
+    /**
+    * * Field Name: Subscription
+    * * Display Name: Subscription
+    * * SQL Data Type: nvarchar(40)
+    */
+    get Subscription(): string | null {
+        return this.Get('Subscription');
     }
 }
 

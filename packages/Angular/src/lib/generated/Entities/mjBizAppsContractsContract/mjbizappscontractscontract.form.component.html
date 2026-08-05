@@ -210,31 +210,6 @@
          RELATED ENTITY PANELS
          ======================================== -->
 
-    <!-- Contracts (Superseded By Contract ID) Section -->
-    <mj-collapsible-panel
-        SectionKey="mJBizAppsContractsContractsSupersededByContractID"
-        SectionName="Contracts (Superseded By Contract ID)"
-        Icon="fa fa-table"
-        Variant="related-entity"
-        [Form]="this"
-        [FormContext]="formContext"
-        [BadgeCount]="GetSectionRowCount('mJBizAppsContractsContractsSupersededByContractID')"
-        [DefaultExpanded]="false">
-        @if (record.IsSaved) {
-        <div>
-            <mj-explorer-entity-data-grid
-                [Params]="BuildRelationshipViewParamsByEntityName('MJ_BizApps_Contracts: Contracts','SupersededByContractID')"
-                [NewRecordValues]="NewRecordValues('MJ_BizApps_Contracts: Contracts')"
-                [AllowLoad]="IsSectionExpanded('mJBizAppsContractsContractsSupersededByContractID')"
-                [ShowToolbar]="false"
-                (Navigate)="OnFormNavigate($event)"
-                (AfterDataLoad)="SetSectionRowCount('mJBizAppsContractsContractsSupersededByContractID', $event.totalRowCount)"
-                >
-            </mj-explorer-entity-data-grid>
-        </div>
-        }
-    </mj-collapsible-panel>
-
     <!-- Contracts (Parent Contract ID) Section -->
     <mj-collapsible-panel
         SectionKey="mJBizAppsContractsContractsParentContractID"
@@ -260,25 +235,25 @@
         }
     </mj-collapsible-panel>
 
-    <!-- Contract Events Section -->
+    <!-- Contracts (Superseded By Contract ID) Section -->
     <mj-collapsible-panel
-        SectionKey="mJBizAppsContractsContractEvents"
-        SectionName="Contract Events"
+        SectionKey="mJBizAppsContractsContractsSupersededByContractID"
+        SectionName="Contracts (Superseded By Contract ID)"
         Icon="fa fa-table"
         Variant="related-entity"
         [Form]="this"
         [FormContext]="formContext"
-        [BadgeCount]="GetSectionRowCount('mJBizAppsContractsContractEvents')"
+        [BadgeCount]="GetSectionRowCount('mJBizAppsContractsContractsSupersededByContractID')"
         [DefaultExpanded]="false">
         @if (record.IsSaved) {
         <div>
             <mj-explorer-entity-data-grid
-                [Params]="BuildRelationshipViewParamsByEntityName('MJ_BizApps_Contracts: Contract Events','ContractID')"
-                [NewRecordValues]="NewRecordValues('MJ_BizApps_Contracts: Contract Events')"
-                [AllowLoad]="IsSectionExpanded('mJBizAppsContractsContractEvents')"
+                [Params]="BuildRelationshipViewParamsByEntityName('MJ_BizApps_Contracts: Contracts','SupersededByContractID')"
+                [NewRecordValues]="NewRecordValues('MJ_BizApps_Contracts: Contracts')"
+                [AllowLoad]="IsSectionExpanded('mJBizAppsContractsContractsSupersededByContractID')"
                 [ShowToolbar]="false"
                 (Navigate)="OnFormNavigate($event)"
-                (AfterDataLoad)="SetSectionRowCount('mJBizAppsContractsContractEvents', $event.totalRowCount)"
+                (AfterDataLoad)="SetSectionRowCount('mJBizAppsContractsContractsSupersededByContractID', $event.totalRowCount)"
                 >
             </mj-explorer-entity-data-grid>
         </div>
@@ -304,6 +279,31 @@
                 [ShowToolbar]="false"
                 (Navigate)="OnFormNavigate($event)"
                 (AfterDataLoad)="SetSectionRowCount('mJBizAppsContractsContractTerms', $event.totalRowCount)"
+                >
+            </mj-explorer-entity-data-grid>
+        </div>
+        }
+    </mj-collapsible-panel>
+
+    <!-- Contract Events Section -->
+    <mj-collapsible-panel
+        SectionKey="mJBizAppsContractsContractEvents"
+        SectionName="Contract Events"
+        Icon="fa fa-table"
+        Variant="related-entity"
+        [Form]="this"
+        [FormContext]="formContext"
+        [BadgeCount]="GetSectionRowCount('mJBizAppsContractsContractEvents')"
+        [DefaultExpanded]="false">
+        @if (record.IsSaved) {
+        <div>
+            <mj-explorer-entity-data-grid
+                [Params]="BuildRelationshipViewParamsByEntityName('MJ_BizApps_Contracts: Contract Events','ContractID')"
+                [NewRecordValues]="NewRecordValues('MJ_BizApps_Contracts: Contract Events')"
+                [AllowLoad]="IsSectionExpanded('mJBizAppsContractsContractEvents')"
+                [ShowToolbar]="false"
+                (Navigate)="OnFormNavigate($event)"
+                (AfterDataLoad)="SetSectionRowCount('mJBizAppsContractsContractEvents', $event.totalRowCount)"
                 >
             </mj-explorer-entity-data-grid>
         </div>

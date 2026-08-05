@@ -1,0 +1,163 @@
+[
+  {
+    "_comments": [
+      "The six seeded contract types. CONFIGURATION-AS-DATA: these columns ARE the rules — the engine",
+      "reads them rather than branching on a type name, which is why DriverClass is null on all six.",
+      "A driver appears only when a customer needs something the columns cannot express.",
+      "",
+      "Percent columns are FRACTIONS, not percents: 0.0400 is 4%. Same convention as orders'",
+      "OrderLine.DiscountPct and SalesAuthority.MaxDiscountPct.",
+      "",
+      "RenewalMode is the fork that decides who renews: 'Deal' means sales opens a renewal deal and",
+      "calls Contracts.RenewTerm (L-18 — a renewal IS a deal); 'Auto' means the scheduled job calls the",
+      "same operation without one; 'Manual' means a person does it deliberately.",
+      "",
+      "Fixed UUIDs so a re-push against a rebuilt database UPDATES these rows rather than creating a",
+      "second set with the same codes."
+    ],
+    "fields": {
+      "Code": "MSA",
+      "Name": "Master Services Agreement",
+      "Description": "The perpetual legal envelope. Carries no commercial terms itself — those live on the Order Form or SOW nested beneath it via ParentContractID. Renewal is a deal, and co-terming is allowed so an addition mid-term aligns to the anniversary.",
+      "DefaultTermMonths": 12,
+      "DefaultBillingFrequency": "Quarterly",
+      "DefaultAutoRenew": true,
+      "RequiresSignature": true,
+      "DefaultEscalationPercent": 0.04,
+      "DefaultMaxEscalationPercent": 0.05,
+      "DefaultRenewalNoticeDays": 60,
+      "DefaultCancellationWindowDays": 90,
+      "RenewalMode": "Deal",
+      "AllowsCoterm": true,
+      "IsActive": true
+    },
+    "primaryKey": {
+      "ID": "33333333-0000-4000-8000-000000000001"
+    },
+    "sync": {
+      "lastModified": "2026-08-05T07:04:06.319Z",
+      "checksum": "03e6d9a43e5fad6162821efaf245e43beb315b7ca4c67a1a72d7b78e85233232"
+    }
+  },
+  {
+    "fields": {
+      "Code": "Standard",
+      "Name": "Standard Agreement",
+      "Description": "The ordinary single-document agreement: one contract, successive renewal terms under it. The default choice when there is no master agreement above and no statement of work below.",
+      "DefaultTermMonths": 12,
+      "DefaultBillingFrequency": "Annual",
+      "DefaultAutoRenew": true,
+      "RequiresSignature": true,
+      "DefaultEscalationPercent": 0.03,
+      "DefaultMaxEscalationPercent": 0.05,
+      "DefaultRenewalNoticeDays": 30,
+      "DefaultCancellationWindowDays": 30,
+      "RenewalMode": "Deal",
+      "AllowsCoterm": false,
+      "IsActive": true
+    },
+    "primaryKey": {
+      "ID": "33333333-0000-4000-8000-000000000002"
+    },
+    "sync": {
+      "lastModified": "2026-08-05T07:04:06.339Z",
+      "checksum": "256872ab462a19bb6189928d6cf5ea67d67c97bf5811ea28973e48fbfa37a9a7"
+    }
+  },
+  {
+    "fields": {
+      "Code": "SOW",
+      "Name": "Statement of Work",
+      "Description": "Scoped services with a defined end, normally nested under an MSA. Billed against milestones rather than a cadence, and deliberately does NOT auto-renew: a statement of work that renews itself is a bug, not a feature.",
+      "DefaultTermMonths": 6,
+      "DefaultBillingFrequency": "Milestone",
+      "DefaultAutoRenew": false,
+      "RequiresSignature": true,
+      "DefaultRenewalNoticeDays": 30,
+      "DefaultCancellationWindowDays": 30,
+      "RenewalMode": "Manual",
+      "AllowsCoterm": true,
+      "IsActive": true
+    },
+    "primaryKey": {
+      "ID": "33333333-0000-4000-8000-000000000003"
+    },
+    "sync": {
+      "lastModified": "2026-08-05T07:04:06.359Z",
+      "checksum": "4c4b223fe6cdd2b6402846e7d0bc77018b76d0c5658782cc32354c2749b81908"
+    }
+  },
+  {
+    "fields": {
+      "Code": "Membership",
+      "Name": "Membership",
+      "Description": "Annual membership. Auto-renews without a deal — the B2C-shaped path where making a rep work a pipeline for every renewal would cost more than the membership. Escalation is modest and capped tightly because the member sees the increase directly.",
+      "DefaultTermMonths": 12,
+      "DefaultBillingFrequency": "Annual",
+      "DefaultAutoRenew": true,
+      "RequiresSignature": false,
+      "DefaultEscalationPercent": 0.03,
+      "DefaultMaxEscalationPercent": 0.03,
+      "DefaultRenewalNoticeDays": 45,
+      "DefaultCancellationWindowDays": 30,
+      "RenewalMode": "Auto",
+      "AllowsCoterm": false,
+      "IsActive": true
+    },
+    "primaryKey": {
+      "ID": "33333333-0000-4000-8000-000000000004"
+    },
+    "sync": {
+      "lastModified": "2026-08-05T07:04:06.379Z",
+      "checksum": "7a34eb3fdbcc68f720b099fd5c044d82c0fdec35edf0d2ca6756a0a46c1cbed8"
+    }
+  },
+  {
+    "fields": {
+      "Code": "Evergreen",
+      "Name": "Evergreen",
+      "Description": "Rolls indefinitely until cancelled — no fixed end, no renewal event to work. Terms still exist as billing periods, but each simply follows the last. Notice is long because there is no natural moment at which either side revisits the agreement.",
+      "DefaultTermMonths": 12,
+      "DefaultBillingFrequency": "Monthly",
+      "DefaultAutoRenew": true,
+      "RequiresSignature": true,
+      "DefaultEscalationPercent": 0.03,
+      "DefaultMaxEscalationPercent": 0.05,
+      "DefaultRenewalNoticeDays": 90,
+      "DefaultCancellationWindowDays": 90,
+      "RenewalMode": "Auto",
+      "AllowsCoterm": true,
+      "IsActive": true
+    },
+    "primaryKey": {
+      "ID": "33333333-0000-4000-8000-000000000005"
+    },
+    "sync": {
+      "lastModified": "2026-08-05T07:04:06.401Z",
+      "checksum": "b6c03c97e2ae505cb78cf3d70dd0981ad23c2ac6a6be1ac1c54166ee82518ebd"
+    }
+  },
+  {
+    "fields": {
+      "Code": "Pilot",
+      "Name": "Pilot",
+      "Description": "A short paid trial with a hard stop. Does NOT auto-renew and has no escalation — a pilot that quietly renews at a higher price is exactly the surprise this app exists to prevent. Converting a pilot means a new agreement, which is a deal.",
+      "DefaultTermMonths": 3,
+      "DefaultBillingFrequency": "Custom",
+      "DefaultAutoRenew": false,
+      "RequiresSignature": true,
+      "DefaultRenewalNoticeDays": 15,
+      "DefaultCancellationWindowDays": 0,
+      "RenewalMode": "Deal",
+      "AllowsCoterm": false,
+      "IsActive": true
+    },
+    "primaryKey": {
+      "ID": "33333333-0000-4000-8000-000000000006"
+    },
+    "sync": {
+      "lastModified": "2026-08-05T07:04:06.420Z",
+      "checksum": "58320a64320d04d097d5a17fd53393830060f8919b60fb34cc2bb7ca42abe583"
+    }
+  }
+]
