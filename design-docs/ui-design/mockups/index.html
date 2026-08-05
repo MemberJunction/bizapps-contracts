@@ -93,6 +93,11 @@
       <li><strong>A contract discount overrides</strong> whatever would apply beneath it in the order — it does not stack.</li>
       <li><strong>Documents use MJ's polymorphic file linking</strong> (<code>__mj.FileEntityRecordLink</code>), on contracts,
         terms and amendments alike. The <code>DocumentFileID</code> columns are gone.</li>
+      <li><strong>Signatures use MJ's e-signature subsystem</strong> — <code>__mj.SignatureRequest</code> already carries
+        <code>EntityID</code>/<code>RecordID</code>, so contracts and terms link to an envelope with zero columns and zero
+        migration. Provider-agnostic (DocuSign · Dropbox Sign · PandaDoc, all seeded in core).</li>
+      <li><strong>Status transitions are MJ Actions</strong>, not ad-hoc entity writes — the pattern orders already
+        runs in this instance. <code>PendingSignature</code> is driven by the envelope, never set by hand.</li>
       <li><strong>No soft keys, ever</strong> — a mandate. Every cross-app reference is a real FK; the only non-FK pattern
         allowed is a genuine polymorphic <code>EntityID</code>/<code>RecordID</code> pair.</li>
     </ul>
@@ -109,8 +114,9 @@
         lead days (both live on orders' Subscription), or does it set the type and let the type's own defaults carry them?</li>
       <li><strong>Which <code>AsOf</code> does the engine pass on renewal</strong> — likely the individual subscription end dates
         (Andrew's call).</li>
-      <li><strong>Does <code>&lt;mj-record-files&gt;</code> get built here or donated to MJ base?</strong> Every app that acquires paper
-        wants it; building it privately guarantees someone rebuilds it.</li>
+      <li><strong>Do <code>&lt;mj-record-files&gt;</code> and <code>&lt;mj-record-signature-status&gt;</code> get built here or donated to
+        MJ base?</strong> Both are record-scoped and polymorphic, both are missing from MJ today, and every app that
+        acquires paper or signatures wants them. Building them privately guarantees someone rebuilds them.</li>
     </ol>
   </div></div>
 

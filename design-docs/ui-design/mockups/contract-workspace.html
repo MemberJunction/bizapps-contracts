@@ -41,6 +41,7 @@
       </div>
       <div class="actions">
         <button class="mj-btn"><i class="fa-solid fa-file-arrow-down"></i> Executed PDF</button>
+        <button class="mj-btn"><i class="fa-solid fa-signature"></i> Send for signature</button>
         <button class="mj-btn"><i class="fa-solid fa-file-pen"></i> Amend</button>
         <button class="mj-btn primary"><i class="fa-solid fa-rotate"></i> Renew term</button>
       </div>
@@ -176,6 +177,29 @@
             </div>
 
             <div class="card">
+              <div class="card-head"><i class="fa-solid fa-signature"></i> Signature
+                <span class="mj-stat-badge success" style="margin-left:auto;"><i class="fa-solid fa-check"></i> Completed</span>
+              </div>
+              <div class="card-body">
+                <div class="sig-row"><span class="sig-k">Provider</span><span>PandaDoc</span></div>
+                <div class="sig-row"><span class="sig-k">Envelope</span><span class="mono sec">PD-8841-XK</span></div>
+                <div class="sig-row"><span class="sig-k">Sent</span><span>Dec 14, 2023</span></div>
+                <div class="sig-row"><span class="sig-k">Completed</span><span>Dec 18, 2023</span></div>
+                <fieldset class="plain" style="margin-top:12px;">
+                  <legend class="sub-legend">Recipients</legend>
+                  <div class="sig-row"><span>Ellen Vasquez <span class="muted">· Northwind</span></span><span class="mj-stat-badge success">signed</span></div>
+                  <div class="sig-row"><span>Dana Whitfield <span class="muted">· Blue Cypress</span></span><span class="mj-stat-badge success">signed</span></div>
+                </fieldset>
+              </div>
+              <p class="annot" style="margin:0 16px 14px;">
+                <code>__mj.SignatureRequest</code> already carries <code>EntityID</code> + <code>RecordID</code>, so this
+                links to the contract with <b>no column and no migration</b> on our side — the same polymorphic
+                pattern as the documents below. Provider-agnostic: DocuSign, Dropbox Sign and PandaDoc are all
+                seeded in MJ core.
+              </p>
+            </div>
+
+            <div class="card">
               <div class="card-head"><i class="fa-solid fa-file-contract"></i> Documents
                 <div class="actions"><button class="mj-btn sm"><i class="fa-solid fa-upload"></i> Attach</button></div>
               </div>
@@ -226,10 +250,16 @@
                 </div>
               </div>
               <div class="tl-row">
-                <div class="tl-when">Term 4<br /><span class="muted">projected</span></div>
+                <div class="tl-when">Term 4<br /><span class="muted">2027</span></div>
                 <div>
-                  <div class="tl-bar"><div class="tl-fill future" style="width:100%;">Jan 1 – Dec 31, 2027 · not created</div></div>
-                  <div class="tl-meta"><span class="muted">A renewal is a deal (L-18) — sales opens it and calls <code>Contracts.RenewTerm</code>. Auto-renew types skip the deal.</span></div>
+                  <div class="tl-bar"><div class="tl-fill future" style="width:100%;">Jan 1 – Dec 31, 2027 · out for signature</div></div>
+                  <div class="tl-meta">
+                    <span>Committed <strong>$505,440</strong></span>
+                    <span>Renewal of Term 3 · +4.0%, capped 5.0%</span>
+                    <span><span class="mj-stat-badge warning"><i class="fa-solid fa-signature"></i> PendingSignature</span> sent Nov 4 · 1 of 2 signed</span>
+                  </div>
+                  <div class="tl-meta"><span class="muted">The status is driven by the envelope, not set by hand — <code>Contracts.SendForSignature</code> put it here, and
+                    <code>Contracts.RecordExecution</code> will move it to Active and stamp <code>ExecutedDate</code> when PandaDoc reports completion.</span></div>
                 </div>
               </div>
             </div>

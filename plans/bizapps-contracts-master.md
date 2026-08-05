@@ -5,8 +5,14 @@
 >
 > **Decisions:** L-10…L-12, L-15, L-18 · **Open:** D-2, D-5
 > **Repo:** `MemberJunction/bizapps-contracts` · **Schema:** `__mj_BizAppsContracts`
-> **Status:** Baseline schema landed (hand-authored DDL). The two orders seams in §4 gate the
-> billing engine.
+> **Status:** Baseline schema landed, **applied and CodeGen'd** on instance `contracts-dev`
+> (10 tables, 10 entities, 5 packages building). The two orders seams in §4 still gate the billing
+> engine. **§10 below carries every ruling made after this document was first written — read it
+> before §3, because it supersedes parts of the data model described there.**
+>
+> **The ERD is generated, not written:** [`plans/ERD.md`](./ERD.md) is read straight out of
+> `sys.tables`/`sys.foreign_keys` on a database built from the migrations. Regenerate it after any
+> migration change rather than hand-editing it.
 >
 > **Provenance.** Derived from sub-plan 02 of the *Sales & Deal Management* plan set in Blue
 > Cypress's internal `new-products` repository, which remains the home of the CROSS-APP strategy
@@ -340,3 +346,121 @@ constrain a decision here.
    schema does not need to change when it arrives.
 4. **Multi-currency.** Orders defers FX (D24). Contracts should record `CurrencyID` on the term for
    forward-compatibility but do no conversion. Confirm.
+
+---
+
+## 10. Rulings since this document was written (2026-08-04)
+
+Everything in this section **supersedes** the corresponding text above. It is kept as an addendum
+rather than edited into §3 so the original design intent stays legible next to what changed and why.
+
+### 10.1 Answered by Amith
+
+| # | Question | Ruling |
+|---|---|---|
+| 1 | Should orders be the definitive billing location? | **Yes — orders is the only place anyone is billed, full stop.** Contracts is the correct superset for consolidating mixed revenue streams onto one document. No "billing groups" in orders for now. The billing engine (§5) therefore stays here. |
+| 2 | Who owns discounting? | **Orders owns the mechanics; a contract-level discount OVERRIDES what sits beneath it in the order** — it does not stack. `ContractLine.DiscountPct` states negotiated intent that outranks order-level discounting. |
+| 3 | Which `AsOf` does the billing engine pass on renewal? | **Open — Andrew's call.** Probably the individual subscription end dates. Until it is settled, nothing here stores a resolved price (see 10.3). |
+| 4 | Hard vs soft cross-app references | **There is no such thing as a soft key, and there must never be one.** A mandate, not a preference. The only acceptable non-FK reference in MJ is a genuine polymorphic pair (`EntityID`/`RecordID`, as in `__mj.TagLink`) used when the target entity is not knowable in advance — that is a typed polymorphic link, not a soft key. Every cross-app reference in this schema is a real FK. §3's description of `PaymentTermsTypeID` as a *"soft ref → orders"* is **withdrawn**; it was already a hard FK in the migration. |
+
+### 10.2 Documents and signatures are MJ platform capabilities, not columns here
+
+**Documents.** `DocumentFileID` has been **removed** from `Contract`, `ContractTerm` and
+`ContractAmendment`. All three attach files through **`__mj.FileEntityRecordLink`** (`EntityID` +
+`RecordID`). One record can then carry the signed PDF *and* its exhibits *and* a countersigned
+amendment; a column caps it at one and forces a new column onto every future table that acquires paper.
+
+**Signatures.** MJ ships e-signature in core — `@memberjunction/esignature-{docusign,dropboxsign,pandadoc}`
+— and `__mj.SignatureRequest` already carries `EntityID` + `RecordID`, so a contract or a term links to
+its envelope with **zero columns and zero migration** on our side. Around it sit
+`SignatureRequestRecipients`, `SignatureRequestDocuments` and `SignatureRequestLogs`. Both patterns point
+*down* into this schema, which keeps the dependency direction correct.
+
+This closes a lifecycle the schema was already half-built for:
+
+```
+ContractType.RequiresSignature  →  raise a SignatureRequest against the Contract or ContractTerm
+                                →  Status = 'PendingSignature' (driven by the envelope, not by hand)
+                                →  SignatureRequest.CompletedAt  →  ExecutedDate stamped
+                                →  executed PDF attached via FileEntityRecordLink
+                                →  VoidReason covers the rejection path
+```
+
+### 10.3 Data-model changes applied to the baseline
+
+Edited **into** the baseline migration rather than stacked as fix-ups — the app is pre-production and
+the practice is to edit in place and rebuild on a clean database.
+
+**Added**
+
+| Change | Why |
+|---|---|
+| `Contract.SupersededByContractID` (self-FK) | `Status` already allowed `Superseded` with no way to name the successor, while `ContractTerm` had `RenewalOfTermID`. The schema tracked continuity at the term level and rupture at the contract level, and gave the chain to only one of them. |
+| `ContractTerm.ExecutedDate` + `PendingSignature` status | Amendments had paper and renewals did not. It also silently assumed the evergreen pattern (one signed document, many periods) and could not express the re-papered-each-period pattern at all. |
+| `ContractTerm.MaxEscalationPercent` + `RenewalNoticeDays`, with `ContractType` defaults | An uncapped "then-current list" increase is the most disputed clause in a B2B renewal, and the notice obligation had nowhere to live (`CancellationWindowDays` is a different clause that often shares its value). |
+| `ContractLine.SubscriptionTypeID` (FK → `orders.SubscriptionType`) | `orders.Subscription.SubscriptionTypeID` is `NOT NULL`, so the engine cannot materialize a subscription without knowing its type — and `SubscriptionID` is only set *after* materialization, so it could not answer. Which kind of subscription a line becomes is a negotiated contract provision. |
+
+**Considered and rejected** — recorded so they are not re-proposed:
+
+| Rejected | Why |
+|---|---|
+| `ContractLine.ResolvedUnitPrice` / `ResolvedAt` | Conflates the apps. Orders owns pricing and price history; each generated bill **is** an order carrying the real price and date, already linked from `ContractBillingEvent.OrderID`. A second copy here has no authority and can only drift. |
+| `ContractTerm.EscalationIndexCode` | A bare code names an index but nothing resolves it, so an `Index` basis still could not execute. The schema's own `LineType='Usage'` precedent is the right one: keep the **value** so the schema does not change when the capability arrives, add no **column** until there is something real to read. |
+| Renaming `DiscountPct` | It is a fraction (0–1) wearing a percent name — but orders uses the identical shape for `OrderLine.DiscountPct` and `SalesAuthority.MaxDiscountPct`. Family consistency beats local correctness. |
+
+### 10.4 What the UI is — and is not
+
+**This app has its own UI. It does not re-expose orders' order form, and it does not reimplement
+orders either.** The distinction is about *authority*, not about screens:
+
+- **Contracts decides**: the customer, which products are covered, *how* each is covered, **which
+  subscription type it becomes**, the coverage window, the negotiated price, and the term's clauses
+  (escalation, cap, renewal notice, cancellation window). These get a first-class contract-native
+  surface, because choosing them is a contract act.
+- **Contracts never computes**: no totals, no tax, no proration, no resolved prices. The engine
+  assembles a draft, prices it through `Orders.PreviewOrder`, and materializes one order via
+  `Orders.CreateOrderInState`. Every number comes back from orders.
+
+Round-2 mockups: [`design-docs/ui-design/mockups/`](../design-docs/ui-design/mockups/index.html).
+
+**Two components MJ does not have and this app must build**, both record-scoped and polymorphic, and
+both strong **MJ-base donation candidates** (every app that acquires paper or signatures wants them):
+
+| Component | Gap it fills |
+|---|---|
+| `<mj-record-files>` | `@memberjunction/ng-file-storage` ships `mj-file-browser` / `mj-files-grid` / `mj-files-file-upload`, but they are **category**-scoped. Nothing in the MJ Angular tree queries `FileEntityRecordLink` at runtime — the only references are generated CRUD forms for the link entity itself. |
+| `<mj-record-signature-status>` | Same gap for `SignatureRequest`: six entities and three providers exist, with no bespoke UI beyond generated forms. |
+
+### 10.5 Status transitions are MJ Actions
+
+Status changes are **not** ad-hoc entity writes. They are MJ Actions, following the pattern orders
+already runs in this instance: `@RegisterClass(BaseAction, 'Orders.SendDocument')` in
+`packages/Server/src/custom/*.action.ts`, registered as metadata in `metadata/actions/` +
+`metadata/action-categories/`. The pattern is proven and available to us today.
+
+Planned action set (none built yet):
+
+| Action | Transition | Notes |
+|---|---|---|
+| `Contracts.SendForSignature` | `Draft` → `PendingSignature` | Raises a `SignatureRequest` against the contract *or* term. Gated on `ContractType.RequiresSignature`. Irreversible + reaches a person outside the company, so it is its own action — the same reasoning that split orders' `SendDocument` from `GenerateInvoice`. |
+| `Contracts.RecordExecution` | `PendingSignature` → `Active` | Driven by the envelope completing: stamps `ExecutedDate`, attaches the executed PDF via `FileEntityRecordLink`, writes a `ContractEvent`. |
+| `Contracts.RecordRejection` | `PendingSignature` → `Draft` \| `Terminated` | Carries `SignatureRequest.VoidReason`. |
+| `Contracts.ActivateTerm` | term `Pending` → `Active` | Generates the billing schedule and its events. |
+| `Contracts.RenewTerm` | creates the next term | Called by sales when a renewal deal closes (L-18); also callable by the Scheduled Job for auto-renew types. |
+| `Contracts.TerminateContract` | → `Terminated` | Honours `CancellationWindowDays` / `EarlyTerminationDate`. |
+
+**Why actions rather than entity-server logic:** a transition has side effects that reach outside the
+record (an envelope, a file, a task, an order), it needs to be callable from a UI button, a scheduled
+job and another app alike, and it should appear in the audit trail as a named thing that happened.
+
+### 10.6 Build-sequence status
+
+| Phase | State |
+|---|---|
+| **C0** — orders seams | **Blocked on D-2.** `Subscription.BillingMode` is straightforward; the resolver slot needs a defined multi-registrant contract first (ClassFactory resolves one instance per key, so an unkeyed pre-walk slot admits exactly one app). |
+| **C1** — bootstrap, baseline, CodeGen | ✅ **Done.** Five packages `@mj-biz-apps/contracts-*`, baseline applied, 10 entities generated, building. `ContractType` seed metadata still to author. |
+| **C2** — `ContractPriceResolver` | Blocked on C0. |
+| **C3** — billing engine | Not started. Needs the concurrency claim state (a `Generating` status, or a conditional `UPDATE … WHERE Status='Scheduled'`) — `CK_ContractBillingEvent_GeneratedHasOrder` is a good invariant but does not stop two overlapping runs from both selecting the same row. |
+| **C4** — `CreateFromDeal`, renewal, amendment, co-term | Not started; unblocked by D-2, so this and the §10.5 actions are the natural next work. |
+| **C5** — Angular | Mockups at round 2; the two missing components in §10.4 are the first build. |
+| **C6** — PG conversion, docs, release | Not started. |

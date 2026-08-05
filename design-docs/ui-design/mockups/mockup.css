@@ -324,3 +324,9 @@ legend.sub-legend { font-size: 11.5px; font-weight: 700; letter-spacing: .05em; 
   border: 1px dashed var(--mj-border-strong); border-radius: var(--mj-radius-md);
   padding: 18px; text-align: center; color: var(--mj-text-muted); font-size: 12.5px; background: var(--mj-bg-surface-card);
 }
+
+/* signature panel */
+.sig-row { display: flex; align-items: center; gap: 10px; font-size: 12.5px; padding: 4px 0; }
+.sig-row .sig-k { color: var(--mj-text-secondary); min-width: 84px; }
+.sig-row > span:last-child { margin-left: auto; }
+.sig-row .sig-k + span { margin-left: auto; }
