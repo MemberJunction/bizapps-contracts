@@ -114,7 +114,12 @@ workspace edit pane on this before adding any more hand-built fields.
 - [~] **7. Tier-2 server test harness** — STARTED (`test-harnesses/server/invariants.ts`, 16 checks). Extend per FEATURE-LIST. (`test-harnesses/server/`) — in-process, direct SQL: sequence
       allocation, term numbering, the XOR customer rule, escalation-cap bounds. Exact values, not liveness.
 - [ ] **8. Unit tests** for the pure helpers (percent↔fraction, term fill state, tone mapping).
-- [ ] **8b. FEATURE-LIST contradictions worth fixing in schema** (from the enumeration agent):
+- [x] **8b. FEATURE-LIST contradictions.** ✅ DONE — X.5, X.6, X.9, X.12, X.14, X.15, X.16 all closed
+      (4 CHECKs + 1 filtered unique index + 2 entity-layer guards), 19/19 refusal assertions in
+      `test-harnesses/server/constraints.ts`. X.10 (ComputedAmount >= 0 forbids a credit) deliberately
+      LEFT OPEN — it is a scope decision, raised on the PR rather than guessed. Naming the event
+      vocabulary exposed a live split: the seed wrote `TermRenewed`, the operation wrote `Renewed`.
+      Original: **8b. FEATURE-LIST contradictions worth fixing in schema** (from the enumeration agent):
       X.15 ContractEvent is neither immutable nor vocabulary-constrained · X.5/X.6/X.12/X.14 four
       missing "state implies field" CHECKs (Subscription line without SubscriptionTypeID, Superseded
       without successor, Generated without GeneratedAt, Approved without approval task) ·
@@ -138,6 +143,18 @@ workspace edit pane on this before adding any more hand-built fields.
 | Usage metering | Out of v1 by decision. |
 
 ## Log
+
+- **03:20** — **Invariants hardened + questions posted.** PR #2 comment "AI questions from the
+  overnight work" is up (10 items, each naming the guess and what changes if the answer differs) —
+  https://github.com/MemberJunction/bizapps-contracts/pull/2#issuecomment-5189321195
+  Then closed 7 of the 8 enumeration contradictions. **The baseline was dropped and re-migrated from
+  the committed migration ALONE and everything re-verified on the rebuilt schema** — so the migration
+  and the database provably agree, which matters because the baseline has been edited in place all
+  night. Totals now: **tier 2 73/73** (16 invariants · 38 lifecycle · 19 constraints), **UI 17/17**
+  across two Chrome harnesses, plus the create→activate 10/10 and full-loop 9/9 flows.
+  Term and line editing now go through **MJ's 4-layer forms** (`MJFormPresenterService` slide-ins) —
+  deliberately ADDITIVE; the working overview editor is untouched, since rewriting it the night
+  before a demo risks the thing that is currently good for something merely more correct.
 
 - **02:15** — **Items 3b + 3c done.** The lifecycle is now reachable AND usable end to end from
   nothing: create with coverage → activate → renew (preview then commit) → terminate. Verified at

@@ -343,6 +343,77 @@ async function main(): Promise<void> {
         (logs.Results ?? []).some((l) => l.EventType === 'ContractTerminated' && l.Payload?.includes('customer consolidation')),
     );
 
+    // ---- CD. Schedule arithmetic — the edge cases the comments CLAIM ------------------------------
+    //
+    // ActivateTerm's `occurrences()` says it clamps to the month's last day rather than rolling over,
+    // because setMonth() rolling over is the classic way a monthly schedule silently loses a month.
+    // That claim was written in a comment and never tested. A comment is not evidence.
+
+    console.log('\nCD. Schedule arithmetic at the month boundaries');
+
+    const mkFixture = async (start: string, end: string, freq: string): Promise<string> => {
+        const c = await md.GetEntityObject<mjBizAppsContractsContractEntity>(E_CONTRACT, user);
+        c.NewRecord();
+        c.ContractTypeID = typeID;
+        c.CompanyID = companyID;
+        c.CustomerOrganizationID = orgID;
+        c.Status = 'Active';
+        c.Description = `${TAG}: schedule ${start} ${freq}`;
+        await c.Save();
+        const t = await md.GetEntityObject<mjBizAppsContractsContractTermEntity>(E_TERM, user);
+        t.NewRecord();
+        t.ContractID = c.ID;
+        t.StartDate = new Date(start);
+        t.EndDate = new Date(end);
+        t.Status = 'Pending';
+        t.BillingFrequency = freq as typeof t.BillingFrequency;
+        await t.Save();
+        const l = await md.GetEntityObject<mjBizAppsContractsContractLineEntity>(E_LINE, user);
+        l.NewRecord();
+        l.ContractTermID = t.ID;
+        l.ProductID = productID;
+        l.DisplayOrder = 1;
+        l.LineType = 'OneTime';
+        l.Quantity = 1;
+        l.ContractedUnitPrice = 100;
+        l.Description = `${TAG} schedule line`;
+        await l.Save();
+        return t.ID;
+    };
+
+    // A term starting Jan 31, billed monthly. Rolling over would put February's event in MARCH and
+    // produce eleven events for a twelve-month term — the loss is silent and compounding.
+    const jan31 = await mkFixture('2029-01-31', '2029-12-31', 'Monthly');
+    const r1 = await activate.ExecuteServer({ ContractTermID: jan31 }, ctx);
+    const d1 = r1.Output?.ScheduledDates ?? [];
+    check('CD.1 a monthly year from Jan 31 produces 12 events, not 11', d1.length === 12, `${d1.length}: ${JSON.stringify(d1)}`);
+    check('CD.2 February clamps to the 28th rather than rolling into March', d1[1] === '2029-02-28', `got ${d1[1]}`);
+    check('CD.3 April clamps to the 30th', d1[3] === '2029-04-30', `got ${d1[3]}`);
+    check('CD.4 a long month returns to the 31st — the clamp does not stick', d1[4] === '2029-05-31', `got ${d1[4]}`);
+
+    // 2028 is a leap year: February has 29 days, and the clamp must use the real month length.
+    const leap = await mkFixture('2028-01-31', '2028-03-31', 'Monthly');
+    const r2 = await activate.ExecuteServer({ ContractTermID: leap }, ctx);
+    const d2 = r2.Output?.ScheduledDates ?? [];
+    check('CD.5 a leap February clamps to the 29th, not the 28th', d2[1] === '2028-02-29', JSON.stringify(d2));
+
+    // A term shorter than one cadence still bills once — at the start. Zero events would mean an
+    // Active term that never bills, which is the failure ActivateTerm exists to prevent.
+    const short = await mkFixture('2029-01-01', '2029-02-15', 'Quarterly');
+    const r3 = await activate.ExecuteServer({ ContractTermID: short }, ctx);
+    check('CD.6 a term shorter than its cadence still bills once, at the start',
+        JSON.stringify(r3.Output?.ScheduledDates) === JSON.stringify(['2029-01-01']),
+        JSON.stringify(r3.Output?.ScheduledDates));
+
+    // Milestone billing has no cadence: milestones are reached, not calculated. A schedule is still
+    // created (so a human can place events on it) but inventing dates nobody agreed to would be worse
+    // than none.
+    const milestone = await mkFixture('2029-01-01', '2029-12-31', 'Milestone');
+    const r4 = await activate.ExecuteServer({ ContractTermID: milestone }, ctx);
+    check('CD.7 a Milestone term gets a schedule but ZERO invented dates',
+        r4.Output?.Success === true && (r4.Output?.ScheduledDates?.length ?? -1) === 0 && !!r4.Output?.BillingScheduleID,
+        JSON.stringify(r4.Output));
+
     // ---- D. Teardown -----------------------------------------------------------------------------
 
     console.log('\nD. Teardown');
@@ -368,49 +439,31 @@ async function main(): Promise<void> {
     process.exit(failed === 0 ? 0 : 1);
 }
 
-/** FK-aware, deepest first: events → schedules → lines → logs → terms → contract. */
-async function teardown(md: Metadata, rv: RunView, user: UserInfo, contractID: string, pool: sql.ConnectionPool): Promise<void> {
-    const terms = await rv.RunView<{ ID: string }>(
-        { EntityName: E_TERM, Fields: ['ID'], ExtraFilter: `ContractID='${contractID}'`, ResultType: 'simple', BypassCache: true },
-        user,
-    );
-    const termIDs = (terms.Results ?? []).map((t) => t.ID);
-    const inList = termIDs.length ? termIDs.map((id) => `'${id}'`).join(',') : `'00000000-0000-0000-0000-000000000000'`;
+/**
+ * FK-aware cleanup, in RAW SQL rather than through the entity layer.
+ *
+ * Two reasons, both learned here. First, ContractEventEntityServer now REFUSES Delete outright —
+ * that refusal is a feature (an audit trail a caller can erase is not an audit trail), so the
+ * harness has to clean up beneath the guard it is testing. Second, entity-layer teardown proved
+ * unreliable at this scale: a delete would fail with "Error executing SQL" while the same delete in
+ * raw SQL and the generated sproc called directly both succeeded, so the cause was somewhere in the
+ * read-then-delete round trip rather than in the data. Deterministic set-based deletes have no such
+ * failure mode, and cleanup is not the thing under test.
+ */
+async function teardown(_md: Metadata, _rv: RunView, _user: UserInfo, contractID: string, pool: sql.ConnectionPool): Promise<void> {
+    await pool.request().query(`
+        DECLARE @c UNIQUEIDENTIFIER = '${contractID}';
+        DECLARE @terms TABLE (ID UNIQUEIDENTIFIER);
+        INSERT INTO @terms SELECT ID FROM __mj_BizAppsContracts.ContractTerm WHERE ContractID = @c;
 
-    const del = async (entityName: string, filter: string): Promise<void> => {
-        const found = await rv.RunView<{ ID: string }>(
-            { EntityName: entityName, Fields: ['ID'], ExtraFilter: filter, ResultType: 'simple', BypassCache: true },
-            user,
-        );
-        for (const row of found.Results ?? []) {
-            const e = await md.GetEntityObject(entityName, user);
-            // Delete() returns false on failure rather than throwing, so an unchecked call leaves the
-            // row behind AND hides the reason — which is exactly how "teardown left 1 row" becomes an
-            // unexplainable mystery instead of a message naming the FK.
-            if ((await e.Load(row.ID)) && !(await e.Delete())) {
-                console.log(`    ! could not delete ${entityName} ${row.ID}: ${e.LatestResult?.CompleteMessage ?? 'unknown error'}`);
-            }
-        }
-    };
-
-    await del(E_BILLING_EVENT, `ContractTermID IN (${inList})`);
-    await del(E_SCHEDULE, `ContractTermID IN (${inList})`);
-    await del(E_LINE, `ContractTermID IN (${inList})`);
-    // NOT through the entity layer: ContractEventEntityServer refuses Delete outright, because an
-    // audit trail that a caller can erase is not an audit trail. That refusal is the feature — so
-    // the harness cleans up its own events with raw SQL, beneath the guard it is testing.
-    await pool.request().query(`DELETE FROM __mj_BizAppsContracts.ContractEvent WHERE ContractID = '${contractID}'`);
-    // Renewals reference their predecessor, so delete the chain newest-first.
-    for (const id of termIDs.reverse()) {
-        const t = await md.GetEntityObject<mjBizAppsContractsContractTermEntity>(E_TERM, user);
-        if ((await t.Load(id)) && !(await t.Delete())) {
-            console.log(`    ! could not delete term ${t.TermNumber}: ${t.LatestResult?.CompleteMessage ?? 'unknown error'}`);
-        }
-    }
-    const c = await md.GetEntityObject<mjBizAppsContractsContractEntity>(E_CONTRACT, user);
-    if ((await c.Load(contractID)) && !(await c.Delete())) {
-        console.log(`    ! could not delete contract ${c.ContractNumber}: ${c.LatestResult?.CompleteMessage ?? 'unknown error'}`);
-    }
+        DELETE be FROM __mj_BizAppsContracts.ContractBillingEvent be JOIN @terms t ON t.ID = be.ContractTermID;
+        DELETE bs FROM __mj_BizAppsContracts.ContractBillingSchedule bs JOIN @terms t ON t.ID = bs.ContractTermID;
+        DELETE cl FROM __mj_BizAppsContracts.ContractLine cl JOIN @terms t ON t.ID = cl.ContractTermID;
+        DELETE FROM __mj_BizAppsContracts.ContractEvent WHERE ContractID = @c;
+        -- Renewals reference their predecessor, so the chain unwinds newest-first.
+        DELETE FROM __mj_BizAppsContracts.ContractTerm WHERE ContractID = @c AND RenewalOfTermID IS NOT NULL;
+        DELETE FROM __mj_BizAppsContracts.ContractTerm WHERE ContractID = @c;
+        DELETE FROM __mj_BizAppsContracts.Contract WHERE ID = @c;`);
 }
 
 function fmt(d: Date | null): string {
