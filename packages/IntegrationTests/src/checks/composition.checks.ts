@@ -367,6 +367,59 @@ export const CompositionChecks: NamedCheck[] = [
     },
 
     {
+        Id: 'contracts-composition.CC15',
+        Name: 'a LAZILY LOADED contract with no terms is still refused activation',
+        Fn: (ctx) =>
+            InRolledBackTransaction(ctx, async () => {
+                // THE HOLE THIS CLOSES. The first version of the cross-child rules SKIPPED whenever
+                // the collection was un-hydrated, to avoid falsely refusing a lazily loaded live
+                // contract (CC7). That traded a false refusal for something worse: this path — load
+                // shallowly, set Active, save — skipped the check entirely and went live with
+                // nothing under it. The rule was present exactly where it was not needed and absent
+                // exactly where it was.
+                const contract = await newContract('lazy activation with no term');
+                Assert(await contract.Save(), contract.LatestResult?.CompleteMessage ?? 'draft save failed');
+
+                const lazy = await Md().GetEntityObject<ContractEntityServer>(E_CONTRACT, Fx().User);
+                Assert(await lazy.Load(contract.ID), 'lazy load failed');
+                AssertEqual(lazy.Terms.length, 0, 'precondition: un-hydrated, and genuinely term-less');
+
+                lazy.Status = 'Active';
+                const saved = await lazy.Save().catch(() => false);
+                Assert(!saved, 'a lazily loaded term-less contract was activated');
+                Assert(
+                    (lazy.LatestResult?.CompleteMessage ?? '').includes('at least one term'),
+                    `wrong refusal: ${lazy.LatestResult?.CompleteMessage ?? ''}`,
+                );
+            }),
+    },
+
+    {
+        Id: 'contracts-composition.CC16',
+        Name: 'removing the last coverage line from an Active term is refused',
+        Fn: (ctx) =>
+            InRolledBackTransaction(ctx, async () => {
+                // The other half of the same hole. "Must have at least one" can break by REMOVAL as
+                // well as by activation, which is why HasPendingDeletes is one of the gates.
+                const contract = await newContract('remove last coverage');
+                const term = await addTerm(contract, '2030-01-01', '2030-12-31');
+                await addOneTimeLine(term, 0);
+                Assert(await contract.Save(), contract.LatestResult?.CompleteMessage ?? 'save failed');
+
+                const live = await Md().GetEntityObject<ContractTermEntityServer>(E_TERM, Fx().User);
+                await live.Load(term.ID);
+                await live.LoadChildren(Fx().User);
+                live.Status = 'Active';
+                Assert(await live.Save(), `activation failed: ${live.LatestResult?.CompleteMessage ?? ''}`);
+
+                AssertEqual(live.Lines.length, 1, 'precondition: exactly one line to remove');
+                live.RemoveLine(live.Lines[0]);
+                const saved = await live.Save().catch(() => false);
+                Assert(!saved, 'an Active term was stripped of its last coverage line');
+            }),
+    },
+
+    {
         Id: 'contracts-composition.CC9',
         Name: "coverage must sit inside its term's dates, at both ends",
         Fn: (ctx) =>

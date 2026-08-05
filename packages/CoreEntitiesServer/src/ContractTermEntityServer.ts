@@ -232,7 +232,6 @@ export class ContractTermEntityServer extends mjBizAppsContractsContractTermEnti
         const result = super.Validate();
         this.checkStatusTransition(result);
         this.checkEscalationCap(result);
-        this.checkHasCoverageWhenActive(result);
         return result;
     }
 
@@ -243,7 +242,78 @@ export class ContractTermEntityServer extends mjBizAppsContractsContractTermEnti
     public override async ValidateAsync(): Promise<ValidationResult> {
         const result = await super.ValidateAsync();
         await this.checkRenewalChainIntegrity(result);
+        await this.checkHasCoverageWhenActive(result);
         return result;
+    }
+
+    /**
+     * An Active term must actually entitle the customer to something.
+     *
+     * A term with no coverage bills nothing and grants nothing — it is an agreement in name only,
+     * and the billing engine assembling a draft from its lines would produce an empty bill or
+     * nothing at all, with no error to explain either.
+     *
+     * The gates mirror `ContractEntityServer.checkActiveHasATerm` exactly, for the same reasons —
+     * see the long note there. In short: the rule can only newly break on the activation itself, on
+     * a new record, or when lines are being removed; in-memory coverage answers it for free; and
+     * only what is left costs a query. Editing a lazily loaded live term costs nothing.
+     */
+    private async checkHasCoverageWhenActive(result: ValidationResult): Promise<void> {
+        if ((this.Status as unknown as string) !== 'Active') return;
+        if (!this.becameActive() && this.IsSaved && !this.lines.HasPendingDeletes) return;
+        if (this.Lines.length > 0) return;
+
+        if (this.IsSaved) {
+            const persisted = await this.countPersistedLines();
+            if (persisted > 0) return;
+        }
+
+        result.Success = false;
+        result.Errors.push(
+            new ValidationErrorInfo(
+                'Status',
+                'An Active term must have at least one coverage line — it is what the term entitles the ' +
+                    'customer to. Without one there is nothing to bill and nothing to deliver, and a billing ' +
+                    'run against it would produce an empty draft with no error to explain why.',
+                this.Status,
+            ),
+        );
+    }
+
+    /** Whether THIS save is the one turning the term Active (including a term born Active). */
+    private becameActive(): boolean {
+        if (!this.IsSaved) return true;
+        return !!this.Fields.find((f) => f.Name === 'Status')?.Dirty;
+    }
+
+    /**
+     * Whether this term has any coverage on disk that will SURVIVE this save. One row at most;
+     * never loads them all.
+     *
+     * The doomed rows are excluded deliberately: validation runs BEFORE the deletions are applied,
+     * so a plain count still sees the line being removed and reports coverage that is about to
+     * vanish. That is how stripping the last line off an Active term passed the first time.
+     */
+    private async countPersistedLines(): Promise<number> {
+        const doomed = this.lines.PendingDeleteIDs;
+        const survivingOnly = doomed.length
+            ? ` AND ID NOT IN (${doomed.map((id) => `'${id}'`).join(',')})`
+            : '';
+        const rv = new RunView(this.ProviderToUse as unknown as IRunViewProvider);
+        const res = await rv.RunView<{ ID: string }>(
+            {
+                EntityName: LINE_ENTITY,
+                Fields: ['ID'],
+                ExtraFilter: `ContractTermID='${this.ID}'${survivingOnly}`,
+                MaxRows: 1,
+                ResultType: 'simple',
+            },
+            this.ContextCurrentUser,
+        );
+        if (!res?.Success) {
+            throw new Error(`Could not check this term's coverage: ${res?.ErrorMessage ?? 'unknown error'}`);
+        }
+        return res.Results?.length ?? 0;
     }
 
     /**
@@ -285,7 +355,19 @@ export class ContractTermEntityServer extends mjBizAppsContractsContractTermEnti
         try {
             await provider.BeginTransaction();
 
-            const savedHeader = await super.Save(options);
+            // FORCE VALIDATION WHEN ONLY CHILDREN CHANGED.
+            //
+            // `BaseEntity._InnerSave` skips its entire body — validation included — when the record
+            // is not dirty (baseEntity.ts: `if (_options.IgnoreDirtyState || initialDirtyState ||
+            // _options.ReplayOnly)`). A save that removes a child touches NO field on this row, so
+            // without this the parent's cross-child rules never run: stripping the last coverage
+            // line off an Active term validated nothing and saved happily.
+            //
+            // The cost is a no-op UPDATE of an unchanged row, which is the right price for having
+            // the rule actually run on the one edit that can break it.
+            const saveOptions = this.Dirty ? options : { ...(options ?? {}), IgnoreDirtyState: true } as EntitySaveOptions;
+
+            const savedHeader = await super.Save(saveOptions);
             if (!savedHeader) {
                 throw new Error(
                     `Could not save term: ${this.LatestResult?.CompleteMessage ?? 'unknown error'}`,
@@ -317,35 +399,6 @@ export class ContractTermEntityServer extends mjBizAppsContractsContractTermEnti
         await this.commitments.Save(this.ID, contextUser, options);
     }
 
-    /**
-     * An Active term must actually entitle the customer to something.
-     *
-     * A term with no coverage bills nothing and grants nothing — it is an agreement in name only,
-     * and the billing engine assembling a draft from its lines would produce an empty bill or
-     * nothing at all, with no error to explain either.
-     *
-     * GATED ON HYDRATION, and that gate is the whole subtlety: a term read as part of a roster has
-     * `Lines.length === 0` because nothing loaded them. Without the gate this rule would refuse
-     * every edit to every already-active term the moment it was loaded lazily — a refusal that reads
-     * as a business-rule violation and is really a bug. `ChildrenAreLoaded` distinguishes "none"
-     * from "not asked for".
-     */
-    private checkHasCoverageWhenActive(result: ValidationResult): void {
-        if ((this.Status as unknown as string) !== 'Active') return;
-        if (!this.ChildrenAreLoaded) return;
-        if (this.Lines.length > 0) return;
-
-        result.Success = false;
-        result.Errors.push(
-            new ValidationErrorInfo(
-                'Status',
-                'An Active term must have at least one coverage line — it is what the term entitles the ' +
-                    'customer to. Without one there is nothing to bill and nothing to deliver, and a billing ' +
-                    'run against it would produce an empty draft with no error to explain why.',
-                this.Status,
-            ),
-        );
-    }
 
     /**
      * The cap rule. Both are fractions (0.05 = 5%), and a null cap means "uncapped" — deliberately

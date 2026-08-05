@@ -152,11 +152,35 @@ async function main(): Promise<void> {
     await c1.Load(c1.ID);
     check('B.3 the refused move did not persist', (c1.Status as unknown as string) === 'Terminated', `db says ${c1.Status}`);
 
-    c2.Status = 'Active';
-    const activate = await c2.Save();
-    check('B.4 Draft -> Active is allowed', activate, c2.LatestResult?.CompleteMessage ?? '');
-    c2.Status = 'Draft';
-    const backwards = await c2.Save();
+    // B.4/B.5 are about the STATUS TRANSITION MAP, so the subject needs a term first — an Active
+    // contract with no term is refused by a DIFFERENT rule (checkActiveHasATerm), and the
+    // transition test would then pass or fail for the wrong reason.
+    //
+    // Its OWN contract, not c2: c2 is the subject of C.1/C.2, which assert that terms number
+    // themselves 1 then 2. A term added here would take number 1 and make those read 2 and 3.
+    const mover = await md.GetEntityObject<mjBizAppsContractsContractEntity>(E_CONTRACT, user);
+    mover.NewRecord();
+    mover.ContractTypeID = typeID;
+    mover.CompanyID = companyID;
+    mover.CustomerOrganizationID = orgID;
+    mover.Status = 'Draft';
+    mover.Description = 'tier2-invariants: status transition subject';
+    if (await mover.Save()) createdContracts.push(mover.ID);
+
+    const moverTerm = await md.GetEntityObject<mjBizAppsContractsContractTermEntity>(E_TERM, user);
+    moverTerm.NewRecord();
+    moverTerm.ContractID = mover.ID;
+    moverTerm.StartDate = new Date('2029-01-01');
+    moverTerm.EndDate = new Date('2029-12-31');
+    moverTerm.Status = 'Pending';
+    moverTerm.BillingFrequency = 'Annual';
+    if (await moverTerm.Save()) createdTerms.push(moverTerm.ID);
+
+    mover.Status = 'Active';
+    const activate = await mover.Save();
+    check('B.4 Draft -> Active is allowed', activate, mover.LatestResult?.CompleteMessage ?? '');
+    mover.Status = 'Draft';
+    const backwards = await mover.Save();
     check('B.5 Active -> Draft is REFUSED', backwards === false);
     await c2.Load(c2.ID);
 

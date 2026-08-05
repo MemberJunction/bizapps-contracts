@@ -42,6 +42,16 @@ import {
 } from '@memberjunction/core';
 
 /**
+ * The shape a child entity must have to live in a collection: a BaseEntity with a single `ID`
+ * primary key.
+ *
+ * Constrained rather than left as bare `BaseEntity` because {@link ChildCollection.PendingDeleteIDs}
+ * needs the id, and every table in this app uses the same single-column `ID UNIQUEIDENTIFIER` shape
+ * that CodeGen generates. A composite-key child would need a different collection.
+ */
+export type ChildEntity = BaseEntity & { ID: string };
+
+/**
  * How one parent→child relationship behaves.
  *
  * The two assignment callbacks exist so the collection never touches a field by string name.
@@ -49,7 +59,7 @@ import {
  * is the weak-typing this repo forbids, and it fails silently on a rename. The FK field name is
  * still needed as a string, but only to build a SQL filter — which is a string either way.
  */
-export interface ChildCollectionConfig<TChild extends BaseEntity> {
+export interface ChildCollectionConfig<TChild extends ChildEntity> {
     /** MJ entity name, e.g. `MJ_BizApps_Contracts: Contract Terms`. */
     EntityName: string;
     /** The FK column, used ONLY to build the load filter. */
@@ -94,7 +104,7 @@ export interface ChildCollectionConfig<TChild extends BaseEntity> {
  *
  * @typeParam TChild The generated (or server-subclassed) entity type of the child.
  */
-export class ChildCollection<TChild extends BaseEntity> {
+export class ChildCollection<TChild extends ChildEntity> {
     private children: TChild[] = [];
     private pendingDeletes: TChild[] = [];
     private hydrated = false;
@@ -118,6 +128,28 @@ export class ChildCollection<TChild extends BaseEntity> {
      */
     public get HasPendingWrites(): boolean {
         return this.children.length > 0 || this.pendingDeletes.length > 0;
+    }
+
+    /**
+     * Whether this save would REMOVE children.
+     *
+     * Read by the cross-child validators: removing children is the only edit that can newly break a
+     * "must have at least one" rule, so it is the one case where an otherwise-cheap save has to go
+     * and count what is left.
+     */
+    public get HasPendingDeletes(): boolean {
+        return this.pendingDeletes.length > 0;
+    }
+
+    /**
+     * The database ids of children this save is about to delete.
+     *
+     * Needed because VALIDATION RUNS BEFORE THE DELETION IS APPLIED. A "must keep at least one"
+     * rule that counts rows on disk at validation time still SEES the row it is about to remove, so
+     * stripping the last line from a term looked fine and saved. The count has to exclude these.
+     */
+    public get PendingDeleteIDs(): string[] {
+        return this.pendingDeletes.map((c) => c.ID).filter(Boolean);
     }
 
     /**

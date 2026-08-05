@@ -124,7 +124,12 @@ async function main(): Promise<void> {
     contract.ContractTypeID = typeID;
     contract.CompanyID = companyID;
     contract.CustomerOrganizationID = orgID;
-    contract.Status = 'Active';
+    // BORN DRAFT, ACTIVATED BELOW once it has a term. A contract cannot be Active with no term
+    // (ContractEntityServer.checkActiveHasATerm, added 2026-08-05) — the header records who agreed
+    // and on what paper, the TERM records the dates, the money and the coverage. This fixture used
+    // to create it Active and add the term afterwards, which was the only possible order before the
+    // entity could compose a tree; it is now both possible and correct to assemble first.
+    contract.Status = 'Draft';
     contract.Description = `${TAG}: lifecycle subject`;
     contract.EffectiveDate = new Date('2027-01-01');
     if (!(await contract.Save())) {
@@ -164,6 +169,13 @@ async function main(): Promise<void> {
     };
     await mkLine(1, `${TAG} platform fee`, 1000);
     await mkLine(2, `${TAG} support`, 250.5);
+
+    // Now it has a term with coverage, so it can legitimately go live.
+    contract.Status = 'Active';
+    if (!(await contract.Save())) {
+        console.error(`BOOTSTRAP: could not activate the contract — ${contract.LatestResult?.CompleteMessage}`);
+        process.exit(2);
+    }
 
     // ---- A. Activation ---------------------------------------------------------------------------
 
@@ -357,9 +369,10 @@ async function main(): Promise<void> {
         c.ContractTypeID = typeID;
         c.CompanyID = companyID;
         c.CustomerOrganizationID = orgID;
-        c.Status = 'Active';
+        // Draft until it has a term — see the note on the main fixture above.
+        c.Status = 'Draft';
         c.Description = `${TAG}: schedule ${start} ${freq}`;
-        await c.Save();
+        if (!(await c.Save())) throw new Error(`mkFixture contract: ${c.LatestResult?.CompleteMessage}`);
         const t = await md.GetEntityObject<mjBizAppsContractsContractTermEntity>(E_TERM, user);
         t.NewRecord();
         t.ContractID = c.ID;
@@ -377,7 +390,9 @@ async function main(): Promise<void> {
         l.Quantity = 1;
         l.ContractedUnitPrice = 100;
         l.Description = `${TAG} schedule line`;
-        await l.Save();
+        if (!(await l.Save())) throw new Error(`mkFixture line: ${l.LatestResult?.CompleteMessage}`);
+        c.Status = 'Active';
+        if (!(await c.Save())) throw new Error(`mkFixture activate: ${c.LatestResult?.CompleteMessage}`);
         return t.ID;
     };
 

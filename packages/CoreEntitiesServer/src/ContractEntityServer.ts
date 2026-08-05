@@ -63,6 +63,20 @@ const LEGAL_MOVES: Readonly<Record<string, readonly string[]>> = {
 
 @RegisterClass(BaseEntity, CONTRACT_ENTITY)
 export class ContractEntityServer extends mjBizAppsContractsContractEntity {
+    /**
+     * OPT IN TO ASYNC VALIDATION. `BaseEntity.DefaultSkipAsyncValidation` is `true`, so a rule
+     * placed in `ValidateAsync` without this override is dead code that reads as live.
+     *
+     * This is the SECOND time that trap has been sprung in this package — the term class documents
+     * the first — and both times the rule looked correct, compiled, and simply never ran. Moving
+     * `checkActiveHasATerm` here from `Validate()` cost nothing but its own test, which failed on
+     * the next run with "an Active contract with no term at all saved". Any rule added to
+     * `ValidateAsync` anywhere in this app needs this override present.
+     */
+    public override get DefaultSkipAsyncValidation(): boolean {
+        return false;
+    }
+
     /* ── What a contract OWNS ────────────────────────────────────────────────────────────────────
      *
      * A contract IS its terms; the header alone is a filing reference. So the agreement is composed
@@ -228,7 +242,16 @@ export class ContractEntityServer extends mjBizAppsContractsContractEntity {
     public override Validate(): ValidationResult {
         const result = super.Validate();
         this.checkStatusTransition(result);
-        this.checkActiveHasATerm(result);
+        return result;
+    }
+
+    /**
+     * Cross-child rules live here because answering them may require a READ, and `Validate()` is
+     * synchronous. `Save()` runs both and merges the errors.
+     */
+    public override async ValidateAsync(): Promise<ValidationResult> {
+        const result = await super.ValidateAsync();
+        await this.checkActiveHasATerm(result);
         return result;
     }
 
@@ -239,14 +262,45 @@ export class ContractEntityServer extends mjBizAppsContractsContractEntity {
      * coverage. An Active contract with no term is live in name only — it cannot bill, cannot renew,
      * and reports as current in every roster.
      *
-     * Gated on hydration for the same reason the term's coverage rule is: on a lazily loaded
-     * contract `Terms` is empty because nothing asked for it, and refusing that would break every
-     * edit to every live contract.
+     * ── WHY THE GATES ARE SHAPED THIS WAY ──────────────────────────────────────────────────────
+     *
+     * The obvious implementation — "if the collection says zero, refuse" — is WRONG, because on a
+     * lazily loaded contract the collection says zero when nothing asked for the terms. An earlier
+     * version handled that by skipping the rule whenever the collection was un-hydrated, which
+     * traded a false refusal for something worse: a contract loaded shallowly and switched to Active
+     * SKIPPED the check entirely and saved. The rule was correct on the path that did not need it
+     * and absent on the path that did.
+     *
+     * So the question is answered at the point of need instead, behind gates that get cheaper the
+     * more common the case:
+     *
+     *   1. The rule does not apply unless the contract is Active.                       (no cost)
+     *   2. It cannot NEWLY break unless this save is what makes it Active, creates the
+     *      record, or removes terms — an already-live contract having its description
+     *      edited cannot lose its terms by that edit.                                   (no cost)
+     *   3. If terms are already in memory, they answer it.                              (no cost)
+     *   4. A record that was never saved has nothing in the database to find.           (no cost)
+     *   5. Only then, one COUNT.                                                        (one query)
+     *
+     * The result: routine edits to live contracts cost nothing, and the query fires exactly on the
+     * activation itself. No flag, no staleness, no cache semantics leaking into a business rule.
+     *
+     * HONEST LIMITATION: this is a TRANSITION check, not a standing invariant. A contract that is
+     * already Active and loses its last term through some path that does not go through this
+     * entity's save would not be caught here. Making it a standing invariant would mean a COUNT on
+     * every save of every active contract, forever, to catch a case that only arises from writing
+     * around the entity — and the answer to writing around the entity is a database trigger, not a
+     * more expensive entity rule.
      */
-    private checkActiveHasATerm(result: ValidationResult): void {
+    private async checkActiveHasATerm(result: ValidationResult): Promise<void> {
         if ((this.Status as unknown as string) !== 'Active') return;
-        if (!this.TermsAreLoaded) return;
+        if (!this.becameActive() && this.IsSaved && !this.terms.HasPendingDeletes) return;
         if (this.Terms.length > 0) return;
+
+        if (this.IsSaved) {
+            const persisted = await this.countPersistedTerms();
+            if (persisted > 0) return;
+        }
 
         result.Success = false;
         result.Errors.push(
@@ -258,6 +312,43 @@ export class ContractEntityServer extends mjBizAppsContractsContractEntity {
                 this.Status,
             ),
         );
+    }
+
+    /** Whether THIS save is the one turning the contract Active (including a record born Active). */
+    private becameActive(): boolean {
+        if (!this.IsSaved) return true;
+        const field = this.Fields.find((f) => f.Name === 'Status');
+        return !!field?.Dirty;
+    }
+
+    /**
+     * How many terms are on disk that will SURVIVE this save. One row at most; never loads them.
+     *
+     * Terms pending deletion are excluded: validation runs BEFORE the deletions are applied, so a
+     * plain count reports terms that are about to vanish.
+     */
+    private async countPersistedTerms(): Promise<number> {
+        const doomed = this.terms.PendingDeleteIDs;
+        const survivingOnly = doomed.length
+            ? ` AND ID NOT IN (${doomed.map((id) => `'${id}'`).join(',')})`
+            : '';
+        const rv = new RunView(this.ProviderToUse as unknown as IRunViewProvider);
+        const res = await rv.RunView<{ ID: string }>(
+            {
+                EntityName: TERM_ENTITY,
+                Fields: ['ID'],
+                ExtraFilter: `ContractID='${this.ID}'${survivingOnly}`,
+                MaxRows: 1,
+                ResultType: 'simple',
+            },
+            this.ContextCurrentUser,
+        );
+        // Loud on failure: treating an unreadable count as zero would refuse a valid activation, and
+        // treating it as non-zero would let an empty contract go live. Neither is a safe default.
+        if (!res?.Success) {
+            throw new Error(`Could not check this contract's terms: ${res?.ErrorMessage ?? 'unknown error'}`);
+        }
+        return res.Results?.length ?? 0;
     }
 
     /**
@@ -294,7 +385,20 @@ export class ContractEntityServer extends mjBizAppsContractsContractEntity {
                 this.ContractNumber = await this.allocateContractNumber(provider);
             }
 
-            const savedHeader = await super.Save(options);
+
+            // FORCE VALIDATION WHEN ONLY CHILDREN CHANGED.
+            //
+            // `BaseEntity._InnerSave` skips its entire body — validation included — when the record
+            // is not dirty (baseEntity.ts: `if (_options.IgnoreDirtyState || initialDirtyState ||
+            // _options.ReplayOnly)`). A save that removes a child touches NO field on this row, so
+            // without this the parent's cross-child rules never run: stripping the last coverage
+            // line off an Active term validated nothing and saved happily.
+            //
+            // The cost is a no-op UPDATE of an unchanged row, which is the right price for having
+            // the rule actually run on the one edit that can break it.
+            const saveOptions = this.Dirty ? options : { ...(options ?? {}), IgnoreDirtyState: true } as EntitySaveOptions;
+
+            const savedHeader = await super.Save(saveOptions);
             if (!savedHeader) {
                 throw new Error(`Could not save contract: ${this.LatestResult?.CompleteMessage ?? 'unknown error'}`);
             }
