@@ -96,6 +96,15 @@ workspace edit pane on this before adding any more hand-built fields.
       convention (Actions = agent/workflow-invocable; operations that MUTATE = the API the UI calls),
       which overrides master plan §10.5. Raised for Amith on PR #2 rather than changed silently.
       `SendForSignature` / `RecordExecution` / `RecordRejection` come after the signature panel.
+- [x] **3b. Lifecycle wired into the UI.** ✅ Activate / Renew (with a real preview) / Terminate in the
+      workspace, driven through the app's own generated typed clients. Needed `RemoteOperations` added
+      to `mj.config.cjs` output — it was missing, so codegen emitted no client shells at all.
+      Proven tier 3 (GraphQL) + tier 5 (10/10 real Chrome).
+- [x] **3c. Coverage entry at creation.** ✅ **This was a real dead end:** `Create()` made a contract +
+      term but NO lines, and `ActivateTerm` refuses an uncovered term — so nothing created in the app
+      could ever be activated or renewed. The lifecycle only worked on seeded data. Fixed with a
+      coverage editor on the create page; `ActivateTerm` now also promotes Draft → Active on the
+      contract (a contract whose term is live is a live contract).
 - [ ] **4. Custom forms** for `ContractTerm` and `ContractLine`, same priority-2 override pattern as
       the Contract form — group by what a person reads, not schema order.
 - [ ] **5. `<mj-record-files>` upload path.** The panel lists linked files; wire attach through MJ's
@@ -129,6 +138,20 @@ workspace edit pane on this before adding any more hand-built fields.
 | Usage metering | Out of v1 by decision. |
 
 ## Log
+
+- **02:15** — **Items 3b + 3c done.** The lifecycle is now reachable AND usable end to end from
+  nothing: create with coverage → activate → renew (preview then commit) → terminate. Verified at
+  three layers (tier 2: 38/38 + 16/16 · tier 3: GraphQL · tier 5: 10/10 + 9/9 real Chrome, console
+  clean). **Three real defects found, none by a passing test:**
+  (a) the seeded demo escalated term 2 by 6.67% under a 5% cap — data violating the invariant the
+  entity layer enforces, spotted by LOOKING at a screenshot; the fixture now escalates 5% then 4%
+  with committed amounts that are the arithmetic result (432,000 → 453,600 → 471,744).
+  (b) creation produced unactivatable contracts (above).
+  (c) activating a term left the contract in Draft while it was billing.
+  Also two harness bugs that produced convincing FALSE results rather than errors: a loose
+  `/contracts/i` locator matched the generated-schema card and never left Home while reporting "no
+  terms"; and a roster round-trip typed into Explorer's global search, so a run "verified" a contract
+  it had not created. Lesson banked: **loose locators do not fail, they succeed on the wrong thing.**
 
 - **07:45** — **Item 2 done, proven.** `ContractEntityServer` + `ContractTermEntityServer` with a
   tier-2 harness: 16/16. Two real defects found while building: (a) a bare `OUTPUT` clause cannot be
