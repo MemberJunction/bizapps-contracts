@@ -464,3 +464,117 @@ job and another app alike, and it should appear in the audit trail as a named th
 | **C4** — `CreateFromDeal`, renewal, amendment, co-term | Not started; unblocked by D-2, so this and the §10.5 actions are the natural next work. |
 | **C5** — Angular | Mockups at round 2; the two missing components in §10.4 are the first build. |
 | **C6** — PG conversion, docs, release | Not started. |
+
+---
+
+## 11. Engineering standards for this app (non-negotiable)
+
+These are house rules, not preferences. They exist because the alternatives have all been tried
+somewhere in this family and cost someone a week.
+
+### 11.1 Data access from the UI — exactly four methods
+
+The UI reaches data through **`RunView`, `RunQuery`, `BaseEntity`, and RemotableOperation. Nothing
+else.** No bespoke fetch, no hand-rolled GraphQL document, no service that wraps a socket.
+
+**Never create a new provider. Always use `ProviderToUse`.** A second provider splits the metadata
+and the class factory, and the failure is silent — registrations land in one factory and are read
+from another, so entities simply do not appear and nothing throws.
+
+### 11.2 Invariants live in `BaseEntity` subclasses
+
+Anything that must be true on **every** create/update/delete goes in the entity subclass, not in a
+caller. If a rule can be violated by writing the row from somewhere else, it is not enforced.
+Status transitions with outside effects are the exception — those are Actions (§10.5) — but the
+entity subclass still guards the invariant the transition depends on.
+
+### 11.3 Forms are overrides of the MJ base form
+
+Input views are **custom forms** — subclasses/overrides of `BaseFormComponent` — wherever a form
+will do. Generated forms already exist for all ten entities; the work is overriding the ones that
+need a real editing experience, not building parallel screens beside them.
+
+### 11.4 Check MJ before building anything
+
+Search MJ core first, every time. This app has already been saved twice by doing so: `FileEntityRecordLink`
+replaced a `DocumentFileID` column we had designed, and `SignatureRequest` replaced an entire
+signature subsystem we would otherwise have modelled. Both cost zero columns because MJ points *at*
+our records. **The default assumption is that MJ already has it.**
+
+### 11.5 MJ tokens and UI standards before hand-rolling
+
+Use `@memberjunction/ng-shared`'s tokens (`_tokens.scss` — 255 tokens, light and dark) and MJ's
+existing components. Where something genuinely valuable and reusable must be hand-rolled, build it
+**donation-shaped** from the start: record-scoped, app-agnostic inputs, no contracts-specific types
+in its public surface.
+
+### 11.6 Follow MJ's own `CLAUDE.md`, and code to convention
+
+MJ's `CLAUDE.md` is the highest authority for MJ behaviour: strong typing always (no `any`, no
+`.Get()`/`.Set()` in place of generated properties), the generated ORM is the schema's source of
+truth, `mj sync push` before `mj codegen`. Match the surrounding code's structure and naming before
+inventing.
+
+### 11.7 Components: built here, donated after
+
+The two components MJ lacks (§10.4) are **built, tested, finalized and polished in this repo**, then
+handed to Matt to bring into MJ base. Deliberately not the other way round: gating every UI change
+in this app on an MJ PR would make the app's iteration speed a function of MJ's release cadence.
+
+---
+
+## 12. Pricing — the as-of rule (Andrew, 2026-08-04)
+
+**The price quoted when the deal was struck is the price that belongs in the contract.** This was a
+schema hole; `Contract.PricedAt` closes it.
+
+### 12.1 How a price gets into a contract
+
+| Path | What happens |
+|---|---|
+| **From a closed deal** | `PricedAt` is the deal's pricing moment; the deal's prices are written into `ContractLine.ContractedUnitPrice`. |
+| **Entered manually** | `PricedAt` defaults to today. The UI shows the catalog price **as of `PricedAt`** and locks it into the line on save. **Backdatable**, because a contract signed last month may be entered today and must price as of when it was agreed. |
+
+**Why the lock matters:** a manager opens a contract, reviews the numbers, saves — and the value must
+not have moved underneath them because the catalog changed in between. Unexpected change here is not
+a rounding annoyance; it is the number the customer signed.
+
+### 12.2 How renewals price
+
+```
+first renewal of a line with ContractedUnitPrice = NULL
+    → resolve the catalog price AS OF Contract.PricedAt
+    → apply the agreed escalation (EscalationPercent, capped by MaxEscalationPercent)
+    → WRITE the result into the line
+
+every renewal after that
+    → escalate from the contract's OWN prior price
+    → never re-read the catalog
+```
+
+An agreement, once priced, becomes **self-referential**. The catalog is consulted exactly once.
+
+### 12.3 Why this does not resurrect `ResolvedUnitPrice`
+
+`ContractedUnitPrice` is the negotiated price — a contract fact, and always was a column. What was
+rejected was storing a *second*, engine-derived copy of a price orders already owns. Renewal pricing
+still reads the **previous term's order lines** for what was actually billed; `PricedAt` only supplies
+the as-of date for the one catalog read at the start of the chain. **Open dependency:** this needs the
+`ContractLine → OrderLine` mapping tracked as **P-1** in `plans/ERD-planned.md`.
+
+---
+
+## 13. Structural questions for the first PR
+
+Genuinely open, and better answered by reviewers than guessed:
+
+1. **How much of orders does a contract legitimately restate?** A contract needs the data required to
+   *be* a contract, and much of that overlaps the order it will produce — product, quantity, price,
+   subscription type. Some overlap is unavoidable. The question is where the line sits, and whether
+   **custom forms over shared entities** can carry the overlap instead of parallel tables. Concretely:
+   how do contract-specific subscriptions get expressed without reimplementing subscription
+   management? *(Raised by Marcelo, 2026-08-04.)*
+2. **Is "Coverage" the right concept, or the right name?** The workspace tab currently called Coverage
+   holds "what the agreement covers" — the contract lines. It may be conflating the agreement's scope
+   with an order's line items.
+3. **`ContractLine → OrderLine` mapping (P-1)** — needed before renewal pricing is trustworthy.

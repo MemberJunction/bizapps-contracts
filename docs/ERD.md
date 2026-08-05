@@ -1,12 +1,16 @@
 # `bizapps-contracts` — ERD
 
+> **This is the AS-BUILT ERD — a reflection of the implementation, not a plan.** Intended-but-unbuilt
+> schema changes belong in [`plans/ERD-planned.md`](../plans/ERD-planned.md), never here; this file
+> must always describe what the database actually contains.
+>
 > **GENERATED FROM THE LIVE SCHEMA**, not from prose — every table, column, nullability and foreign
 > key below was read out of `sys.tables`/`sys.foreign_keys` on a database built by
 > `migrations/B202608040001…` + `V202608040002…`. Regenerate it after any migration change; do not
 > hand-edit the diagrams.
 >
 > **Schema:** `__mj_BizAppsContracts` · **Entity prefix:** `MJ_BizApps_Contracts: ` · **Keys:** UUID throughout
-> **Generated:** 2026-08-04 · 10 tables · 13 internal relationships · 13 cross-app foreign keys
+> **Generated:** 2026-08-04 (re-generated after `Contract.PricedAt`) · 10 tables · 13 internal relationships · 13 cross-app foreign keys
 
 ---
 
@@ -117,6 +121,7 @@ erDiagram
         nvarchar Description "nullable"
         date EffectiveDate "nullable"
         date ExecutedDate "nullable"
+        date PricedAt "nullable"
         bit AutoRenew
         int CancellationWindowDays "nullable"
         nvarchar TerminationPolicy "nullable"
@@ -223,78 +228,6 @@ erDiagram
         int ID PK
         int NextSequenceNumber
     }
-
-    MJ_Company {
-        uuid ID PK
-    }
-
-    MJ_User {
-        uuid ID PK
-    }
-
-    acct_Currency {
-        uuid ID PK
-    }
-
-    common_Organization {
-        uuid ID PK
-    }
-
-    common_Person {
-        uuid ID PK
-    }
-
-    orders_OrderHeader {
-        uuid ID PK
-    }
-
-    orders_PaymentTermsType {
-        uuid ID PK
-    }
-
-    orders_Product {
-        uuid ID PK
-    }
-
-    orders_Subscription {
-        uuid ID PK
-    }
-
-    orders_SubscriptionType {
-        uuid ID PK
-    }
-
-    tasks_Task {
-        uuid ID PK
-    }
-
-    Contract ||--o{ Contract : "ParentContractID"
-    Contract ||--o{ Contract : "SupersededByContractID"
-    Contract ||--o{ ContractEvent : "ContractID"
-    Contract ||--o{ ContractTerm : "ContractID"
-    ContractBillingSchedule ||--o{ ContractBillingEvent : "ContractBillingScheduleID"
-    ContractTerm ||--o{ ContractAmendment : "ContractTermID"
-    ContractTerm ||--o{ ContractBillingEvent : "ContractTermID"
-    ContractTerm ||--o{ ContractBillingSchedule : "ContractTermID"
-    ContractTerm ||--o{ ContractCommitment : "ContractTermID"
-    ContractTerm ||--o{ ContractEvent : "ContractTermID"
-    ContractTerm ||--o{ ContractLine : "ContractTermID"
-    ContractTerm ||--o{ ContractTerm : "RenewalOfTermID"
-    ContractType ||--o{ Contract : "ContractTypeID"
-
-    MJ_Company ||--o{ Contract : "CompanyID"
-    MJ_User ||--o{ Contract : "OwnerUserID"
-    MJ_User ||--o{ ContractEvent : "PerformedByUserID"
-    acct_Currency ||--o{ ContractTerm : "CurrencyID"
-    common_Organization ||--o{ Contract : "CustomerOrganizationID"
-    common_Person ||--o{ Contract : "CustomerPersonID"
-    common_Person ||--o{ Contract : "PrimaryContactPersonID"
-    orders_OrderHeader ||--o{ ContractBillingEvent : "OrderID"
-    orders_PaymentTermsType ||--o{ ContractTerm : "PaymentTermsTypeID"
-    orders_Product ||--o{ ContractLine : "ProductID"
-    orders_Subscription ||--o{ ContractLine : "SubscriptionID"
-    orders_SubscriptionType ||--o{ ContractLine : "SubscriptionTypeID"
-    tasks_Task ||--o{ ContractAmendment : "ApprovalTaskID"
 ```
 
 ---

@@ -803,6 +803,10 @@ export const mjBizAppsContractsContractSchema = z.object({
         * * Field Name: ExecutedDate
         * * Display Name: Executed Date
         * * SQL Data Type: date`),
+    PricedAt: z.date().nullable().describe(`
+        * * Field Name: PricedAt
+        * * Display Name: Priced At
+        * * SQL Data Type: date`),
     AutoRenew: z.boolean().describe(`
         * * Field Name: AutoRenew
         * * Display Name: Auto Renew
@@ -2883,6 +2887,18 @@ export class mjBizAppsContractsContractEntity extends BaseEntity<mjBizAppsContra
     }
     set ExecutedDate(value: Date | null) {
         this.Set('ExecutedDate', value);
+    }
+
+    /**
+    * * Field Name: PricedAt
+    * * Display Name: Priced At
+    * * SQL Data Type: date
+    */
+    get PricedAt(): Date | null {
+        return this.Get('PricedAt');
+    }
+    set PricedAt(value: Date | null) {
+        this.Set('PricedAt', value);
     }
 
     /**

@@ -112,6 +112,21 @@ CREATE TABLE __mj_BizAppsContracts.Contract (
     Description NVARCHAR(MAX) NULL,
     EffectiveDate DATE NULL,
     ExecutedDate DATE NULL,
+    -- AS-OF DATE FOR PRICING (Andrew, 2026-08-04). The price quoted when the deal was struck is
+    -- the price that belongs in the contract, so prices must be resolved as of a MOMENT the
+    -- business chooses — never "now".
+    --
+    -- On creation the UI shows the catalog price as of this date and LOCKS it into
+    -- ContractLine.ContractedUnitPrice. That lock is the point: a manager who opens a contract,
+    -- reviews the numbers and saves it must not have the value move underneath them because the
+    -- catalog changed in between. Backdatable, because a contract signed last month can be entered
+    -- today and must price as of when it was actually agreed.
+    --
+    -- Renewals: the FIRST renewal of a line whose ContractedUnitPrice is null resolves the catalog
+    -- price as of PricedAt, applies the agreed escalation, and writes the result in. Every renewal
+    -- after that escalates from the contract's own prior price and never re-reads the catalog —
+    -- the agreement, once priced, is self-referential.
+    PricedAt DATE NULL,
     AutoRenew BIT NOT NULL DEFAULT 0,
     CancellationWindowDays INT NULL,
     TerminationPolicy NVARCHAR(MAX) NULL,
@@ -132,6 +147,8 @@ CREATE TABLE __mj_BizAppsContracts.Contract (
     CONSTRAINT CK_Contract_ParentNotSelf CHECK (ParentContractID IS NULL OR ParentContractID <> ID),
     CONSTRAINT CK_Contract_SupersededNotSelf CHECK (SupersededByContractID IS NULL OR SupersededByContractID <> ID),
     CONSTRAINT CK_Contract_ExecutedAfterEffective CHECK (ExecutedDate IS NULL OR EffectiveDate IS NULL OR ExecutedDate >= EffectiveDate),
+    -- An Active contract has been priced. Draft may not have been yet.
+    CONSTRAINT CK_Contract_PricedWhenActive CHECK (Status <> 'Active' OR PricedAt IS NOT NULL),
     CONSTRAINT CK_Contract_CancellationWindow CHECK (CancellationWindowDays IS NULL OR CancellationWindowDays >= 0)
 );
 GO
