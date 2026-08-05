@@ -239,6 +239,31 @@
         }
     </mj-collapsible-panel>
 
+    <!-- Contract Lines Section -->
+    <mj-collapsible-panel
+        SectionKey="mJBizAppsContractsContractLines"
+        SectionName="Contract Lines"
+        Icon="fa fa-table"
+        Variant="related-entity"
+        [Form]="this"
+        [FormContext]="formContext"
+        [BadgeCount]="GetSectionRowCount('mJBizAppsContractsContractLines')"
+        [DefaultExpanded]="false">
+        @if (record.IsSaved) {
+        <div>
+            <mj-explorer-entity-data-grid
+                [Params]="BuildRelationshipViewParamsByEntityName('MJ_BizApps_Contracts: Contract Lines','ContractTermID')"
+                [NewRecordValues]="NewRecordValues('MJ_BizApps_Contracts: Contract Lines')"
+                [AllowLoad]="IsSectionExpanded('mJBizAppsContractsContractLines')"
+                [ShowToolbar]="false"
+                (Navigate)="OnFormNavigate($event)"
+                (AfterDataLoad)="SetSectionRowCount('mJBizAppsContractsContractLines', $event.totalRowCount)"
+                >
+            </mj-explorer-entity-data-grid>
+        </div>
+        }
+    </mj-collapsible-panel>
+
     <!-- Contract Billing Events Section -->
     <mj-collapsible-panel
         SectionKey="mJBizAppsContractsContractBillingEvents"
@@ -314,31 +339,6 @@
         }
     </mj-collapsible-panel>
 
-    <!-- Contract Terms Section -->
-    <mj-collapsible-panel
-        SectionKey="mJBizAppsContractsContractTerms"
-        SectionName="Contract Terms"
-        Icon="fa fa-table"
-        Variant="related-entity"
-        [Form]="this"
-        [FormContext]="formContext"
-        [BadgeCount]="GetSectionRowCount('mJBizAppsContractsContractTerms')"
-        [DefaultExpanded]="false">
-        @if (record.IsSaved) {
-        <div>
-            <mj-explorer-entity-data-grid
-                [Params]="BuildRelationshipViewParamsByEntityName('MJ_BizApps_Contracts: Contract Terms','RenewalOfTermID')"
-                [NewRecordValues]="NewRecordValues('MJ_BizApps_Contracts: Contract Terms')"
-                [AllowLoad]="IsSectionExpanded('mJBizAppsContractsContractTerms')"
-                [ShowToolbar]="false"
-                (Navigate)="OnFormNavigate($event)"
-                (AfterDataLoad)="SetSectionRowCount('mJBizAppsContractsContractTerms', $event.totalRowCount)"
-                >
-            </mj-explorer-entity-data-grid>
-        </div>
-        }
-    </mj-collapsible-panel>
-
     <!-- Contract Commitments Section -->
     <mj-collapsible-panel
         SectionKey="mJBizAppsContractsContractCommitments"
@@ -364,25 +364,25 @@
         }
     </mj-collapsible-panel>
 
-    <!-- Contract Lines Section -->
+    <!-- Contract Terms Section -->
     <mj-collapsible-panel
-        SectionKey="mJBizAppsContractsContractLines"
-        SectionName="Contract Lines"
+        SectionKey="mJBizAppsContractsContractTerms"
+        SectionName="Contract Terms"
         Icon="fa fa-table"
         Variant="related-entity"
         [Form]="this"
         [FormContext]="formContext"
-        [BadgeCount]="GetSectionRowCount('mJBizAppsContractsContractLines')"
+        [BadgeCount]="GetSectionRowCount('mJBizAppsContractsContractTerms')"
         [DefaultExpanded]="false">
         @if (record.IsSaved) {
         <div>
             <mj-explorer-entity-data-grid
-                [Params]="BuildRelationshipViewParamsByEntityName('MJ_BizApps_Contracts: Contract Lines','ContractTermID')"
-                [NewRecordValues]="NewRecordValues('MJ_BizApps_Contracts: Contract Lines')"
-                [AllowLoad]="IsSectionExpanded('mJBizAppsContractsContractLines')"
+                [Params]="BuildRelationshipViewParamsByEntityName('MJ_BizApps_Contracts: Contract Terms','RenewalOfTermID')"
+                [NewRecordValues]="NewRecordValues('MJ_BizApps_Contracts: Contract Terms')"
+                [AllowLoad]="IsSectionExpanded('mJBizAppsContractsContractTerms')"
                 [ShowToolbar]="false"
                 (Navigate)="OnFormNavigate($event)"
-                (AfterDataLoad)="SetSectionRowCount('mJBizAppsContractsContractLines', $event.totalRowCount)"
+                (AfterDataLoad)="SetSectionRowCount('mJBizAppsContractsContractTerms', $event.totalRowCount)"
                 >
             </mj-explorer-entity-data-grid>
         </div>

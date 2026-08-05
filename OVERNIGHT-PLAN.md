@@ -166,6 +166,19 @@ workspace edit pane on this before adding any more hand-built fields.
 
 ## Log
 
+- **10:45** — **X.2 closed, and the FEATURE-LIST made honest.** X.2 (`ContractType`'s two default
+  columns had no bounds, while every sibling column did) was still open — and my OWN `ContractsEngine`
+  work made it load-bearing, because those defaults now flow into every new term, so a negative one
+  would land where the same value typed directly is rejected. Added both CHECKs and proved the bound
+  BITES rather than merely existing.
+  `plans/FEATURE-LIST.md` was describing eleven closed contradictions as open. Now marked ✅ with what
+  closed each, the original finding text left intact — editing it to read as though the problem never
+  happened would lose the reason the fix exists. Counts re-derived from a FROM-ZERO re-migration
+  (55 CHECKs, 6 unique indexes) rather than from whatever the live DB happened to hold, and the
+  un-re-derived Appendix now says so about itself.
+  Baseline re-proven from zero again: drop → migrate → codegen → sync → re-seed, then 95 tier-2 and
+  70 tier-5 assertions green on the rebuilt schema.
+
 - **10:20** — **Design-token audit + a brittleness fix.** Checked the "MJ tokens for every control"
   standard properly rather than assuming: 96 of 97 hex values in the section were already correct
   `var(--mj-x, #fallback)` fallbacks; one bare `#fff` was not, now `var(--mj-text-inverse, #fff)`.

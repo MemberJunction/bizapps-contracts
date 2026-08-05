@@ -1535,6 +1535,9 @@ export class mjBizAppsContractsContractTerm_ {
     @Field(() => [mjBizAppsContractsContractEvent_])
     mjBizAppsContractsContractEvents_ContractTermIDArray: mjBizAppsContractsContractEvent_[]; // Link to mjBizAppsContractsContractEvents
     
+    @Field(() => [mjBizAppsContractsContractLine_])
+    mjBizAppsContractsContractLines_ContractTermIDArray: mjBizAppsContractsContractLine_[]; // Link to mjBizAppsContractsContractLines
+    
     @Field(() => [mjBizAppsContractsContractBillingEvent_])
     mjBizAppsContractsContractBillingEvents_ContractTermIDArray: mjBizAppsContractsContractBillingEvent_[]; // Link to mjBizAppsContractsContractBillingEvents
     
@@ -1544,14 +1547,11 @@ export class mjBizAppsContractsContractTerm_ {
     @Field(() => [mjBizAppsContractsContractBillingSchedule_])
     mjBizAppsContractsContractBillingSchedules_ContractTermIDArray: mjBizAppsContractsContractBillingSchedule_[]; // Link to mjBizAppsContractsContractBillingSchedules
     
-    @Field(() => [mjBizAppsContractsContractTerm_])
-    mjBizAppsContractsContractTerms_RenewalOfTermIDArray: mjBizAppsContractsContractTerm_[]; // Link to mjBizAppsContractsContractTerms
-    
     @Field(() => [mjBizAppsContractsContractCommitment_])
     mjBizAppsContractsContractCommitments_ContractTermIDArray: mjBizAppsContractsContractCommitment_[]; // Link to mjBizAppsContractsContractCommitments
     
-    @Field(() => [mjBizAppsContractsContractLine_])
-    mjBizAppsContractsContractLines_ContractTermIDArray: mjBizAppsContractsContractLine_[]; // Link to mjBizAppsContractsContractLines
+    @Field(() => [mjBizAppsContractsContractTerm_])
+    mjBizAppsContractsContractTerms_RenewalOfTermIDArray: mjBizAppsContractsContractTerm_[]; // Link to mjBizAppsContractsContractTerms
     
 }
 
@@ -1770,6 +1770,16 @@ export class mjBizAppsContractsContractTermResolver extends ResolverBase {
         return result;
     }
         
+    @FieldResolver(() => [mjBizAppsContractsContractLine_])
+    async mjBizAppsContractsContractLines_ContractTermIDArray(@Root() mjbizappscontractscontractterm_: mjBizAppsContractsContractTerm_, @Ctx() { userPayload, providers }: AppContext, @PubSub() pubSub: PubSubEngine) {
+        this.CheckUserReadPermissions('MJ_BizApps_Contracts: Contract Lines', userPayload);
+        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
+        const sSQL = `SELECT * FROM ${provider.QuoteSchemaAndView('__mj_BizAppsContracts', 'vwContractLines')} WHERE ${provider.QuoteIdentifier('ContractTermID')}=${provider.BuildParameterPlaceholder(0)} ` + this.getRowLevelSecurityWhereClause(provider, 'MJ_BizApps_Contracts: Contract Lines', userPayload, EntityPermissionType.Read, 'AND');
+        const rows = await provider.ExecuteSQL(sSQL, [mjbizappscontractscontractterm_.ID], undefined, this.GetUserFromPayload(userPayload));
+        const result = await this.ArrayMapFieldNamesToCodeNames('MJ_BizApps_Contracts: Contract Lines', rows, this.GetUserFromPayload(userPayload));
+        return result;
+    }
+        
     @FieldResolver(() => [mjBizAppsContractsContractBillingEvent_])
     async mjBizAppsContractsContractBillingEvents_ContractTermIDArray(@Root() mjbizappscontractscontractterm_: mjBizAppsContractsContractTerm_, @Ctx() { userPayload, providers }: AppContext, @PubSub() pubSub: PubSubEngine) {
         this.CheckUserReadPermissions('MJ_BizApps_Contracts: Contract Billing Events', userPayload);
@@ -1800,16 +1810,6 @@ export class mjBizAppsContractsContractTermResolver extends ResolverBase {
         return result;
     }
         
-    @FieldResolver(() => [mjBizAppsContractsContractTerm_])
-    async mjBizAppsContractsContractTerms_RenewalOfTermIDArray(@Root() mjbizappscontractscontractterm_: mjBizAppsContractsContractTerm_, @Ctx() { userPayload, providers }: AppContext, @PubSub() pubSub: PubSubEngine) {
-        this.CheckUserReadPermissions('MJ_BizApps_Contracts: Contract Terms', userPayload);
-        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
-        const sSQL = `SELECT * FROM ${provider.QuoteSchemaAndView('__mj_BizAppsContracts', 'vwContractTerms')} WHERE ${provider.QuoteIdentifier('RenewalOfTermID')}=${provider.BuildParameterPlaceholder(0)} ` + this.getRowLevelSecurityWhereClause(provider, 'MJ_BizApps_Contracts: Contract Terms', userPayload, EntityPermissionType.Read, 'AND');
-        const rows = await provider.ExecuteSQL(sSQL, [mjbizappscontractscontractterm_.ID], undefined, this.GetUserFromPayload(userPayload));
-        const result = await this.ArrayMapFieldNamesToCodeNames('MJ_BizApps_Contracts: Contract Terms', rows, this.GetUserFromPayload(userPayload));
-        return result;
-    }
-        
     @FieldResolver(() => [mjBizAppsContractsContractCommitment_])
     async mjBizAppsContractsContractCommitments_ContractTermIDArray(@Root() mjbizappscontractscontractterm_: mjBizAppsContractsContractTerm_, @Ctx() { userPayload, providers }: AppContext, @PubSub() pubSub: PubSubEngine) {
         this.CheckUserReadPermissions('MJ_BizApps_Contracts: Contract Commitments', userPayload);
@@ -1820,13 +1820,13 @@ export class mjBizAppsContractsContractTermResolver extends ResolverBase {
         return result;
     }
         
-    @FieldResolver(() => [mjBizAppsContractsContractLine_])
-    async mjBizAppsContractsContractLines_ContractTermIDArray(@Root() mjbizappscontractscontractterm_: mjBizAppsContractsContractTerm_, @Ctx() { userPayload, providers }: AppContext, @PubSub() pubSub: PubSubEngine) {
-        this.CheckUserReadPermissions('MJ_BizApps_Contracts: Contract Lines', userPayload);
+    @FieldResolver(() => [mjBizAppsContractsContractTerm_])
+    async mjBizAppsContractsContractTerms_RenewalOfTermIDArray(@Root() mjbizappscontractscontractterm_: mjBizAppsContractsContractTerm_, @Ctx() { userPayload, providers }: AppContext, @PubSub() pubSub: PubSubEngine) {
+        this.CheckUserReadPermissions('MJ_BizApps_Contracts: Contract Terms', userPayload);
         const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
-        const sSQL = `SELECT * FROM ${provider.QuoteSchemaAndView('__mj_BizAppsContracts', 'vwContractLines')} WHERE ${provider.QuoteIdentifier('ContractTermID')}=${provider.BuildParameterPlaceholder(0)} ` + this.getRowLevelSecurityWhereClause(provider, 'MJ_BizApps_Contracts: Contract Lines', userPayload, EntityPermissionType.Read, 'AND');
+        const sSQL = `SELECT * FROM ${provider.QuoteSchemaAndView('__mj_BizAppsContracts', 'vwContractTerms')} WHERE ${provider.QuoteIdentifier('RenewalOfTermID')}=${provider.BuildParameterPlaceholder(0)} ` + this.getRowLevelSecurityWhereClause(provider, 'MJ_BizApps_Contracts: Contract Terms', userPayload, EntityPermissionType.Read, 'AND');
         const rows = await provider.ExecuteSQL(sSQL, [mjbizappscontractscontractterm_.ID], undefined, this.GetUserFromPayload(userPayload));
-        const result = await this.ArrayMapFieldNamesToCodeNames('MJ_BizApps_Contracts: Contract Lines', rows, this.GetUserFromPayload(userPayload));
+        const result = await this.ArrayMapFieldNamesToCodeNames('MJ_BizApps_Contracts: Contract Terms', rows, this.GetUserFromPayload(userPayload));
         return result;
     }
         
@@ -2255,14 +2255,14 @@ export class mjBizAppsContractsContract_ {
     @MaxLength(36)
     RootSupersededByContractID?: string;
         
+    @Field(() => [mjBizAppsContractsContractTerm_])
+    mjBizAppsContractsContractTerms_ContractIDArray: mjBizAppsContractsContractTerm_[]; // Link to mjBizAppsContractsContractTerms
+    
     @Field(() => [mjBizAppsContractsContract_])
     mjBizAppsContractsContracts_ParentContractIDArray: mjBizAppsContractsContract_[]; // Link to mjBizAppsContractsContracts
     
     @Field(() => [mjBizAppsContractsContract_])
     mjBizAppsContractsContracts_SupersededByContractIDArray: mjBizAppsContractsContract_[]; // Link to mjBizAppsContractsContracts
-    
-    @Field(() => [mjBizAppsContractsContractTerm_])
-    mjBizAppsContractsContractTerms_ContractIDArray: mjBizAppsContractsContractTerm_[]; // Link to mjBizAppsContractsContractTerms
     
     @Field(() => [mjBizAppsContractsContractEvent_])
     mjBizAppsContractsContractEvents_ContractIDArray: mjBizAppsContractsContractEvent_[]; // Link to mjBizAppsContractsContractEvents
@@ -2462,6 +2462,16 @@ export class mjBizAppsContractsContractResolver extends ResolverBase {
         return result;
     }
     
+    @FieldResolver(() => [mjBizAppsContractsContractTerm_])
+    async mjBizAppsContractsContractTerms_ContractIDArray(@Root() mjbizappscontractscontract_: mjBizAppsContractsContract_, @Ctx() { userPayload, providers }: AppContext, @PubSub() pubSub: PubSubEngine) {
+        this.CheckUserReadPermissions('MJ_BizApps_Contracts: Contract Terms', userPayload);
+        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
+        const sSQL = `SELECT * FROM ${provider.QuoteSchemaAndView('__mj_BizAppsContracts', 'vwContractTerms')} WHERE ${provider.QuoteIdentifier('ContractID')}=${provider.BuildParameterPlaceholder(0)} ` + this.getRowLevelSecurityWhereClause(provider, 'MJ_BizApps_Contracts: Contract Terms', userPayload, EntityPermissionType.Read, 'AND');
+        const rows = await provider.ExecuteSQL(sSQL, [mjbizappscontractscontract_.ID], undefined, this.GetUserFromPayload(userPayload));
+        const result = await this.ArrayMapFieldNamesToCodeNames('MJ_BizApps_Contracts: Contract Terms', rows, this.GetUserFromPayload(userPayload));
+        return result;
+    }
+        
     @FieldResolver(() => [mjBizAppsContractsContract_])
     async mjBizAppsContractsContracts_ParentContractIDArray(@Root() mjbizappscontractscontract_: mjBizAppsContractsContract_, @Ctx() { userPayload, providers }: AppContext, @PubSub() pubSub: PubSubEngine) {
         this.CheckUserReadPermissions('MJ_BizApps_Contracts: Contracts', userPayload);
@@ -2479,16 +2489,6 @@ export class mjBizAppsContractsContractResolver extends ResolverBase {
         const sSQL = `SELECT * FROM ${provider.QuoteSchemaAndView('__mj_BizAppsContracts', 'vwContracts')} WHERE ${provider.QuoteIdentifier('SupersededByContractID')}=${provider.BuildParameterPlaceholder(0)} ` + this.getRowLevelSecurityWhereClause(provider, 'MJ_BizApps_Contracts: Contracts', userPayload, EntityPermissionType.Read, 'AND');
         const rows = await provider.ExecuteSQL(sSQL, [mjbizappscontractscontract_.ID], undefined, this.GetUserFromPayload(userPayload));
         const result = await this.ArrayMapFieldNamesToCodeNames('MJ_BizApps_Contracts: Contracts', rows, this.GetUserFromPayload(userPayload));
-        return result;
-    }
-        
-    @FieldResolver(() => [mjBizAppsContractsContractTerm_])
-    async mjBizAppsContractsContractTerms_ContractIDArray(@Root() mjbizappscontractscontract_: mjBizAppsContractsContract_, @Ctx() { userPayload, providers }: AppContext, @PubSub() pubSub: PubSubEngine) {
-        this.CheckUserReadPermissions('MJ_BizApps_Contracts: Contract Terms', userPayload);
-        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
-        const sSQL = `SELECT * FROM ${provider.QuoteSchemaAndView('__mj_BizAppsContracts', 'vwContractTerms')} WHERE ${provider.QuoteIdentifier('ContractID')}=${provider.BuildParameterPlaceholder(0)} ` + this.getRowLevelSecurityWhereClause(provider, 'MJ_BizApps_Contracts: Contract Terms', userPayload, EntityPermissionType.Read, 'AND');
-        const rows = await provider.ExecuteSQL(sSQL, [mjbizappscontractscontract_.ID], undefined, this.GetUserFromPayload(userPayload));
-        const result = await this.ArrayMapFieldNamesToCodeNames('MJ_BizApps_Contracts: Contract Terms', rows, this.GetUserFromPayload(userPayload));
         return result;
     }
         

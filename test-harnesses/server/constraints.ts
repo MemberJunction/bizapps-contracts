@@ -266,6 +266,22 @@ async function main(): Promise<void> {
     check('X.5c CK_ContractLine_SubscriptionNeedsType exists', await constraintExists('CK_ContractLine_SubscriptionNeedsType'));
     check('X.6b CK_Contract_SupersededHasSuccessor exists', await constraintExists('CK_Contract_SupersededHasSuccessor'));
     check('X.15e CK_ContractEvent_EventType exists', await constraintExists('CK_ContractEvent_EventType'));
+    check('X.2a CK_ContractType_MaxEscalationPercent exists', await constraintExists('CK_ContractType_MaxEscalationPercent'));
+    check('X.2b CK_ContractType_RenewalNoticeDays exists', await constraintExists('CK_ContractType_RenewalNoticeDays'));
+
+    // The bound has to actually BITE, not merely exist. This matters more than the usual
+    // existence check because ContractsEngine now copies these defaults into every new term: a
+    // negative here would flow into terms where the same value typed directly is rejected.
+    const negativeDefault = await req.query(`
+        BEGIN TRY
+            UPDATE __mj_BizAppsContracts.ContractType SET DefaultMaxEscalationPercent = -0.05 WHERE Code = 'Standard';
+            SELECT 0 AS refused;
+        END TRY
+        BEGIN CATCH
+            SELECT 1 AS refused;
+        END CATCH`);
+    check('X.2c a NEGATIVE default escalation is actually refused, not just constrained on paper',
+        (negativeDefault.recordset as { refused: number }[])[0]?.refused === 1);
 
     console.log('\nENGINE — contract-type defaults on a NEW term');
 

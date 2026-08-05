@@ -62,7 +62,18 @@ CREATE TABLE __mj_BizAppsContracts.ContractType (
     CONSTRAINT CK_ContractType_RenewalMode CHECK (RenewalMode IN ('Deal','Auto','Manual')),
     CONSTRAINT CK_ContractType_TermMonths CHECK (DefaultTermMonths IS NULL OR DefaultTermMonths > 0),
     CONSTRAINT CK_ContractType_EscalationPercent CHECK (DefaultEscalationPercent IS NULL OR DefaultEscalationPercent >= 0),
-    CONSTRAINT CK_ContractType_CancellationWindow CHECK (DefaultCancellationWindowDays IS NULL OR DefaultCancellationWindowDays >= 0)
+    CONSTRAINT CK_ContractType_CancellationWindow CHECK (DefaultCancellationWindowDays IS NULL OR DefaultCancellationWindowDays >= 0),
+    -- The two defaults below were the only percent/day columns on this table WITHOUT a bound, while
+    -- their ContractTerm counterparts (CK_ContractTerm_MaxEscalationPercent,
+    -- CK_ContractTerm_RenewalNoticeDays) and their own siblings above all had one. The inconsistency
+    -- was accidental rather than intended (X.2).
+    --
+    -- It became load-bearing on 2026-08-05, when ContractsEngine started applying these defaults to
+    -- every NEW term: a negative default here would now flow silently into terms where the same value
+    -- typed directly would have been rejected. A bound at the source is the only place it can be
+    -- caught before it spreads.
+    CONSTRAINT CK_ContractType_MaxEscalationPercent CHECK (DefaultMaxEscalationPercent IS NULL OR DefaultMaxEscalationPercent >= 0),
+    CONSTRAINT CK_ContractType_RenewalNoticeDays CHECK (DefaultRenewalNoticeDays IS NULL OR DefaultRenewalNoticeDays >= 0)
 );
 GO
 

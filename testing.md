@@ -5,7 +5,7 @@ against the **matrix**, not against the tests that happen to exist — an empty 
 every written test is green.
 
 > **Last full sweep:** 2026-08-05, branch `mjdev/contracts-night`, instance `contracts-dev`.
-> **Totals: 32 tier-1 + 92 tier-2 + 70 tier-5 = 194 assertions, all passing.** Every number below was
+> **Totals: 32 tier-1 + 95 tier-2 + 70 tier-5 = 197 assertions, all passing.** Every number below was
 > observed, not estimated. Where something was not run, it says so.
 
 ---
@@ -23,7 +23,7 @@ npx turbo run test --filter=@mj-biz-apps/contracts-ng    # 32
 # Tier 2 — in-process, direct SQL, MJAPI-free
 npx tsx test-harnesses/server/invariants.ts     # 22
 npx tsx test-harnesses/server/lifecycle.ts      # 45
-npx tsx test-harnesses/server/constraints.ts    # 25
+npx tsx test-harnesses/server/constraints.ts    # 28
 
 # Tier 5 — real Chrome, driven only through the UI
 URL=$(mjdev explorer-url contracts-dev | grep -oE 'http://localhost:[0-9]+/#token=[A-Za-z0-9._-]+')
@@ -86,6 +86,7 @@ produces a red tier-3/4/5 against green tier-2, which is an environment artefact
 | X.9 one subscription, one line | — | ✓ | — | — | Bypass proof: the filtered unique index exists. |
 | X.12 Generated needs a timestamp | — | ✓ | — | — | Bypass proof. |
 | X.14 Approved amendment needs its task | — | ✓ | — | — | Bypass proof. |
+| X.2 ContractType defaults are bounded | — | ✓ | — | — | Both CHECKs exist AND a negative default is proven refused — an existence check alone would not show the bound bites. Load-bearing since those defaults now flow into every new term. |
 | X.15 event vocabulary is closed | — | ✓ | — | ✓ | T5 asserts the timeline renders sentences and NOT raw enum strings. |
 | X.15 event log is append-only | — | ✓ | — | ✓ | T2 proves edit and delete are both refused AND that the row is unchanged in the DB afterwards. |
 | Creating a contract with coverage | — | ⚠ | — | ✓ | Driven end-to-end through the UI; T2 covers the entity rules underneath. |
