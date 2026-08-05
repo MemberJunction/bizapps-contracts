@@ -30,12 +30,14 @@ import {
 } from '@memberjunction/core';
 import { RegisterClass } from '@memberjunction/global';
 import type {
+    mjBizAppsContractsContractEntity,
     mjBizAppsContractsContractTermEntity,
     mjBizAppsContractsContractBillingScheduleEntity,
     mjBizAppsContractsContractBillingEventEntity,
     mjBizAppsContractsContractEventEntity,
 } from '@mj-biz-apps/contracts-entities';
 
+const E_CONTRACT = 'MJ_BizApps_Contracts: Contracts';
 const E_TERM = 'MJ_BizApps_Contracts: Contract Terms';
 const E_SCHEDULE = 'MJ_BizApps_Contracts: Contract Billing Schedules';
 const E_EVENT = 'MJ_BizApps_Contracts: Contract Billing Events';
@@ -154,6 +156,26 @@ export class ActivateTermOperation extends BaseRemotableOperation<ActivateTermIn
                         return { Success: false, Message: `Could not create a billing event: ${ev.LatestResult?.CompleteMessage ?? 'unknown error'}` };
                     }
                     dates.push(when.toISOString().slice(0, 10));
+                }
+            }
+
+            // A CONTRACT WHOSE TERM IS LIVE IS A LIVE CONTRACT. Without this the roster shows "Draft"
+            // for an agreement that is actively billing — the same class of lie as a Terminated
+            // contract whose schedule still runs, and just as invisible. Only Draft and
+            // PendingSignature are promoted: Expired, Terminated and Superseded are deliberate states
+            // that activating a term must not quietly undo.
+            const contract = await md.GetEntityObject<mjBizAppsContractsContractEntity>(E_CONTRACT, user);
+            if (await contract.Load(term.ContractID)) {
+                const status = contract.Status as unknown as string;
+                if (status === 'Draft' || status === 'PendingSignature') {
+                    contract.Status = 'Active';
+                    if (!(await contract.Save())) {
+                        await db.RollbackTransaction();
+                        return {
+                            Success: false,
+                            Message: `Could not bring the contract live: ${contract.LatestResult?.CompleteMessage ?? 'unknown error'}`,
+                        };
+                    }
                 }
             }
 

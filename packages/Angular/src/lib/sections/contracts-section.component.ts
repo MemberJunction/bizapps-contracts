@@ -48,7 +48,11 @@ import {
     type TerminateContractOutput,
 } from '@mj-biz-apps/contracts-entities';
 import type { AfterRowClickEventArgs } from '@memberjunction/ng-entity-viewer';
-import type { mjBizAppsContractsContractEntity, mjBizAppsContractsContractTermEntity } from '@mj-biz-apps/contracts-entities';
+import type {
+    mjBizAppsContractsContractEntity,
+    mjBizAppsContractsContractTermEntity,
+    mjBizAppsContractsContractLineEntity,
+} from '@mj-biz-apps/contracts-entities';
 // Accounting's session-tab framework — marked TRANSFER-BACKLOG (destined for MJ base); Marcelo
 // authorised using it now rather than waiting for the move.
 import { WorkspaceCardComponent, WorkspaceTabStore } from '@mj-biz-apps/accounting-ng';
@@ -57,6 +61,9 @@ const E_CONTRACTS = 'MJ_BizApps_Contracts: Contracts';
 const E_TYPES = 'MJ_BizApps_Contracts: Contract Types';
 const E_TERMS = 'MJ_BizApps_Contracts: Contract Terms';
 const E_LINES = 'MJ_BizApps_Contracts: Contract Lines';
+// Products belong to ORDERS. Contracts reads the catalog it commits to; it does not own one —
+// FKs point upstream, and a second product list here would be a second thing to disagree with.
+const E_PRODUCTS = 'MJ_BizApps_Orders: Products';
 const E_SCHEDULES = 'MJ_BizApps_Contracts: Contract Billing Schedules';
 const E_EVENTS = 'MJ_BizApps_Contracts: Contract Billing Events';
 const E_COMMITMENTS = 'MJ_BizApps_Contracts: Contract Commitments';
@@ -86,6 +93,24 @@ interface EventRow {
 }
 interface Lookup { ID: string; Name: string }
 
+/**
+ * One row of coverage on the first term — what the contract actually entitles the customer to.
+ *
+ * This exists because a term with no lines is not activatable: `Contracts.ActivateTerm` refuses it,
+ * on the grounds that an Active term covering nothing bills nothing. Without a way to enter coverage
+ * at creation, everything a person creates in the app is a dead end — it can never be activated and
+ * therefore never renewed. `ContractedUnitPrice` is nullable on purpose: null means "resolve from the
+ * catalog", which is a different statement from zero.
+ */
+interface LineDraft {
+    ProductID: string;
+    LineType: string;
+    Quantity: number | null;
+    ContractedUnitPrice: number | null;
+    DiscountPercent: number | null;
+    Description: string;
+}
+
 /** What the create page edits. Plain data — it becomes a BaseEntity only at save. */
 interface Draft {
     // --- Contract. Every field below is a real column; nothing here is invented.
@@ -100,6 +125,8 @@ interface Draft {
     EscalationPercent: number | null; EscalationBasis: string; MaxEscalationPercent: number | null;
     RenewalNoticeDays: number | null; RenewalProbability: number | null;
     EarlyTerminationDate: string; TermExecutedDate: string; TermNotes: string;
+    // --- Coverage on that first term. Without at least one, the term cannot be activated.
+    Lines: LineDraft[];
 }
 
 
@@ -184,6 +211,17 @@ interface Draft {
         .pv-l { margin: 0; padding: 12px 14px 12px 32px; font-size: 12.5px; line-height: 1.7; color: var(--mj-text-secondary, #475569); }
         .pv-f { display: flex; justify-content: flex-end; gap: 8px; padding: 12px 14px; background: var(--mj-color-neutral-50, #f8fafc); border-top: 1px solid var(--mj-border-subtle, #f1f5f9); }
         .tm { display: flex; align-items: flex-end; gap: 12px; padding: 12px 0 0; margin-top: 12px; border-top: 1px solid var(--mj-border-subtle, #f1f5f9); }
+
+        .cov { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--mj-border-subtle, #f1f5f9); }
+        .cov-h { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+        .cov-t { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+        .cov-t th { text-align: left; font-weight: 600; font-size: 11px; letter-spacing: .04em; text-transform: uppercase; color: var(--mj-text-muted, #64748b); padding: 0 8px 6px; }
+        .cov-t td { padding: 4px 8px; vertical-align: middle; }
+        .cov-t .r { text-align: right; }
+        .cov-t tfoot td { padding-top: 10px; border-top: 1px solid var(--mj-border-subtle, #f1f5f9); color: var(--mj-text-secondary, #475569); }
+        /* Numeric inputs are narrow and right-aligned with tabular figures so a column of money reads
+           as a column rather than as ragged text. */
+        .cov-t .nm { width: 92px; text-align: right; font-variant-numeric: tabular-nums; }
         .tl-row:last-child { border-bottom: none; }
         .tl-w { font-size: 12px; color: var(--mj-text-secondary, #475569); }
         .tl-bar { height: 26px; border-radius: var(--mj-radius-sm, 4px); background: var(--mj-color-neutral-100, #f1f5f9); overflow: hidden; display: flex; }
@@ -694,6 +732,69 @@ interface Draft {
                                     <label class="fld"><span>Notes</span><input class="in" [(ngModel)]="D.TermNotes" /></label>
                                 </ng-container>
                             </div>
+
+                            <!-- COVERAGE. Not optional decoration: a term with no lines cannot be
+                                 activated, so a contract created without coverage is a dead end that
+                                 can never be activated and therefore never renewed. -->
+                            <div class="cov" *ngIf="D.CreateTerm">
+                                <div class="cov-h">
+                                    <div>
+                                        <strong>Coverage</strong>
+                                        <div class="pv-s">What this term entitles the customer to</div>
+                                    </div>
+                                    <button mjButton (click)="AddLine()"><i class="fa-solid fa-plus"></i> Add line</button>
+                                </div>
+
+                                <div class="note gap" *ngIf="!TermIsCovered" style="margin:0 0 12px;">
+                                    A term with no coverage <strong>cannot be activated</strong> — add at least one
+                                    line, or the contract will be created but stuck in Draft.
+                                </div>
+
+                                <table class="cov-t" *ngIf="D.Lines.length">
+                                    <thead>
+                                        <tr>
+                                            <th>Product</th><th>Type</th><th class="r">Qty</th>
+                                            <th class="r">Unit price</th><th class="r">Disc %</th><th>Description</th><th></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr *ngFor="let l of D.Lines; let i = index">
+                                            <td>
+                                                <select class="sel" [(ngModel)]="l.ProductID" [ngModelOptions]="{standalone:true}">
+                                                    <option value="">Choose a product…</option>
+                                                    <option *ngFor="let p of Products" [value]="p.ID">{{ p.Name }}</option>
+                                                </select>
+                                            </td>
+                                            <td>
+                                                <select class="sel" [(ngModel)]="l.LineType" [ngModelOptions]="{standalone:true}">
+                                                    <option *ngFor="let t of LineTypes" [value]="t">{{ t }}</option>
+                                                </select>
+                                            </td>
+                                            <td class="r"><input class="in nm" type="number" min="0" [(ngModel)]="l.Quantity" [ngModelOptions]="{standalone:true}" /></td>
+                                            <td class="r"><input class="in nm" type="number" min="0" step="0.01" placeholder="catalog" [(ngModel)]="l.ContractedUnitPrice" [ngModelOptions]="{standalone:true}" /></td>
+                                            <td class="r"><input class="in nm" type="number" min="0" max="100" [(ngModel)]="l.DiscountPercent" [ngModelOptions]="{standalone:true}" /></td>
+                                            <td><input class="in" [(ngModel)]="l.Description" [ngModelOptions]="{standalone:true}" placeholder="What this covers" /></td>
+                                            <td><button mjButton (click)="RemoveLine(i)" title="Remove this line"><i class="fa-solid fa-xmark"></i></button></td>
+                                        </tr>
+                                    </tbody>
+                                    <tfoot>
+                                        <tr>
+                                            <td colspan="6" class="r">
+                                                Priced coverage <strong>{{ LinesSubtotal | currency: 'USD' }}</strong>
+                                                <span class="pv-s" *ngIf="CatalogPricedCount">
+                                                    · {{ CatalogPricedCount }} line(s) priced from the catalog, so not counted here
+                                                </span>
+                                            </td>
+                                            <td></td>
+                                        </tr>
+                                    </tfoot>
+                                </table>
+
+                                <div class="note gap" style="margin:12px 0 0;" *ngIf="CatalogPricedCount">
+                                    Leaving a unit price empty means <strong>resolve from the catalog</strong> — which is a
+                                    different statement from a price of zero, and is why the field is not defaulted.
+                                </div>
+                            </div>
                         </fieldset>
 
                         <div class="note gap" style="margin:16px 0 0;" *ngIf="Mode === 'fast'">
@@ -773,6 +874,9 @@ export class MJCContractsSectionComponent extends BaseResourceComponent implemen
     public Users: Lookup[] = [];
     public PayTerms: Lookup[] = [];
     public Currencies: Lookup[] = [];
+    public Products: Lookup[] = [];
+    /** Mirrors CK_ContractLine_LineType exactly — the CHECK is the source of truth for this list. */
+    public readonly LineTypes = ['Subscription', 'OneTime', 'Milestone', 'Usage', 'Minimum'];
     public readonly Frequencies = ['Monthly', 'Quarterly', 'SemiAnnual', 'Annual', 'Milestone', 'Custom'];
     /** Open drafts on the create page — accounting's card owns the strip; this owns the state. */
     public readonly Drafts = new WorkspaceTabStore<Draft>();
@@ -817,6 +921,7 @@ export class MJCContractsSectionComponent extends BaseResourceComponent implemen
             EscalationPercent: null, EscalationBasis: '', MaxEscalationPercent: null,
             RenewalNoticeDays: null, RenewalProbability: null,
             EarlyTerminationDate: '', TermExecutedDate: '', TermNotes: '',
+            Lines: [],
         };
     }
 
@@ -1122,6 +1227,41 @@ export class MJCContractsSectionComponent extends BaseResourceComponent implemen
         }
     }
 
+    // ---- coverage rows on the create page ---------------------------------------------------------
+
+    public AddLine(): void {
+        this.D.Lines.push({ ProductID: '', LineType: 'Subscription', Quantity: 1, ContractedUnitPrice: null, DiscountPercent: null, Description: '' });
+        this.cdr.detectChanges();
+    }
+
+    public RemoveLine(i: number): void {
+        this.D.Lines.splice(i, 1);
+        this.cdr.detectChanges();
+    }
+
+    /**
+     * True once the draft would produce an ACTIVATABLE term — i.e. a term with at least one line that
+     * names a product. Surfaced in the UI so the dead end is visible while it can still be fixed,
+     * rather than discovered later as a refusal from ActivateTerm.
+     */
+    public get TermIsCovered(): boolean {
+        return this.D.Lines.some((l) => !!l.ProductID);
+    }
+
+    /** What the coverage adds up to, for the lines that state a price. */
+    public get LinesSubtotal(): number {
+        return this.D.Lines.reduce((sum, l) => {
+            if (l.ContractedUnitPrice == null) return sum;
+            const gross = l.ContractedUnitPrice * (l.Quantity ?? 1);
+            return sum + gross * (1 - (l.DiscountPercent ?? 0) / 100);
+        }, 0);
+    }
+
+    /** Lines priced from the catalog rather than the contract — they cannot be totalled here. */
+    public get CatalogPricedCount(): number {
+        return this.D.Lines.filter((l) => l.ProductID && l.ContractedUnitPrice == null).length;
+    }
+
     public Touch(): void { this.BufferDirty = true; this.Message = ''; }
 
     public ResetEdits(): void {
@@ -1235,6 +1375,41 @@ export class MJCContractsSectionComponent extends BaseResourceComponent implemen
 
         if (!(await t.Save())) {
             this.Error = `Contract created, but the first term failed: ${t.LatestResult?.CompleteMessage ?? 'unknown error'}`;
+            return;
+        }
+
+        await this.createLines(t.ID, md);
+    }
+
+    /**
+     * The coverage rows. Reported individually rather than as one lump: if line 3 of 5 fails, the
+     * person needs to know WHICH one, because the other four are already saved and re-entering all
+     * five would duplicate them.
+     */
+    private async createLines(termID: string, md: Metadata): Promise<void> {
+        const failures: string[] = [];
+        let order = 1;
+
+        for (const l of this.D.Lines) {
+            if (!l.ProductID) continue; // a blank row the person added and left empty is not an error
+            const line = await md.GetEntityObject<mjBizAppsContractsContractLineEntity>(E_LINES);
+            line.NewRecord();
+            line.ContractTermID = termID;
+            line.ProductID = l.ProductID;
+            line.LineType = (l.LineType || 'Subscription') as typeof line.LineType;
+            line.Quantity = l.Quantity ?? 1;
+            line.ContractedUnitPrice = l.ContractedUnitPrice;
+            line.DiscountPct = this.pct(l.DiscountPercent);
+            line.Description = l.Description || null;
+            line.DisplayOrder = order;
+            if (!(await line.Save())) {
+                failures.push(`line ${order} (${l.Description || 'unnamed'}): ${line.LatestResult?.CompleteMessage ?? 'unknown error'}`);
+            }
+            order++;
+        }
+
+        if (failures.length) {
+            this.Error = `Contract and term created, but coverage failed — ${failures.join('; ')}`;
         }
     }
 
@@ -1284,7 +1459,7 @@ export class MJCContractsSectionComponent extends BaseResourceComponent implemen
     /** One batch — six reads always needed together should not be six round trips. */
     private async load(): Promise<void> {
         const rv = new RunView();
-        const [contracts, terms, events, types, companies, orgs, people, users, payterms, currencies] = await rv.RunViews([
+        const [contracts, terms, events, types, companies, orgs, people, users, payterms, currencies, products] = await rv.RunViews([
             { EntityName: E_CONTRACTS, Fields: ['ID', 'ContractNumber', 'Status', 'Description', 'EffectiveDate', 'ExecutedDate', 'PricedAt', 'AutoRenew', 'CancellationWindowDays', 'ExternalReferenceID'], OrderBy: 'ContractNumber', ResultType: 'simple' },
             { EntityName: E_TERMS, Fields: ['ID', 'ContractID', 'TermNumber', 'Status', 'StartDate', 'EndDate', 'CommittedAmount', 'EscalationPercent', 'MaxEscalationPercent', 'RenewalNoticeDays', 'BillingFrequency', 'ExecutedDate'], OrderBy: 'TermNumber', ResultType: 'simple' },
             { EntityName: E_EVENTS, Fields: ['ID', 'ContractTermID', 'ScheduledDate', 'Status', 'ComputedAmount', 'FailureReason'], OrderBy: 'ScheduledDate', ResultType: 'simple' },
@@ -1295,6 +1470,7 @@ export class MJCContractsSectionComponent extends BaseResourceComponent implemen
             { EntityName: E_USERS, Fields: ['ID', 'Name'], OrderBy: 'Name', ResultType: 'simple' },
             { EntityName: E_PAYTERMS, Fields: ['ID', 'Name'], OrderBy: 'Name', ResultType: 'simple' },
             { EntityName: E_CURRENCIES, Fields: ['ID', 'Name'], OrderBy: 'Name', ResultType: 'simple' },
+            { EntityName: E_PRODUCTS, Fields: ['ID', 'Name'], OrderBy: 'Name', ResultType: 'simple' },
         ]);
 
         // RunView reports failure via Success — it never throws — so each result is checked.
@@ -1308,6 +1484,7 @@ export class MJCContractsSectionComponent extends BaseResourceComponent implemen
         this.Users = users?.Success ? (users.Results as Lookup[]) : [];
         this.PayTerms = payterms?.Success ? (payterms.Results as Lookup[]) : [];
         this.Currencies = currencies?.Success ? (currencies.Results as Lookup[]) : [];
+        this.Products = products?.Success ? (products.Results as Lookup[]) : [];
 
         this.Counts = {
             Scheduled: this.Events.filter((e) => e.Status === 'Scheduled').length,

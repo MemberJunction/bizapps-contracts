@@ -383,7 +383,12 @@ async function teardown(md: Metadata, rv: RunView, user: UserInfo, contractID: s
         );
         for (const row of found.Results ?? []) {
             const e = await md.GetEntityObject(entityName, user);
-            if (await e.Load(row.ID)) await e.Delete();
+            // Delete() returns false on failure rather than throwing, so an unchecked call leaves the
+            // row behind AND hides the reason — which is exactly how "teardown left 1 row" becomes an
+            // unexplainable mystery instead of a message naming the FK.
+            if ((await e.Load(row.ID)) && !(await e.Delete())) {
+                console.log(`    ! could not delete ${entityName} ${row.ID}: ${e.LatestResult?.CompleteMessage ?? 'unknown error'}`);
+            }
         }
     };
 
@@ -394,10 +399,14 @@ async function teardown(md: Metadata, rv: RunView, user: UserInfo, contractID: s
     // Renewals reference their predecessor, so delete the chain newest-first.
     for (const id of termIDs.reverse()) {
         const t = await md.GetEntityObject<mjBizAppsContractsContractTermEntity>(E_TERM, user);
-        if (await t.Load(id)) await t.Delete();
+        if ((await t.Load(id)) && !(await t.Delete())) {
+            console.log(`    ! could not delete term ${t.TermNumber}: ${t.LatestResult?.CompleteMessage ?? 'unknown error'}`);
+        }
     }
     const c = await md.GetEntityObject<mjBizAppsContractsContractEntity>(E_CONTRACT, user);
-    if (await c.Load(contractID)) await c.Delete();
+    if ((await c.Load(contractID)) && !(await c.Delete())) {
+        console.log(`    ! could not delete contract ${c.ContractNumber}: ${c.LatestResult?.CompleteMessage ?? 'unknown error'}`);
+    }
 }
 
 function fmt(d: Date | null): string {
