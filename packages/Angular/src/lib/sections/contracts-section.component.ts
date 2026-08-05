@@ -42,7 +42,7 @@ import type { AfterRowClickEventArgs } from '@memberjunction/ng-entity-viewer';
 import type { mjBizAppsContractsContractEntity, mjBizAppsContractsContractTermEntity } from '@mj-biz-apps/contracts-entities';
 // Accounting's session-tab framework — marked TRANSFER-BACKLOG (destined for MJ base); Marcelo
 // authorised using it now rather than waiting for the move.
-import { WorkspaceTabStripComponent, WorkspaceTabStore } from '@mj-biz-apps/accounting-ng';
+import { WorkspaceCardComponent, WorkspaceTabStore } from '@mj-biz-apps/accounting-ng';
 
 const E_CONTRACTS = 'MJ_BizApps_Contracts: Contracts';
 const E_TYPES = 'MJ_BizApps_Contracts: Contract Types';
@@ -93,8 +93,6 @@ interface Draft {
     EarlyTerminationDate: string; TermExecutedDate: string; TermNotes: string;
 }
 
-/** One open contract in the workspace: the row plus its own edit buffer, so tabs never share state. */
-interface TabState { Row: ContractRow; Edit: Partial<Draft> }
 
 @RegisterClass(BaseResourceComponent, 'ContractsSectionResource')
 @Component({
@@ -103,7 +101,7 @@ interface TabState { Row: ContractRow; Edit: Partial<Draft> }
     imports: [
         CommonModule, FormsModule, BaseFormsModule, MJButtonDirective,
         MJPageLayoutComponent, MJPageHeaderComponent, MJPageBodyComponent,
-        MJLeftNavComponent, MJLeftNavContentComponent, WorkspaceTabStripComponent,
+        MJLeftNavComponent, MJLeftNavContentComponent, WorkspaceCardComponent,
     ],
     styles: [
         `
@@ -183,6 +181,25 @@ interface TabState { Row: ContractRow; Edit: Partial<Draft> }
         .modes button + button { border-left: 1px solid var(--mj-border-default, #e2e8f0); }
         .modes button.on { background: var(--mj-brand-primary, #0076b6); color: var(--mj-text-inverse, #fff); }
         .empty { padding: 26px 16px; text-align: center; color: var(--mj-text-muted, #64748b); font-size: 13px; }
+        /* The card's body scrolls; its tab strip, identity band and footer stay put — long forms are
+           the reason the workspace card has a fixed footer at all. */
+        .scroller { max-height: calc(100vh - 340px); min-height: 320px; overflow-y: auto; padding: var(--mj-space-4, 16px); }
+        .searchbar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: var(--mj-space-4, 16px); }
+        .searchbox { position: relative; flex: 1; min-width: 320px; }
+        .searchbox i { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--mj-text-muted, #64748b); font-size: 13px; }
+        .searchbox input { height: 40px; padding-left: 36px; font-size: 14px; }
+        .chip { display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 10px; border-radius: 999px;
+                font-size: 12px; font-weight: 600; background: var(--mj-brand-primary-tint, #e6f1f9); color: var(--mj-brand-primary, #0076b6); }
+        .chip i { cursor: pointer; font-size: 10px; }
+        .picker { display: flex; flex-direction: column; }
+        .pick { display: flex; align-items: center; gap: 12px; padding: 10px 16px; border: none; background: transparent;
+                border-bottom: 1px solid var(--mj-border-subtle, #f1f5f9); font-family: inherit; font-size: 13px;
+                cursor: pointer; text-align: left; color: var(--mj-text-primary, #1e293b); }
+        .pick:last-child { border-bottom: none; }
+        .pick:hover { background: var(--mj-bg-surface-hover, #f1f5f9); }
+        .pick.on { background: var(--mj-brand-primary-tint, #e6f1f9); }
+        .pick .pn { font-weight: 700; min-width: 128px; }
+        .pick .pd { color: var(--mj-text-secondary, #475569); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         `,
     ],
     template: `
@@ -232,20 +249,39 @@ interface TabState { Row: ContractRow; Edit: Partial<Draft> }
 
             <!-- ============ 2. WORKSPACE (editing) ============ -->
             <div class="wrap" *ngIf="Page === 'workspace'">
-                <div class="sechead" *ngIf="!Current">
-                    <h2>Contract workspace</h2>
-                    <p>No contract open — pick one from the Contracts page.</p>
+                <div class="searchbar">
+                    <span class="searchbox">
+                        <i class="fa-solid fa-magnifying-glass"></i>
+                        <input class="in" placeholder="Find a contract — number, description or external reference…"
+                               [(ngModel)]="Query" (ngModelChange)="cdrTick()" />
+                    </span>
+                    <select class="sel" style="width:170px" [(ngModel)]="StatusFilter" (ngModelChange)="cdrTick()">
+                        <option value="">All statuses</option>
+                        <option *ngFor="let s of StatusOptions" [value]="s">{{ s }}</option>
+                    </select>
+                    <button mjButton (click)="ClearSearch()" *ngIf="Query || StatusFilter">Clear</button>
                 </div>
 
-                <div class="card" *ngIf="Open.Count" style="margin-bottom:0;border-bottom-left-radius:0;border-bottom-right-radius:0;">
-                    <mj-workspace-tab-strip
-                        [Tabs]="Open.Tabs" [ActiveId]="Open.ActiveId" [ShowNewTab]="false"
-                        (TabSelected)="SwitchTab($event)" (TabClosed)="CloseTab($event)"
-                    ></mj-workspace-tab-strip>
+                <div class="card" *ngIf="Query || StatusFilter">
+                    <div class="ch">Matches <span class="r">{{ Matches.length }}</span></div>
+                    <div class="picker" *ngIf="Matches.length">
+                        <button class="pick" *ngFor="let m of Matches" [class.on]="m.ID === CurrentID" (click)="Load(m)">
+                            <span class="pn">{{ m.ContractNumber }}</span>
+                            <span class="badge" [ngClass]="Tone(m.Status)">{{ m.Status }}</span>
+                            <span class="pd">{{ m.Description || '—' }}</span>
+                        </button>
+                    </div>
+                    <div class="empty" *ngIf="!Matches.length">Nothing matches that search.</div>
+                </div>
+
+                <div class="sechead" *ngIf="!Current">
+                    <h2>Contract workspace</h2>
+                    <p>Search above to open a contract, or pick one from the Contracts page. Opening the
+                       <strong>Full record</strong> uses MJ's record viewer and its tab system.</p>
                 </div>
 
                 <ng-container *ngIf="Current as c">
-                    <div class="card" [style.border-top-left-radius]="Open.Count ? '0' : null" [style.border-top-right-radius]="Open.Count ? '0' : null">
+                    <div class="card">
                         <div class="ident">
                             <span class="n">{{ c.ContractNumber }}</span>
                             <span class="badge" [ngClass]="Tone(c.Status)">{{ c.Status }}</span>
@@ -366,27 +402,50 @@ interface TabState { Row: ContractRow; Edit: Partial<Draft> }
                 </ng-container>
             </div>
 
-            <!-- ============ 3. CREATE ============ -->
+            <!-- ============ 3. CREATE — accounting's workspace structure ============ -->
             <div class="wrap" *ngIf="Page === 'create'">
                 <div class="sechead">
                     <h2>New contract</h2>
-                    <p>Record what was agreed. The order is produced later by the billing engine — nothing here creates one.</p>
+                    <p>Record what was agreed. The order is produced later by the billing engine — nothing here creates one.
+                       Several drafts can be open at once; each tab keeps its own.</p>
                 </div>
 
-                <div class="card">
-                    <div class="ident">
-                        <span class="n">New contract</span>
+                <mj-workspace-card
+                    AriaLabel="Contract entry workspace"
+                    [Tabs]="Drafts.Tabs"
+                    [ActiveId]="Drafts.ActiveId"
+                    NewTabLabel="New contract"
+                    [ShowFooter]="true"
+                    ConfirmLabel="Create contract"
+                    ConfirmIcon="fa-solid fa-check"
+                    [ConfirmDisabled]="!CanCreate"
+                    [ConfirmBusy]="Saving"
+                    ConfirmBusyLabel="Creating…"
+                    DraftLabel="Keep as draft tab"
+                    [ShowDraft]="true"
+                    (TabSelected)="SwitchDraft($event)"
+                    (TabClosed)="CloseDraft($event)"
+                    (NewTabRequested)="NewDraft()"
+                    (Confirm)="Create()"
+                    (SaveDraft)="KeepDraft()"
+                    (Discard)="DiscardDraft()">
+
+                    <span workspaceFooterNote>
+                        Created <strong>Draft</strong> — it bills nothing until a term is activated and a schedule exists.
+                        <ng-container *ngIf="Error"> · <span style="color:var(--mj-status-error-text,#b91c1c)">{{ Error }}</span></ng-container>
+                    </span>
+
+                    <ng-container workspaceHeader>
+                        <span class="n">{{ D.ContractNumber || 'New contract' }}</span>
                         <span class="badge">Draft</span>
                         <span class="badge info" *ngIf="D.PricedAt">Priced as of {{ D.PricedAt }}</span>
-                        <span class="sp">
-                            <span class="modes">
-                                <button [class.on]="Mode === 'fast'" (click)="Mode = 'fast'"><i class="fa-solid fa-bolt"></i> Fast entry</button>
-                                <button [class.on]="Mode === 'detail'" (click)="Mode = 'detail'"><i class="fa-solid fa-list-check"></i> Detailed</button>
-                            </span>
+                        <span class="modes" style="margin-left:auto;">
+                            <button [class.on]="Mode === 'fast'" (click)="Mode = 'fast'"><i class="fa-solid fa-bolt"></i> Fast entry</button>
+                            <button [class.on]="Mode === 'detail'" (click)="Mode = 'detail'"><i class="fa-solid fa-list-check"></i> Detailed</button>
                         </span>
-                    </div>
+                    </ng-container>
 
-                    <div class="cb">
+                    <div class="scroller">
                         <fieldset class="pl">
                             <legend class="lg">The agreement</legend>
                             <div class="fg">
@@ -400,7 +459,7 @@ interface TabState { Row: ContractRow; Edit: Partial<Draft> }
                                 <label class="fld"><span>Selling company</span>
                                     <select class="sel" [(ngModel)]="D.CompanyID">
                                         <option value="">Pick a company…</option>
-                                        <option *ngFor="let c of Companies" [value]="c.ID">{{ c.Name }}</option>
+                                        <option *ngFor="let co of Companies" [value]="co.ID">{{ co.Name }}</option>
                                     </select>
                                 </label>
                                 <label class="fld s2"><span>Customer organization</span>
@@ -411,7 +470,7 @@ interface TabState { Row: ContractRow; Edit: Partial<Draft> }
                                     <span class="hint">An organization or a person, never both — the database enforces it.</span>
                                 </label>
                                 <label class="fld"><span>Status</span>
-                                    <select class="sel" [(ngModel)]="D.Status"><option *ngFor="let s of StatusOptions" [value]="s">{{ s }}</option></select>
+                                    <select class="sel" [(ngModel)]="D.Status"><option *ngFor="let st of StatusOptions" [value]="st">{{ st }}</option></select>
                                 </label>
                                 <label class="fld s3"><span>Description</span><textarea class="ta" rows="2" [(ngModel)]="D.Description" placeholder="What this agreement covers"></textarea></label>
                             </div>
@@ -449,7 +508,8 @@ interface TabState { Row: ContractRow; Edit: Partial<Draft> }
                                 <label class="fld"><span>Priced as of</span><input class="in" type="date" [(ngModel)]="D.PricedAt" />
                                     <span class="hint">Locks catalog prices onto this agreement. Backdate when entering paper signed earlier.</span></label>
                                 <label class="fld"><span>Effective</span><input class="in" type="date" [(ngModel)]="D.EffectiveDate" /></label>
-                                <label class="fld"><span>Executed</span><input class="in" type="date" [(ngModel)]="D.ExecutedDate" /></label>
+                                <label class="fld"><span>Executed</span><input class="in" type="date" [(ngModel)]="D.ExecutedDate" />
+                                    <span class="hint">May precede Effective — signing in December for a January term is ordinary.</span></label>
                             </div>
                         </fieldset>
 
@@ -473,14 +533,13 @@ interface TabState { Row: ContractRow; Edit: Partial<Draft> }
                             <legend class="lg" style="text-transform:none;letter-spacing:0;font-size:12.5px;">
                                 <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
                                     <input type="checkbox" [(ngModel)]="D.CreateTerm" />
-                                    Also create the first term — the period that actually carries the money and the dates
+                                    Also create the first term — the period that carries the money and the dates
                                 </label>
                             </legend>
                             <div class="fg" *ngIf="D.CreateTerm">
                                 <label class="fld"><span>Start date</span><input class="in" type="date" [(ngModel)]="D.TermStart" /></label>
                                 <label class="fld"><span>End date</span><input class="in" type="date" [(ngModel)]="D.TermEnd" /></label>
                                 <label class="fld"><span>Committed amount</span><input class="in" type="number" [(ngModel)]="D.CommittedAmount" /></label>
-
                                 <label class="fld"><span>Billing frequency</span>
                                     <select class="sel" [(ngModel)]="D.BillingFrequency">
                                         <option *ngFor="let f of Frequencies" [value]="f">{{ f }}</option>
@@ -499,7 +558,6 @@ interface TabState { Row: ContractRow; Edit: Partial<Draft> }
                                     </select>
                                     <span class="hint">Owned by orders — this list comes from there.</span>
                                 </label>
-
                                 <ng-container *ngIf="Mode === 'detail'">
                                     <label class="fld"><span>Escalation %</span><input class="in" type="number" step="0.01" placeholder="4.0" [(ngModel)]="D.EscalationPercent" /></label>
                                     <label class="fld"><span>Escalation basis</span>
@@ -512,7 +570,6 @@ interface TabState { Row: ContractRow; Edit: Partial<Draft> }
                                     </label>
                                     <label class="fld"><span>Escalation cap %</span><input class="in" type="number" step="0.01" placeholder="5.0" [(ngModel)]="D.MaxEscalationPercent" />
                                         <span class="hint">Ceiling on any renewal increase — the clause customers dispute.</span></label>
-
                                     <label class="fld"><span>Renewal notice (days)</span><input class="in" type="number" [(ngModel)]="D.RenewalNoticeDays" />
                                         <span class="hint">Notice before a price change — a different clause from cancellation.</span></label>
                                     <label class="fld"><span>Currency</span>
@@ -522,35 +579,21 @@ interface TabState { Row: ContractRow; Edit: Partial<Draft> }
                                         </select>
                                         <span class="hint">Recorded only — nothing converts.</span>
                                     </label>
-                                    <label class="fld"><span>Renewal probability %</span><input class="in" type="number" min="0" max="100" [(ngModel)]="D.RenewalProbability" />
-                                        <span class="hint">Read by the renewal forecast in sales.</span></label>
-
+                                    <label class="fld"><span>Renewal probability %</span><input class="in" type="number" min="0" max="100" [(ngModel)]="D.RenewalProbability" /></label>
                                     <label class="fld"><span>Early termination date</span><input class="in" type="date" [(ngModel)]="D.EarlyTerminationDate" /></label>
                                     <label class="fld"><span>Term executed</span><input class="in" type="date" [(ngModel)]="D.TermExecutedDate" /></label>
                                     <label class="fld"><span>Notes</span><input class="in" [(ngModel)]="D.TermNotes" /></label>
                                 </ng-container>
                             </div>
                         </fieldset>
-                    </div>
 
-                    <div class="note gap" *ngIf="Mode === 'fast'">
-                        <strong>Fast entry</strong> carries everything an ordinary agreement needs — parties, dates, the
-                        pricing lock, renewal basics, and optionally the first term. <strong>Detailed</strong> adds the rest:
-                        customer-as-person, contact and owner, MSA nesting, the termination clause, and the full escalation
-                        set (basis, cap, notice, currency, probability). Switching keeps everything you have typed.
+                        <div class="note gap" style="margin:16px 0 0;" *ngIf="Mode === 'fast'">
+                            <strong>Fast entry</strong> carries everything an ordinary agreement needs. <strong>Detailed</strong>
+                            adds customer-as-person, contact and owner, MSA nesting, the termination clause and the full
+                            escalation set. Switching keeps what you have typed.
+                        </div>
                     </div>
-                    <div class="note err" *ngIf="Error">{{ Error }}</div>
-
-                    <div class="foot">
-                        <span class="msg">Created <strong>Draft</strong> — it bills nothing until a term is activated and a schedule exists.</span>
-                        <span class="sp">
-                            <button mjButton (click)="Page = 'contracts'">Cancel</button>
-                            <button mjButton="primary" [disabled]="!CanCreate || Saving" (click)="Create()">
-                                <i class="fa-solid fa-check"></i> {{ Saving ? 'Creating…' : 'Create contract' }}
-                            </button>
-                        </span>
-                    </div>
-                </div>
+                </mj-workspace-card>
             </div>
 
             <!-- ============ 4. BILLING WORKLIST ============ -->
@@ -621,13 +664,17 @@ export class MJCContractsSectionComponent extends BaseResourceComponent implemen
     public Users: Lookup[] = [];
     public PayTerms: Lookup[] = [];
     public Currencies: Lookup[] = [];
-    /** Open contracts — the workspace is the tabbed EDITING space, so each tab owns its own buffer. */
-    public readonly Open = new WorkspaceTabStore<TabState>();
     public readonly Frequencies = ['Monthly', 'Quarterly', 'SemiAnnual', 'Annual', 'Milestone', 'Custom'];
+    /** Open drafts on the create page — accounting's card owns the strip; this owns the state. */
+    public readonly Drafts = new WorkspaceTabStore<Draft>();
+    public Query = '';
+    public StatusFilter = '';
     public Counts = { Scheduled: 0, Generated: 0, Failed: 0, Skipped: 0 };
 
     public CurrentID: string | null = null;
-    public D: Draft = MJCContractsSectionComponent.blank();
+    private fallbackDraft: Draft = MJCContractsSectionComponent.blank();
+    /** The active draft's data. Each create tab keeps its own, so drafts never bleed together. */
+    public get D(): Draft { return this.Drafts.ActiveTab?.State ?? this.fallbackDraft; }
 
     public readonly StatusOptions = ['Draft', 'PendingSignature', 'Active', 'Expired', 'Terminated', 'Superseded'];
     public readonly Toolbar = { showSearch: true, searchPlaceholder: 'Search…', showAdd: true, showRefresh: true, showExport: true };
@@ -701,13 +748,11 @@ export class MJCContractsSectionComponent extends BaseResourceComponent implemen
         return this.CurrentID ? (this.Contracts.find((c) => c.ID === this.CurrentID) ?? null) : null;
     }
 
-    /** The active tab's edit buffer. Tabs never share one. */
-    public get Edit(): Partial<Draft> {
-        return this.Open.ActiveTab?.State?.Edit ?? {};
-    }
-    public get Dirty(): boolean {
-        return !!this.Open.ActiveTab?.Dirty;
-    }
+    /** The workspace edits one contract at a time — MJ's record viewer is where several are held open. */
+    public Buffer: Partial<Draft> = {};
+    public BufferDirty = false;
+    public get Edit(): Partial<Draft> { return this.Buffer; }
+    public get Dirty(): boolean { return this.BufferDirty; }
     public get Failed(): EventRow[] { return this.Events.filter((e) => e.Status === 'Failed'); }
     public get ActiveCount(): number { return this.Contracts.filter((c) => c.Status === 'Active').length; }
     public get TotalCommitted(): number { return this.Terms.filter((t) => t.Status === 'Active').reduce((s, t) => s + (t.CommittedAmount ?? 0), 0); }
@@ -735,7 +780,78 @@ export class MJCContractsSectionComponent extends BaseResourceComponent implemen
         return t.Status === 'Active' ? 'now' : (t.Status === 'Completed' || t.Status === 'Terminated') ? 'done' : 'next';
     }
 
-    public OnNav(item: MJLeftNavItem): void { this.Page = item.id; this.cdr.detectChanges(); }
+    public OnNav(item: MJLeftNavItem): void {
+        this.Page = item.id;
+        if (item.id === 'create' && !this.Drafts.Count) this.NewDraft();
+        this.cdr.detectChanges();
+    }
+
+    /**
+     * The workspace's contract picker. This one filters IN MEMORY on purpose, unlike a grid search:
+     * the roster is already loaded for the health strip, the result set is small, and typing should
+     * narrow instantly rather than round-trip. The roster grid keeps its own server-side toolbar
+     * search for the paged, full-table case.
+     */
+    public get Matches(): ContractRow[] {
+        const q = this.Query.trim().toLowerCase();
+        if (!q && !this.StatusFilter) return [];
+        return this.Contracts.filter((c) => {
+            const okStatus = !this.StatusFilter || c.Status === this.StatusFilter;
+            const okText = !q
+                || c.ContractNumber.toLowerCase().includes(q)
+                || (c.Description ?? '').toLowerCase().includes(q)
+                || (c.ExternalReferenceID ?? '').toLowerCase().includes(q);
+            return okStatus && okText;
+        }).slice(0, 25);
+    }
+
+    /** Open a searched contract straight into the workspace. */
+    public Load(c: ContractRow): void {
+        this.CurrentID = c.ID;
+        this.Tab = 'overview';
+        this.Message = '';
+        this.Buffer = this.bufferFor(c);
+        this.BufferDirty = false;
+        this.scope(c.ID);
+        this.cdr.detectChanges();
+    }
+
+    public ClearSearch(): void { this.Query = ''; this.StatusFilter = ''; this.cdr.detectChanges(); }
+    public cdrTick(): void { this.cdr.detectChanges(); }
+
+    // ---- create-page draft tabs (accounting's workspace card) ----
+
+    public NewDraft(): void {
+        const d = MJCContractsSectionComponent.blank();
+        const id = `draft-${Date.now()}`;
+        this.Drafts.Open({ Id: id, Label: 'New contract', Icon: 'fa-solid fa-file-circle-plus', Status: 'draft', State: d });
+        this.Error = '';
+        this.cdr.detectChanges();
+    }
+
+    public SwitchDraft(id: string): void { this.Drafts.Activate(id); this.Error = ''; this.cdr.detectChanges(); }
+
+    public CloseDraft(id: string): void {
+        const t = this.Drafts.Tabs.find((x) => x.Id === id);
+        if (t?.Dirty && !confirm('This draft has unsaved entry. Close it?')) return;
+        this.Drafts.Close(id);
+        this.cdr.detectChanges();
+    }
+
+    /** Keep the draft as a tab — the card's secondary action; nothing is written. */
+    public KeepDraft(): void {
+        const t = this.Drafts.ActiveTab;
+        if (t) this.Drafts.UpdateState(t.Id, t.State, false);
+        this.Error = '';
+        this.cdr.detectChanges();
+    }
+
+    public DiscardDraft(): void {
+        const t = this.Drafts.ActiveTab;
+        if (t) this.Drafts.Close(t.Id);
+        if (!this.Drafts.Count) this.NewDraft();
+        this.cdr.detectChanges();
+    }
     public GoCreate(): void { this.Page = 'create'; this.Error = ''; this.cdr.detectChanges(); }
 
     /** The grid emits a navigation INTENT; MJ's NavigationService is what actually opens a tab. */
@@ -755,52 +871,16 @@ export class MJCContractsSectionComponent extends BaseResourceComponent implemen
         if (typeof id !== 'string') return;
         const row = this.Contracts.find((c) => c.ID === id);
         if (!row) return;
-
-        if (this.Open.Tabs.some((t) => t.Id === id)) {
-            this.Open.Activate(id);
-        } else {
-            this.Open.Open({ Id: id, Label: row.ContractNumber, Icon: 'fa-solid fa-file-signature', Status: 'complete', State: { Row: row, Edit: this.bufferFor(row) } });
-        }
-        this.CurrentID = id;
-        this.Tab = 'overview';
-        this.Message = '';
-        this.scope(id);
+        this.Load(row);
         this.Page = 'workspace';
         this.cdr.detectChanges();
     }
 
-    public SwitchTab(id: string): void {
-        this.Open.Activate(id);
-        this.CurrentID = id;
-        this.Tab = 'overview';
-        this.Message = '';
-        this.scope(id);
-        this.cdr.detectChanges();
-    }
-
-    /** Closing a tab with unsaved edits confirms first — the one real hazard of session tabs. */
-    public CloseTab(id: string): void {
-        const tab = this.Open.Tabs.find((t) => t.Id === id);
-        if (tab?.Dirty && !confirm('This contract has unsaved changes. Close it and discard them?')) return;
-        this.Open.Close(id);
-        this.CurrentID = this.Open.ActiveId;
-        if (this.CurrentID) this.scope(this.CurrentID);
-        this.cdr.detectChanges();
-    }
-
-    public Touch(): void {
-        const t = this.Open.ActiveTab;
-        if (t) this.Open.UpdateState(t.Id, t.State, true);
-        this.Message = '';
-    }
+    public Touch(): void { this.BufferDirty = true; this.Message = ''; }
 
     public ResetEdits(): void {
-        const t = this.Open.ActiveTab;
         const row = this.Current;
-        if (t && row) {
-            this.Open.UpdateState(t.Id, { Row: row, Edit: this.bufferFor(row) }, false);
-            this.Open.MarkClean(t.Id);
-        }
+        if (row) { this.Buffer = this.bufferFor(row); this.BufferDirty = false; }
         this.cdr.detectChanges();
     }
 
@@ -826,11 +906,7 @@ export class MJCContractsSectionComponent extends BaseResourceComponent implemen
             // Save returns false on failure — it does not throw.
             const ok = await rec.Save();
             this.Message = ok ? 'Saved.' : `Save failed: ${rec.LatestResult?.CompleteMessage ?? 'unknown error'}`;
-            if (ok) {
-                const t = this.Open.ActiveTab;
-                if (t) this.Open.MarkClean(t.Id);
-                await this.load();
-            }
+            if (ok) { this.BufferDirty = false; await this.load(); }
         } finally {
             this.Saving = false;
             this.cdr.detectChanges();
@@ -870,10 +946,10 @@ export class MJCContractsSectionComponent extends BaseResourceComponent implemen
 
             await this.load();
             const row = this.Contracts.find((c) => c.ID === newID);
-            if (row) this.Open.Open({ Id: newID, Label: row.ContractNumber, Icon: 'fa-solid fa-file-signature', Status: 'complete', State: { Row: row, Edit: this.bufferFor(row) } });
-            this.CurrentID = newID;
-            this.scope(newID);
-            this.D = MJCContractsSectionComponent.blank();
+            if (row) this.Load(row);
+            const done = this.Drafts.ActiveTab;
+            if (done) this.Drafts.Close(done.Id);
+            this.fallbackDraft = MJCContractsSectionComponent.blank();
             this.Tab = 'overview';
             this.Page = 'workspace';
         } finally {
