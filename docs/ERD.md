@@ -10,8 +10,12 @@
 > hand-edit the diagrams.
 >
 > **Schema:** `__mj_BizAppsContracts` · **Entity prefix:** `MJ_BizApps_Contracts: ` · **Keys:** UUID throughout
-> **Generated:** 2026-08-05 (re-checked against the live schema after the invariant pass) · 11 tables ·
+> **Generated:** 2026-08-05 (re-checked against the live schema after the invariant pass) · 10 tables ·
 > 13 internal relationships · 13 cross-app foreign keys
+>
+> (Ten is the app's own tables. `sys.tables` reports eleven in this schema because Flyway keeps its
+> `flyway_schema_history` there; an earlier edit of this header counted it and said eleven, which was
+> wrong — that table belongs to the migration tool, not to the model.)
 >
 > **Constraints added 2026-08-05** and not yet reflected in the section text below:
 > `CK_Contract_SupersededHasSuccessor` · `CK_ContractLine_SubscriptionNeedsType` ·
@@ -341,16 +345,49 @@ neither replacing the other.
 | `ContractTerm` | `BillingFrequency` | `Monthly` · `Quarterly` · `SemiAnnual` · `Annual` · `Milestone` · `Custom` |
 | `ContractLine` | `LineType` | `Subscription` · `OneTime` · `Milestone` · `Usage` · `Minimum` |
 | `ContractBillingSchedule` | `ScheduleType` | `Cadence` · `Milestone` · `Custom` |
-| `ContractBillingEvent` | `Status` | `Scheduled` · `Generated` · `Skipped` · `Failed` |
+| `ContractBillingEvent` | `Status` | `Scheduled` · `Generated` · `Skipped` · **`Cancelled`** · `Failed` |
 | `ContractCommitment` | `CommitmentType` | `Minimum` · `Prepaid` · `Draw` |
 | `ContractCommitment` | `TrueUpPolicy` | `BillShortfall` · `Forfeit` · `Rollover` |
 | `ContractCommitment` | `Status` | `Open` · `Closed` · `TruedUp` · `Forfeited` |
 | `ContractAmendment` | `AmendmentType` | `AddProduct` · `ChangeQuantity` · `ChangePrice` · `Coterm` · `PartialTerminate` · `Other` |
 | `ContractAmendment` | `Status` | `Draft` · `PendingApproval` · `Approved` · `Rejected` · `Applied` · `Cancelled` |
+| `ContractEvent` | `EventType` | `ContractCreated` · `ContractExecuted` · `ContractTerminated` · `ContractSuperseded` · `ContractExpired` · `SentForSignature` · `SignatureRejected` · `TermActivated` · `TermRenewed` · `TermCompleted` · `TermTerminated` · `AmendmentApplied` · `BillingEventGenerated` · `BillingEventFailed` |
 
 `Usage` and `Index` are in their lists deliberately even though usage metering and index escalation
 are out of v1 — keeping the **value** means the schema does not change when the capability arrives,
 and adding no **column** until there is something real to read is the matching half of that rule.
+
+**`Cancelled` is distinct from `Skipped`** on a billing event: `Skipped` is one occurrence that did
+not bill, `Cancelled` is one killed because the agreement ended under it. Reusing `Skipped` would
+make "we skipped March" and "the agreement ended in March" the same value.
+
+**`ContractEvent.EventType` was the schema's only unconstrained value column** until 2026-08-05 —
+`EventType = 'asdf'` saved. Naming the set immediately exposed a live split: the demo seed wrote
+`TermRenewed` while the renewal operation wrote `Renewed`, for the same event. The prefix discipline
+is deliberate: `Contract*` for what happens to the agreement, `Term*` for a period, `BillingEvent*`
+for a scheduled bill, so the subject of an event is readable from its type alone.
+
+### 7.1 Rules that are NOT value lists
+
+Four state-implies-field CHECKs and one filtered unique index, all added 2026-08-05:
+
+| Constraint | Rule |
+|---|---|
+| `CK_Contract_SupersededHasSuccessor` | `Superseded` requires `SupersededByContractID` — the exact state that column was added to eliminate |
+| `CK_ContractLine_SubscriptionNeedsType` | A `Subscription` line requires `SubscriptionTypeID`; without it the row saves and then fails at BILLING time on a live contract |
+| `CK_ContractBillingEvent_GeneratedHasTimestamp` | `Generated` requires `GeneratedAt` |
+| `CK_ContractAmendment_ApprovedHasTask` | `Approved` or `Rejected` requires `ApprovalTaskID` — an approval with no record is what the task integration exists to prevent |
+| `UQ_ContractLine_Subscription` (filtered) | One `orders.Subscription` per line; two lines owning one is a duplicate-billing shape |
+
+Two more rules cannot be expressed as constraints at all and live in the entity layer, where
+`Validate()`/`ValidateAsync()` surface the reason to every caller:
+
+- **A renewal chain may not cross contracts.** A CHECK cannot read the row it points at. Walking a
+  crossed chain would surface another contract's terms as this one's history.
+- **`ContractEvent` is append-only.** CodeGen generates working `spUpdate`/`spDelete`, so the table's
+  own "never edited, never deleted" comment was documentation rather than a mechanism.
+- **Escalation may not exceed its cap.** A two-column comparison; also the rule a renewal CLAMPS to
+  rather than failing on.
 
 ---
 

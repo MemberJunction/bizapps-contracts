@@ -136,7 +136,13 @@ workspace edit pane on this before adding any more hand-built fields.
 - [x] **9. Workspace coverage editing.** ✅ DONE — clicking a coverage row opens the line in its own
       custom form, and an Add line control targets the contract's LIVE term (or the latest when none
       is live, and is disabled when there are no terms — rather than producing an orphan).
-- [ ] **10. Regenerate `docs/ERD.md`** from the live schema after any migration change, and re-pin
+- [x] **10. `docs/ERD.md` re-checked against the live schema.** ✅ Entity and field lists were already
+      correct (verified column-by-column, not assumed). What was stale was the CONSTRAINT
+      documentation: added `Cancelled`, the `ContractEvent.EventType` vocabulary, a new §7.1 for the
+      four state-implies-field CHECKs + the filtered unique index, and the three rules that live in
+      the entity layer because no constraint can express them. Also corrected the table count back to
+      10 — an earlier edit of mine said 11, counting Flyway's own history table. Original:
+      **10. Regenerate `docs/ERD.md`** from the live schema after any migration change, and re-pin
       `plans/bizapps-contracts-master.md` §10.3.
 - [ ] **11. PG conversion** (`mj migrate convert`) + CI wiring — the C6 tail.
 
@@ -150,8 +156,18 @@ workspace edit pane on this before adding any more hand-built fields.
 | Renewal `AsOf` semantics | **Andrew** — likely the individual subscription end dates. |
 | `ContractLine → OrderLine` mapping (P-1) | Needed before renewal pricing is trustworthy. Design call. |
 | Usage metering | Out of v1 by decision. |
+| **PG conversion (item 11)** | **Neither bizapps-orders NOR bizapps-accounting ships a PostgreSQL variant** — both have the same SQL-Server-only layout we do. Making contracts the FIRST app in the family to carry PG migrations is a project decision about the family's direction, not a mechanical task, and doing it unilaterally would diverge from the structural model I am told to follow. Needs Amith. |
 
 ## Log
+
+- **09:25** — **Item 10 done; item 11 BLOCKED and logged.** The ERD's entities and fields were already
+  right — I verified column-by-column rather than assuming, which also caught that a header edit of
+  mine had said "11 tables" by counting Flyway's `flyway_schema_history`. The genuinely stale part
+  was constraints, now documented including the rules no CHECK can express.
+  **Item 11 (PG conversion) is a STOP, not a task:** neither orders nor accounting ships a PostgreSQL
+  variant — both have our exact SQL-Server-only layout. Making contracts the FIRST app in the family
+  to carry PG migrations is a decision about the family's direction, and doing it unilaterally would
+  diverge from the structural model I am told to follow. Needs Amith.
 
 - **09:10** — **Item 9 done.** Coverage is editable, not just listed: row-click opens the custom line
   form, Add line targets the live term. Asserted on the CUSTOM panel names, because the generated
