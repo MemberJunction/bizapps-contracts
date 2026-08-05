@@ -29,7 +29,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RegisterClass } from '@memberjunction/global';
 import { BaseResourceComponent, NavigationService } from '@memberjunction/ng-shared';
-import { BaseFormsModule } from '@memberjunction/ng-base-forms';
+import { BaseFormsModule, MJFormPresenterService } from '@memberjunction/ng-base-forms';
 import type { FormNavigationEvent } from '@memberjunction/ng-base-forms';
 import {
     MJLeftNavComponent, MJLeftNavContentComponent, MJPageLayoutComponent, MJPageHeaderComponent,
@@ -443,6 +443,10 @@ interface Draft {
                         </div>
 
                         <div *ngIf="Tab === 'terms'">
+                            <div class="cov-h" style="padding:12px 16px 0;">
+                                <div class="pv-s">Each term is a period with its own dates, money and cadence.</div>
+                                <button mjButton (click)="AddTerm(c)"><i class="fa-solid fa-plus"></i> Add term</button>
+                            </div>
                             <div class="cb" *ngIf="TermsOf(c.ID).length">
                                 <div class="tl-row" *ngFor="let t of TermsOf(c.ID)">
                                     <div class="tl-w">Term {{ t.TermNumber }}<br /><span style="color:var(--mj-text-muted,#64748b)">{{ t.StartDate | date: 'yyyy' }}</span></div>
@@ -459,6 +463,12 @@ interface Draft {
                                         </div>
                                     </div>
                                     <div class="tl-act">
+                                        <button mjButton (click)="EditTerm(t)" title="Edit this term in its own form">
+                                            <i class="fa-solid fa-pen"></i>
+                                        </button>
+                                        <button mjButton (click)="AddCoverage(t)" title="Add a coverage line to this term">
+                                            <i class="fa-solid fa-layer-group"></i>
+                                        </button>
                                         <button mjButton *ngIf="CanActivate(t)" [disabled]="Op.Busy"
                                                 (click)="Activate(t)" title="Move the term to Active and create its billing schedule">
                                             <i class="fa-solid fa-play"></i> Activate
@@ -856,6 +866,10 @@ interface Draft {
 export class MJCContractsSectionComponent extends BaseResourceComponent implements OnInit {
     private readonly cdr = inject(ChangeDetectorRef);
     private readonly nav = inject(NavigationService);
+    // MJ's 4-layer form architecture. Editing a term or a line opens ITS OWN registered form as a
+    // slide-in rather than another hand-built field set here — one definition of what a term looks
+    // like, reused everywhere, with the generated validation attached to it.
+    private readonly forms = inject(MJFormPresenterService);
 
     public Page = 'contracts';
     public Tab = 'overview';
@@ -1224,6 +1238,57 @@ export class MJCContractsSectionComponent extends BaseResourceComponent implemen
         } finally {
             this.Op.Busy = false;
             this.cdr.detectChanges();
+        }
+    }
+
+    // ---- editing through MJ's form architecture ---------------------------------------------------
+    //
+    // These open the entity's OWN registered form (the priority-2 custom one where we have written it,
+    // the generated one otherwise) as a slide-in. The alternative — another bespoke field set in this
+    // component — would be a second definition of what a term is, and the two would drift.
+
+    /** Edit an existing term in a slide-in, then refresh if anything was saved. */
+    public async EditTerm(t: TermRow): Promise<void> {
+        await this.presentForm({ EntityName: E_TERMS, RecordId: t.ID, Title: `Term ${t.TermNumber}` });
+    }
+
+    /** Add a term to the open contract, with the parent already filled in. */
+    public async AddTerm(c: ContractRow): Promise<void> {
+        await this.presentForm({
+            EntityName: E_TERMS,
+            NewRecordValues: { ContractID: c.ID, Status: 'Pending' },
+            Title: `New term on ${c.ContractNumber}`,
+        });
+    }
+
+    /** Add coverage to a term, with the parent already filled in. */
+    public async AddCoverage(t: TermRow): Promise<void> {
+        await this.presentForm({
+            EntityName: E_LINES,
+            NewRecordValues: { ContractTermID: t.ID, LineType: 'Subscription', Quantity: 1 },
+            Title: `New line on term ${t.TermNumber}`,
+        });
+    }
+
+    /**
+     * One place that opens a form and reacts to the outcome. `AfterSaved()` resolves with the record
+     * when something was written and null when the person cancelled — so a cancel must NOT refresh
+     * (it would look like the cancel did something) and a save MUST (or the timeline shows stale data
+     * next to a form that just changed it).
+     */
+    private async presentForm(options: { EntityName: string; RecordId?: string; NewRecordValues?: Record<string, unknown>; Title: string }): Promise<void> {
+        const ref = this.forms.Open({
+            EntityName: options.EntityName,
+            RecordId: options.RecordId,
+            NewRecordValues: options.NewRecordValues,
+            Presentation: 'slide-in',
+            EditMode: true,
+            Title: options.Title,
+        });
+        const saved = await ref.AfterSaved();
+        if (saved) {
+            this.Message = `${options.Title} saved.`;
+            await this.Refresh();
         }
     }
 
