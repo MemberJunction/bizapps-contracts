@@ -24,6 +24,12 @@
 > `flyway_schema_history` there; an earlier edit of this header counted it and said eleven, which was
 > wrong — that table belongs to the migration tool, not to the model.)
 >
+> **How to read this document.** §1 is the master map (names and connections, no columns). §2 is
+> every column with no lines; **§2.1 is every column WITH every line** — the complete picture, and
+> wide enough that it is an orientation tool rather than a working one. §4–§6 are the per-area
+> diagrams to actually work from: full column lists, small enough to read. §7.2 and §7.3 are the
+> parts no diagram can carry.
+>
 > **What DID change on 2026-08-05 (afternoon) is where the rules live, not what the tables are.**
 > Five entities that had CHECK constraints and no server subclass now have one, so the schema is no
 > longer the only thing enforcing them — see **§7.2**, which replaces the two-line footnote this
@@ -103,6 +109,9 @@ every renewal is another — so a single column could only ever name one and wou
 ---
 
 ## 2. Full detail — every column, as built
+
+Columns only, with no relationship lines. This is the version to read when you want the shape of the
+tables and nothing competing for attention; **§2.1 is the same tables with every connection drawn.**
 
 ```mermaid
 erDiagram
@@ -251,6 +260,191 @@ erDiagram
 
 ---
 
+## 2.1 Full detail **with links** — every column AND every connection
+
+§2 above is the same tables with the relationship lines stripped, which is the version to read when
+you want a column list and nothing competing with it. This is the one to read when you need to see
+what reaches what — every foreign key drawn, cross-app parents included.
+
+It is **wide on purpose** and will not fit a laptop screen comfortably; that is the cost of showing
+the whole thing at once, and it is why the smaller per-area diagrams in §4–§6 exist. Use those to
+work in an area and this to orient.
+
+```mermaid
+erDiagram
+    ContractType ||--o{ Contract : "ContractTypeID"
+    MJ_Company ||--o{ Contract : "CompanyID"
+    common_Organization ||--o{ Contract : "CustomerOrganizationID"
+    common_Person ||--o{ Contract : "CustomerPersonID"
+    common_Person ||--o{ Contract : "PrimaryContactPersonID"
+    MJ_User ||--o{ Contract : "OwnerUserID"
+    Contract ||--o{ Contract : "ParentContractID"
+    Contract ||--o{ Contract : "SupersededByContractID"
+    ContractTerm ||--o{ ContractAmendment : "ContractTermID"
+    tasks_Task ||--o{ ContractAmendment : "ApprovalTaskID"
+    ContractBillingSchedule ||--o{ ContractBillingEvent : "ContractBillingScheduleID"
+    ContractTerm ||--o{ ContractBillingEvent : "ContractTermID"
+    orders_OrderHeader ||--o{ ContractBillingEvent : "OrderID"
+    ContractTerm ||--o{ ContractBillingSchedule : "ContractTermID"
+    ContractTerm ||--o{ ContractCommitment : "ContractTermID"
+    Contract ||--o{ ContractEvent : "ContractID"
+    ContractTerm ||--o{ ContractEvent : "ContractTermID"
+    MJ_User ||--o{ ContractEvent : "PerformedByUserID"
+    ContractTerm ||--o{ ContractLine : "ContractTermID"
+    orders_Product ||--o{ ContractLine : "ProductID"
+    orders_SubscriptionType ||--o{ ContractLine : "SubscriptionTypeID"
+    orders_Subscription ||--o{ ContractLine : "SubscriptionID"
+    Contract ||--o{ ContractTerm : "ContractID"
+    ContractTerm ||--o{ ContractTerm : "RenewalOfTermID"
+    orders_PaymentTermsType ||--o{ ContractTerm : "PaymentTermsTypeID"
+    acct_Currency ||--o{ ContractTerm : "CurrencyID"
+
+    Contract {
+        uuid ID PK
+        nvarchar ContractNumber
+        uuid ContractTypeID FK "ContractType"
+        uuid CompanyID FK "MJ_Company"
+        uuid CustomerOrganizationID FK "common_Organization · nullable"
+        uuid CustomerPersonID FK "common_Person · nullable"
+        uuid PrimaryContactPersonID FK "common_Person · nullable"
+        uuid OwnerUserID FK "MJ_User · nullable"
+        uuid ParentContractID FK "self · nullable"
+        uuid SupersededByContractID FK "self · nullable"
+        nvarchar Status
+        nvarchar Description "nullable"
+        date EffectiveDate "nullable"
+        date ExecutedDate "nullable"
+        date PricedAt "nullable"
+        bit AutoRenew
+        int CancellationWindowDays "nullable"
+        nvarchar TerminationPolicy "nullable"
+        nvarchar ExternalReferenceID "nullable"
+    }
+
+    ContractAmendment {
+        uuid ID PK
+        uuid ContractTermID FK "ContractTerm"
+        int AmendmentNumber
+        date EffectiveDate
+        nvarchar AmendmentType
+        nvarchar Description "nullable"
+        nvarchar Status
+        uuid ApprovalTaskID FK "tasks_Task · nullable"
+    }
+
+    ContractBillingEvent {
+        uuid ID PK
+        uuid ContractBillingScheduleID FK "ContractBillingSchedule · nullable"
+        uuid ContractTermID FK "ContractTerm"
+        date ScheduledDate
+        nvarchar Status
+        uuid OrderID FK "orders_OrderHeader · nullable"
+        decimal ComputedAmount "nullable"
+        datetime GeneratedAt "nullable"
+        nvarchar FailureReason "nullable"
+        nvarchar Notes "nullable"
+    }
+
+    ContractBillingSchedule {
+        uuid ID PK
+        uuid ContractTermID FK "ContractTerm"
+        nvarchar ScheduleType
+        nvarchar Frequency "nullable"
+        date AnchorDate "nullable"
+        bit IsActive
+        nvarchar Notes "nullable"
+    }
+
+    ContractCommitment {
+        uuid ID PK
+        uuid ContractTermID FK "ContractTerm"
+        nvarchar CommitmentType
+        decimal CommittedAmount
+        decimal ConsumedAmount
+        date PeriodStart "nullable"
+        date PeriodEnd "nullable"
+        nvarchar TrueUpPolicy
+        nvarchar Status
+    }
+
+    ContractEvent {
+        uuid ID PK
+        uuid ContractID FK "Contract"
+        uuid ContractTermID FK "ContractTerm · nullable"
+        nvarchar EventType
+        datetime EventDate
+        nvarchar Payload "nullable"
+        uuid PerformedByUserID FK "MJ_User · nullable"
+    }
+
+    ContractLine {
+        uuid ID PK
+        uuid ContractTermID FK "ContractTerm"
+        uuid ProductID FK "orders_Product"
+        nvarchar LineType
+        decimal Quantity
+        decimal ContractedUnitPrice "nullable"
+        decimal DiscountPct "nullable"
+        date StartDate "nullable"
+        date EndDate "nullable"
+        uuid SubscriptionTypeID FK "orders_SubscriptionType · nullable"
+        uuid SubscriptionID FK "orders_Subscription · nullable"
+        nvarchar Description "nullable"
+        int DisplayOrder
+    }
+
+    ContractSequence {
+        int ID PK
+        int NextSequenceNumber
+    }
+
+    ContractTerm {
+        uuid ID PK
+        uuid ContractID FK "Contract"
+        int TermNumber
+        date StartDate
+        date EndDate
+        nvarchar Status
+        uuid RenewalOfTermID FK "self · nullable"
+        decimal CommittedAmount "nullable"
+        decimal EscalationPercent "nullable"
+        nvarchar EscalationBasis "nullable"
+        decimal MaxEscalationPercent "nullable"
+        int RenewalNoticeDays "nullable"
+        nvarchar BillingFrequency
+        tinyint BillingAnchorMonth "nullable"
+        tinyint BillingAnchorDay "nullable"
+        uuid PaymentTermsTypeID FK "orders_PaymentTermsType · nullable"
+        uuid CurrencyID FK "acct_Currency · nullable"
+        date EarlyTerminationDate "nullable"
+        decimal RenewalProbability "nullable"
+        date ExecutedDate "nullable"
+        nvarchar Notes "nullable"
+    }
+
+    ContractType {
+        uuid ID PK
+        nvarchar Code
+        nvarchar Name
+        nvarchar Description "nullable"
+        int DefaultTermMonths "nullable"
+        nvarchar DefaultBillingFrequency "nullable"
+        bit DefaultAutoRenew
+        bit RequiresSignature
+        decimal DefaultEscalationPercent "nullable"
+        decimal DefaultMaxEscalationPercent "nullable"
+        int DefaultRenewalNoticeDays "nullable"
+        int DefaultCancellationWindowDays "nullable"
+        nvarchar RenewalMode
+        bit AllowsCoterm
+        nvarchar DriverClass "nullable"
+        bit IsActive
+    }
+
+```
+
+---
+
 ## 3. Cross-app reference register
 
 Every reference out of `__mj_BizAppsContracts`. **All are real foreign keys.** The direction rule
@@ -285,13 +479,90 @@ one is output.
 
 ## 4. The agreement spine
 
+**Every field, and every connection into this area.** The three area diagrams below (§4–§6) are the
+ones to work from: each is small enough to read at a real font size, and each carries the full column
+list rather than making you scroll back to §2 to find out what a term actually holds.
+
 ```mermaid
 erDiagram
-    ContractType ||--o{ Contract : "supplies defaults"
-    Contract ||--o{ Contract : "ParentContractID · MSA to SOW"
-    Contract ||--o{ Contract : "SupersededByContractID · re-papered"
-    Contract ||--o{ ContractTerm : "has terms"
+    ContractType ||--o{ Contract : "ContractTypeID"
+    MJ_Company ||--o{ Contract : "CompanyID"
+    common_Organization ||--o{ Contract : "CustomerOrganizationID"
+    common_Person ||--o{ Contract : "CustomerPersonID"
+    common_Person ||--o{ Contract : "PrimaryContactPersonID"
+    MJ_User ||--o{ Contract : "OwnerUserID"
+    Contract ||--o{ Contract : "ParentContractID"
+    Contract ||--o{ Contract : "SupersededByContractID"
+    Contract ||--o{ ContractTerm : "ContractID"
     ContractTerm ||--o{ ContractTerm : "RenewalOfTermID"
+    orders_PaymentTermsType ||--o{ ContractTerm : "PaymentTermsTypeID"
+    acct_Currency ||--o{ ContractTerm : "CurrencyID"
+
+    ContractType {
+        uuid ID PK
+        nvarchar Code
+        nvarchar Name
+        nvarchar Description "nullable"
+        int DefaultTermMonths "nullable"
+        nvarchar DefaultBillingFrequency "nullable"
+        bit DefaultAutoRenew
+        bit RequiresSignature
+        decimal DefaultEscalationPercent "nullable"
+        decimal DefaultMaxEscalationPercent "nullable"
+        int DefaultRenewalNoticeDays "nullable"
+        int DefaultCancellationWindowDays "nullable"
+        nvarchar RenewalMode
+        bit AllowsCoterm
+        nvarchar DriverClass "nullable"
+        bit IsActive
+    }
+
+    Contract {
+        uuid ID PK
+        nvarchar ContractNumber
+        uuid ContractTypeID FK "ContractType"
+        uuid CompanyID FK "MJ_Company"
+        uuid CustomerOrganizationID FK "common_Organization · nullable"
+        uuid CustomerPersonID FK "common_Person · nullable"
+        uuid PrimaryContactPersonID FK "common_Person · nullable"
+        uuid OwnerUserID FK "MJ_User · nullable"
+        uuid ParentContractID FK "self · nullable"
+        uuid SupersededByContractID FK "self · nullable"
+        nvarchar Status
+        nvarchar Description "nullable"
+        date EffectiveDate "nullable"
+        date ExecutedDate "nullable"
+        date PricedAt "nullable"
+        bit AutoRenew
+        int CancellationWindowDays "nullable"
+        nvarchar TerminationPolicy "nullable"
+        nvarchar ExternalReferenceID "nullable"
+    }
+
+    ContractTerm {
+        uuid ID PK
+        uuid ContractID FK "Contract"
+        int TermNumber
+        date StartDate
+        date EndDate
+        nvarchar Status
+        uuid RenewalOfTermID FK "self · nullable"
+        decimal CommittedAmount "nullable"
+        decimal EscalationPercent "nullable"
+        nvarchar EscalationBasis "nullable"
+        decimal MaxEscalationPercent "nullable"
+        int RenewalNoticeDays "nullable"
+        nvarchar BillingFrequency
+        tinyint BillingAnchorMonth "nullable"
+        tinyint BillingAnchorDay "nullable"
+        uuid PaymentTermsTypeID FK "orders_PaymentTermsType · nullable"
+        uuid CurrencyID FK "acct_Currency · nullable"
+        date EarlyTerminationDate "nullable"
+        decimal RenewalProbability "nullable"
+        date ExecutedDate "nullable"
+        nvarchar Notes "nullable"
+    }
+
 ```
 
 `ContractType` is configuration-as-data: the columns *are* the rules and a base behaviour class reads
@@ -304,12 +575,101 @@ the **re-papered** pattern (new paper per period) without a second model.
 
 ## 5. Coverage, billing and commitment
 
+**Every field, and every connection into this area.** `ContractTerm` repeats from §4 on purpose — it
+is the hinge between the agreement and the money, and an area diagram that omitted it would leave
+four tables hanging off nothing.
+
 ```mermaid
 erDiagram
-    ContractTerm ||--o{ ContractLine : "covers"
-    ContractTerm ||--o{ ContractBillingSchedule : "billed by"
-    ContractBillingSchedule ||--o{ ContractBillingEvent : "occurrences"
-    ContractTerm ||--o{ ContractCommitment : "commitments"
+    ContractBillingSchedule ||--o{ ContractBillingEvent : "ContractBillingScheduleID"
+    ContractTerm ||--o{ ContractBillingEvent : "ContractTermID"
+    orders_OrderHeader ||--o{ ContractBillingEvent : "OrderID"
+    ContractTerm ||--o{ ContractBillingSchedule : "ContractTermID"
+    ContractTerm ||--o{ ContractCommitment : "ContractTermID"
+    ContractTerm ||--o{ ContractLine : "ContractTermID"
+    orders_Product ||--o{ ContractLine : "ProductID"
+    orders_SubscriptionType ||--o{ ContractLine : "SubscriptionTypeID"
+    orders_Subscription ||--o{ ContractLine : "SubscriptionID"
+    Contract ||--o{ ContractTerm : "ContractID"
+    ContractTerm ||--o{ ContractTerm : "RenewalOfTermID"
+    orders_PaymentTermsType ||--o{ ContractTerm : "PaymentTermsTypeID"
+    acct_Currency ||--o{ ContractTerm : "CurrencyID"
+
+    ContractTerm {
+        uuid ID PK
+        uuid ContractID FK "Contract"
+        int TermNumber
+        date StartDate
+        date EndDate
+        nvarchar Status
+        uuid RenewalOfTermID FK "self · nullable"
+        decimal CommittedAmount "nullable"
+        decimal EscalationPercent "nullable"
+        nvarchar EscalationBasis "nullable"
+        decimal MaxEscalationPercent "nullable"
+        int RenewalNoticeDays "nullable"
+        nvarchar BillingFrequency
+        tinyint BillingAnchorMonth "nullable"
+        tinyint BillingAnchorDay "nullable"
+        uuid PaymentTermsTypeID FK "orders_PaymentTermsType · nullable"
+        uuid CurrencyID FK "acct_Currency · nullable"
+        date EarlyTerminationDate "nullable"
+        decimal RenewalProbability "nullable"
+        date ExecutedDate "nullable"
+        nvarchar Notes "nullable"
+    }
+
+    ContractLine {
+        uuid ID PK
+        uuid ContractTermID FK "ContractTerm"
+        uuid ProductID FK "orders_Product"
+        nvarchar LineType
+        decimal Quantity
+        decimal ContractedUnitPrice "nullable"
+        decimal DiscountPct "nullable"
+        date StartDate "nullable"
+        date EndDate "nullable"
+        uuid SubscriptionTypeID FK "orders_SubscriptionType · nullable"
+        uuid SubscriptionID FK "orders_Subscription · nullable"
+        nvarchar Description "nullable"
+        int DisplayOrder
+    }
+
+    ContractBillingSchedule {
+        uuid ID PK
+        uuid ContractTermID FK "ContractTerm"
+        nvarchar ScheduleType
+        nvarchar Frequency "nullable"
+        date AnchorDate "nullable"
+        bit IsActive
+        nvarchar Notes "nullable"
+    }
+
+    ContractBillingEvent {
+        uuid ID PK
+        uuid ContractBillingScheduleID FK "ContractBillingSchedule · nullable"
+        uuid ContractTermID FK "ContractTerm"
+        date ScheduledDate
+        nvarchar Status
+        uuid OrderID FK "orders_OrderHeader · nullable"
+        decimal ComputedAmount "nullable"
+        datetime GeneratedAt "nullable"
+        nvarchar FailureReason "nullable"
+        nvarchar Notes "nullable"
+    }
+
+    ContractCommitment {
+        uuid ID PK
+        uuid ContractTermID FK "ContractTerm"
+        nvarchar CommitmentType
+        decimal CommittedAmount
+        decimal ConsumedAmount
+        date PeriodStart "nullable"
+        date PeriodEnd "nullable"
+        nvarchar TrueUpPolicy
+        nvarchar Status
+    }
+
 ```
 
 One term may carry **more than one schedule** — a quarterly subscription cadence *and* a milestone
@@ -325,13 +685,65 @@ than retrying into a duplicate.
 
 ## 6. Change, approval and history
 
+**Every field, and every connection into this area.**
+
 ```mermaid
 erDiagram
-    ContractTerm ||--o{ ContractAmendment : "amended by"
+    ContractTerm ||--o{ ContractAmendment : "ContractTermID"
     tasks_Task ||--o{ ContractAmendment : "ApprovalTaskID"
-    Contract ||--o{ ContractEvent : "logged as"
-    ContractTerm ||--o{ ContractEvent : "logged as"
+    Contract ||--o{ ContractEvent : "ContractID"
+    ContractTerm ||--o{ ContractEvent : "ContractTermID"
     MJ_User ||--o{ ContractEvent : "PerformedByUserID"
+    Contract ||--o{ ContractTerm : "ContractID"
+    ContractTerm ||--o{ ContractTerm : "RenewalOfTermID"
+    orders_PaymentTermsType ||--o{ ContractTerm : "PaymentTermsTypeID"
+    acct_Currency ||--o{ ContractTerm : "CurrencyID"
+
+    ContractTerm {
+        uuid ID PK
+        uuid ContractID FK "Contract"
+        int TermNumber
+        date StartDate
+        date EndDate
+        nvarchar Status
+        uuid RenewalOfTermID FK "self · nullable"
+        decimal CommittedAmount "nullable"
+        decimal EscalationPercent "nullable"
+        nvarchar EscalationBasis "nullable"
+        decimal MaxEscalationPercent "nullable"
+        int RenewalNoticeDays "nullable"
+        nvarchar BillingFrequency
+        tinyint BillingAnchorMonth "nullable"
+        tinyint BillingAnchorDay "nullable"
+        uuid PaymentTermsTypeID FK "orders_PaymentTermsType · nullable"
+        uuid CurrencyID FK "acct_Currency · nullable"
+        date EarlyTerminationDate "nullable"
+        decimal RenewalProbability "nullable"
+        date ExecutedDate "nullable"
+        nvarchar Notes "nullable"
+    }
+
+    ContractAmendment {
+        uuid ID PK
+        uuid ContractTermID FK "ContractTerm"
+        int AmendmentNumber
+        date EffectiveDate
+        nvarchar AmendmentType
+        nvarchar Description "nullable"
+        nvarchar Status
+        uuid ApprovalTaskID FK "tasks_Task · nullable"
+    }
+
+    ContractEvent {
+        uuid ID PK
+        uuid ContractID FK "Contract"
+        uuid ContractTermID FK "ContractTerm · nullable"
+        nvarchar EventType
+        datetime EventDate
+        nvarchar Payload "nullable"
+        uuid PerformedByUserID FK "MJ_User · nullable"
+    }
+
 ```
 
 **Amendments change a live term; renewals start a new one.** Conflating the two is the most common
