@@ -393,8 +393,11 @@ interface Draft {
                                     <label class="fld"><span>Contract number</span><input class="in" [(ngModel)]="Edit.ContractNumber" (ngModelChange)="Touch()" /></label>
                                     <label class="fld"><span>Status</span>
                                         <select class="sel" [(ngModel)]="Edit.Status" (ngModelChange)="Touch()">
-                                            <option *ngFor="let s of StatusOptions" [value]="s">{{ s }}</option>
+                                            <option *ngFor="let s of LegalStatusesFrom(c.Status)" [value]="s">{{ s }}</option>
                                         </select>
+                                        <span class="pv-s" *ngIf="IsTerminalStatus(c.Status)">
+                                            {{ c.Status }} is final — nothing follows it.
+                                        </span>
                                     </label>
                                     <label class="fld"><span>External reference</span><input class="in" [(ngModel)]="Edit.ExternalReferenceID" (ngModelChange)="Touch()" /></label>
                                     <label class="fld s3"><span>Description</span><textarea class="ta" rows="2" [(ngModel)]="Edit.Description" (ngModelChange)="Touch()"></textarea></label>
@@ -961,6 +964,32 @@ export class MJCContractsSectionComponent extends BaseResourceComponent implemen
     public get D(): Draft { return this.Drafts.ActiveTab?.State ?? this.fallbackDraft; }
 
     public readonly StatusOptions = ['Draft', 'PendingSignature', 'Active', 'Expired', 'Terminated', 'Superseded'];
+
+    /**
+     * The legal next states from a given one — the same map `ContractEntityServer` enforces.
+     *
+     * Offering all six and letting the save be refused is a worse design than offering the three that
+     * will work, even now that the refusal explains itself: the best error message is the one nobody
+     * has to read. The duplication with the server is deliberate and small; the server remains the
+     * authority, and this list existing does not make it optional.
+     */
+    private readonly LEGAL_STATUS_MOVES: Readonly<Record<string, readonly string[]>> = {
+        Draft: ['Draft', 'PendingSignature', 'Active', 'Terminated'],
+        PendingSignature: ['PendingSignature', 'Draft', 'Active', 'Terminated'],
+        Active: ['Active', 'Expired', 'Terminated', 'Superseded'],
+        Expired: ['Expired', 'Superseded', 'Terminated'],
+        Terminated: ['Terminated'],
+        Superseded: ['Superseded'],
+    };
+
+    public LegalStatusesFrom(current: string | null): readonly string[] {
+        if (!current) return this.StatusOptions;
+        return this.LEGAL_STATUS_MOVES[current] ?? [current];
+    }
+
+    public IsTerminalStatus(current: string | null): boolean {
+        return !!current && this.LegalStatusesFrom(current).length === 1;
+    }
     public readonly Toolbar = { showSearch: true, searchPlaceholder: 'Search…', showAdd: true, showRefresh: true, showExport: true };
 
     /** Every grid's params in one map, so scoping a page is a single reassignment. */

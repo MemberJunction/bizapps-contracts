@@ -5,7 +5,7 @@ against the **matrix**, not against the tests that happen to exist — an empty 
 every written test is green.
 
 > **Last full sweep:** 2026-08-05, branch `mjdev/contracts-night`, instance `contracts-dev`.
-> **Totals: 80 tier-2 assertions + 63 tier-5 assertions, all passing.** Every number below was
+> **Totals: 85 tier-2 assertions + 65 tier-5 assertions, all passing.** Every number below was
 > observed, not estimated. Where something was not run, it says so.
 
 ---
@@ -17,16 +17,16 @@ started) and, for tier 5, MJExplorer.
 
 ```sh
 # Tier 2 — in-process, direct SQL, MJAPI-free
-npx tsx test-harnesses/server/invariants.ts     # 16
+npx tsx test-harnesses/server/invariants.ts     # 19
 npx tsx test-harnesses/server/lifecycle.ts      # 45
-npx tsx test-harnesses/server/constraints.ts    # 19
+npx tsx test-harnesses/server/constraints.ts    # 21
 
 # Tier 5 — real Chrome, driven only through the UI
 URL=$(mjdev explorer-url contracts-dev | grep -oE 'http://localhost:[0-9]+/#token=[A-Za-z0-9._-]+')
 node test-harnesses/ui-lifecycle.mjs       "$URL"   # 8
 node test-harnesses/ui-form-editing.mjs    "$URL"   # 9
 node test-harnesses/ui-history.mjs         "$URL"   # 5
-node test-harnesses/ui-navigation.mjs      "$URL"   # 21
+node test-harnesses/ui-navigation.mjs      "$URL"   # 23
 node test-harnesses/ui-create-to-active.mjs "$URL"  # 11 — CREATES a contract
 node test-harnesses/ui-full-loop.mjs       "$URL"   # 9  — WRITES to the demo contract
 ```
@@ -53,7 +53,8 @@ produces a red tier-3/4/5 against green tier-2, which is an environment artefact
 | `ContractNumber` allocation from the sequence | — | ✓ | ⚠ | ⚠ | Allocation is a read-modify-write in `Save()`; T2 asserts the number shape AND that the sequence advances by exactly 1. Nothing above adds machinery. |
 | `PricedAt` defaults rather than staying null | — | ✓ | ⚠ | ⚠ | Same. |
 | An explicit contract number is not overwritten | — | ✓ | ⚠ | ⚠ | Same. |
-| Contract legal status **moves** | — | ✓ | ⚠ | ⚠ | The CHECK knows only the legal SET; T2 proves `Terminated → Active` is refused and did not persist. |
+| Contract legal status **moves** | — | ✓ | ⚠ | ✓ | The CHECK knows only the legal SET. T2 proves `Terminated → Active` is refused, did not persist, AND that the refusal explains itself. T5 proves the control offers only the legal moves, so the error is one nobody has to read. |
+| Refusals reach the caller, not just the console | — | ✓ | — | — | The rules live in `Validate()`/`ValidateAsync()`, so `LatestResult` carries the reason. T2 asserts the MESSAGES, not only the `false`. |
 | Term numbering derived as max+1 | — | ✓ | ⚠ | ⚠ | |
 | Escalation cap enforced | — | ✓ | ⚠ | ✓ | T2 proves the refusal; T5 shows the "capped" badge and the ceiling actually applied. |
 | A null cap means uncapped, not zero | — | ✓ | — | — | |

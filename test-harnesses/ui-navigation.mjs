@@ -163,6 +163,22 @@ try {
     const amend = await page.locator('body').innerText();
     check('D.5 Amendments renders and explains itself', /Amendments change a/i.test(amend));
 
+    console.log('\nF. The status control offers only LEGAL moves');
+    await openTab(/^Overview$/);
+    const statusOpts = await page.evaluate(() => {
+        const labels = Array.from(document.querySelectorAll('label'));
+        const statusLabel = labels.find((l) => l.textContent?.trim().startsWith('Status'));
+        const sel = statusLabel?.querySelector('select');
+        return sel ? Array.from(sel.options).map((o) => o.value) : [];
+    });
+    // The demo contract is Active. From Active the legal moves are Active, Expired, Terminated and
+    // Superseded — Draft and PendingSignature are NOT offered, because going back to a draft after
+    // the agreement is live is not a thing that happens.
+    check('F.1 the status control offers exactly the legal moves from Active',
+        JSON.stringify(statusOpts) === JSON.stringify(['Active', 'Expired', 'Terminated', 'Superseded']),
+        JSON.stringify(statusOpts));
+    check('F.2 it does NOT offer a move back to Draft', !statusOpts.includes('Draft'));
+
     console.log('\nE. Console health');
     check('E.1 no console or page errors across every page and tab', errors.length === 0, errors.slice(0, 2).join(' | '));
 
