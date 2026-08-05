@@ -1,4 +1,5 @@
 {
+  "mjdevManaged": "MJDEV-MANAGED: mjdev owns parts of this file — the \"packages/dev-apps/*\" workspaces glob, any dev-linked open-app dependencies (e.g. \"@mj-biz-apps/*\"), and the Angular \"overrides\" pin set. Do not hand-edit those; the tool wires and reverts them. They are left visible in git status, but the git-tree guard blocks committing them. See .mjdev-docs/MANAGED-FILES.md; revert with `mjdev git:stage-clean <slug> package.json`.",
   "name": "@mj-biz-apps/contracts-core-entities-server",
   "version": "0.1.0",
   "type": "module",
@@ -15,7 +16,7 @@
   },
   "license": "MIT",
   "dependencies": {
-    "@mj-biz-apps/contracts-entities": "1.0.0"
+    "@mj-biz-apps/contracts-entities": "^0.1.0"
   },
   "peerDependencies": {
     "@memberjunction/core": "^5.44.0",

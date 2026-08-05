@@ -39,19 +39,12 @@
          Same component accounting uses for je-workspace / batch-workspace. -->
     <div class="workspace-card">
 
-      <div class="ws-tabstrip">
-        <button class="ws-tab active draft"><span class="dot"></span> Northwind — 2027 MSA <i class="fa-solid fa-xmark close"></i></button>
-        <button class="ws-tab draft"><span class="dot"></span> Cascade renewal <i class="fa-solid fa-xmark close"></i></button>
-        <button class="ws-tab complete"><span class="dot"></span> CTR-001851 <i class="fa-solid fa-xmark close"></i></button>
-        <button class="ws-tab newtab"><i class="fa-solid fa-plus"></i> New contract</button>
-      </div>
-
       <div class="ws-identity">
         <span class="name">New contract</span>
         <span class="mj-stat-badge">Draft</span>
         <span class="mj-stat-badge"><i class="fa-solid fa-coins"></i> USD</span>
         <span class="session"><i class="fa-solid fa-circle-info"></i>
-          Tabs keep your progress for this session — drafts are not saved to the database (v1).</span>
+          Saved as Draft — it does not bill until a term is activated.</span>
       </div>
 
       <div class="ws-body">
@@ -132,17 +125,24 @@
             <div class="field"><span>Auto-renew</span>
               <select class="mj-input"><option>Yes — renews without a deal</option><option>No — renewal is a deal</option></select>
             </div>
-            <div class="field"><span>Cancellation window</span>
+            <div class="field"><span>Escalation cap</span>
+              <div style="display:flex;gap:8px;align-items:center;">
+                <input class="mj-input" style="width:88px" value="5.0" /><span class="sec" style="font-size:12.5px;">% max</span>
+              </div>
+              <span class="hint">Ceiling on any renewal increase.</span>
+            </div>
+            <div class="field"><span>Renewal notice</span>
               <div style="display:flex;gap:8px;align-items:center;">
                 <input class="mj-input" style="width:88px" value="60" /><span class="sec" style="font-size:12.5px;">days</span>
               </div>
+              <span class="hint">Written notice before a price change.</span>
             </div>
-          </div>
-
-          <div class="note gap" style="margin-top:14px;">
-            <i class="fa-solid fa-circle-half-stroke"></i>
-            <div>There is nowhere on this form to put an <strong>escalation cap</strong> or a <strong>price-change notice period</strong>,
-              because the schema has neither. Both are ordinary contract clauses. Raised on PR #1.</div>
+            <div class="field"><span>Cancellation window</span>
+              <div style="display:flex;gap:8px;align-items:center;">
+                <input class="mj-input" style="width:88px" value="90" /><span class="sec" style="font-size:12.5px;">days</span>
+              </div>
+              <span class="hint">A different clause — often, not always, the same number.</span>
+            </div>
           </div>
         </fieldset>
 
@@ -189,7 +189,8 @@
             <div class="field"><span>Effective date</span><input class="mj-input" type="date" value="2027-01-01" /></div>
             <div class="field"><span>Executed date</span><input class="mj-input" type="date" /></div>
             <div class="field"><span>Executed document</span>
-              <button class="mj-btn" style="justify-content:center;"><i class="fa-solid fa-upload"></i> Attach PDF</button>
+              <button class="mj-btn" style="justify-content:center;"><i class="fa-solid fa-upload"></i> Attach files…</button>
+              <span class="hint">Signed PDF plus any exhibits — attach as many as the agreement has.</span>
             </div>
             <div class="field span3"><span>Termination policy</span>
               <textarea class="mj-input" rows="2" placeholder="Free text — the clause as written"></textarea>
@@ -206,18 +207,22 @@
           schedule exists — creating it here does not silently start invoicing anyone.
         </span>
         <span class="spacer"></span>
-        <button class="mj-btn subtle">Discard</button>
-        <button class="mj-btn">Keep as draft tab</button>
+        <button class="mj-btn subtle">Cancel</button>
         <button class="mj-btn primary"><i class="fa-solid fa-check"></i> Create contract</button>
       </div>
 
     </div>
 
     <p class="annot" style="margin-top:16px;">
-      <b>Why the workspace-card pattern and not a wizard.</b> An account director entering a legacy agreement is
-      reading off paper and jumping around — a wizard forces a sequence the paper does not have. Draft tabs also
-      let them park a half-entered contract while they chase a missing signature date, which is the actual
-      failure mode of this task. Same reasoning accounting used for manual journal entries.
+      <b>Deliberately NOT the tabbed draft workspace, and not a wizard.</b> Accounting's <code>mj-workspace-card</code>
+      draft-tab strip earns its keep because journal entries are entered constantly and in parallel. Manual contract
+      entry is explicitly the rare path — a handful a year — so multi-draft tabs would be chrome nobody uses, and a
+      wizard would force a sequence the paper does not have. One card, one form, sections in the order a contract is
+      actually read. The full workspace pattern stays where the volume is.
+      <br /><br />
+      <b>What this form is not.</b> It records the AGREEMENT — parties, term, clauses, paper. It is not an order
+      entry form: the covered-products grid below stays deliberately thin, because the real line-entry experience is
+      orders' custom order form, which we port in rather than reimplement here.
     </p>
 
   </main>

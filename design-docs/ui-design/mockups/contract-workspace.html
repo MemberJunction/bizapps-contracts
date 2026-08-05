@@ -79,6 +79,7 @@
         <button data-tab="billing">Billing <span class="n">12</span></button>
         <button data-tab="commitments">Commitments <span class="n">2</span></button>
         <button data-tab="amendments">Amendments <span class="n">1</span></button>
+        <button data-tab="documents">Documents <span class="n">5</span></button>
         <button data-tab="history">History</button>
       </div>
 
@@ -96,7 +97,11 @@
                   <div class="field"><span>Billing frequency</span><output>Quarterly · anchor Jan 1</output></div>
                   <div class="field"><span>Escalation</span><output>4.0% on prior term</output></div>
                   <div class="field"><span>Payment terms</span><output>Net 30 <span class="muted">(orders)</span></output></div>
+                  <div class="field"><span>Escalation cap</span><output>5.0% <span class="muted">max</span></output></div>
+                  <div class="field"><span>Renewal notice</span><output>60 days <span class="muted">before Dec 31</span></output></div>
+                  <div class="field"><span>Cancellation window</span><output>90 days</output></div>
                   <div class="field"><span>Renewal probability</span><output>85%</output></div>
+                  <div class="field"><span>Term executed</span><output>Nov 12, 2025</output></div>
                 </div>
               </div>
             </div>
@@ -118,11 +123,12 @@
                 </table>
               </div>
               <p class="annot" style="margin:10px 16px 14px;">
-                <b>"catalog" means <code>ContractedUnitPrice IS NULL</code></b> — the line is covered by the agreement but priced
-                through orders' normal walk. Whether that price can move mid-term depends on which <code>AsOf</code> the
-                billing engine passes, which is <a href="https://github.com/MemberJunction/bizapps-contracts/pull/1">open on PR #1</a>.
-                Showing the word "catalog" rather than a number is deliberate: printing today's resolved price would
-                imply a fixity the schema does not yet guarantee.
+                <b>"catalog" means <code>ContractedUnitPrice IS NULL</code></b> — covered by the agreement, priced through
+                orders' normal walk. Contracts stores no resolved price and no price history: <b>orders owns
+                that</b>, and each generated bill is a real order carrying the actual price and date, linked from
+                the billing event. To see what a line cost last term, open that term's order.
+                <br />Still open (Andrew): which <code>AsOf</code> the engine passes on renewal — likely the individual
+                subscription end dates.
               </p>
             </div>
 
@@ -170,19 +176,21 @@
             </div>
 
             <div class="card">
-              <div class="card-head"><i class="fa-solid fa-file-contract"></i> Documents</div>
-              <div class="card-body">
-                <div style="display:flex;align-items:center;gap:9px;font-size:13px;">
-                  <i class="fa-solid fa-file-pdf" style="color:var(--mj-status-error)"></i>
-                  <a href="#">Northwind MSA — executed.pdf</a>
-                </div>
-                <div class="sec" style="font-size:12px;margin-top:5px;">Executed Dec 18, 2023</div>
-                <div class="note gap" style="margin-top:12px;">
-                  <i class="fa-solid fa-triangle-exclamation"></i>
-                  <div>Terms 2 and 3 were renewals and have no document of their own —
-                    <code>ContractTerm</code> has no <code>DocumentFileID</code>. Raised on PR #1.</div>
-                </div>
+              <div class="card-head"><i class="fa-solid fa-file-contract"></i> Documents
+                <div class="actions"><button class="mj-btn sm"><i class="fa-solid fa-upload"></i> Attach</button></div>
               </div>
+              <div class="card-body">
+                <div class="doc-row"><i class="fa-solid fa-file-pdf"></i><a href="#">Northwind MSA — executed.pdf</a><span class="doc-meta">contract · Dec 18, 2023</span></div>
+                <div class="doc-row"><i class="fa-solid fa-file-pdf"></i><a href="#">Exhibit A — service levels.pdf</a><span class="doc-meta">contract</span></div>
+                <div class="doc-row"><i class="fa-solid fa-file-pdf"></i><a href="#">Term 3 renewal order form.pdf</a><span class="doc-meta">term 3 · Nov 12, 2025</span></div>
+                <div class="doc-row"><i class="fa-solid fa-file-pdf"></i><a href="#">Amendment 1 — countersigned.pdf</a><span class="doc-meta">amendment 1</span></div>
+                <a href="#" style="font-size:12.5px;">See all 5 →</a>
+              </div>
+              <p class="annot" style="margin:0 16px 14px;">
+                Documents attach through MJ's <code>__mj.FileEntityRecordLink</code> (EntityID + RecordID),
+                <b>not</b> a <code>DocumentFileID</code> column — so one record can carry the signed PDF, its
+                exhibits and a countersigned amendment, and a term can hold its own renewal paper.
+              </p>
             </div>
           </div>
         </div>
@@ -228,11 +236,12 @@
           </div>
         </div>
 
-        <div class="note warn" style="margin-top:16px;">
-          <i class="fa-solid fa-triangle-exclamation"></i>
-          <div><strong>Escalation is shown but not capped.</strong> Term 3 escalated 4.0% on the prior term. There is no
-            <code>MaxEscalationPercent</code> in the schema, so a <code>ListPrice</code>-basis term has no ceiling to display —
-            and an uncapped "then-current list" increase is the clause customers dispute. Raised on PR #1.</div>
+        <div class="note info" style="margin-top:16px;">
+          <i class="fa-solid fa-circle-check"></i>
+          <div><strong>The renewal clauses are now first-class.</strong> Term 3 escalated 4.0% against a 5.0%
+            <code>MaxEscalationPercent</code> ceiling, with 60 days' <code>RenewalNoticeDays</code> before the anniversary —
+            both added to the baseline, and both things a person needs to see <em>before</em> the renewal date, not after.
+            A term also records its own <code>ExecutedDate</code> now, so a separately-papered renewal reads correctly here.</div>
         </div>
       </section>
 
@@ -258,13 +267,12 @@
           </div>
         </div>
 
-        <div class="note gap" style="margin-top:16px;">
-          <i class="fa-solid fa-circle-half-stroke"></i>
-          <div><strong>Two discount surfaces meet in this table.</strong> The Events module shows a 10%
-            <code>ContractLine.DiscountPct</code>, but orders also applies promotions/adjustments <em>after</em> the price
-            resolves. Nothing currently states whether those compose or whether the contract suppresses them —
-            so this column may or may not be the whole discount story. Open on PR #1. (Also note
-            <code>DiscountPct</code> is stored 0–1, so "10%" is <code>0.10</code>.)</div>
+        <div class="note info" style="margin-top:16px;">
+          <i class="fa-solid fa-circle-check"></i>
+          <div><strong>Settled: a contract discount OVERRIDES, it does not stack</strong> (Amith, 2026-08-04). Orders owns
+            the discount mechanics; the contract states the negotiated intent that outranks whatever would
+            otherwise apply beneath it in the order. So this column IS the whole discount story for a covered
+            line — which is why it is safe to show it here as the operative number. (Stored 0–1: "10%" is <code>0.10</code>.)</div>
         </div>
       </section>
 
@@ -351,6 +359,49 @@
             This co-term amendment created a <code>ContractLine</code> starting Mar 15 and ending at the <em>term's</em>
             end date, so the stub prorates on the next billing event.</p>
         </div>
+      </section>
+
+      <!-- ============================ DOCUMENTS ============================ -->
+      <section class="ws-body" data-panel="documents" hidden>
+        <div class="card">
+          <div class="card-head"><i class="fa-solid fa-folder-open"></i> Documents on this agreement
+            <div class="actions"><button class="mj-btn sm primary"><i class="fa-solid fa-upload"></i> Attach file</button></div>
+          </div>
+          <div class="card-body flush">
+            <table class="grid">
+              <thead><tr><th>File</th><th>Attached to</th><th>Category</th><th>Uploaded</th><th>By</th><th></th></tr></thead>
+              <tbody>
+                <tr><td><i class="fa-solid fa-file-pdf" style="color:var(--mj-status-error)"></i> <a href="#">Northwind MSA — executed.pdf</a></td><td><span class="mj-stat-badge brand">Contract</span></td><td class="sec">Executed agreement</td><td class="sec">Dec 18, 2023</td><td class="sec">D. Whitfield</td><td class="sec"><i class="fa-solid fa-ellipsis"></i></td></tr>
+                <tr><td><i class="fa-solid fa-file-pdf" style="color:var(--mj-status-error)"></i> <a href="#">Exhibit A — service levels.pdf</a></td><td><span class="mj-stat-badge brand">Contract</span></td><td class="sec">Exhibit</td><td class="sec">Dec 18, 2023</td><td class="sec">D. Whitfield</td><td class="sec"><i class="fa-solid fa-ellipsis"></i></td></tr>
+                <tr><td><i class="fa-solid fa-file-pdf" style="color:var(--mj-status-error)"></i> <a href="#">Term 3 renewal order form.pdf</a></td><td><span class="mj-stat-badge">Term 3</span></td><td class="sec">Executed agreement</td><td class="sec">Nov 12, 2025</td><td class="sec">D. Whitfield</td><td class="sec"><i class="fa-solid fa-ellipsis"></i></td></tr>
+                <tr><td><i class="fa-solid fa-file-pdf" style="color:var(--mj-status-error)"></i> <a href="#">Term 2 renewal order form.pdf</a></td><td><span class="mj-stat-badge">Term 2</span></td><td class="sec">Executed agreement</td><td class="sec">Nov 3, 2024</td><td class="sec">D. Whitfield</td><td class="sec"><i class="fa-solid fa-ellipsis"></i></td></tr>
+                <tr><td><i class="fa-solid fa-file-pdf" style="color:var(--mj-status-error)"></i> <a href="#">Amendment 1 — countersigned.pdf</a></td><td><span class="mj-stat-badge">Amendment 1</span></td><td class="sec">Amendment</td><td class="sec">Mar 15, 2026</td><td class="sec">E. Vasquez</td><td class="sec"><i class="fa-solid fa-ellipsis"></i></td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="card-body">
+            <div class="doc-drop"><i class="fa-solid fa-cloud-arrow-up"></i> Drop a file here, or attach one from the file browser</div>
+          </div>
+        </div>
+
+        <div class="note warn" style="margin-top:16px;">
+          <i class="fa-solid fa-triangle-exclamation"></i>
+          <div><strong>This panel does not exist in MJ yet — it is the one component this app has to build.</strong>
+            MJ ships <code>mj-file-browser</code>, <code>mj-files-grid</code> and <code>mj-files-file-upload</code> in
+            <code>@memberjunction/ng-file-storage</code>, but they are <em>category</em>-scoped: nothing in the MJ
+            Angular tree queries <code>__mj.FileEntityRecordLink</code> at runtime (the only references are the
+            generated CRUD forms for the link entity itself). So "files attached to THIS record" needs a small
+            <code>&lt;mj-record-files&gt;</code> component taking <code>EntityName</code> + <code>RecordID</code>.
+            It is a strong <strong>MJ-base candidate</strong> — every app that acquires paper wants it — so it should be
+            built to donate upward rather than living privately in contracts.</div>
+        </div>
+
+        <p class="annot">
+          <b>Why the "Attached to" column exists.</b> The contract, each term and each amendment are separate records,
+          and each links its own files through the same <code>EntityID</code> + <code>RecordID</code> pair. This view
+          rolls them up so a person looking for "the paper on this agreement" finds all of it in one place, while the
+          Terms tab still shows only that term's paper.
+        </p>
       </section>
 
       <!-- ============================ HISTORY ============================ -->

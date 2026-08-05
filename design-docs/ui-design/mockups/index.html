@@ -23,7 +23,7 @@
     <code>mj-stat-badge</code>). Static HTML — nothing here is wired to anything.
   </p>
 
-  <div class="note info" style="margin-bottom:22px;">
+  <div class="note info" style="margin-bottom:16px;">
     <i class="fa-solid fa-circle-info"></i>
     <div>
       <strong>The app's three jobs drive this layout.</strong> (1) Be the data substrate and pipeline automation
@@ -31,6 +31,20 @@
       <em>see</em> a contract; (3) let an account director type one in by hand in the rare case it did not come
       from a deal. Screens 1 and 2 serve job 2, screen 3 serves job 3, and screen 4 is the operational
       surface of job 1 — the part of automation a human has to watch.
+    </div>
+  </div>
+
+  <div class="note gap" style="margin-bottom:22px;">
+    <i class="fa-solid fa-scale-balanced"></i>
+    <div>
+      <strong>Round 2 reframe: contracts is a wrapper over orders, not a parallel system.</strong> Orders is the
+      definitive and only place we bill anyone, and it owns pricing, price history and discount mechanics. What
+      this app owns is the <em>agreement</em>: terms and their clauses (escalation cap, renewal notice,
+      cancellation window), the paper, renewal and rejection, and the decision about what lands on one document.
+      The line-entry experience is orders' custom order form ported in — not reimplemented here. Chrome follows
+      the same restraint: a nav rail because there are five destinations, section tabs on the contract because
+      one agreement genuinely has seven faces, and <strong>no</strong> draft-tab workspace on manual entry, because that
+      task happens a few times a year.
     </div>
   </div>
 
@@ -47,14 +61,15 @@
       <span class="mj-stat-badge brand tag"><i class="fa-solid fa-layer-group"></i> Job 2 · viewing</span>
       <h3>2 — Contract workspace</h3>
       <p>One agreement, section-tabbed: Overview · Terms · Coverage · Billing · Commitments · Amendments ·
-        History. Carries the provenance strip that answers "where did this come from, and where did it go."</p>
+        <strong>Documents</strong> · History. Carries the provenance strip and the renewal clauses. The Documents tab
+        is the one component we have to build — see its callout.</p>
     </a>
 
     <a class="index-card" href="manual-entry.html">
       <span class="mj-stat-badge info tag"><i class="fa-solid fa-keyboard"></i> Job 3 · manual entry</span>
       <h3>3 — Manual contract entry</h3>
-      <p>The <code>mj-workspace-card</code> pattern accounting uses for journal entries: browser-style draft tabs,
-        an identity band, and a footer that owns commit / keep-as-draft / discard.</p>
+      <p>One card, one form — deliberately <em>not</em> accounting's draft-tab workspace, because this path runs a
+        few times a year. Records the agreement and its clauses; line entry is orders' form, ported.</p>
     </a>
 
     <a class="index-card" href="billing-worklist.html">
@@ -66,19 +81,31 @@
 
   </div>
 
-  <h2 style="font-size:15px;margin:30px 0 10px;">What this round is asking you to decide</h2>
+  <h2 style="font-size:15px;margin:30px 0 10px;">Settled since round 1</h2>
+  <div class="card" style="margin-bottom:18px;"><div class="card-body">
+    <ul class="sec" style="margin:0;padding-left:20px;line-height:1.85;font-size:13px;">
+      <li><strong>Orders is the only place we bill.</strong> Contracts is the superset that consolidates; no billing
+        groups in orders. So the billing worklist stays in this app.</li>
+      <li><strong>A contract discount overrides</strong> whatever would apply beneath it in the order — it does not stack.</li>
+      <li><strong>Documents use MJ's polymorphic file linking</strong> (<code>__mj.FileEntityRecordLink</code>), on contracts,
+        terms and amendments alike. The <code>DocumentFileID</code> columns are gone.</li>
+      <li><strong>No soft keys, ever</strong> — a mandate. Every cross-app reference is a real FK; the only non-FK pattern
+        allowed is a genuine polymorphic <code>EntityID</code>/<code>RecordID</code> pair.</li>
+    </ul>
+  </div></div>
+
+  <h2 style="font-size:15px;margin:0 0 10px;">Still open — what this round asks</h2>
   <div class="card"><div class="card-body">
     <ol class="sec" style="margin:0;padding-left:20px;line-height:1.85;font-size:13px;">
-      <li><strong>Section tabs vs. sub-pages</strong> for the contract detail. Tabs keep one URL and one loaded
-        record; sub-pages deep-link better and let sales link straight to a term.</li>
-      <li><strong>Is the term the primary object?</strong> Screen 2 leads with the contract and nests terms. Terms carry
-        the money and the dates, so leading with the <em>active term</em> and treating the contract as its header
-        is a defensible alternative.</li>
-      <li><strong>Does the billing worklist belong to contracts or to orders?</strong> It shows contract billing events, but
-        the thing a human fixes is usually an order/pricing problem. Same question as "who owns billing," one
-        layer up.</li>
-      <li><strong>How loud should the provenance strip be?</strong> Deal → Contract → Order → JE is the whole pitch of the
-        app; it is currently a quiet strip, and it could be the headline.</li>
+      <li><strong>Is the term the primary object?</strong> These screens lead with the contract and nest terms. Terms carry
+        the money, the dates and every clause — leading with the <em>active term</em> and treating the contract as its
+        header is a defensible alternative, and arguably truer now that terms carry their own paper.</li>
+      <li><strong>How does the ported order form sit inside the contract?</strong> Inline on Coverage, a routed sub-screen, or
+        a modal? This decides whether Coverage stays a summary or becomes the real editor.</li>
+      <li><strong>Which <code>AsOf</code> does the engine pass on renewal</strong> — likely the individual subscription end dates
+        (Andrew's call).</li>
+      <li><strong>Does <code>&lt;mj-record-files&gt;</code> get built here or donated to MJ base?</strong> Every app that acquires paper
+        wants it; building it privately guarantees someone rebuilds it.</li>
     </ol>
   </div></div>
 

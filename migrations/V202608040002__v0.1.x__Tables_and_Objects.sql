@@ -112,7 +112,6 @@ CREATE TABLE __mj_BizAppsContracts.Contract (
     Description NVARCHAR(MAX) NULL,
     EffectiveDate DATE NULL,
     ExecutedDate DATE NULL,
-    DocumentFileID UNIQUEIDENTIFIER NULL,
     AutoRenew BIT NOT NULL DEFAULT 0,
     CancellationWindowDays INT NULL,
     TerminationPolicy NVARCHAR(MAX) NULL,
@@ -160,9 +159,6 @@ CREATE TABLE __mj_BizAppsContracts.ContractTerm (
     EscalationPercent DECIMAL(7,4) NULL,
     EscalationBasis NVARCHAR(20) NULL,
     MaxEscalationPercent DECIMAL(7,4) NULL,
-    -- Required when EscalationBasis='Index'. The basis was in the value list with no way to say
-    -- WHICH index, which made the option unimplementable as written.
-    EscalationIndexCode NVARCHAR(50) NULL,
     RenewalNoticeDays INT NULL,
     BillingFrequency NVARCHAR(20) NOT NULL,
     BillingAnchorMonth TINYINT NULL,
@@ -171,14 +167,15 @@ CREATE TABLE __mj_BizAppsContracts.ContractTerm (
     CurrencyID UNIQUEIDENTIFIER NULL,
     EarlyTerminationDate DATE NULL,
     RenewalProbability DECIMAL(5,4) NULL,
-    -- A TERM is separately executed whenever the renewal produces new paper. The contract carried
-    -- ExecutedDate/DocumentFileID and the term carried neither, while ContractAmendment DID have a
-    -- document — so the model said amendments get signed and renewals do not, which is backwards on
-    -- commercial significance. It also silently assumed the evergreen pattern (one signed document,
-    -- many periods); these two columns let the same schema express the re-papered pattern too.
-    -- Both stay NULLable: an auto-renewing term legitimately has no paper of its own.
+    -- A TERM is separately executed whenever the renewal produces new paper. Only the contract
+    -- recorded execution, which silently assumed the evergreen pattern (one signed document, many
+    -- periods) and could not express the re-papered-each-period pattern at all — professional
+    -- services, public-sector re-bid, or any renegotiation that produces new paper per term.
+    -- NULLable: an auto-renewing term legitimately has no execution of its own.
+    --
+    -- The DOCUMENT itself is NOT a column here. See the file-linking note in the header: contracts,
+    -- terms and amendments all attach documents through __mj.FileEntityRecordLink.
     ExecutedDate DATE NULL,
-    DocumentFileID UNIQUEIDENTIFIER NULL,
     Notes NVARCHAR(MAX) NULL,
     CONSTRAINT PK_ContractTerm PRIMARY KEY (ID),
     CONSTRAINT CK_ContractTerm_Status CHECK (Status IN ('Pending','PendingSignature','Active','Completed','Terminated')),
@@ -192,8 +189,6 @@ CREATE TABLE __mj_BizAppsContracts.ContractTerm (
     CONSTRAINT CK_ContractTerm_CommittedAmount CHECK (CommittedAmount IS NULL OR CommittedAmount >= 0),
     CONSTRAINT CK_ContractTerm_MaxEscalationPercent CHECK (MaxEscalationPercent IS NULL OR MaxEscalationPercent >= 0),
     CONSTRAINT CK_ContractTerm_RenewalNoticeDays CHECK (RenewalNoticeDays IS NULL OR RenewalNoticeDays >= 0),
-    -- An 'Index' basis with no index named cannot be executed by the engine.
-    CONSTRAINT CK_ContractTerm_IndexNeedsCode CHECK (EscalationBasis <> 'Index' OR EscalationIndexCode IS NOT NULL),
     CONSTRAINT CK_ContractTerm_RenewalNotSelf CHECK (RenewalOfTermID IS NULL OR RenewalOfTermID <> ID)
 );
 GO
@@ -220,22 +215,16 @@ CREATE TABLE __mj_BizAppsContracts.ContractLine (
     LineType NVARCHAR(20) NOT NULL,
     Quantity DECIMAL(18,4) NOT NULL DEFAULT 1,
     ContractedUnitPrice DECIMAL(19,4) NULL,
+    -- Stored as a FRACTION (0.10 = 10%), matching orders' OrderLine.DiscountPct and
+    -- SalesAuthority.MaxDiscountPct exactly — same shape, same name, deliberately.
+    --
+    -- SEMANTICS (Amith, 2026-08-04): a contract-level discount OVERRIDES the discounting that
+    -- would otherwise apply beneath it in the order. It does not stack. Orders owns the discount
+    -- MECHANICS; the contract states the negotiated intent that outranks them.
     DiscountPct DECIMAL(7,4) NULL,
     StartDate DATE NULL,
     EndDate DATE NULL,
     SubscriptionID UNIQUEIDENTIFIER NULL,
-    -- The rate in force for THIS term, stamped when the term activates.
-    --
-    -- ContractedUnitPrice NULL means "resolve from the catalog", and orders' pricing walk is gated
-    -- on the AsOf it is handed — so without a stamp, (a) a null-priced line can silently re-price
-    -- mid-term if the engine passes the bill date, and (b) EscalationBasis='PriorTerm' has no prior
-    -- number to escalate FROM, since nothing recorded what the line actually cost last term.
-    --
-    -- This does NOT contradict "not baked in here where it goes stale": that rule is right for a
-    -- CONTRACT-level price, which is meant to track something that moves. A TERM-level rate is
-    -- supposed to be frozen for the life of the term — freezing it is the feature, not the staleness.
-    ResolvedUnitPrice DECIMAL(19,4) NULL,
-    ResolvedAt DATETIMEOFFSET NULL,
     Description NVARCHAR(MAX) NULL,
     DisplayOrder INT NOT NULL DEFAULT 0,
     CONSTRAINT PK_ContractLine PRIMARY KEY (ID),
@@ -245,7 +234,6 @@ CREATE TABLE __mj_BizAppsContracts.ContractLine (
     CONSTRAINT CK_ContractLine_LineType CHECK (LineType IN ('Subscription','OneTime','Milestone','Usage','Minimum')),
     CONSTRAINT CK_ContractLine_Quantity CHECK (Quantity >= 0),
     CONSTRAINT CK_ContractLine_ContractedUnitPrice CHECK (ContractedUnitPrice IS NULL OR ContractedUnitPrice >= 0),
-    CONSTRAINT CK_ContractLine_ResolvedUnitPrice CHECK (ResolvedUnitPrice IS NULL OR ResolvedUnitPrice >= 0),
     CONSTRAINT CK_ContractLine_DiscountPct CHECK (DiscountPct IS NULL OR (DiscountPct >= 0 AND DiscountPct <= 1)),
     -- Co-term stubs live here: a line added mid-term starts at the amendment date
     -- and ends at the TERM's end date, so the stub period prorates on the next
@@ -363,7 +351,6 @@ CREATE TABLE __mj_BizAppsContracts.ContractAmendment (
     EffectiveDate DATE NOT NULL,
     AmendmentType NVARCHAR(30) NOT NULL,
     Description NVARCHAR(MAX) NULL,
-    DocumentFileID UNIQUEIDENTIFIER NULL,
     Status NVARCHAR(20) NOT NULL DEFAULT 'Draft',
     -- Hard FK -> bizapps-tasks (§4.A). Approvals for non-standard terms, discounts
     -- beyond a rep's SalesAuthority, and early-termination waivers all route through it.
@@ -502,21 +489,8 @@ ALTER TABLE __mj_BizAppsContracts.Contract
     FOREIGN KEY (OwnerUserID) REFERENCES __mj.[User](ID);
 GO
 
-ALTER TABLE __mj_BizAppsContracts.Contract
-    ADD CONSTRAINT FK_Contract_DocumentFile
-    FOREIGN KEY (DocumentFileID) REFERENCES __mj.[File](ID);
-GO
 
-ALTER TABLE __mj_BizAppsContracts.ContractAmendment
-    ADD CONSTRAINT FK_ContractAmendment_DocumentFile
-    FOREIGN KEY (DocumentFileID) REFERENCES __mj.[File](ID);
-GO
 
--- A separately-executed renewal term's own paper.
-ALTER TABLE __mj_BizAppsContracts.ContractTerm
-    ADD CONSTRAINT FK_ContractTerm_DocumentFile
-    FOREIGN KEY (DocumentFileID) REFERENCES __mj.[File](ID);
-GO
 
 ALTER TABLE __mj_BizAppsContracts.ContractEvent
     ADD CONSTRAINT FK_ContractEvent_PerformedByUser

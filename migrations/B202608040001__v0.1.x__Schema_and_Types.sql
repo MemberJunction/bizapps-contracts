@@ -50,9 +50,25 @@
 -- not convention — enforces referential integrity across app schemas. This follows
 -- the corrected cross-app hardness standard (Amith 2026-08-03; the prior
 -- soft-ref-until-CodeGen-include-mode ruling is withdrawn):
---   * -> __mj.Company / User / File
---       Contract.CompanyID, Contract.OwnerUserID, Contract.DocumentFileID,
---       ContractAmendment.DocumentFileID, ContractEvent.PerformedByUserID
+--   * -> __mj.Company / User
+--       Contract.CompanyID, Contract.OwnerUserID, ContractEvent.PerformedByUserID
+--
+--   DOCUMENTS ARE NOT A COLUMN ON ANYTHING IN THIS SCHEMA.
+--   Executed contracts, executed renewal terms and signed amendments all attach through MJ's own
+--   polymorphic file linking — __mj.FileEntityRecordLink (EntityID + RecordID) — which is the
+--   platform's many-to-many answer and the ONLY sanctioned polymorphic pattern (Amith, 2026-08-04).
+--   A DocumentFileID column would have been strictly worse in three ways: it caps each record at
+--   ONE document (a real agreement is a signed PDF plus exhibits plus a countersigned amendment),
+--   it needs a new column on every future table that acquires paper, and it duplicates a platform
+--   capability that already carries categories, storage providers and permissions. Query a
+--   contract's documents by EntityID = the 'MJ_BizApps_Contracts: Contracts' entity + RecordID =
+--   the contract's ID; the same shape serves terms and amendments with no schema change.
+--
+--   NOTE ON "SOFT" KEYS: there are none here and there must never be any (Amith, 2026-08-04 —
+--   a mandate, not a preference). Every cross-app reference below is a REAL foreign key. The only
+--   acceptable non-FK reference in MJ is a genuine POLYMORPHIC pair (EntityID/RecordID, as in
+--   __mj.TagLink and the file linking above), used when the target entity is not known ahead of
+--   time. That is not a soft key; it is a typed polymorphic link.
 --   * -> __mj_BizAppsCommon.Organization / Person
 --       Contract.CustomerOrganizationID, Contract.CustomerPersonID,
 --       Contract.PrimaryContactPersonID

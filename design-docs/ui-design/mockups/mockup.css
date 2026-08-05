@@ -314,3 +314,13 @@ legend.sub-legend { font-size: 11.5px; font-weight: 700; letter-spacing: .05em; 
 .index-card h3 { margin: 0 0 6px; font-size: 15px; }
 .index-card p { margin: 0; font-size: 13px; color: var(--mj-text-secondary); line-height: 1.55; }
 .index-card .tag { display: inline-block; margin-bottom: 9px; }
+
+/* record-linked documents (MJ __mj.FileEntityRecordLink) */
+.doc-row { display: flex; align-items: center; gap: 9px; font-size: 13px; padding: 6px 0; border-bottom: 1px solid var(--mj-border-subtle); }
+.doc-row:last-of-type { border-bottom: none; }
+.doc-row i { color: var(--mj-status-error); }
+.doc-row .doc-meta { margin-left: auto; font-size: 11.5px; color: var(--mj-text-muted); white-space: nowrap; }
+.doc-drop {
+  border: 1px dashed var(--mj-border-strong); border-radius: var(--mj-radius-md);
+  padding: 18px; text-align: center; color: var(--mj-text-muted); font-size: 12.5px; background: var(--mj-bg-surface-card);
+}
