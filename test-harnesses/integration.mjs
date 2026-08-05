@@ -25,7 +25,7 @@ dotenv.config({ path: path.resolve(here, '..', '..', '..', '..', '.env'), quiet:
 dotenv.config({ path: path.resolve(here, '..', '.env'), quiet: true });
 
 /** Every bundle, in presentational order — each owns its own fixture. */
-const ALL_BUNDLES = ['contracts-composition', 'contracts-save-contract'];
+const ALL_BUNDLES = ['contracts-composition', 'contracts-save-contract', 'contracts-billing'];
 
 const args = process.argv.slice(2);
 const only = args.filter((a) => !a.startsWith('-'));

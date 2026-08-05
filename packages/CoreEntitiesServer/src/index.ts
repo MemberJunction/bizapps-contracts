@@ -39,6 +39,7 @@ import { LoadActivateTermOperation } from './ActivateTermOperation.js';
 import { LoadRenewTermOperation } from './RenewTermOperation.js';
 import { LoadTerminateContractOperation } from './TerminateContractOperation.js';
 import { LoadSaveContractOperation } from './SaveContractOperation.js';
+import { LoadGenerateBillingEventOperation } from './GenerateBillingEventOperation.js';
 
 export { ContractEntityServer, LoadContractEntityServer } from './ContractEntityServer.js';
 export { ContractTermEntityServer, LoadContractTermEntityServer } from './ContractTermEntityServer.js';
@@ -78,6 +79,26 @@ export type { TerminateContractInput, TerminateContractOutput } from './Terminat
 export { SaveContractOperation, LoadSaveContractOperation } from './SaveContractOperation.js';
 export type { SaveContractInput, SaveContractOutput } from './SaveContractOperation.js';
 
+// The billing engine — the thing this app exists to do. `RunDueBillingEvents` is the scheduled
+// driver; the bridge is where orders plugs in to price and materialise (blocked on the C0 seams).
+export { GenerateBillingEventOperation, LoadGenerateBillingEventOperation, RunDueBillingEvents } from './GenerateBillingEventOperation.js';
+export type { GenerateBillingEventInput, GenerateBillingEventOutput } from './GenerateBillingEventOperation.js';
+export {
+    RegisterOrdersBillingBridge,
+    GetOrdersBillingBridge,
+    ResetOrdersBillingBridge,
+    UnavailableOrdersBridge,
+    ORDERS_BRIDGE_UNAVAILABLE_MESSAGE,
+} from './BillingDraft.js';
+export type {
+    BillingDraft,
+    BillingDraftLine,
+    BillingReason,
+    OrdersBillingBridge,
+    PreviewResult,
+    MaterializeResult,
+} from './BillingDraft.js';
+
 /**
  * Called by the server bootstrap. The imports above are what fire @RegisterClass; these calls are
  * anti-tree-shake anchors — without a live reference a production build can drop the import and the
@@ -97,4 +118,5 @@ export function LoadMjBizappsContractsEntitiesServer(): void {
     LoadRenewTermOperation();
     LoadTerminateContractOperation();
     LoadSaveContractOperation();
+    LoadGenerateBillingEventOperation();
 }
