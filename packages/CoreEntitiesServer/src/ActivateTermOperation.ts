@@ -134,7 +134,14 @@ export class ActivateTermOperation extends BaseRemotableOperation<ActivateTermIn
                 schedule.ContractTermID = term.ID;
                 schedule.ScheduleType = months === null ? 'Milestone' : 'Cadence';
                 schedule.Frequency = frequency as typeof schedule.Frequency;
-                schedule.AnchorDate = term.StartDate;
+                // THE ANCHOR THE TERM NEGOTIATED, when it names one.
+                //
+                // `BillingAnchorMonth` / `BillingAnchorDay` existed on the term, were copied forward
+                // by RenewTerm, and were read by NOTHING — the schedule always anchored on the start
+                // date. So a contract that says "bills on the 1st of the quarter" was recorded
+                // faithfully and then billed on whatever day it happened to start. Two dead columns
+                // and a silently ignored provision.
+                schedule.AnchorDate = anchorFor(term);
                 schedule.IsActive = true;
                 if (!(await schedule.Save())) {
                     await db.RollbackTransaction();
@@ -144,7 +151,7 @@ export class ActivateTermOperation extends BaseRemotableOperation<ActivateTermIn
 
                 // A milestone schedule gets no dates: milestones are reached, not calculated. Creating
                 // guesses here would put dates in front of a human that nobody agreed to.
-                for (const when of months === null ? [] : occurrences(term.StartDate, term.EndDate, months)) {
+                for (const when of months === null ? [] : occurrences(anchorFor(term), term.StartDate, term.EndDate, months)) {
                     const ev = await md.GetEntityObject<mjBizAppsContractsContractBillingEventEntity>(E_EVENT, user);
                     ev.NewRecord();
                     ev.ContractBillingScheduleID = schedule.ID;
@@ -208,21 +215,59 @@ export class ActivateTermOperation extends BaseRemotableOperation<ActivateTermIn
 }
 
 /**
- * Every occurrence from `start` up to and including any that falls on or before `end`.
+ * The date the cadence is anchored on: what the TERM negotiated, or its start date.
  *
- * Anchored on the start date and stepped in whole months, so a term starting on the 31st bills on
- * the 30th/28th where the month is short rather than skipping to the next month — `setMonth` rolling
- * over is the classic way a quarterly schedule quietly loses a quarter.
+ * `BillingAnchorDay` alone means "this day of every period, starting in the term's first month" —
+ * the common case, e.g. bills on the 1st. `BillingAnchorMonth` as well pins the first occurrence to
+ * a specific month, which is how an annual term that always bills in January is expressed however
+ * mid-year it was signed.
+ *
+ * NEVER BEFORE THE TERM STARTS. An anchor that resolves earlier than the start date is pulled
+ * forward by whole cadence steps until it is inside the term — otherwise a January anchor on a term
+ * starting in March would schedule its first bill for a period the agreement does not cover.
  */
-function occurrences(start: Date, end: Date, months: number): Date[] {
+function anchorFor(term: mjBizAppsContractsContractTermEntity): Date {
+    const start = term.StartDate;
+    const day = term.BillingAnchorDay;
+    const month = term.BillingAnchorMonth;
+    if (!day && !month) return start;
+
+    const year = start.getUTCFullYear();
+    const targetMonth = month ? month - 1 : start.getUTCMonth();
+    const lastOfMonth = new Date(Date.UTC(year, targetMonth + 1, 0)).getUTCDate();
+    const targetDay = Math.min(day ?? start.getUTCDate(), lastOfMonth);
+
+    const anchor = new Date(Date.UTC(year, targetMonth, targetDay));
+    if (anchor.getTime() >= start.getTime()) return anchor;
+
+    // Before the term began: step forward a year for a month-pinned anchor, a month otherwise.
+    const stepped = new Date(anchor);
+    if (month) stepped.setUTCFullYear(stepped.getUTCFullYear() + 1);
+    else stepped.setUTCMonth(stepped.getUTCMonth() + 1);
+    const steppedLast = new Date(Date.UTC(stepped.getUTCFullYear(), stepped.getUTCMonth() + 1, 0)).getUTCDate();
+    stepped.setUTCDate(Math.min(day ?? start.getUTCDate(), steppedLast));
+    return stepped;
+}
+
+/**
+ * Every occurrence from `anchor` up to and including any that falls on or before `end`.
+ *
+ * Stepped in whole months from the anchor, so a schedule anchored on the 31st bills on the 30th/28th
+ * where the month is short rather than skipping to the next month — `setMonth` rolling over is the
+ * classic way a quarterly schedule quietly loses a quarter.
+ *
+ * `start` is carried separately from `anchor` because they differ once a term names its own anchor:
+ * nothing may be scheduled before the term begins, even when the anchor computation lands there.
+ */
+function occurrences(anchor: Date, start: Date, end: Date, months: number): Date[] {
     const out: Date[] = [];
-    const anchorDay = start.getUTCDate();
+    const anchorDay = anchor.getUTCDate();
     for (let i = 0; ; i++) {
-        const d = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + i * months, 1));
+        const d = new Date(Date.UTC(anchor.getUTCFullYear(), anchor.getUTCMonth() + i * months, 1));
         const lastOfMonth = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 0)).getUTCDate();
         d.setUTCDate(Math.min(anchorDay, lastOfMonth));
         if (d.getTime() > end.getTime()) break;
-        out.push(d);
+        if (d.getTime() >= start.getTime()) out.push(d);
         if (out.length > 400) break; // guard against a pathological range
     }
     return out;

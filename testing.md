@@ -5,7 +5,7 @@ against the **matrix**, not against the tests that happen to exist — an empty 
 every written test is green.
 
 > **Last full sweep:** 2026-08-05 (afternoon), branch `mjdev/contracts-night`, instance `contracts-dev`.
-> **Totals: 52 tier-1 + 101 tier-2 (tsx) + 37 integration + 62 tier-5 = 252 assertions, all passing.**
+> **Totals: 52 tier-1 + 101 tier-2 (tsx) + 40 integration + 62 tier-5 = 255 assertions, all passing.**
 > Every number below was observed, not estimated. Where something was not run, it says so.
 >
 > **The suite moved to MJ's integration tier this afternoon** (`mj test` / `test-harnesses/integration.mjs`),
@@ -197,7 +197,7 @@ The ones that would change tests if answered differently:
 | **G2** | Amendment and co-term operations (plan C4) | `RenewTerm` is 1 of the 4 operations C4 calls for. `ContractAmendment` now has its rules in BaseEntity and a workspace pane, but no operation applies one to a live term. |
 | **G3** | Milestone marking | `Milestone` is a valid LineType and ScheduleType and nothing marks one reached, so BE6 asserts it bills in NO period. Correct today, and the reason C3 step 2 is incomplete. |
 | **G4** | Commitment consumption tracking | `ConsumedAmount` is recorded and never advanced by anything. The shortfall maths is right; the input to it is manual. |
-| **G5** | `BillingAnchorMonth` / `BillingAnchorDay` | Still written by `RenewTerm` and read by nothing. Question 3 for Andrew: wire into the cadence, or remove. |
+| ~~G5~~ | ~~`BillingAnchorMonth` / `BillingAnchorDay` read by nothing~~ | **CLOSED.** Wired into the cadence rather than removed: the anchor is a provision the contract negotiated, and the columns already carried it. `ActivateTerm` now anchors the schedule on them, never scheduling before the term starts. BE13–BE15. |
 | **G6** | 101 tsx assertions not yet on the integration tier | They pass, but they lack the rolled-back isolation everything new has. |
 
 ### Blocked on a person — not gaps

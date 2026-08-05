@@ -39,6 +39,7 @@ import {
     type NamedCheck,
 } from '@memberjunction/testing-integration';
 import {
+    ActivateTermOperation,
     GenerateBillingEventOperation,
     RegisterOrdersBillingBridge,
     ResetOrdersBillingBridge,
@@ -168,7 +169,100 @@ async function line(
     if (opts.End) l.EndDate = new Date(opts.End);
 }
 
+/** Activate a term and return the dates its cadence produced. */
+async function activate(ctx: IntegrationCheckContext, termID: string): Promise<string[]> {
+    const op = new ActivateTermOperation();
+    const result = await op.ExecuteServer(
+        { ContractTermID: termID },
+        { provider: ctx.Provider, user: ctx.User, emitProgress: () => undefined } as never,
+    );
+    const output = result.Output as { Success: boolean; Message?: string; ScheduledDates?: string[] } | undefined;
+    Assert(!!output?.Success, `activation failed: ${output?.Message ?? result.ErrorMessage ?? ''}`);
+    return output!.ScheduledDates ?? [];
+}
+
+/** A term with the given cadence and anchor, ready to activate. */
+async function anchoredTerm(
+    label: string,
+    frequency: 'Monthly' | 'Quarterly' | 'Annual',
+    start: string,
+    end: string,
+    anchor: { Day?: number; Month?: number },
+): Promise<string> {
+    const fx = Fx();
+    const contract = await Md().GetEntityObject<ContractEntityServer>(E_CONTRACT, fx.User);
+    contract.NewRecord();
+    contract.ContractTypeID = fx.StandardTypeID;
+    contract.CompanyID = fx.CompanyID;
+    contract.CustomerOrganizationID = fx.OrganizationID;
+    contract.Status = 'Draft';
+    contract.Description = `IT-billing: ${label}`;
+    contract.MarkTermsAuthoritative();
+    const term = await contract.CreateTerm(fx.User);
+    term.StartDate = new Date(start);
+    term.EndDate = new Date(end);
+    term.Status = 'Pending';
+    term.BillingFrequency = frequency;
+    if (anchor.Day) term.BillingAnchorDay = anchor.Day;
+    if (anchor.Month) term.BillingAnchorMonth = anchor.Month;
+    await line(term, 'Subscription');
+    Assert(await contract.Save(), `${label} did not save: ${contract.LatestResult?.CompleteMessage ?? ''}`);
+    return term.ID;
+}
+
 export const BillingChecks: NamedCheck[] = [
+    {
+        Id: 'contracts-billing.BE13',
+        Name: 'a term with no anchor still bills from its start date',
+        Fn: (ctx) =>
+            InRolledBackTransaction(ctx, async () => {
+                // The baseline, so BE14/BE15 prove the anchor CHANGED something rather than merely
+                // producing plausible dates.
+                const termID = await anchoredTerm('no anchor', 'Quarterly', '2030-02-15', '2030-12-31', {});
+                const dates = await activate(ctx, termID);
+                AssertEqual(dates[0], '2030-02-15', 'the first occurrence with no anchor');
+                AssertEqual(dates[1], '2030-05-15', 'the second');
+            }),
+    },
+
+    {
+        Id: 'contracts-billing.BE14',
+        Name: "BillingAnchorDay moves the cadence onto the day the term negotiated",
+        Fn: (ctx) =>
+            InRolledBackTransaction(ctx, async () => {
+                // These two columns were copied forward by RenewTerm and read by NOTHING, so a
+                // contract saying "bills on the 1st" was recorded faithfully and billed on whatever
+                // day it happened to start.
+                const termID = await anchoredTerm('anchor day', 'Quarterly', '2030-02-15', '2030-12-31', { Day: 1 });
+                const dates = await activate(ctx, termID);
+                Assert(dates.length > 0, 'no occurrences were scheduled');
+                for (const d of dates) {
+                    AssertEqual(d.slice(-2), '01', `every occurrence should fall on the 1st — got ${d}`);
+                }
+                // NEVER BEFORE THE TERM STARTS: the 1st of February precedes 15 February, so the
+                // first occurrence steps forward rather than scheduling a period the term does not
+                // cover.
+                Assert(dates[0] >= '2030-02-15', `the first occurrence ${dates[0]} precedes the term start`);
+                AssertEqual(dates[0], '2030-03-01', 'the first occurrence after stepping forward');
+            }),
+    },
+
+    {
+        Id: 'contracts-billing.BE15',
+        Name: 'BillingAnchorMonth pins an annual term to the month it always bills in',
+        Fn: (ctx) =>
+            InRolledBackTransaction(ctx, async () => {
+                // How "always bills in January" is expressed on a term signed in March.
+                const termID = await anchoredTerm('anchor month', 'Annual', '2030-03-10', '2032-12-31', { Month: 1, Day: 1 });
+                const dates = await activate(ctx, termID);
+                Assert(dates.length > 0, 'no occurrences were scheduled');
+                AssertEqual(dates[0], '2031-01-01', 'the first January on or after the term start');
+                for (const d of dates) {
+                    AssertEqual(d.slice(5), '01-01', `every occurrence should be 1 January — got ${d}`);
+                }
+            }),
+    },
+
     {
         Id: 'contracts-billing.BE1',
         Name: 'two overlapping runs produce ONE bill — the second finds the event claimed',
