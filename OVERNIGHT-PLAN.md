@@ -133,7 +133,9 @@ workspace edit pane on this before adding any more hand-built fields.
       X.8 RenewalOfTermID may cross contracts · X.9 ContractLine.SubscriptionID is not unique
       (a duplicate-billing shape) · X.10 ComputedAmount >= 0 forbids a credit · X.16 mj-app.json
       still ships `"license": "<Set-this>"`.
-- [ ] **9. Workspace coverage editing** — add/edit `ContractLine` rows inline rather than grid-only.
+- [x] **9. Workspace coverage editing.** ✅ DONE — clicking a coverage row opens the line in its own
+      custom form, and an Add line control targets the contract's LIVE term (or the latest when none
+      is live, and is disabled when there are no terms — rather than producing an orphan).
 - [ ] **10. Regenerate `docs/ERD.md`** from the live schema after any migration change, and re-pin
       `plans/bizapps-contracts-master.md` §10.3.
 - [ ] **11. PG conversion** (`mj migrate convert`) + CI wiring — the C6 tail.
@@ -150,6 +152,11 @@ workspace edit pane on this before adding any more hand-built fields.
 | Usage metering | Out of v1 by decision. |
 
 ## Log
+
+- **09:10** — **Item 9 done.** Coverage is editable, not just listed: row-click opens the custom line
+  form, Add line targets the live term. Asserted on the CUSTOM panel names, because the generated
+  form would also open and would also look fine — the failure mode being guarded is a lost
+  registration, not a missing overlay. ui-navigation 25/25.
 
 - **08:55** — **Item 8 done.** 32 tier-1 assertions, replacing a stub that passed vacuously. Worth
   recording HOW it went: I wrote the extracted module from what I assumed the component did, and the

@@ -152,6 +152,24 @@ try {
     // is the correct shape — not a missing row.
     check('D.2 Coverage shows all three lines, one of them catalog-priced', (await page.locator('[role="row"]').count()) >= 4, `${await page.locator('[role="row"]').count()} rows incl. header`);
 
+    // Clicking a coverage row opens the LINE in its own custom form — the editing half of the tab,
+    // which previously only listed. Asserted on the custom panel names, since the generated form
+    // would also open and would also look fine.
+    const covRows = page.locator('[role="row"]');
+    if ((await covRows.count()) > 1) {
+        const kidsBefore = await page.evaluate(() => document.body.children.length);
+        await covRows.nth(1).click();
+        await page.waitForTimeout(6000);
+        const kidsAfter = await page.evaluate(() => document.body.children.length);
+        check('D.1a clicking a coverage row opens an overlay', kidsAfter > kidsBefore, `${kidsBefore} -> ${kidsAfter}`);
+        const lineText = await page.evaluate(() => document.body.lastElementChild?.innerText ?? '');
+        check('D.1b it is the CUSTOM line form, with its explanatory panels',
+            /What is covered/i.test(lineText) && /resolve from the catalog/i.test(lineText),
+            lineText.slice(0, 200).replace(/\n/g, ' / '));
+        const close = page.getByRole('button', { name: /close|cancel/i }).last();
+        if (await close.count()) { await close.click(); await page.waitForTimeout(2500); }
+    }
+
     await openTab(/^Billing$/);
     const bill = await page.locator('body').innerText();
     check("D.3 Billing shows the term's schedule and events", /Quarterly/.test(bill) && /Scheduled/i.test(bill), bill.slice(-200).replace(/\n/g, ' / '));

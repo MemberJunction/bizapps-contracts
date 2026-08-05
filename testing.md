@@ -5,7 +5,7 @@ against the **matrix**, not against the tests that happen to exist — an empty 
 every written test is green.
 
 > **Last full sweep:** 2026-08-05, branch `mjdev/contracts-night`, instance `contracts-dev`.
-> **Totals: 32 tier-1 + 85 tier-2 + 67 tier-5 assertions, all passing.** Every number below was
+> **Totals: 32 tier-1 + 85 tier-2 + 69 tier-5 assertions, all passing.** Every number below was
 > observed, not estimated. Where something was not run, it says so.
 
 ---
@@ -30,7 +30,7 @@ URL=$(mjdev explorer-url contracts-dev | grep -oE 'http://localhost:[0-9]+/#toke
 node test-harnesses/ui-lifecycle.mjs       "$URL"   # 8
 node test-harnesses/ui-form-editing.mjs    "$URL"   # 11
 node test-harnesses/ui-history.mjs         "$URL"   # 5
-node test-harnesses/ui-navigation.mjs      "$URL"   # 23
+node test-harnesses/ui-navigation.mjs      "$URL"   # 25
 node test-harnesses/ui-create-to-active.mjs "$URL"  # 11 — CREATES a contract
 node test-harnesses/ui-full-loop.mjs       "$URL"   # 9  — WRITES to the demo contract
 ```
@@ -95,6 +95,7 @@ produces a red tier-3/4/5 against green tier-2, which is an environment artefact
 | Billing worklist page | — | — | — | ✓ | Renders and surfaces the failed event. |
 | Contract types setup page | — | — | — | ✓ | All six seeded types listed **by name**. |
 | Coverage / Billing / Commitments / Amendments tabs | — | — | — | ✓ | Asserted on VALUES belonging to the open contract, so a wrong `ExtraFilter` fails. |
+| Coverage rows open for editing | — | — | — | ✓ | Row-click opens the CUSTOM line form; asserted on its panel names, since the generated form would also open and look fine. |
 | Documents tab (file links) | — | — | — | ✗ | **Gap `5d`** — feature not built. |
 | Signature status panel | — | — | — | ✗ | **Gap `5e`** — feature not built; needs a provider account. |
 | Billing event generation | — | ✗ | ✗ | ✗ | **Blocked, not a gap** — needs the orders seams (D-2). Nothing to test yet. |

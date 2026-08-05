@@ -558,7 +558,17 @@ interface Draft {
                         </div>
 
                         <div *ngIf="Tab === 'coverage'">
-                            <mj-explorer-entity-data-grid [Params]="P.lines" [Height]="400" [ShowToolbar]="true" [ToolbarConfig]="Toolbar" (Navigate)="OnNavigate($event)"></mj-explorer-entity-data-grid>
+                            <div class="cov-h" style="padding:0 0 12px;">
+                                <div class="pv-s">Click a line to edit it. Coverage is what the term entitles the customer to.</div>
+                                <button mjButton (click)="AddCoverageToLiveTerm(c)" [disabled]="!LiveTermOf(c.ID)">
+                                    <i class="fa-solid fa-plus"></i> Add line
+                                </button>
+                            </div>
+                            <mj-explorer-entity-data-grid
+                                [Params]="P.lines" [Height]="400" [ShowToolbar]="true" [ToolbarConfig]="Toolbar"
+                                (AfterRowClick)="OpenLine($event)"
+                                (Navigate)="OnNavigate($event)"
+                            ></mj-explorer-entity-data-grid>
                             <div class="note ok">A contract discount <strong>overrides</strong> order-level discounting rather than stacking, so the value here is the operative one.</div>
                         </div>
                         <div *ngIf="Tab === 'billing'">
@@ -1350,6 +1360,32 @@ export class MJCContractsSectionComponent extends BaseResourceComponent implemen
     }
 
     /** Add coverage to a term, with the parent already filled in. */
+    /**
+     * The term coverage should be added to: the live one, or the latest if none is live.
+     *
+     * A contract usually has several terms and only one of them is current, so "add a line" from the
+     * Coverage tab has to pick — and picking the Active term is what a person means. Returns null
+     * when there are no terms at all, which is what disables the control rather than producing an
+     * orphaned line.
+     */
+    public LiveTermOf(contractID: string): TermRow | null {
+        const terms = this.TermsOf(contractID);
+        return terms.find((t) => t.Status === 'Active') ?? terms[terms.length - 1] ?? null;
+    }
+
+    public async AddCoverageToLiveTerm(c: ContractRow): Promise<void> {
+        const term = this.LiveTermOf(c.ID);
+        if (!term) return;
+        await this.AddCoverage(term);
+    }
+
+    /** Open a coverage line in its own custom form, from a click on the grid row. */
+    public async OpenLine(args: AfterRowClickEventArgs): Promise<void> {
+        const id = (args?.row as Record<string, unknown> | undefined)?.['ID'];
+        if (typeof id !== 'string') return;
+        await this.presentForm({ EntityName: E_LINES, RecordId: id, Title: 'Coverage line' });
+    }
+
     public async AddCoverage(t: TermRow): Promise<void> {
         await this.presentForm({
             EntityName: E_LINES,
