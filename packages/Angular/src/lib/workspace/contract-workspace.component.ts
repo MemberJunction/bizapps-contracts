@@ -133,26 +133,12 @@ const TERM_STATUSES = ['Pending', 'PendingSignature', 'Active', 'Completed', 'Te
         `,
     ],
     template: `
+    <!-- NO HEADER OR ACTION BAR HERE. Both belong to mj-workspace-card, which frames this
+         component: the identity band goes in its [workspaceHeader] slot and the primary verb in its
+         standardised footer, so every workspace in the family carries the same chrome in the same
+         place rather than each hand-rolling its own.
+         (No backticks in a template comment — they close the template literal.) -->
     <div class="ws">
-      <div class="ws-head">
-        <div class="ws-id">
-          <span class="ws-num">{{ Draft.ContractNumber || 'New contract' }}</span>
-          <span class="ws-sub">
-            {{ Draft.IsSaved ? 'Saved' : 'Not yet saved' }}
-            <ng-container *ngIf="Draft.Description"> · {{ Draft.Description }}</ng-container>
-          </span>
-        </div>
-        <div class="ws-actions">
-          <span class="ws-sub" *ngIf="Message">{{ Message }}</span>
-          <button mjButton variant="flat" *ngIf="CanTerminate" [disabled]="Op.Busy" (click)="PreviewTermination()">
-            <i class="fa-solid fa-ban"></i> Terminate…
-          </button>
-          <button mjButton [disabled]="Saving() || !CanSaveNow" (click)="Save()">
-            <i class="fa-solid fa-floppy-disk"></i>
-            {{ Saving() ? 'Saving…' : (Draft.IsSaved ? 'Save changes' : 'Create contract') }}
-          </button>
-        </div>
-      </div>
 
       <!-- The issue list. A red badge on a tab says WHERE; this says WHAT, so a mark is never the
            only clue a user gets. -->
@@ -268,10 +254,6 @@ const TERM_STATUSES = ['Pending', 'PendingSignature', 'Active', 'Completed', 'Te
           <h3>Terms</h3>
           <button mjButton (click)="AddTerm()"><i class="fa-solid fa-plus"></i> Add term</button>
         </div>
-        <p class="pane-note">
-          A term carries the dates, the money and the cadence. The contract header records who agreed;
-          the term records what was agreed to.
-        </p>
         <div class="empty" *ngIf="!Draft.Terms.length">No terms yet. Add one to get started.</div>
         <div class="rows">
           <div class="row" *ngFor="let term of Draft.Terms; let i = index">
@@ -420,10 +402,6 @@ const TERM_STATUSES = ['Pending', 'PendingSignature', 'Active', 'Completed', 'Te
               <h3>Coverage</h3>
               <button mjButton (click)="AddLine(term)"><i class="fa-solid fa-plus"></i> Add line</button>
             </div>
-            <p class="pane-note">
-              What this term entitles the customer to. A contract discount <strong>overrides</strong>
-              order-level discounting rather than stacking, so the value here is the operative one.
-            </p>
             <div class="empty" *ngIf="!term.Lines.length">No coverage on this term yet.</div>
             <div class="rows">
               <div class="row" *ngFor="let line of term.Lines; let i = index">
@@ -471,10 +449,6 @@ const TERM_STATUSES = ['Pending', 'PendingSignature', 'Active', 'Completed', 'Te
               <h3>Billing schedules</h3>
               <button mjButton (click)="AddSchedule(term)"><i class="fa-solid fa-plus"></i> Add schedule</button>
             </div>
-            <p class="pane-note">
-              A term may carry more than one: a quarterly subscription cadence <em>and</em> a milestone
-              schedule for an attached statement of work.
-            </p>
             <div class="empty" *ngIf="!term.Schedules.length">No schedule yet — activation will create one from the term's cadence.</div>
             <div class="rows">
               <div class="row" *ngFor="let sched of term.Schedules">
@@ -513,10 +487,6 @@ const TERM_STATUSES = ['Pending', 'PendingSignature', 'Active', 'Completed', 'Te
               <h3>Commitments</h3>
               <button mjButton (click)="AddCommitment(term)"><i class="fa-solid fa-plus"></i> Add commitment</button>
             </div>
-            <p class="pane-note">
-              What the customer promised to spend, and what they have spent against it. Over-consumption
-              is a real state, not an error — the shortfall is what the billing engine computes.
-            </p>
             <div class="empty" *ngIf="!term.Commitments.length">No commitments on this term.</div>
             <div class="rows">
               <div class="row" *ngFor="let commit of term.Commitments">

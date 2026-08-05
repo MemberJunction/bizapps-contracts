@@ -202,7 +202,7 @@ try {
     console.log('\n9. The document tab re-points at the saved contract');
     // If it still said "New contract", closing and reopening it would resurrect an id-less draft and
     // create a SECOND contract on the next save.
-    const docStrip = await page.locator('.card .ch').first().innerText();
+    const docStrip = await page.locator('mj-workspace-tab-strip').first().innerText();
     check('9.1 the open-document tab shows the allocated number', docStrip.includes(number), docStrip.replace(/\s+/g, ' ').slice(0, 120));
 
     console.log('\n10. The lifecycle, from the Terms pane');
@@ -218,7 +218,10 @@ try {
     if (await activate.count()) {
         await activate.click();
         await page.waitForTimeout(7000);
-        const after = (await page.locator('.ws-sub').first().innerText()) + (await page.locator('.ws-head').innerText());
+        // The operation's message lands in the workspace card's footer note now, beside the
+        // standardised verbs — .ws-head was the hand-rolled header the card replaced.
+        const after = (await page.locator('.ws-sub').first().innerText())
+            + ' ' + (await page.locator('.ws-card__footnote').first().innerText().catch(() => ''));
         check('10.2 activation reports the billing events it scheduled', /scheduled|activated/i.test(after), after.replace(/\s+/g, ' ').slice(0, 160));
 
         // A term that is running can be renewed, and NOT activated again — the strip must follow
@@ -368,9 +371,15 @@ try {
     // ("WorkspaceOpen, edit and create"), so ^Workspace$ never matches. Scope, do not anchor.
     await page.locator('mj-left-nav').getByRole('button', { name: /workspace/i }).first().click();
     await page.waitForTimeout(1500);
-    for (const doc of await page.locator('.card .ch button i.fa-xmark').all()) {
-        await doc.click();
-        await page.waitForTimeout(400);
+    // Close every open document so the picker (the empty state) is reachable again.
+    for (let i = 0; i < 6; i++) {
+        const close = page.locator('mj-workspace-tab-strip').first().locator('button, [role="button"]').filter({ has: page.locator('i.fa-xmark, .fa-xmark') }).first();
+        if (!(await close.count())) break;
+        await close.click();
+        await page.waitForTimeout(600);
+        // An unsaved contract asks before closing; this run's contract is saved, so no dialog —
+        // but accept one if the app ever changes its mind.
+        page.once('dialog', (d) => d.accept());
     }
     await page.waitForTimeout(1200);
     const search = page.getByPlaceholder(/Find a contract/i).first();

@@ -24,7 +24,7 @@
  * @module @mj-biz-apps/contracts-ng
  */
 
-import { ChangeDetectorRef, Component, Input, OnInit, inject } from '@angular/core';
+import { ChangeDetectorRef, Component, Input, OnInit, ViewChild, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RegisterClass } from '@memberjunction/global';
@@ -40,6 +40,11 @@ import {
 import { BuildLeftNavSections, DefaultPageFor, SubPagesFor } from '../nav/contracts-nav.model';
 import { MJCContractWorkspaceComponent, type WorkspaceLookups } from '../workspace/contract-workspace.component';
 import { ContractDraft, type ContractDraftPayload } from '@mj-biz-apps/contracts-entities';
+// The family's shared workspace chrome. A THIN slotted frame owning only the invariant parts — the
+// card surface, the open-documents strip, an identity band and one scrolling body — plus the
+// standardised action bar, so no workshop hand-rolls its own footer. Contracts used it for the old
+// create page; it went with that page and belongs back here.
+import { WorkspaceCardComponent, WorkspaceTabStore } from '@mj-biz-apps/accounting-ng';
 import { RunView, Metadata, CompositeKey, type RunViewParams } from '@memberjunction/core';
 import type { ResourceData } from '@memberjunction/core-entities';
 // The pure presentation helpers. They live in their own module because they are ordinary functions
@@ -129,7 +134,7 @@ interface LogRow {
         CommonModule, FormsModule, BaseFormsModule, MJButtonDirective,
         MJPageLayoutComponent, MJPageHeaderComponent, MJPageBodyComponent,
         MJLeftNavComponent, MJLeftNavContentComponent,
-        MJCContractWorkspaceComponent,
+        MJCContractWorkspaceComponent, WorkspaceCardComponent,
     ],
     styles: [
         `
@@ -291,8 +296,6 @@ interface LogRow {
             <div class="wrap" *ngIf="Page === 'list'">
                 <div class="sechead">
                     <h2>All contracts</h2>
-                    <p>Every agreement this organization has committed to — what was promised, for how long, and what it is
-                       billing. Click a row to open it in the workspace.</p>
                 </div>
 
                 <div class="kpis">
@@ -310,10 +313,6 @@ interface LogRow {
                         (AfterRowClick)="OpenWorkspace($event)"
                         (Navigate)="OnNavigate($event)"
                     ></mj-explorer-entity-data-grid>
-                    <div class="note info">
-                        <strong>New contract</strong> creates one; it appears here on save, and clicking it opens the
-                        workspace. Double-click opens the full MJ record instead.
-                    </div>
                 </div>
             </div>
 
@@ -342,7 +341,7 @@ interface LogRow {
                     <button mjButton="primary" (click)="NewContract()"><i class="fa-solid fa-plus"></i> New contract</button>
                 </div>
 
-                <div class="card" *ngIf="!OpenContracts.length">
+                <div class="card" *ngIf="!Drafts.Count">
                     <div class="ch">Open a contract <span class="r">{{ Matches.length }} of {{ Contracts.length }}</span></div>
                     <div class="note info" *ngIf="!Matches.length">
                         No contract matches that search. Clear it, or start a new contract.
@@ -355,35 +354,62 @@ interface LogRow {
                     </div>
                 </div>
 
-                <!-- The open-documents strip. Several agreements stay open at once, which is how they
-                     are actually read — a renewal beside its predecessor. -->
-                <div class="card" *ngIf="OpenContracts.length">
-                    <div class="ch" style="gap:8px; flex-wrap:wrap;">
-                        <button mjButton *ngFor="let doc of OpenContracts"
-                                [variant]="doc.Key === ActiveDocKey ? 'primary' : 'flat'"
-                                (click)="ActivateDoc(doc.Key)">
-                            {{ doc.Draft.ContractNumber || 'New contract' }}
-                            <i class="fa-solid fa-xmark" style="margin-left:8px" (click)="CloseDoc(doc.Key, $event)"></i>
-                        </button>
-                        <span class="r"><button mjButton variant="icon" (click)="NewContract()"><i class="fa-solid fa-plus"></i></button></span>
+                <!-- THE STANDARD WORKSPACE CARD. Several agreements stay open at once, which is how
+                     they are actually read — a renewal beside its predecessor — and the strip that
+                     models open documents already exists in the family. An earlier version drew its
+                     own row of buttons here: it worked, and looked like nothing else in the suite.
+
+                     ShowDraft is off. The card's "keep as draft" means keep the TAB without writing,
+                     and a contract's Draft is a real persisted STATUS. Two meanings of one word on
+                     one screen is how a person mis-clicks. -->
+                <mj-workspace-card *ngIf="Drafts.Count"
+                    AriaLabel="Contract workspace"
+                    NewTabLabel="New contract"
+                    [Tabs]="Drafts.Tabs"
+                    [ActiveId]="Drafts.ActiveId"
+                    [ShowFooter]="true"
+                    [ShowDraft]="false"
+                    [ConfirmLabel]="ConfirmLabel"
+                    ConfirmIcon="fa-solid fa-floppy-disk"
+                    [ConfirmDisabled]="!CanSaveActive"
+                    [ConfirmTitle]="ConfirmTitle"
+                    [ConfirmBusy]="IsSaving"
+                    ConfirmBusyLabel="Saving…"
+                    DiscardLabel="Close"
+                    (TabSelected)="ActivateDoc($event)"
+                    (TabClosed)="CloseDoc($event)"
+                    (NewTabRequested)="NewContract()"
+                    (Confirm)="SaveActive()"
+                    (Discard)="CloseActive()">
+
+                    <div workspaceHeader class="ws-id">
+                        <span class="ws-num">{{ ActiveDraft?.ContractNumber || 'New contract' }}</span>
+                        <span class="ws-sub">
+                            {{ ActiveDraft?.IsSaved ? 'Saved' : 'Not yet saved' }}
+                            <ng-container *ngIf="ActiveDraft?.Description"> · {{ ActiveDraft?.Description }}</ng-container>
+                        </span>
                     </div>
 
-                    <mjc-contract-workspace *ngIf="ActiveDoc as doc"
-                        [Draft]="doc.Draft"
+                    <mjc-contract-workspace *ngIf="ActiveDraft as draft"
+                        [Draft]="draft"
                         [Lookups]="WorkspaceLookups"
                         (Saved)="OnContractSaved($event)"
                         (ReloadRequested)="OnReloadRequested($event)">
                     </mjc-contract-workspace>
-                </div>
+
+                    <span workspaceFooterNote>
+                        <ng-container *ngIf="WorkspaceMessage">{{ WorkspaceMessage }}</ng-container>
+                        <button mjButton variant="flat" *ngIf="!WorkspaceMessage && CanTerminateActive" (click)="TerminateActive()">
+                            <i class="fa-solid fa-ban"></i> Terminate…
+                        </button>
+                    </span>
+                </mj-workspace-card>
             </div>
 
 
             <div class="wrap" *ngIf="Page === 'worklist'">
                 <div class="sechead">
                     <h2>Billing worklist</h2>
-                    <p>What the scheduled job is about to do, and what it could not do. A failed event is never retried
-                       automatically — retrying into a duplicate bill is worse than a late one — so anything red here stays
-                       red until a person clears it.</p>
                 </div>
 
                 <div class="kpis">
@@ -410,9 +436,6 @@ interface LogRow {
             <div class="wrap" *ngIf="Page === 'types'">
                 <div class="sechead">
                     <h2>Contract types</h2>
-                    <p>Configuration-as-data: the columns <em>are</em> the rules. A type carries the default term, cadence,
-                       escalation and its cap, notice and cancellation windows — the engine reads them rather than branching
-                       on a type name.</p>
                 </div>
                 <div class="card">
                     <mj-explorer-entity-data-grid [Params]="P.types" [Height]="440" [ShowToolbar]="true" [ToolbarConfig]="Toolbar" (Navigate)="OnNavigate($event)"></mj-explorer-entity-data-grid>
@@ -424,8 +447,6 @@ interface LogRow {
             <div class="wrap" *ngIf="Page === 'dashboard'">
                 <div class="sechead">
                     <h2>Dashboard</h2>
-                    <p>The four questions worth asking every morning: what is committed, what is about to renew,
-                       what is queued to bill, and what has failed and is waiting on a person.</p>
                 </div>
                 <div class="kpis">
                     <div class="kpi"><div class="l">Active contracted value</div><div class="v">{{ TotalCommitted | currency: 'USD' : 'symbol' : '1.0-0' }}</div><div class="f">across {{ ActiveCount }} active contracts</div></div>
@@ -451,8 +472,6 @@ interface LogRow {
             <div class="wrap" *ngIf="Page === 'renewals'">
                 <div class="sechead">
                     <h2>Renewals due</h2>
-                    <p>Terms whose end date falls inside the next 90 days. A renewal starts a NEW term; a change
-                       that does not restart the term is an amendment, which lives on the next page.</p>
                 </div>
                 <div class="card">
                     <div class="ch">Coming up <span class="r">{{ Renewing.length }}</span></div>
@@ -465,10 +484,6 @@ interface LogRow {
                             <span class="pd">ends {{ t.EndDate | date: 'mediumDate' }} · open it to preview the renewal</span>
                         </button>
                     </div>
-                    <div class="note info">
-                        Renewal is previewed before it is written — the escalation actually applied, and whether
-                        the term's ceiling clamped it, come back from the operation rather than being computed here.
-                    </div>
                 </div>
             </div>
 
@@ -476,15 +491,9 @@ interface LogRow {
             <div class="wrap" *ngIf="Page === 'amendments'">
                 <div class="sechead">
                     <h2>Amendments</h2>
-                    <p>Mid-term changes across every contract. An amendment changes a term that is RUNNING;
-                       conflating that with a renewal is the most common contract-model mistake there is.</p>
                 </div>
                 <div class="card">
                     <mj-explorer-entity-data-grid [Params]="P.allAmendments" [Height]="440" [ShowToolbar]="true" [ToolbarConfig]="Toolbar" (Navigate)="OnNavigate($event)"></mj-explorer-entity-data-grid>
-                    <div class="note info">
-                        Raise one from a running term in the workspace — <strong>Add product…</strong> co-terms the
-                        new coverage to the term's end date, so it renews with everything else.
-                    </div>
                 </div>
             </div>
 
@@ -492,8 +501,6 @@ interface LogRow {
             <div class="wrap" *ngIf="Page === 'schedules'">
                 <div class="sechead">
                     <h2>Billing schedules</h2>
-                    <p>What bills, and when, across every contract. A schedule that has already produced bills is
-                       frozen — changing its cadence would make the billing history unexplainable.</p>
                 </div>
                 <div class="card">
                     <mj-explorer-entity-data-grid [Params]="P.allSchedules" [Height]="440" [ShowToolbar]="true" [ToolbarConfig]="Toolbar" (Navigate)="OnNavigate($event)"></mj-explorer-entity-data-grid>
@@ -504,16 +511,9 @@ interface LogRow {
             <div class="wrap" *ngIf="Page === 'commitments'">
                 <div class="sechead">
                     <h2>Commitments</h2>
-                    <p>Consumed versus committed, across every contract. The shortfall is what the billing engine
-                       charges at period end — and only under a <code>BillShortfall</code> policy.</p>
                 </div>
                 <div class="card">
                     <mj-explorer-entity-data-grid [Params]="P.allCommitments" [Height]="440" [ShowToolbar]="true" [ToolbarConfig]="Toolbar" (Navigate)="OnNavigate($event)"></mj-explorer-entity-data-grid>
-                    <div class="note gap">
-                        <strong>Consumption is not yet advanced automatically</strong> — <code>ConsumedAmount</code> is
-                        recorded and nothing writes it, so the shortfall maths is right and its input is manual.
-                        Tracked as P-7 in <code>plans/ERD-planned.md</code>.
-                    </div>
                 </div>
             </div>
 
@@ -550,18 +550,21 @@ export class MJCContractsSectionComponent extends BaseResourceComponent implemen
     public Page = 'contracts';
 
     /**
-     * The open contracts, each with its own draft.
+     * The open contracts, each with its own draft — the OUTER tabbing system.
      *
-     * This is the OUTER tabbing system — open documents, not panes. Several agreements stay open at
-     * once because that is how they are actually read (a renewal beside its predecessor), and each
-     * carries its own draft so switching never leaks one contract's unsaved edits into another.
+     * `WorkspaceTabStore` rather than an array of our own: it is the same session-scoped store the
+     * rest of the family's workspaces use, and it already handles activation, closing, reordering
+     * and dirty-tracking. Its `State` is deliberately opaque to the framework, so the draft stays
+     * ours while the tab mechanics stay shared.
      *
-     * A contract being CREATED is simply a document whose draft has no id. There is no separate
-     * create surface, and that is the whole point of the consolidation.
+     * A contract being CREATED is simply a tab whose draft has no id. There is no separate create
+     * surface, which is the whole point of the consolidation.
      */
-    public OpenContracts: { Key: string; Draft: ContractDraft }[] = [];
-    public ActiveDocKey = '';
+    public readonly Drafts = new WorkspaceTabStore<ContractDraft>();
     private docSeed = 0;
+
+    /** The workspace pane, so the card's footer can drive the verbs the pane owns. */
+    @ViewChild(MJCContractWorkspaceComponent) public Workspace?: MJCContractWorkspaceComponent;
     public Tab = 'overview';
     public Mode: 'fast' | 'detail' = 'fast';
     public Saving = false;
@@ -710,8 +713,60 @@ export class MJCContractsSectionComponent extends BaseResourceComponent implemen
 
     // ── The open-documents strip ────────────────────────────────────────────────────────────────
 
-    public get ActiveDoc(): { Key: string; Draft: ContractDraft } | null {
-        return this.OpenContracts.find((d) => d.Key === this.ActiveDocKey) ?? this.OpenContracts[0] ?? null;
+    public get ActiveDraft(): ContractDraft | null {
+        return this.Drafts.ActiveTab?.State ?? null;
+    }
+
+    /** The primary verb's label — the ONE thing the card lets a workshop change. */
+    public get ConfirmLabel(): string {
+        return this.ActiveDraft?.IsSaved ? 'Save changes' : 'Create contract';
+    }
+
+    /**
+     * The blocked-reason on the confirm button.
+     *
+     * A disabled primary action with no explanation is the commonest complaint about a form: the
+     * person can see they cannot proceed and not why. The count comes from the draft's own
+     * validation, which is the same source the tab badges read.
+     */
+    public get ConfirmTitle(): string {
+        const issues = this.ActiveDraft?.Validate().Issues.filter((i) => i.Severity === 'error') ?? [];
+        if (!issues.length) return this.ConfirmLabel;
+        return `${issues.length} thing${issues.length === 1 ? '' : 's'} to fix first — ${issues[0].Message}`;
+    }
+
+    public get CanSaveActive(): boolean {
+        return !!this.ActiveDraft && this.ActiveDraft.Validate().IsValid;
+    }
+
+    public get IsSaving(): boolean {
+        return this.Workspace?.Saving() === true;
+    }
+
+    public get WorkspaceMessage(): string {
+        return this.Workspace?.Message ?? '';
+    }
+
+    public get CanTerminateActive(): boolean {
+        return this.Workspace?.CanTerminate === true;
+    }
+
+    /** The card's footer drives the verbs; the pane owns them. */
+    public async SaveActive(): Promise<void> {
+        await this.Workspace?.Save();
+        const tab = this.Drafts.ActiveTab;
+        if (tab && this.ActiveDraft) this.Drafts.UpdateState(tab.Id, this.ActiveDraft, false);
+        this.cdr.detectChanges();
+    }
+
+    public async TerminateActive(): Promise<void> {
+        await this.Workspace?.PreviewTermination();
+        this.cdr.detectChanges();
+    }
+
+    public CloseActive(): void {
+        const tab = this.Drafts.ActiveTab;
+        if (tab) this.CloseDoc(tab.Id);
     }
 
     /** Everything the workspace's pickers need, resolved once here so the pane never queries. */
@@ -742,9 +797,13 @@ export class MJCContractsSectionComponent extends BaseResourceComponent implemen
         // multi-company tenant sees a picker with a value already selected, which is still correct.
         if (this.Companies.length === 1) draft.CompanyID = this.Companies[0].ID;
         this.docSeed += 1;
-        const key = `new-${this.docSeed}`;
-        this.OpenContracts.push({ Key: key, Draft: draft });
-        this.ActiveDocKey = key;
+        this.Drafts.Open({
+            Id: `new-${this.docSeed}`,
+            Label: 'New contract',
+            Icon: 'fa-solid fa-file-circle-plus',
+            Status: 'draft',
+            State: draft,
+        });
         this.Section = 'contracts';
         this.Page = 'workspace';
         this.cdr.detectChanges();
@@ -752,9 +811,9 @@ export class MJCContractsSectionComponent extends BaseResourceComponent implemen
 
     /** Open an existing contract, loading its whole tree. Already-open contracts are re-focused. */
     public async OpenContract(row: ContractRow): Promise<void> {
-        const existing = this.OpenContracts.find((d) => d.Draft.ID === row.ID);
+        const existing = this.Drafts.Tabs.find((t) => t.State.ID === row.ID);
         if (existing) {
-            this.ActiveDocKey = existing.Key;
+            this.Drafts.Activate(existing.Id);
             this.Page = 'workspace';
             this.cdr.detectChanges();
             return;
@@ -763,25 +822,30 @@ export class MJCContractsSectionComponent extends BaseResourceComponent implemen
         const draft = await this.loadDraft(row.ID);
         if (!draft) return;
         this.docSeed += 1;
-        const key = `open-${this.docSeed}`;
-        this.OpenContracts.push({ Key: key, Draft: draft });
-        this.ActiveDocKey = key;
+        this.Drafts.Open({
+            Id: `open-${this.docSeed}`,
+            // The NUMBER is the tab's name — it is what a person calls the contract out loud, and a
+            // strip of descriptions all truncated at the same width identifies nothing.
+            Label: row.ContractNumber,
+            Icon: 'fa-solid fa-file-signature',
+            Status: 'complete',
+            State: draft,
+        });
         this.Section = 'contracts';
         this.Page = 'workspace';
         this.cdr.detectChanges();
     }
 
     public ActivateDoc(key: string): void {
-        this.ActiveDocKey = key;
+        this.Drafts.Activate(key);
         this.cdr.detectChanges();
     }
 
-    public CloseDoc(key: string, event?: Event): void {
-        event?.stopPropagation();
-        const index = this.OpenContracts.findIndex((d) => d.Key === key);
-        if (index < 0) return;
-        this.OpenContracts.splice(index, 1);
-        if (this.ActiveDocKey === key) this.ActiveDocKey = this.OpenContracts[0]?.Key ?? '';
+    /** Closing an UNSAVED contract discards it, so say so — the store tracks the dirty flag for us. */
+    public CloseDoc(key: string): void {
+        const tab = this.Drafts.Tabs.find((t) => t.Id === key);
+        if (tab && !tab.State.IsSaved && !confirm('This contract has not been saved. Close it and lose the entry?')) return;
+        this.Drafts.Close(key);
         this.cdr.detectChanges();
     }
 
@@ -802,16 +866,22 @@ export class MJCContractsSectionComponent extends BaseResourceComponent implemen
      */
     public async OnReloadRequested(contractID: string): Promise<void> {
         if (!contractID) return;
-        const doc = this.OpenContracts.find((d) => d.Key === this.ActiveDocKey);
+        const tab = this.Drafts.ActiveTab;
         const fresh = await this.loadDraft(contractID);
-        if (doc && fresh) doc.Draft = fresh;
+        if (tab && fresh) this.Drafts.UpdateState(tab.Id, fresh, false);
         await this.load();
         this.cdr.detectChanges();
     }
 
     public async OnContractSaved(payload: ContractDraftPayload): Promise<void> {
-        const doc = this.OpenContracts.find((d) => d.Key === this.ActiveDocKey);
-        if (doc) doc.Draft = ContractDraft.FromPayload(payload);
+        const tab = this.Drafts.ActiveTab;
+        if (tab) {
+            this.Drafts.UpdateState(tab.Id, ContractDraft.FromPayload(payload), false);
+            // The tab's caption is the contract NUMBER, which the server only just allocated.
+            tab.Label = payload.ContractNumber ?? tab.Label;
+            tab.Icon = 'fa-solid fa-file-signature';
+            tab.Status = 'complete';
+        }
         await this.load();
         this.cdr.detectChanges();
     }
