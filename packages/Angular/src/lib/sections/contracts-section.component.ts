@@ -363,7 +363,8 @@ interface LogRow {
                     <mjc-contract-workspace *ngIf="ActiveDoc as doc"
                         [Draft]="doc.Draft"
                         [Lookups]="WorkspaceLookups"
-                        (Saved)="OnContractSaved($event)">
+                        (Saved)="OnContractSaved($event)"
+                        (ReloadRequested)="OnReloadRequested($event)">
                     </mjc-contract-workspace>
                 </div>
             </div>
@@ -661,6 +662,20 @@ export class MJCContractsSectionComponent extends BaseResourceComponent implemen
      * because closing and reopening that tab would resurrect a draft with no id and create a second
      * contract on the next save.
      */
+    /**
+     * A lifecycle operation changed the contract on the server, so the open draft is stale — the
+     * term's status moved, a renewal added a term, activation created a schedule and its events.
+     * Re-read rather than patch: a UI that guesses what an operation did is a UI that drifts.
+     */
+    public async OnReloadRequested(contractID: string): Promise<void> {
+        if (!contractID) return;
+        const doc = this.OpenContracts.find((d) => d.Key === this.ActiveDocKey);
+        const fresh = await this.loadDraft(contractID);
+        if (doc && fresh) doc.Draft = fresh;
+        await this.load();
+        this.cdr.detectChanges();
+    }
+
     public async OnContractSaved(payload: ContractDraftPayload): Promise<void> {
         const doc = this.OpenContracts.find((d) => d.Key === this.ActiveDocKey);
         if (doc) doc.Draft = ContractDraft.FromPayload(payload);

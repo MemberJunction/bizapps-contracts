@@ -4,9 +4,19 @@ The running record of what is covered, what is not, and what needs a person. Cov
 against the **matrix**, not against the tests that happen to exist — an empty box is a gap even when
 every written test is green.
 
-> **Last full sweep:** 2026-08-05, branch `mjdev/contracts-night`, instance `contracts-dev`.
-> **Totals: 32 tier-1 + 101 tier-2 + 86 tier-5 = 219 assertions, all passing.** Every number below was
-> observed, not estimated. Where something was not run, it says so.
+> **Last full sweep:** 2026-08-05 (afternoon), branch `mjdev/contracts-night`, instance `contracts-dev`.
+> **Totals: 52 tier-1 + 101 tier-2 (tsx) + 37 integration + 57 tier-5 = 247 assertions, all passing.**
+> Every number below was observed, not estimated. Where something was not run, it says so.
+>
+> **The suite moved to MJ's integration tier this afternoon** (`mj test` / `test-harnesses/integration.mjs`),
+> following bizapps-orders. Every check there runs inside a ROLLED-BACK transaction, so a run that
+> throws partway leaves nothing behind — the failure mode the tsx harnesses' FK-ordered teardown walk
+> could not survive. Verified after the sweep: 1 contract, 3 terms, 3 lines, 4 audit events,
+> 3 billing events, 0 orders — the pristine demo state, unchanged.
+>
+> The 101 tsx assertions still pass and still run; porting them is queued (nothing new is added to
+> that path). The browser suite consolidated from seven harnesses to one — the map of where every
+> retired assertion went is in `test-harnesses/README-ui.md`, including the ONE that did not survive.
 
 ---
 
@@ -157,3 +167,43 @@ The ones that would change tests if answered differently:
   time" is exactly how a real intermittent failure gets talked away.
 - **Orders' TVP deadlock during `reapply-migrations`** — a known filed issue with a documented
   `mj migrate` workaround; unrelated to this app.
+
+
+---
+
+## Sweep — 2026-08-05 (afternoon)
+
+### What was added, and where it is covered
+
+| Area | Tier 1 | Integration | Tier 5 | Notes |
+|---|---|---|---|---|
+| Contract composes its whole tree (terms → coverage/schedules/commitments) | — | ✓ CC1–CC2, CC5–CC6 | ✓ §7 | raw-SQL bypass proofs under the entity layer |
+| One transaction, all-or-none, number returned on rollback | — | ✓ CC3–CC4 | — | ✓ the sequence counter is checked before and after |
+| Lazy hydration, and un-hydrated ≠ empty | — | ✓ CC5, CC7, CC15–CC16 | — | CC15/CC16 cover the hole the first design left |
+| Invariants now in BaseEntity (Line/Schedule/Commitment/Amendment/Type) | — | ✓ CC9–CC14 | — | each asserted as a REFUSAL with its reason |
+| `ContractDraft` validation shape (Section/Field/Severity) | ✓ 20 | ✓ SC8 | ✓ §5 | framework-free; SC8 needs no database |
+| `Contracts.SaveContract` round trip | — | ✓ SC1–SC7, SC9 | ✓ §7 | incl. omission-is-not-deletion (SC4) |
+| Billing: the claim under concurrency | — | ✓ BE1–BE2 | — | two runs, one bill |
+| Billing: assembly per line type | — | ✓ BE3–BE9 | — | incl. shortfall by TrueUpPolicy |
+| Billing: failure semantics + the driver | — | ✓ BE10–BE12 | — | Failed-with-reason, Skipped ≠ Failed |
+| Workspace three-state tabs | ✓ 20 | — | ✓ §3–§4, §6, §8 | muted panes assert their REASON, not just the state |
+| Lifecycle through the UI (activate / renew / terminate) | — | — | ✓ §10, §12 | previews assert the numbers, then cancel |
+
+### Gaps — every one is a ✗, not a ⚠
+
+| # | Gap | Why it is open |
+|---|---|---|
+| **G1** | **Workspace rows are not presented through MJ's 4-layer forms.** The panes edit terms, coverage, schedules and commitments with hand-built field sets inline. | A named non-optional standard, explicitly asked for, and NOT done. It also cost the coverage `ui-form-editing.mjs` held — that the presenter mounts a real form, populated with the right record, and leaves it alone on cancel. Tracked; the harness should be restored WITH the work rather than rewritten. |
+| **G2** | Amendment and co-term operations (plan C4) | `RenewTerm` is 1 of the 4 operations C4 calls for. `ContractAmendment` now has its rules in BaseEntity and a workspace pane, but no operation applies one to a live term. |
+| **G3** | Milestone marking | `Milestone` is a valid LineType and ScheduleType and nothing marks one reached, so BE6 asserts it bills in NO period. Correct today, and the reason C3 step 2 is incomplete. |
+| **G4** | Commitment consumption tracking | `ConsumedAmount` is recorded and never advanced by anything. The shortfall maths is right; the input to it is manual. |
+| **G5** | `BillingAnchorMonth` / `BillingAnchorDay` | Still written by `RenewTerm` and read by nothing. Question 3 for Andrew: wire into the cadence, or remove. |
+| **G6** | 101 tsx assertions not yet on the integration tier | They pass, but they lack the rolled-back isolation everything new has. |
+
+### Blocked on a person — not gaps
+
+| | Who | What is needed |
+|---|---|---|
+| C0 orders seams (`Subscription.BillingMode`, resolver slot) | Amith | The billing engine's bridge is written and tested against a fake; the real calls cannot land without these. |
+| X.13 — which `TrueUpPolicy` values are legal for which `CommitmentType` | Andrew | BE8 asserts the policies exactly as written and infers no combination. |
+| Q1 — may a contract be Active with no term? | Andrew | Implemented as NO (`plans/QUESTIONS.md`), proceeding by default. |

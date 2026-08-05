@@ -37,8 +37,13 @@ import {
     ContractDraftSchedule,
     ContractDraftCommitment,
     ContractsSaveContractOperation,
+    ContractsActivateTermOperation,
+    ContractsRenewTermOperation,
+    ContractsTerminateContractOperation,
     type ContractDraftIssue,
     type ContractDraftPayload,
+    type RenewTermOutput,
+    type TerminateContractOutput,
 } from '@mj-biz-apps/contracts-entities';
 import {
     BuildContractTabs,
@@ -136,6 +141,9 @@ const TERM_STATUSES = ['Pending', 'PendingSignature', 'Active', 'Completed', 'Te
         </div>
         <div class="ws-actions">
           <span class="ws-sub" *ngIf="Message">{{ Message }}</span>
+          <button mjButton variant="flat" *ngIf="CanTerminate" [disabled]="Op.Busy" (click)="PreviewTermination()">
+            <i class="fa-solid fa-ban"></i> Terminate…
+          </button>
           <button mjButton [disabled]="Saving() || !CanSaveNow" (click)="Save()">
             <i class="fa-solid fa-floppy-disk"></i>
             {{ Saving() ? 'Saving…' : (Draft.IsSaved ? 'Save changes' : 'Create contract') }}
@@ -152,6 +160,27 @@ const TERM_STATUSES = ['Pending', 'PendingSignature', 'Active', 'Completed', 'Te
             <span class="where">{{ WhereLabel(issue) }}</span> — {{ issue.Message }}
           </li>
         </ul>
+      </div>
+
+      <!-- TERMINATION IS PREVIEWED FIRST, because which billing events are cancelled and which are
+           retained is a money question: periods already covered are still owed, and events already
+           Generated or Invoiced are never touched. The split comes back from the operation. -->
+      <div class="issues" *ngIf="Op.Termination" style="border-left-color: var(--mj-color-warning, #c80);">
+        <h4>Terminating this contract</h4>
+        <ul>
+          <li>Billing events that would be CANCELLED: {{ Op.Termination.BillingEventsCancelled ?? 0 }}</li>
+          <li>Billing events RETAINED — periods already covered are still owed: {{ Op.Termination.BillingEventsRetained ?? 0 }}</li>
+          <li>Terms that would move to Terminated: {{ Op.Termination.TermsTerminated ?? 0 }}</li>
+          <li *ngIf="Op.Termination.Message">{{ Op.Termination.Message }}</li>
+        </ul>
+        <div class="fld" style="margin-top:10px; max-width:420px;">
+          <label>Why is this being terminated?</label>
+          <input type="text" [(ngModel)]="TerminationReason" placeholder="Recorded on the audit trail" />
+        </div>
+        <div style="display:flex; gap:8px; margin-top:10px;">
+          <button mjButton [disabled]="Op.Busy || !TerminationReason.trim()" (click)="CommitTermination()">Terminate this contract</button>
+          <button mjButton variant="flat" (click)="CancelPreview()">Cancel</button>
+        </div>
       </div>
 
       <mj-tab-nav [Tabs]="TabConfigs" [ActiveKey]="ActiveTab()" (TabChange)="SelectTab($event)"></mj-tab-nav>
@@ -248,8 +277,39 @@ const TERM_STATUSES = ['Pending', 'PendingSignature', 'Active', 'Completed', 'Te
                 Term {{ term.TermNumber || i + 1 }}
                 <span class="muted">· {{ term.Status }}</span>
               </span>
-              <button mjButton variant="icon" (click)="RemoveTerm(term)"><i class="fa-solid fa-trash"></i></button>
+              <span style="display:flex; gap:6px; align-items:center;">
+                <!-- THE LIFECYCLE, where the terms are. Every one drives the app's OWN typed
+                     operation client: the escalation ceiling, the date arithmetic and the
+                     cancelled/retained split all come back FROM the operation, so the UI holds no
+                     copy of the rules that could agree today and drift tomorrow. -->
+                <button mjButton variant="flat" *ngIf="CanActivate(term)" [disabled]="Op.Busy" (click)="Activate(term)">
+                  <i class="fa-solid fa-play"></i> Activate
+                </button>
+                <button mjButton variant="flat" *ngIf="CanRenew(term)" [disabled]="Op.Busy" (click)="PreviewRenewal(term)">
+                  <i class="fa-solid fa-rotate"></i> Renew…
+                </button>
+                <button mjButton variant="icon" (click)="RemoveTerm(term)"><i class="fa-solid fa-trash"></i></button>
+              </span>
             </div>
+
+            <!-- A PREVIEW IS THE REAL COMPUTATION WITH THE WRITE SUPPRESSED, so the numbers a person
+                 approves are the numbers that get written. -->
+            <div class="issues" *ngIf="Op.Renewal && Op.TermID === term.ID" style="border-left-color: var(--mj-brand-primary); margin-bottom: 12px;">
+              <h4>Renewing term {{ term.TermNumber }}</h4>
+              <ul>
+                <li>New term: {{ Op.Renewal.StartDate }} → {{ Op.Renewal.EndDate }}</li>
+                <li *ngIf="Op.Renewal.AppliedEscalationPercent != null">
+                  Escalation applied: {{ (Op.Renewal.AppliedEscalationPercent * 100).toFixed(2) }}%
+                  <ng-container *ngIf="Op.Renewal.EscalationWasClamped"> (capped by the term's ceiling)</ng-container>
+                </li>
+                <li *ngIf="Op.Renewal.Message">{{ Op.Renewal.Message }}</li>
+              </ul>
+              <div style="display:flex; gap:8px; margin-top:10px;">
+                <button mjButton [disabled]="Op.Busy" (click)="CommitRenewal(term)">Renew this term</button>
+                <button mjButton variant="flat" (click)="CancelPreview()">Cancel</button>
+              </div>
+            </div>
+
             <div class="grid">
               <div class="fld"><label>Start</label><input type="date" [(ngModel)]="term.StartDate" (ngModelChange)="Touch()" /></div>
               <div class="fld"><label>End</label><input type="date" [(ngModel)]="term.EndDate" (ngModelChange)="Touch()" /></div>
@@ -445,6 +505,13 @@ export class MJCContractWorkspaceComponent {
     /** Raised after a successful save, carrying what the SERVER wrote. */
     @Output() Saved = new EventEmitter<ContractDraftPayload>();
 
+    /**
+     * Raised when a lifecycle operation changed the contract on the server and the draft in hand is
+     * therefore stale. The shell owns loading, so it re-reads rather than this component patching
+     * fields locally — which is how a UI and its record quietly diverge.
+     */
+    @Output() ReloadRequested = new EventEmitter<string>();
+
     // Signals rather than plain fields: under zoneless change detection a plain field set after
     // render trips NG0100, and these all change in response to async work.
     public readonly Saving = signal(false);
@@ -577,6 +644,157 @@ export class MJCContractWorkspaceComponent {
     public RemoveCommitment(term: ContractDraftTerm, commitment: ContractDraftCommitment): void {
         this.Draft.RemoveCommitment(term, commitment);
         this.Touch();
+    }
+
+    // ── Lifecycle operations ────────────────────────────────────────────────────────────────────
+    //
+    // These drive the app's OWN typed operation clients, generated from metadata into the
+    // browser-safe Entities package. The UI decides only WHEN to offer them; what they DO — the
+    // escalation ceiling, the date arithmetic, which billing events are cancelled versus retained —
+    // is the operation's, and asking it twice (preview, then commit) is how the person sees the real
+    // numbers before agreeing to them.
+
+    public Op: {
+        Busy: boolean;
+        TermID: string | null;
+        Renewal: RenewTermOutput | null;
+        Termination: TerminateContractOutput | null;
+    } = { Busy: false, TermID: null, Renewal: null, Termination: null };
+
+    /** Only a term that has not started can be activated. */
+    public CanActivate(term: ContractDraftTerm): boolean {
+        return !!term.ID && (term.Status === 'Pending' || term.Status === 'PendingSignature');
+    }
+
+    /** Only a running term can be renewed — and only once, which the operation itself enforces. */
+    public CanRenew(term: ContractDraftTerm): boolean {
+        return !!term.ID && term.Status === 'Active';
+    }
+
+    public TerminationReason = '';
+
+    /** A contract that has already ended cannot end again. */
+    public get CanTerminate(): boolean {
+        return this.Draft.IsSaved && this.Draft.Status !== 'Terminated' && this.Draft.Status !== 'Superseded';
+    }
+
+    /**
+     * The real computation, write suppressed — so the person sees exactly which billing events go
+     * and which stay before agreeing to it.
+     */
+    public async PreviewTermination(): Promise<void> {
+        if (!this.Draft.ID) return;
+        await this.runOp(async () => {
+            const result = await new ContractsTerminateContractOperation().Execute({
+                ContractID: this.Draft.ID!,
+                Reason: this.TerminationReason.trim() || 'Preview',
+                PreviewOnly: true,
+            });
+            const output = result?.Output;
+            if (!output?.Success) {
+                this.Message = output?.Message ?? result?.ErrorMessage ?? 'Could not preview the termination.';
+                return;
+            }
+            this.Op.Termination = output;
+        });
+    }
+
+    public async CommitTermination(): Promise<void> {
+        if (!this.Draft.ID || !this.TerminationReason.trim()) return;
+        await this.runOp(async () => {
+            const result = await new ContractsTerminateContractOperation().Execute({
+                ContractID: this.Draft.ID!,
+                Reason: this.TerminationReason.trim(),
+            });
+            const output = result?.Output;
+            if (!output?.Success) {
+                this.Message = output?.Message ?? result?.ErrorMessage ?? 'Termination failed.';
+                return;
+            }
+            this.Message = output.Message ?? 'Contract terminated.';
+            this.TerminationReason = '';
+            this.CancelPreview();
+            this.ReloadRequested.emit(this.Draft.ID!);
+        });
+    }
+
+    public CancelPreview(): void {
+        this.Op.Renewal = null;
+        this.Op.Termination = null;
+        this.Op.TermID = null;
+        this.cdr.detectChanges();
+    }
+
+    /**
+     * Activation is not a status flip: the operation also creates the billing schedule and the
+     * events its cadence implies. A term marked Active with no schedule bills nothing, and nobody
+     * notices until a quarter closes light.
+     */
+    public async Activate(term: ContractDraftTerm): Promise<void> {
+        if (!term.ID) return;
+        await this.runOp(async () => {
+            const result = await new ContractsActivateTermOperation().Execute({ ContractTermID: term.ID! });
+            const output = result?.Output;
+            if (!output?.Success) {
+                this.Message = output?.Message ?? result?.ErrorMessage ?? 'Activation failed.';
+                return;
+            }
+            this.Message = output.Message ?? `Term activated — ${output.ScheduledDates?.length ?? 0} billing events scheduled.`;
+            await this.reload(term);
+        });
+    }
+
+    /** The real computation, write suppressed. */
+    public async PreviewRenewal(term: ContractDraftTerm): Promise<void> {
+        if (!term.ID) return;
+        await this.runOp(async () => {
+            const result = await new ContractsRenewTermOperation().Execute({ ContractTermID: term.ID!, PreviewOnly: true });
+            const output = result?.Output;
+            if (!output?.Success) {
+                this.Message = output?.Message ?? result?.ErrorMessage ?? 'Could not preview the renewal.';
+                return;
+            }
+            this.Op.Renewal = output;
+            this.Op.TermID = term.ID!;
+        });
+    }
+
+    public async CommitRenewal(term: ContractDraftTerm): Promise<void> {
+        if (!term.ID) return;
+        await this.runOp(async () => {
+            const result = await new ContractsRenewTermOperation().Execute({ ContractTermID: term.ID! });
+            const output = result?.Output;
+            if (!output?.Success) {
+                this.Message = output?.Message ?? result?.ErrorMessage ?? 'Renewal failed.';
+                return;
+            }
+            this.Message = output.Message ?? 'Renewed.';
+            this.CancelPreview();
+            await this.reload(term);
+        });
+    }
+
+    private async runOp(body: () => Promise<void>): Promise<void> {
+        this.Op.Busy = true;
+        this.Message = '';
+        this.cdr.detectChanges();
+        try {
+            await body();
+        } catch (e) {
+            this.Message = e instanceof Error ? e.message : String(e);
+        } finally {
+            this.Op.Busy = false;
+            this.cdr.detectChanges();
+        }
+    }
+
+    /**
+     * An operation changed the contract on the server — status moves, a new term, a new schedule —
+     * so the draft in hand is stale. Ask the shell to reload rather than patching fields locally,
+     * which is how a UI and its record quietly diverge.
+     */
+    private async reload(_term: ContractDraftTerm): Promise<void> {
+        this.ReloadRequested.emit(this.Draft.ID ?? '');
     }
 
     // ── Field-level markers ─────────────────────────────────────────────────────────────────────

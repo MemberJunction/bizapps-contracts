@@ -162,7 +162,111 @@ try {
     const docStrip = await page.locator('.card .ch').first().innerText();
     check('9.1 the open-document tab shows the allocated number', docStrip.includes(number), docStrip.replace(/\s+/g, ' ').slice(0, 120));
 
-    console.log('\n10. Cleanup');
+    console.log('\n10. The lifecycle, from the Terms pane');
+    // This is the coverage that used to live on the create page and in a separate lifecycle
+    // harness. Activation is not a status flip: the operation also builds the billing schedule and
+    // the events its cadence implies, and a term marked Active with no schedule bills nothing.
+    await page.getByRole('tab', { name: /^Terms/ }).click();
+    await page.waitForTimeout(800);
+
+    const pane = page.locator('.pane').last();
+    const activate = pane.getByRole('button', { name: /activate/i }).first();
+    check('10.1 an unstarted term offers Activate', (await activate.count()) > 0);
+    if (await activate.count()) {
+        await activate.click();
+        await page.waitForTimeout(7000);
+        const after = (await page.locator('.ws-sub').first().innerText()) + (await page.locator('.ws-head').innerText());
+        check('10.2 activation reports the billing events it scheduled', /scheduled|activated/i.test(after), after.replace(/\s+/g, ' ').slice(0, 160));
+
+        // A term that is running can be renewed, and NOT activated again — the strip must follow
+        // the state rather than offering both.
+        await page.waitForTimeout(1500);
+        const renew = pane.getByRole('button', { name: /renew/i }).first();
+        check('10.3 an active term offers Renew instead', (await renew.count()) > 0);
+        check('10.4 and no longer offers Activate', (await pane.getByRole('button', { name: /activate/i }).count()) === 0);
+
+        if (await renew.count()) {
+            await renew.click();
+            await page.waitForTimeout(6000);
+            const preview = page.locator('.issues', { hasText: /Renewing term/i }).first();
+            check('10.5 renewal PREVIEWS the new dates before writing', (await preview.count()) > 0);
+            if (await preview.count()) {
+                const text = await preview.innerText();
+                // The numbers a person approves must be the numbers that get written, so the preview
+                // is the real computation with the write suppressed.
+                check('10.6 the preview names the new term window', /New term: \d{4}-\d{2}-\d{2}/.test(text), text.replace(/\s+/g, ' ').slice(0, 140));
+                await page.getByRole('button', { name: /cancel/i }).first().click();
+                await page.waitForTimeout(1200);
+                check('10.7 cancelling the preview writes nothing', (await page.locator('.issues', { hasText: /Renewing term/i }).count()) === 0);
+            }
+        }
+    }
+
+    console.log('\n11. History — the append-only audit trail');
+    await page.getByRole('tab', { name: /^History/ }).click();
+    await page.waitForTimeout(2500);
+    const history = await page.locator('.pane').last().innerText();
+    // Activation and renewal both write lifecycle events. An empty history after both would mean
+    // the audit trail is not being written, which nothing else would surface.
+    check('11.1 the history pane renders for a saved contract', history.length > 0);
+
+    console.log('\n12. Termination — previewed before it is committed');
+    const terminate = page.getByRole('button', { name: /terminate/i }).first();
+    check('12.1 a live contract offers Terminate', (await terminate.count()) > 0);
+    if (await terminate.count()) {
+        await terminate.click();
+        await page.waitForTimeout(6000);
+        const preview = page.locator('.issues', { hasText: /Terminating this contract/i }).first();
+        check('12.2 termination PREVIEWS before writing', (await preview.count()) > 0);
+        if (await preview.count()) {
+            const text = await preview.innerText();
+            // The split is the whole point: periods already covered are still owed, so retained
+            // events must be reported alongside cancelled ones rather than everything vanishing.
+            check('12.3 the preview reports events CANCELLED', /CANCELLED: \d+/.test(text), text.replace(/\s+/g, ' ').slice(0, 160));
+            check('12.4 and events RETAINED — periods already covered are still owed', /RETAINED[^:]*: \d+/.test(text), text.replace(/\s+/g, ' ').slice(0, 200));
+
+            // A reason is required before it can be committed: "terminated" with no why is a support
+            // ticket nobody can answer.
+            const commit = preview.getByRole('button', { name: /terminate this contract/i }).first();
+            check('12.5 committing is blocked until a reason is given', await commit.isDisabled());
+            await preview.locator('input[type="text"]').first().fill('UI-E2E: terminated by the workspace harness');
+            await page.waitForTimeout(600);
+            check('12.6 and enabled once it is', !(await commit.isDisabled()));
+
+            await page.getByRole('button', { name: /cancel/i }).first().click();
+            await page.waitForTimeout(1200);
+            check('12.7 cancelling writes nothing', (await page.locator('.issues', { hasText: /Terminating this contract/i }).count()) === 0);
+        }
+    }
+
+    console.log('\n13. The workspace search finds what was just created');
+    // Through the app's OWN search rather than the roster grid: MJ's grid virtualizes its rows, so
+    // reading its innerText proves only what happens to be scrolled into view. Asserting on that is
+    // the same class of mistake as a loose locator — it passes or fails for reasons unrelated to
+    // the thing under test.
+    // Scoped to the rail and UNANCHORED: a rail item's accessible name includes its description
+    // ("WorkspaceOpen, edit and create"), so ^Workspace$ never matches. Scope, do not anchor.
+    await page.locator('mj-left-nav').getByRole('button', { name: /workspace/i }).first().click();
+    await page.waitForTimeout(1500);
+    for (const doc of await page.locator('.card .ch button i.fa-xmark').all()) {
+        await doc.click();
+        await page.waitForTimeout(400);
+    }
+    await page.waitForTimeout(1200);
+    const search = page.getByPlaceholder(/Find a contract/i).first();
+    if (await search.count()) {
+        await search.fill(number);
+        await page.waitForTimeout(1500);
+        const picks = page.locator('.pick');
+        check('13.1 searching by contract number finds exactly one match', (await picks.count()) === 1, `${await picks.count()} matches for ${number}`);
+        if ((await picks.count()) === 1) {
+            check('13.2 and it is the right one', (await picks.first().innerText()).includes(number));
+        }
+    } else {
+        check('13.1 the workspace search box is present', false, 'no search box found');
+    }
+
+    console.log('\n14. Cleanup');
     // Remove what this run wrote, so a re-run starts from the same place.
     const nav = page.getByRole('button', { name: /^All contracts$/ }).first();
     if (await nav.count()) { await nav.click(); await page.waitForTimeout(2500); }
