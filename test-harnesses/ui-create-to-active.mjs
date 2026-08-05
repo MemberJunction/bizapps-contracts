@@ -32,7 +32,8 @@ page.on('console', (m) => {
     if (m.type() !== 'error') return;
     const t = m.text();
     if (/favicon|\.ico|\.map|apple-touch-icon/i.test(t)) return;
-    errors.push(t);
+    // Truncated: a GraphQL error body runs to thousands of lines and buries the run's own output.
+    errors.push(t.slice(0, 300));
 });
 page.on('pageerror', (e) => errors.push(String(e)));
 
@@ -86,6 +87,14 @@ try {
     check('C.2 a coverage row with a product picker appeared', (await productSel.count()) > 0);
     const chosen = await pickFirst(productSel);
     check('C.3 a product can be selected', !!chosen);
+
+    // A Subscription line REQUIRES a subscription type — CK_ContractLine_SubscriptionNeedsType — and
+    // the page now says so BEFORE the save rather than letting the write fail with a raw
+    // CREATE_ENTITY_ERROR. Pick one, the way a person would.
+    const subTypeSel = page.locator('select.sel').filter({ hasText: 'Required' }).first();
+    check('C.3a a subscription line demands its subscription type', (await subTypeSel.count()) > 0);
+    await pickFirst(subTypeSel);
+    await page.waitForTimeout(600);
 
     const priceInput = page.locator('input.nm').nth(1); // qty, price, disc
     await priceInput.fill('1200');

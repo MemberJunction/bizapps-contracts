@@ -10,7 +10,16 @@
 > hand-edit the diagrams.
 >
 > **Schema:** `__mj_BizAppsContracts` · **Entity prefix:** `MJ_BizApps_Contracts: ` · **Keys:** UUID throughout
-> **Generated:** 2026-08-04 (re-generated after `Contract.PricedAt`) · 10 tables · 13 internal relationships · 13 cross-app foreign keys
+> **Generated:** 2026-08-05 (re-checked against the live schema after the invariant pass) · 11 tables ·
+> 13 internal relationships · 13 cross-app foreign keys
+>
+> **Constraints added 2026-08-05** and not yet reflected in the section text below:
+> `CK_Contract_SupersededHasSuccessor` · `CK_ContractLine_SubscriptionNeedsType` ·
+> `CK_ContractBillingEvent_GeneratedHasTimestamp` · `CK_ContractAmendment_ApprovedHasTask` ·
+> `CK_ContractEvent_EventType` (closed vocabulary) · `UQ_ContractLine_Subscription` (filtered) ·
+> `'Cancelled'` added to `CK_ContractBillingEvent_Status`. Two rules that a CHECK cannot express live
+> in the entity layer: a renewal chain may not cross contracts, and `ContractEvent` is append-only.
+> See `testing.md` for what proves each one.
 
 ---
 

@@ -34,7 +34,8 @@ page.on('console', (m) => {
     if (m.type() !== 'error') return;
     const t = m.text();
     if (/favicon|\.ico|\.map|apple-touch-icon/i.test(t)) return;
-    errors.push(t);
+    // Truncated: a GraphQL error body runs to thousands of lines and buries the run's own output.
+    errors.push(t.slice(0, 300));
 });
 page.on('pageerror', (e) => errors.push(String(e)));
 

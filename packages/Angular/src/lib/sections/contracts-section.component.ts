@@ -64,6 +64,7 @@ const E_LINES = 'MJ_BizApps_Contracts: Contract Lines';
 // Products belong to ORDERS. Contracts reads the catalog it commits to; it does not own one —
 // FKs point upstream, and a second product list here would be a second thing to disagree with.
 const E_PRODUCTS = 'MJ_BizApps_Orders: Products';
+const E_SUBTYPES = 'MJ_BizApps_Orders: Subscription Types';
 const E_SCHEDULES = 'MJ_BizApps_Contracts: Contract Billing Schedules';
 const E_EVENTS = 'MJ_BizApps_Contracts: Contract Billing Events';
 const E_COMMITMENTS = 'MJ_BizApps_Contracts: Contract Commitments';
@@ -111,6 +112,13 @@ interface LogRow {
 interface LineDraft {
     ProductID: string;
     LineType: string;
+    /**
+     * Required on a Subscription line and forbidden on every other kind — both halves are CHECK
+     * constraints. It is chosen on the CONTRACT, before any subscription exists, because
+     * orders.Subscription.SubscriptionTypeID is NOT NULL and the choice (membership vs seat-based vs
+     * term licence, who may hold it, its renewal lead time) is a provision that gets negotiated.
+     */
+    SubscriptionTypeID: string;
     Quantity: number | null;
     ContractedUnitPrice: number | null;
     DiscountPercent: number | null;
@@ -791,15 +799,18 @@ interface Draft {
                                     <button mjButton (click)="AddLine()"><i class="fa-solid fa-plus"></i> Add line</button>
                                 </div>
 
-                                <div class="note gap" *ngIf="!TermIsCovered" style="margin:0 0 12px;">
+                                <div class="note gap" *ngIf="!D.Lines.length" style="margin:0 0 12px;">
                                     A term with no coverage <strong>cannot be activated</strong> — add at least one
                                     line, or the contract will be created but stuck in Draft.
+                                </div>
+                                <div class="note err" *ngIf="CoverageProblems.length" style="margin:0 0 12px;">
+                                    <div><span *ngFor="let m of CoverageProblems">{{ m }}<br /></span></div>
                                 </div>
 
                                 <table class="cov-t" *ngIf="D.Lines.length">
                                     <thead>
                                         <tr>
-                                            <th>Product</th><th>Type</th><th class="r">Qty</th>
+                                            <th>Product</th><th>Type</th><th>Subscription type</th><th class="r">Qty</th>
                                             <th class="r">Unit price</th><th class="r">Disc %</th><th>Description</th><th></th>
                                         </tr>
                                     </thead>
@@ -816,6 +827,14 @@ interface Draft {
                                                     <option *ngFor="let t of LineTypes" [value]="t">{{ t }}</option>
                                                 </select>
                                             </td>
+                                            <td>
+                                                <select class="sel" *ngIf="l.LineType === 'Subscription'"
+                                                        [(ngModel)]="l.SubscriptionTypeID" [ngModelOptions]="{standalone:true}">
+                                                    <option value="">Required…</option>
+                                                    <option *ngFor="let st of SubscriptionTypes" [value]="st.ID">{{ st.Name }}</option>
+                                                </select>
+                                                <span class="pv-s" *ngIf="l.LineType !== 'Subscription'">—</span>
+                                            </td>
                                             <td class="r"><input class="in nm" type="number" min="0" [(ngModel)]="l.Quantity" [ngModelOptions]="{standalone:true}" /></td>
                                             <td class="r"><input class="in nm" type="number" min="0" step="0.01" placeholder="catalog" [(ngModel)]="l.ContractedUnitPrice" [ngModelOptions]="{standalone:true}" /></td>
                                             <td class="r"><input class="in nm" type="number" min="0" max="100" [(ngModel)]="l.DiscountPercent" [ngModelOptions]="{standalone:true}" /></td>
@@ -825,7 +844,7 @@ interface Draft {
                                     </tbody>
                                     <tfoot>
                                         <tr>
-                                            <td colspan="6" class="r">
+                                            <td colspan="7" class="r">
                                                 Priced coverage <strong>{{ LinesSubtotal | currency: 'USD' }}</strong>
                                                 <span class="pv-s" *ngIf="CatalogPricedCount">
                                                     · {{ CatalogPricedCount }} line(s) priced from the catalog, so not counted here
@@ -926,6 +945,7 @@ export class MJCContractsSectionComponent extends BaseResourceComponent implemen
     public PayTerms: Lookup[] = [];
     public Currencies: Lookup[] = [];
     public Products: Lookup[] = [];
+    public SubscriptionTypes: Lookup[] = [];
     /** Mirrors CK_ContractLine_LineType exactly — the CHECK is the source of truth for this list. */
     public readonly LineTypes = ['Subscription', 'OneTime', 'Milestone', 'Usage', 'Minimum'];
     public readonly Frequencies = ['Monthly', 'Quarterly', 'SemiAnnual', 'Annual', 'Milestone', 'Custom'];
@@ -1332,7 +1352,7 @@ export class MJCContractsSectionComponent extends BaseResourceComponent implemen
     // ---- coverage rows on the create page ---------------------------------------------------------
 
     public AddLine(): void {
-        this.D.Lines.push({ ProductID: '', LineType: 'Subscription', Quantity: 1, ContractedUnitPrice: null, DiscountPercent: null, Description: '' });
+        this.D.Lines.push({ ProductID: '', LineType: 'Subscription', SubscriptionTypeID: '', Quantity: 1, ContractedUnitPrice: null, DiscountPercent: null, Description: '' });
         this.cdr.detectChanges();
     }
 
@@ -1347,7 +1367,25 @@ export class MJCContractsSectionComponent extends BaseResourceComponent implemen
      * rather than discovered later as a refusal from ActivateTerm.
      */
     public get TermIsCovered(): boolean {
-        return this.D.Lines.some((l) => !!l.ProductID);
+        return this.D.Lines.some((l) => !!l.ProductID) && this.CoverageProblems.length === 0;
+    }
+
+    /**
+     * What would be REFUSED on save, said before the person presses the button.
+     *
+     * These mirror CHECK constraints exactly. Letting the write fail and surfacing a raw
+     * CREATE_ENTITY_ERROR would be technically correct and useless — the person cannot tell which of
+     * five rows is wrong, and the contract is already created by then.
+     */
+    public get CoverageProblems(): string[] {
+        const out: string[] = [];
+        this.D.Lines.forEach((l, i) => {
+            if (!l.ProductID) return; // an empty row is not an error — it is just unfinished
+            if (l.LineType === 'Subscription' && !l.SubscriptionTypeID) {
+                out.push(`Line ${i + 1} is a subscription and needs a subscription type — the billing engine cannot create one without it.`);
+            }
+        });
+        return out;
     }
 
     /** What the coverage adds up to, for the lines that state a price. */
@@ -1558,6 +1596,9 @@ export class MJCContractsSectionComponent extends BaseResourceComponent implemen
             line.ContractTermID = termID;
             line.ProductID = l.ProductID;
             line.LineType = (l.LineType || 'Subscription') as typeof line.LineType;
+            // Set ONLY on a subscription line: CK_ContractLine_SubscriptionTypeOnlyOnSubscriptionLine
+            // rejects it anywhere else, and CK_ContractLine_SubscriptionNeedsType requires it here.
+            line.SubscriptionTypeID = l.LineType === 'Subscription' ? l.SubscriptionTypeID || null : null;
             line.Quantity = l.Quantity ?? 1;
             line.ContractedUnitPrice = l.ContractedUnitPrice;
             line.DiscountPct = this.pct(l.DiscountPercent);
@@ -1620,7 +1661,7 @@ export class MJCContractsSectionComponent extends BaseResourceComponent implemen
     /** One batch — six reads always needed together should not be six round trips. */
     private async load(): Promise<void> {
         const rv = new RunView();
-        const [contracts, terms, events, types, companies, orgs, people, users, payterms, currencies, products, log] = await rv.RunViews([
+        const [contracts, terms, events, types, companies, orgs, people, users, payterms, currencies, products, subtypes, log] = await rv.RunViews([
             { EntityName: E_CONTRACTS, Fields: ['ID', 'ContractNumber', 'Status', 'Description', 'EffectiveDate', 'ExecutedDate', 'PricedAt', 'AutoRenew', 'CancellationWindowDays', 'ExternalReferenceID'], OrderBy: 'ContractNumber', ResultType: 'simple' },
             { EntityName: E_TERMS, Fields: ['ID', 'ContractID', 'TermNumber', 'Status', 'StartDate', 'EndDate', 'CommittedAmount', 'EscalationPercent', 'MaxEscalationPercent', 'RenewalNoticeDays', 'BillingFrequency', 'ExecutedDate'], OrderBy: 'TermNumber', ResultType: 'simple' },
             { EntityName: E_EVENTS, Fields: ['ID', 'ContractTermID', 'ScheduledDate', 'Status', 'ComputedAmount', 'FailureReason'], OrderBy: 'ScheduledDate', ResultType: 'simple' },
@@ -1632,6 +1673,7 @@ export class MJCContractsSectionComponent extends BaseResourceComponent implemen
             { EntityName: E_PAYTERMS, Fields: ['ID', 'Name'], OrderBy: 'Name', ResultType: 'simple' },
             { EntityName: E_CURRENCIES, Fields: ['ID', 'Name'], OrderBy: 'Name', ResultType: 'simple' },
             { EntityName: E_PRODUCTS, Fields: ['ID', 'Name'], OrderBy: 'Name', ResultType: 'simple' },
+            { EntityName: E_SUBTYPES, Fields: ['ID', 'Name'], OrderBy: 'Name', ResultType: 'simple' },
             { EntityName: E_EVENTLOG, Fields: ['ID', 'ContractID', 'ContractTermID', 'EventType', 'EventDate', 'Payload', 'PerformedByUser'], OrderBy: 'EventDate DESC', ResultType: 'simple' },
         ]);
 
@@ -1647,6 +1689,7 @@ export class MJCContractsSectionComponent extends BaseResourceComponent implemen
         this.PayTerms = payterms?.Success ? (payterms.Results as Lookup[]) : [];
         this.Currencies = currencies?.Success ? (currencies.Results as Lookup[]) : [];
         this.Products = products?.Success ? (products.Results as Lookup[]) : [];
+        this.SubscriptionTypes = subtypes?.Success ? (subtypes.Results as Lookup[]) : [];
         this.Log = log?.Success ? (log.Results as LogRow[]) : [];
 
         this.Counts = {

@@ -13,7 +13,7 @@ const check = (n, ok, d='') => { if (ok) { passed++; console.log(`  ✓ ${n}`); 
 const errors = [];
 const b = await chromium.launch({ headless: true, channel: 'chrome' });
 const p = await b.newPage({ viewport: { width: 1600, height: 1100 } });
-p.on('console', m => { if (m.type()==='error' && !/favicon|\.ico|\.map/i.test(m.text())) errors.push(m.text()); });
+p.on('console', m => { if (m.type()==='error' && !/favicon|\.ico|\.map/i.test(m.text())) errors.push(m.text().slice(0, 300)); });
 p.on('pageerror', e => errors.push(String(e)));
 try {
     await p.goto(URL, { waitUntil: 'domcontentloaded' });
