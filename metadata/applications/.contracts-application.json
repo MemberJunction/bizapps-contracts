@@ -32,6 +32,13 @@
           "ResourceType": "Custom",
           "DriverClass": "ContractsSectionResource",
           "isDefault": true
+        },
+        {
+          "Label": "Billing worklist",
+          "Icon": "fa-solid fa-conveyor-belt",
+          "ResourceType": "Custom",
+          "DriverClass": "ContractsBillingResource",
+          "isDefault": false
         }
       ]
     },
@@ -39,8 +46,8 @@
       "ID": "7C1D2E3F-4A5B-4C6D-8E9F-0A1B2C3D4E5F"
     },
     "sync": {
-      "lastModified": "2026-08-05T02:06:05.851Z",
-      "checksum": "229af24e8071e1b1ecc3bc7d65bf968e66ed9b99a79d29e1e57ad73b3157e4b2"
+      "lastModified": "2026-08-05T02:15:29.616Z",
+      "checksum": "7caba19f95e78121302dd1ecd27023c26e61cec7a163163be5747a2a17692afc"
     }
   }
 ]
