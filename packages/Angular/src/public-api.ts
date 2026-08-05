@@ -18,6 +18,7 @@
  *
  *   import '@mj-biz-apps/contracts-entities';
  *   import './lib/generated/generated-forms.module';
+ *   import { GeneratedFormsModule } from './lib/generated/generated-forms.module';
  *   export { GeneratedFormsModule } from './lib/generated/generated-forms.module';
  *   export { <YourEntity>FormComponent } from './lib/generated/Entities/<YourEntity>/<yourentity>.form.component';
  *
@@ -47,7 +48,32 @@
  * TODO(template): rename the function to Load<YourApp>Client and keep it in
  * sync with mj-app.json "startupExport".
  */
+
+/* ============================================================================
+ * GENERATED FORMS — wired after the first CodeGen run, exactly as the header
+ * above prescribes. The side-effect imports fire the @RegisterClass decorators;
+ * the re-exports are what MJExplorer's class-registration manifest imports BY
+ * NAME. Without these exports the Explorer bundle fails to compile with
+ * TS2305 'has no exported member', which is precisely what happened.
+ * ========================================================================== */
+import '@mj-biz-apps/contracts-entities';
+import './lib/generated/generated-forms.module';
+import { GeneratedFormsModule } from './lib/generated/generated-forms.module';
+export { GeneratedFormsModule } from './lib/generated/generated-forms.module';
+export { mjBizAppsContractsContractAmendmentFormComponent } from './lib/generated/Entities/mjBizAppsContractsContractAmendment/mjbizappscontractscontractamendment.form.component';
+export { mjBizAppsContractsContractBillingEventFormComponent } from './lib/generated/Entities/mjBizAppsContractsContractBillingEvent/mjbizappscontractscontractbillingevent.form.component';
+export { mjBizAppsContractsContractBillingScheduleFormComponent } from './lib/generated/Entities/mjBizAppsContractsContractBillingSchedule/mjbizappscontractscontractbillingschedule.form.component';
+export { mjBizAppsContractsContractCommitmentFormComponent } from './lib/generated/Entities/mjBizAppsContractsContractCommitment/mjbizappscontractscontractcommitment.form.component';
+export { mjBizAppsContractsContractEventFormComponent } from './lib/generated/Entities/mjBizAppsContractsContractEvent/mjbizappscontractscontractevent.form.component';
+export { mjBizAppsContractsContractFormComponent } from './lib/generated/Entities/mjBizAppsContractsContract/mjbizappscontractscontract.form.component';
+export { mjBizAppsContractsContractLineFormComponent } from './lib/generated/Entities/mjBizAppsContractsContractLine/mjbizappscontractscontractline.form.component';
+export { mjBizAppsContractsContractSequenceFormComponent } from './lib/generated/Entities/mjBizAppsContractsContractSequence/mjbizappscontractscontractsequence.form.component';
+export { mjBizAppsContractsContractTermFormComponent } from './lib/generated/Entities/mjBizAppsContractsContractTerm/mjbizappscontractscontractterm.form.component';
+export { mjBizAppsContractsContractTypeFormComponent } from './lib/generated/Entities/mjBizAppsContractsContractType/mjbizappscontractscontracttype.form.component';
+
 export function LoadMjBizappsContractsClient(): void {
-    // No-op until you add components: importing this module is what
-    // registers everything above.
+    // Importing this module is what registers everything above. The reference
+    // below is an anti-tree-shake anchor: without a live use, a production build
+    // can drop the module import and the registrations never fire.
+    void GeneratedFormsModule;
 }
