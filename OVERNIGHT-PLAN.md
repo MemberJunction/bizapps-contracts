@@ -167,6 +167,14 @@ workspace edit pane on this before adding any more hand-built fields.
 
 ## Log
 
+- **12:50 — last unverified walkthrough claim closed.** The doc tells Andrew the coverage total
+  "excludes those lines and says how many it excluded"; the exclusion was asserted at tier 1 on the
+  function, but nothing checked the PAGE. Now does, with a genuinely catalog-priced second line.
+  The first attempt failed and the APP WAS RIGHT: every product select contains the "Choose a
+  product…" option, so my `.first()` filter matched row 1 and re-picked there, leaving row 2
+  productless — so the count stayed 0 and the note correctly did not render. `.last()` fixes the test.
+  That is now every claim in the walkthrough verified. **Nothing unblocked remains.**
+
 - **12:35 — closed a gap I created by writing docs.** The walkthrough tells Andrew to click through
   termination during a live session with Marcelo, and that path had **never been driven in a browser**
   — it was proven at tier 2 only. Publishing a click path I had not walked is exactly the kind of

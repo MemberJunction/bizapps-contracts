@@ -103,6 +103,28 @@ try {
     const warnAfter = await page.getByText(/cannot be activated/i).count();
     check('C.4 the warning clears once the term is covered', warnAfter === 0);
 
+    // A SECOND line, deliberately left with no price. Null price means "resolve from the catalog",
+    // NOT zero — so it must be excluded from the coverage total and the page must SAY how many it
+    // excluded. Counting it as free would show a total that is confidently wrong, which is worse
+    // than an incomplete one that admits what it left out. The walkthrough tells a reviewer this is
+    // how it behaves, so it needs an assertion behind it.
+    await page.getByRole('button', { name: /add line/i }).first().click();
+    await page.waitForTimeout(1200);
+    const secondType = page.locator('select.sel').filter({ hasText: 'Subscription' }).last();
+    if (await secondType.count()) await secondType.selectOption('OneTime');
+    // .last(), not .first(): EVERY product select contains the "Choose a product…" option, so the
+    // filter matches both rows and .first() silently re-picked row 1 — leaving row 2 productless, so
+    // the catalog-priced count stayed 0 and the note correctly did not render. The app was right.
+    const secondProduct = page.locator('select.sel').filter({ hasText: 'Choose a product' }).last();
+    if (await secondProduct.count()) await pickFirst(secondProduct);
+    await page.waitForTimeout(1000);
+
+    const covText = await page.locator('.cov').innerText().catch(() => '');
+    check('C.5 the catalog-priced line is EXCLUDED from the total, and the page says so',
+        /priced from the catalog, so not counted here/i.test(covText), covText.slice(-220).replace(/\n/g, ' / '));
+    check('C.6 the total still shows the PRICED coverage rather than going blank',
+        /\$1,200\.00/.test(covText), covText.slice(-220).replace(/\n/g, ' / '));
+
     console.log('\nD. Create it');
     await page.getByRole('button', { name: /create contract|^create$/i }).first().click();
     await page.waitForTimeout(9000);

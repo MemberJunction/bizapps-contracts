@@ -5,7 +5,7 @@ against the **matrix**, not against the tests that happen to exist — an empty 
 every written test is green.
 
 > **Last full sweep:** 2026-08-05, branch `mjdev/contracts-night`, instance `contracts-dev`.
-> **Totals: 32 tier-1 + 101 tier-2 + 84 tier-5 = 217 assertions, all passing.** Every number below was
+> **Totals: 32 tier-1 + 101 tier-2 + 86 tier-5 = 219 assertions, all passing.** Every number below was
 > observed, not estimated. Where something was not run, it says so.
 
 ---
@@ -31,7 +31,7 @@ node test-harnesses/ui-lifecycle.mjs       "$URL"   # 8
 node test-harnesses/ui-form-editing.mjs    "$URL"   # 11
 node test-harnesses/ui-history.mjs         "$URL"   # 5
 node test-harnesses/ui-navigation.mjs      "$URL"   # 26
-node test-harnesses/ui-create-to-active.mjs "$URL"  # 11 — CREATES a contract
+node test-harnesses/ui-create-to-active.mjs "$URL"  # 13 — CREATES a contract
 node test-harnesses/ui-full-loop.mjs       "$URL"   # 9  — WRITES to the demo contract
 node test-harnesses/ui-terminate.mjs       "$URL"   # 14 — TERMINATES the demo contract
 ```
@@ -62,7 +62,7 @@ produces a red tier-3/4/5 against green tier-2, which is an environment artefact
 |---|---|---|---|---|---|
 | Status/event tone + label mapping | ✓ | — | — | ✓ | 32 assertions on the pure helpers, including that an unmapped event type falls back to the RAW value so a widened CHECK looks wrong rather than invisible. |
 | Percent ↔ fraction conversion | ✓ | — | — | — | Round-trips without drift; null stays null, because blank is an absence and zero is a claim. |
-| Coverage subtotal | ✓ | — | — | ✓ | Catalog-priced lines are EXCLUDED, not counted as zero. |
+| Coverage subtotal | ✓ | — | — | ✓ | Catalog-priced lines are EXCLUDED, not counted as zero — asserted at T1 on the function AND at T5 on the page, including that it SAYS how many it left out. |
 | `ContractNumber` allocation from the sequence | — | ✓ | ⚠ | ⚠ | Allocation is a read-modify-write in `Save()`; T2 asserts the number shape AND that the sequence advances by exactly 1. Nothing above adds machinery. |
 | `PricedAt` defaults rather than staying null | — | ✓ | ⚠ | ⚠ | Same. |
 | An explicit contract number is not overwritten | — | ✓ | ⚠ | ⚠ | Same. |
