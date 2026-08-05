@@ -162,9 +162,26 @@ workspace edit pane on this before adding any more hand-built fields.
 | Renewal `AsOf` semantics | **Andrew** — likely the individual subscription end dates. |
 | `ContractLine → OrderLine` mapping (P-1) | Needed before renewal pricing is trustworthy. Design call. |
 | Usage metering | Out of v1 by decision. |
+| **`BillingAnchorMonth` / `BillingAnchorDay` unused** | The schedule builder anchors on the term's start date and never reads these two columns; `RenewTerm` copies them forward regardless. Whether they should override the start date is a cadence decision — **Andrew**, question 3 in the walkthrough. |
 | **PG conversion (item 11)** | **Neither bizapps-orders NOR bizapps-accounting ships a PostgreSQL variant** — both have the same SQL-Server-only layout we do. Making contracts the FIRST app in the family to carry PG migrations is a project decision about the family's direction, not a mechanical task, and doing it unilaterally would diverge from the structural model I am told to follow. Needs Amith. |
 
 ## Log
+
+- **12:20 — FIRST REAL PR FEEDBACK, and it changed what is useful.** Amith (AN-BC): *"too many
+  parallel reviewers to be efficient… @SoundPostAndrew please review this with Marcelo as you guys
+  start your day, work through the workflows for how contracts work as your domain expertise on this
+  is just as good as mine or better."*
+  Not a code change — a process directive, and it reassigns the domain calls from Amith to **Andrew**.
+  My three PR comments were organised by SCHEMA and written largely for Amith, which is now the wrong
+  shape for the wrong reader. Wrote `docs/WORKFLOW-WALKTHROUGH.md`: five workflows, each with the
+  click path, what lands in the data, what is refused and why, and the open decisions sitting INSIDE
+  the workflow where they arise — plus a plain list of what is NOT built so nothing surprises them
+  mid-session. 14 questions, all domain rather than technical.
+  **Found while writing it, not while building:** `BillingAnchorMonth`/`BillingAnchorDay` are on the
+  term, the schedule builder never reads them (everything anchors on the start date), and `RenewTerm`
+  faithfully copies two fields that do nothing. Verified in code before writing it down. Logged as a
+  question for Andrew rather than "fixed" — whether they should drive the cadence is a domain call.
+  Comment: https://github.com/MemberJunction/bizapps-contracts/pull/2#issuecomment-5191602151
 
 - **11:45 — X.4 closed, X.3 partly addressed; the loop has run dry.** The master plan's §3 still told a
   reader there are nine tables, that `DocumentFileID` exists, and that `ContractTerm.Status` has four
