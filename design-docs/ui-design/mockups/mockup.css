@@ -330,3 +330,36 @@ legend.sub-legend { font-size: 11.5px; font-weight: 700; letter-spacing: .05em; 
 .sig-row .sig-k { color: var(--mj-text-secondary); min-width: 84px; }
 .sig-row > span:last-child { margin-left: auto; }
 .sig-row .sig-k + span { margin-left: auto; }
+
+/* ============================================================ record tabs (persistent, Matt's pattern) */
+.record-tabs { display: flex; align-items: stretch; gap: 3px; padding: 6px 24px 0; background: var(--mj-bg-surface-card); border-bottom: 1px solid var(--mj-border-default); overflow-x: auto; }
+.record-tab {
+  display: flex; align-items: center; gap: 8px; height: 34px; padding: 0 12px; font-family: inherit;
+  border: 1px solid transparent; border-bottom: none; border-radius: var(--mj-radius-md) var(--mj-radius-md) 0 0;
+  font-size: 13px; color: var(--mj-text-secondary); background: transparent; cursor: pointer; white-space: nowrap;
+}
+.record-tab:hover { background: var(--mj-bg-surface-hover); color: var(--mj-text-primary); }
+.record-tab.active { background: #fff; border-color: var(--mj-border-default); color: var(--mj-text-primary); font-weight: 600; margin-bottom: -1px; padding-bottom: 1px; }
+.record-tab .close { color: var(--mj-text-disabled); font-size: 11px; padding: 2px; border-radius: 3px; }
+.record-tab .close:hover { background: var(--mj-color-neutral-200); color: var(--mj-text-primary); }
+.record-tab.dirty .close::before { content: "\f111"; }
+
+/* mode switch (fast vs detailed) */
+.mode-switch { display: inline-flex; border: 1px solid var(--mj-border-strong); border-radius: var(--mj-radius-md); overflow: hidden; }
+.mode-switch button {
+  border: none; background: #fff; font-family: inherit; font-size: 12.5px; font-weight: 600;
+  color: var(--mj-text-secondary); padding: 6px 14px; cursor: pointer; display: flex; align-items: center; gap: 7px;
+}
+.mode-switch button + button { border-left: 1px solid var(--mj-border-default); }
+.mode-switch button.active { background: var(--mj-brand-primary); color: #fff; }
+
+/* search bar */
+.searchbar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.search-field { position: relative; flex: 1; min-width: 260px; }
+.search-field i { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); color: var(--mj-text-muted); font-size: 12px; }
+.search-field input { padding-left: 31px; }
+.chip {
+  display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 9px; font-size: 12px;
+  border-radius: 999px; background: var(--mj-brand-primary-tint); color: var(--mj-brand-primary); font-weight: 600;
+}
+.chip i { font-size: 10px; cursor: pointer; }

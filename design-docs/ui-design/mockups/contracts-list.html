@@ -19,6 +19,7 @@
   <nav class="mj-rail">
     <div class="group">Contracts</div>
     <a class="item active" href="contracts-list.html"><i class="fa-solid fa-file-signature"></i> Contracts <span class="count">248</span></a>
+    <a class="item" href="contract-create.html"><i class="fa-solid fa-plus"></i> New contract</a>
     <a class="item" href="billing-worklist.html"><i class="fa-solid fa-conveyor-belt"></i> Billing worklist <span class="count">31</span></a>
     <a class="item" href="#"><i class="fa-solid fa-rotate"></i> Renewals</a>
     <a class="item" href="#"><i class="fa-solid fa-file-pen"></i> Amendments <span class="count">4</span></a>
@@ -40,7 +41,7 @@
       <div class="actions">
         <button class="mj-btn"><i class="fa-solid fa-filter"></i> Saved views</button>
         <button class="mj-btn"><i class="fa-solid fa-file-export"></i> Export</button>
-        <a class="mj-btn primary" href="manual-entry.html"><i class="fa-solid fa-plus"></i> New contract</a>
+        <a class="mj-btn primary" href="contract-create.html"><i class="fa-solid fa-plus"></i> New contract</a>
       </div>
     </div>
 
@@ -75,14 +76,32 @@
       not because it works.
     </p>
 
+    <div class="card" style="margin-bottom:14px;">
+      <div class="card-body">
+        <div class="searchbar">
+          <div class="search-field">
+            <i class="fa-solid fa-magnifying-glass"></i>
+            <input class="mj-input" placeholder="Contract number, customer, product, external reference…" value="northwind" />
+          </div>
+          <select class="mj-input" style="width:150px"><option>Status: Active</option><option>All statuses</option><option>Draft</option><option>Pending signature</option><option>Expired</option><option>Terminated</option></select>
+          <select class="mj-input" style="width:150px"><option>All types</option><option>MSA</option><option>SOW</option><option>Standard</option><option>Membership</option></select>
+          <select class="mj-input" style="width:160px"><option>All companies</option><option>Blue Cypress</option><option>Aptify</option></select>
+          <select class="mj-input" style="width:170px"><option>Renewing: any time</option><option>This quarter</option><option>Next 90 days</option></select>
+          <button class="mj-btn"><i class="fa-solid fa-sliders"></i> More</button>
+        </div>
+        <div class="searchbar" style="margin-top:10px;">
+          <span class="sec" style="font-size:12px;">Filters:</span>
+          <span class="chip">customer contains “northwind” <i class="fa-solid fa-xmark"></i></span>
+          <span class="chip">status Active <i class="fa-solid fa-xmark"></i></span>
+          <span class="sec" style="font-size:12px;margin-left:auto;">3 of 248 contracts</span>
+        </div>
+      </div>
+    </div>
+
     <div class="card">
       <div class="card-head">
         <i class="fa-solid fa-list"></i> All contracts
-        <div class="actions">
-          <input class="mj-input" style="width:230px" placeholder="Search number, customer, product…" />
-          <select class="mj-input" style="width:150px"><option>Status: Active</option><option>All statuses</option><option>Draft</option><option>Pending signature</option><option>Expired</option></select>
-          <select class="mj-input" style="width:160px"><option>All companies</option><option>Blue Cypress</option><option>Aptify</option></select>
-        </div>
+        <div class="actions"><button class="mj-btn sm"><i class="fa-solid fa-bookmark"></i> Save this view</button></div>
       </div>
       <div class="card-body flush">
         <table class="grid">

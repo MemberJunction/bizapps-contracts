@@ -62,15 +62,15 @@
 
     <a class="index-card" href="contract-workspace.html">
       <span class="mj-stat-badge brand tag"><i class="fa-solid fa-layer-group"></i> Job 2 · viewing</span>
-      <h3>2 — Contract workspace</h3>
+      <h3>2 — Contract view</h3>
       <p>One agreement, section-tabbed: Overview · Terms · Coverage · Billing · Commitments · Amendments ·
         <strong>Documents</strong> · History. Carries the provenance strip and the renewal clauses. The Documents tab
         is the one component we have to build — see its callout.</p>
     </a>
 
-    <a class="index-card" href="manual-entry.html">
+    <a class="index-card" href="contract-create.html">
       <span class="mj-stat-badge info tag"><i class="fa-solid fa-keyboard"></i> Job 3 · manual entry</span>
-      <h3>3 — Manual contract entry</h3>
+      <h3>3 — Contract creation</h3>
       <p>One card, one form — deliberately <em>not</em> accounting's draft-tab workspace, because this path runs a
         few times a year. Contract-native selection: customer, products, subscription types and timelines, terms
         and clauses. The order is a backend consequence, never something typed here.</p>
@@ -103,12 +103,31 @@
     </ul>
   </div></div>
 
+  <h2 style="font-size:15px;margin:0 0 10px;">Round 3 — the structural decision I made, and why</h2>
+  <div class="card" style="margin-bottom:18px;"><div class="card-body">
+    <p style="margin:0 0 10px;font-size:13px;line-height:1.7;" class="sec">
+      You had mixed feelings about a combined create/view workspace and asked me to call it. <strong>I split them,
+      but made creation mirror viewing tab-for-tab.</strong>
+    </p>
+    <ul class="sec" style="margin:0;padding-left:20px;line-height:1.8;font-size:13px;">
+      <li><strong>Why split:</strong> the two are optimized for opposite things. Viewing is dense, read-first, and full
+        of things that only exist <em>after</em> the fact — generated orders, billing events, the event log, amendment
+        history. Creation is validation-first and must never show a control that cannot yet mean anything. A combined
+        screen ends up hiding half its tabs on create, which reads as broken rather than as progressive.</li>
+      <li><strong>Why mirror anyway:</strong> the sections are the same concepts in both directions, so Detailed mode
+        uses the same tab set as the viewer. Nobody learns two layouts, and the mental model transfers.</li>
+      <li><strong>Fast vs Detailed</strong> (following Amith's orders pattern): most agreements need one scroll, and
+        forcing six tabs on them is friction. The switch is free and lossless.</li>
+      <li><strong>Persistent record tabs</strong> on the viewer — several contracts open at once, dirty state marked.
+        Contracts are compared side by side constantly (a renewal against its predecessor), which is exactly what
+        record tabs are for.</li>
+    </ul>
+  </div></div>
+
   <h2 style="font-size:15px;margin:0 0 10px;">Still open — what this round asks</h2>
   <div class="card"><div class="card-body">
     <ol class="sec" style="margin:0;padding-left:20px;line-height:1.85;font-size:13px;">
-      <li><strong>Is the term the primary object?</strong> These screens lead with the contract and nest terms. Terms carry
-        the money, the dates and every clause — leading with the <em>active term</em> and treating the contract as its
-        header is a defensible alternative, and arguably truer now that terms carry their own paper.</li>
+      <li>✅ <strong>Settled — the contract is the primary entity</strong>, many terms nest under it. Confirmed 2026-08-04.</li>
       <li><strong>How much does Coverage decide?</strong> It now selects product + subscription type + timeline + price.
         The open question is where it stops — does the contract also pin things like trial periods and renewal
         lead days (both live on orders' Subscription), or does it set the type and let the type's own defaults carry them?</li>

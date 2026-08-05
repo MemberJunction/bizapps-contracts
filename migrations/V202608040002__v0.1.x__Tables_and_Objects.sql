@@ -146,7 +146,10 @@ CREATE TABLE __mj_BizAppsContracts.Contract (
     -- this catches the one a UI produces by accident.
     CONSTRAINT CK_Contract_ParentNotSelf CHECK (ParentContractID IS NULL OR ParentContractID <> ID),
     CONSTRAINT CK_Contract_SupersededNotSelf CHECK (SupersededByContractID IS NULL OR SupersededByContractID <> ID),
-    CONSTRAINT CK_Contract_ExecutedAfterEffective CHECK (ExecutedDate IS NULL OR EffectiveDate IS NULL OR ExecutedDate >= EffectiveDate),
+    -- REMOVED: a CHECK requiring ExecutedDate >= EffectiveDate. It has the real world backwards —
+    -- agreements are routinely SIGNED BEFORE they take effect (sign in December, effective Jan 1),
+    -- which is the ordinary case for an annual term, not an anomaly. The constraint rejected exactly
+    -- the data a correct contract produces. Caught by seeding realistic demo data, 2026-08-04.
     -- An Active contract has been priced. Draft may not have been yet.
     CONSTRAINT CK_Contract_PricedWhenActive CHECK (Status <> 'Active' OR PricedAt IS NOT NULL),
     CONSTRAINT CK_Contract_CancellationWindow CHECK (CancellationWindowDays IS NULL OR CancellationWindowDays >= 0)
