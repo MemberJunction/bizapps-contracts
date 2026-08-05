@@ -196,6 +196,9 @@ async function main(): Promise<void> {
     crossing.BillingFrequency = 'Annual';
     const crossingSaved = await crossing.Save();
     check('X.8 a term renewing a term on ANOTHER contract is REFUSED', crossingSaved === false, crossingSaved ? 'it saved' : '');
+    const crossMsg = crossing.LatestResult?.CompleteMessage ?? '';
+    check('X.8b the refusal explains that a chain cannot cross contracts',
+        /cannot cross contracts/i.test(crossMsg), `got "${crossMsg}"`);
 
     const sameContract = await md.GetEntityObject<mjBizAppsContractsContractTermEntity>(E_TERM, user);
     sameContract.NewRecord();
@@ -230,6 +233,8 @@ async function main(): Promise<void> {
         goodEvent.Payload = JSON.stringify({ tag: TAG, tampered: true });
         const edited = await goodEvent.Save();
         check('X.15b EDITING a recorded event is REFUSED', edited === false, edited ? 'it saved' : '');
+        const editMsg = goodEvent.LatestResult?.CompleteMessage ?? '';
+        check('X.15b1 the refusal explains the log is append-only', /append-only/i.test(editMsg), `got "${editMsg}"`);
 
         const deleted = await goodEvent.Delete();
         check('X.15c DELETING a recorded event is REFUSED', deleted === false, deleted ? 'it deleted' : '');

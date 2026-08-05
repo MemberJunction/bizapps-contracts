@@ -21,7 +21,12 @@
  * @module @mj-biz-apps/contracts-core-entities-server
  */
 
-import { BaseEntity, type EntityDeleteOptions, type EntitySaveOptions } from '@memberjunction/core';
+import {
+    BaseEntity,
+    ValidationErrorInfo,
+    ValidationResult,
+    type EntityDeleteOptions,
+} from '@memberjunction/core';
 import { RegisterClass } from '@memberjunction/global';
 import { mjBizAppsContractsContractEventEntity } from '@mj-biz-apps/contracts-entities';
 
@@ -29,19 +34,32 @@ const EVENT_ENTITY = 'MJ_BizApps_Contracts: Contract Events';
 
 @RegisterClass(BaseEntity, EVENT_ENTITY)
 export class ContractEventEntityServer extends mjBizAppsContractsContractEventEntity {
-    public override async Save(options?: EntitySaveOptions): Promise<boolean> {
+    /**
+     * Refusal as a VALIDATION error rather than a bare `false`, so the caller is told why. `Save()`
+     * merges these into `LatestResult`; a guard that only logged to the console left the UI showing
+     * "Save failed: unknown error", which is a refusal nobody can act on.
+     */
+    public override Validate(): ValidationResult {
+        const result = super.Validate();
         if (this.IsSaved) {
-            // eslint-disable-next-line no-console
-            console.error(
-                `[Contracts] Refused to modify contract event ${this.ID} (${this.EventType}). The event log is ` +
-                    `append-only: history that can be rewritten is not history. Record a NEW event instead.`,
+            result.Success = false;
+            result.Errors.push(
+                new ValidationErrorInfo(
+                    'ID',
+                    `Contract events cannot be modified. The log is append-only — history that can be ` +
+                        `rewritten is not history. Record a new event instead.`,
+                    this.ID,
+                ),
             );
-            return false;
         }
-        return super.Save(options);
+        return result;
     }
 
-    public override async Delete(options?: EntityDeleteOptions): Promise<boolean> {
+    /**
+     * Delete has no validation hook, so this stays a logged refusal — but it is unconditional, which
+     * makes it self-explanatory in a way the conditional Save guard was not.
+     */
+    public override async Delete(_options?: EntityDeleteOptions): Promise<boolean> {
         // eslint-disable-next-line no-console
         console.error(
             `[Contracts] Refused to delete contract event ${this.ID} (${this.EventType}). Events are never ` +

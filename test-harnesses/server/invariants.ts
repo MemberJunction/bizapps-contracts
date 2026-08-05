@@ -142,6 +142,11 @@ async function main(): Promise<void> {
     c1.Status = 'Active';
     const revive = await c1.Save();
     check('B.2 Terminated -> Active is REFUSED (a terminated contract cannot come back)', revive === false);
+    // A refusal the caller cannot read is a refusal nobody can act on. These rules live in Validate()
+    // precisely so the reason reaches LatestResult instead of only the server console.
+    const reviveMsg = c1.LatestResult?.CompleteMessage ?? '';
+    check('B.2a the refusal EXPLAINS itself to the caller', /cannot move from Terminated to Active/i.test(reviveMsg), `got "${reviveMsg}"`);
+    check('B.2b and says Terminated is terminal', /terminal/i.test(reviveMsg), `got "${reviveMsg}"`);
 
     // Reload to drop the rejected in-memory value before continuing.
     await c1.Load(c1.ID);
@@ -185,6 +190,8 @@ async function main(): Promise<void> {
     over.MaxEscalationPercent = 0.05;
     const overSaved = await over.Save();
     check('D.1 escalation 8% under a 5% cap is REFUSED', overSaved === false);
+    const capMsg = over.LatestResult?.CompleteMessage ?? '';
+    check('D.1a the refusal names both numbers', /8\.00%/.test(capMsg) && /5\.00%/.test(capMsg), `got "${capMsg}"`);
     if (overSaved) createdTerms.push(over.ID);
 
     const under = await mkTerm(c2.ID, '2030-01-01', '2030-12-31');

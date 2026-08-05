@@ -15,7 +15,14 @@
  * @module @mj-biz-apps/contracts-core-entities-server
  */
 
-import { BaseEntity, RunView, type EntitySaveOptions, type IRunViewProvider } from '@memberjunction/core';
+import {
+    BaseEntity,
+    RunView,
+    ValidationErrorInfo,
+    ValidationResult,
+    type EntitySaveOptions,
+    type IRunViewProvider,
+} from '@memberjunction/core';
 import { RegisterClass, UUIDsEqual } from '@memberjunction/global';
 import { mjBizAppsContractsContractTermEntity } from '@mj-biz-apps/contracts-entities';
 
@@ -32,10 +39,38 @@ const LEGAL_MOVES: Readonly<Record<string, readonly string[]>> = {
 
 @RegisterClass(BaseEntity, TERM_ENTITY)
 export class ContractTermEntityServer extends mjBizAppsContractsContractTermEntity {
+    /**
+     * OPT IN TO ASYNC VALIDATION. `BaseEntity.DefaultSkipAsyncValidation` is `true`, so `ValidateAsync`
+     * is skipped unless an entity asks for it — and a rule placed there without this override simply
+     * never runs. That is exactly what happened when the renewal-chain check moved out of `Save()`:
+     * cross-contract renewals started saving again, silently, until a test caught it.
+     *
+     * The cost is one extra read per term save, which is the correct price for a rule that prevents
+     * one contract's history from showing another contract's terms.
+     */
+    public override get DefaultSkipAsyncValidation(): boolean {
+        return false;
+    }
+
+    /** Synchronous rules — everything decidable from this row alone. */
+    public override Validate(): ValidationResult {
+        const result = super.Validate();
+        this.checkStatusTransition(result);
+        this.checkEscalationCap(result);
+        return result;
+    }
+
+    /**
+     * Cross-record rules go here, not in `Validate()`: the renewal-chain check must READ the row it
+     * points at, and `Validate()` is synchronous. `Save()` runs both and merges the errors.
+     */
+    public override async ValidateAsync(): Promise<ValidationResult> {
+        const result = await super.ValidateAsync();
+        await this.checkRenewalChainIntegrity(result);
+        return result;
+    }
+
     public override async Save(options?: EntitySaveOptions): Promise<boolean> {
-        if (!this.passesStatusTransition()) return false;
-        if (!this.passesEscalationCap()) return false;
-        if (!(await this.passesRenewalChainIntegrity())) return false;
 
         // TERM NUMBERING IS DERIVED, NOT TYPED. A term's number is its position in the contract's
         // chain; asking a caller to supply it invites the duplicate that the unique index on
@@ -52,18 +87,22 @@ export class ContractTermEntityServer extends mjBizAppsContractsContractTermEnti
      * permitted, because plenty of real agreements have no ceiling and pretending otherwise would
      * make them unrecordable.
      */
-    private passesEscalationCap(): boolean {
+    private checkEscalationCap(result: ValidationResult): void {
         const pct = this.EscalationPercent;
         const cap = this.MaxEscalationPercent;
-        if (pct === null || pct === undefined || cap === null || cap === undefined) return true;
-        if (pct <= cap) return true;
+        if (pct === null || pct === undefined || cap === null || cap === undefined) return;
+        if (pct <= cap) return;
 
-        // eslint-disable-next-line no-console
-        console.error(
-            `[Contracts] Refused term ${this.TermNumber ?? '(new)'}: escalation ${(pct * 100).toFixed(2)}% ` +
-                `exceeds its cap of ${(cap * 100).toFixed(2)}%. Raise MaxEscalationPercent or lower EscalationPercent.`,
+        result.Success = false;
+        result.Errors.push(
+            new ValidationErrorInfo(
+                'EscalationPercent',
+                `An escalation of ${(pct * 100).toFixed(2)}% exceeds this term's negotiated cap of ` +
+                    `${(cap * 100).toFixed(2)}%. Either lower the escalation or raise the cap — the cap is what ` +
+                    `the contract says, so changing it is a negotiation, not a correction.`,
+                pct,
+            ),
         );
-        return false;
     }
 
     /**
@@ -77,8 +116,8 @@ export class ContractTermEntityServer extends mjBizAppsContractsContractTermEnti
      * This cannot be a CHECK constraint: the rule compares a column on this row to a column on the
      * row it points at, and a CHECK cannot see another row.
      */
-    private async passesRenewalChainIntegrity(): Promise<boolean> {
-        if (!this.RenewalOfTermID || !this.ContractID) return true;
+    private async checkRenewalChainIntegrity(result: ValidationResult): Promise<void> {
+        if (!this.RenewalOfTermID || !this.ContractID) return;
 
         const rv = new RunView(this.ProviderToUse as unknown as IRunViewProvider);
         const res = await rv.RunView<{ ContractID: string; TermNumber: number }>(
@@ -97,34 +136,40 @@ export class ContractTermEntityServer extends mjBizAppsContractsContractTermEnti
         const parent = res.Results?.[0];
         // A missing predecessor is left to the FK to reject — that is its job, and duplicating the
         // error here would produce two different messages for one condition.
-        if (!parent) return true;
+        if (!parent) return;
 
-        if (UUIDsEqual(parent.ContractID, this.ContractID)) return true;
+        if (UUIDsEqual(parent.ContractID, this.ContractID)) return;
 
-        // eslint-disable-next-line no-console
-        console.error(
-            `[Contracts] Refused term: RenewalOfTermID points at term ${parent.TermNumber} on a DIFFERENT ` +
-                `contract. A renewal chain cannot cross contracts — walking it would surface another ` +
-                `contract's terms as this one's history.`,
+        result.Success = false;
+        result.Errors.push(
+            new ValidationErrorInfo(
+                'RenewalOfTermID',
+                `This term is recorded as renewing term ${parent.TermNumber} of a DIFFERENT contract. ` +
+                    `A renewal chain cannot cross contracts — walking it would surface another contract's ` +
+                    `terms as this one's history.`,
+                this.RenewalOfTermID,
+            ),
         );
-        return false;
     }
 
-    private passesStatusTransition(): boolean {
-        if (!this.IsSaved) return true;
+    private checkStatusTransition(result: ValidationResult): void {
+        if (!this.IsSaved) return;
         const field = this.Fields.find((f) => f.Name === 'Status');
         const previous = field?.OldValue as string | undefined;
         const next = this.Status as unknown as string;
-        if (!previous || previous === next) return true;
-        if ((LEGAL_MOVES[previous] ?? []).includes(next)) return true;
+        if (!previous || previous === next) return;
+        if ((LEGAL_MOVES[previous] ?? []).includes(next)) return;
 
         const allowed = (LEGAL_MOVES[previous] ?? []).filter((s) => s !== previous);
-        // eslint-disable-next-line no-console
-        console.error(
-            `[Contracts] Refused term status move ${previous} -> ${next}. ` +
-                (allowed.length ? `Legal moves: ${allowed.join(', ')}.` : `${previous} is terminal.`),
+        result.Success = false;
+        result.Errors.push(
+            new ValidationErrorInfo(
+                'Status',
+                `A term cannot move from ${previous} to ${next}. ` +
+                    (allowed.length ? `Legal moves are: ${allowed.join(', ')}.` : `${previous} is a terminal state.`),
+                next,
+            ),
         );
-        return false;
     }
 
     /** max(TermNumber) + 1 for this contract, via RunView on this entity's own provider. */

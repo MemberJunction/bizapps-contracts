@@ -21,7 +21,7 @@
  * @module @mj-biz-apps/contracts-core-entities-server
  */
 
-import { BaseEntity, type EntitySaveOptions } from '@memberjunction/core';
+import { BaseEntity, ValidationErrorInfo, ValidationResult, type EntitySaveOptions } from '@memberjunction/core';
 import { RegisterClass } from '@memberjunction/global';
 import type { DatabaseProviderBase } from '@memberjunction/core';
 import { mjBizAppsContractsContractEntity } from '@mj-biz-apps/contracts-entities';
@@ -45,12 +45,21 @@ const LEGAL_MOVES: Readonly<Record<string, readonly string[]>> = {
 
 @RegisterClass(BaseEntity, CONTRACT_ENTITY)
 export class ContractEntityServer extends mjBizAppsContractsContractEntity {
-    public override async Save(options?: EntitySaveOptions): Promise<boolean> {
-        // Refuse an illegal move BEFORE anything else happens, so a rejected save has written nothing.
-        if (!this.passesStatusTransition()) {
-            return false;
-        }
+    /**
+     * VALIDATION, NOT A SAVE GUARD. These rules used to live in `Save()` as an early `return false`
+     * plus a `console.error`, which refused correctly and told the user nothing: the UI showed
+     * "Save failed: unknown error" because no error had been recorded anywhere it could read.
+     *
+     * `Save()` calls `Validate()` and puts its errors on `LatestResult`, so putting the rules here
+     * means every caller — the form, an operation, an agent — gets the actual reason.
+     */
+    public override Validate(): ValidationResult {
+        const result = super.Validate();
+        this.checkStatusTransition(result);
+        return result;
+    }
 
+    public override async Save(options?: EntitySaveOptions): Promise<boolean> {
         // The pricing moment. Defaulted rather than demanded: a contract created today is priced
         // today, and someone entering older paper overrides it. What must not happen is a contract
         // with no as-of date, because then "the catalog price" has no defined meaning (§12).
@@ -87,27 +96,27 @@ export class ContractEntityServer extends mjBizAppsContractsContractEntity {
      * A save is legal when the status is unchanged, or when the move is in {@link LEGAL_MOVES}.
      * A brand-new record may start in any state the CHECK allows — the map governs MOVES, not births.
      */
-    private passesStatusTransition(): boolean {
-        if (!this.IsSaved) return true;
+    private checkStatusTransition(result: ValidationResult): void {
+        if (!this.IsSaved) return;
 
         const field = this.Fields.find((f) => f.Name === 'Status');
         const previous = field?.OldValue as string | undefined;
         const next = this.Status as unknown as string;
-        if (!previous || previous === next) return true;
+        if (!previous || previous === next) return;
 
         const allowed = LEGAL_MOVES[previous] ?? [];
-        if (allowed.includes(next)) return true;
+        if (allowed.includes(next)) return;
 
-        // Surfaced through the entity's own result so the caller sees WHY, not just `false`.
-        this.RaiseTransitionError(previous, next);
-        return false;
-    }
-
-    private RaiseTransitionError(previous: string, next: string): void {
-        const allowed = (LEGAL_MOVES[previous] ?? []).filter((s) => s !== previous);
-        const detail = allowed.length ? `Legal moves from ${previous}: ${allowed.join(', ')}.` : `${previous} is terminal.`;
-        // eslint-disable-next-line no-console
-        console.error(`[Contracts] Refused status move ${previous} -> ${next} on ${this.ContractNumber ?? '(unnumbered)'}. ${detail}`);
+        // The message names the legal alternatives, because "that is not allowed" leaves the person
+        // to guess what is. A terminal state says so outright rather than listing nothing.
+        const others = allowed.filter((s) => s !== previous);
+        const detail = others.length
+            ? `Legal moves from ${previous} are: ${others.join(', ')}.`
+            : `${previous} is a terminal state — nothing follows it.`;
+        result.Success = false;
+        result.Errors.push(
+            new ValidationErrorInfo('Status', `A contract cannot move from ${previous} to ${next}. ${detail}`, next),
+        );
     }
 
     /**
