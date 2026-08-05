@@ -105,8 +105,12 @@ workspace edit pane on this before adding any more hand-built fields.
       could ever be activated or renewed. The lifecycle only worked on seeded data. Fixed with a
       coverage editor on the create page; `ActivateTerm` now also promotes Draft → Active on the
       contract (a contract whose term is live is a live contract).
-- [ ] **4. Custom forms** for `ContractTerm` and `ContractLine`, same priority-2 override pattern as
-      the Contract form — group by what a person reads, not schema order.
+- [x] **4. Custom forms** for `ContractTerm` and `ContractLine`. ✅ DONE — priority-2 overrides, same
+      pattern as the Contract form. Term reads period → committed → cadence → renewal → ending; Line
+      reads covered → price → subscription → window. Every panel carrying a rule the server enforces
+      says so next to the field, because a refusal a person could have avoided is worse UX than a
+      sentence. Proven in Chrome that the OVERRIDE wins dispatch (the generated form would still look
+      fine, which is exactly why that needed asserting).
 - [ ] **5. `<mj-record-files>` upload path.** The panel lists linked files; wire attach through MJ's
       storage providers and create the `FileEntityRecordLink` row.
 - [ ] **6. `<mj-record-signature-status>` panel** on Contract + ContractTerm, reading
@@ -143,6 +147,17 @@ workspace edit pane on this before adding any more hand-built fields.
 | Usage metering | Out of v1 by decision. |
 
 ## Log
+
+- **08:10** — **Item 4 done.** Custom `ContractTerm` + `ContractLine` forms at priority 2. The term
+  form is the one that matters: the generated version lists 21 columns in schema order, so
+  `MaxEscalationPercent` sits next to `EscalationPercent` with nothing to say it is a NEGOTIATED
+  CEILING the entity layer will refuse a save over. Now grouped and explained in reading order.
+  Line form does the same for the three fields carrying invisible rules — null price means
+  *resolve from the catalog* (not zero), subscription type is required here and forbidden elsewhere,
+  and `SubscriptionID` is system-written and unique.
+  Also fixed an assertion that had gone quietly wrong: in edit mode the fields render as `<input>`,
+  and `innerText` does not include input values — so "the form carries real data" was testing
+  something the DOM cannot show. It reads the input values now.
 
 - **07:20** — **Final sweep, all green, demo pristine.** 85 tier-2 + 65 tier-5 assertions passing;
   both writing flows run and restore cleanly. **Invariants moved into MJ's `Validate()` /

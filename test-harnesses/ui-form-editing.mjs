@@ -73,7 +73,34 @@ try {
         return last ? (last.innerText || '') : '';
     });
     check('B.2a the overlay rendered the entity form, not an empty shell', /Committed Amount|CommittedAmount/i.test(panelText), panelText.slice(0, 300));
-    check("B.3 the form carries the term's real data", /4(32|53|71)/.test(panelText) || /Quarterly/i.test(panelText), panelText.slice(0, 300));
+    // READ THE INPUT VALUES, not innerText. In edit mode the fields render as <input>, and an
+    // element's innerText does not include its inputs' values — so an innerText check here passes or
+    // fails for reasons unrelated to whether the record loaded.
+    const fieldValues = await page.evaluate(() => {
+        const last = document.body.lastElementChild;
+        if (!last) return [];
+        return Array.from(last.querySelectorAll('input, textarea, select'))
+            .map((el) => (el).value)
+            .filter((v) => v && v.length);
+    });
+    const joined = fieldValues.join(' | ');
+    check("B.3 the form is populated with the term's real data",
+        /4(32|53|71)/.test(joined) || /Quarterly/i.test(joined), joined.slice(0, 250));
+
+    console.log('\nB2. The CUSTOM term form won the dispatch, not the generated one');
+    // The generated form is a single "Details" panel in schema order. The override groups the term
+    // into five named panels and explains the rules next to the fields they govern. If the priority-2
+    // registration ever stops winning, this is what notices — the generated form still renders, still
+    // shows the data, and looks fine.
+    check('B2.1 the custom panels are present, not a single Details list',
+        /The period/i.test(panelText) && /What was committed/i.test(panelText) && /Billing cadence/i.test(panelText),
+        panelText.slice(0, 250));
+    check('B2.2 the escalation CEILING is explained where the field lives',
+        /ceiling/i.test(panelText) || /refused on save/i.test(panelText), panelText.slice(0, 250));
+
+    // Capture the form WHILE IT IS OPEN. The end-of-run screenshot is taken after the slide-in
+    // closes, so it shows the timeline and says nothing about the form this harness is about.
+    await page.screenshot({ path: 'test-harnesses/ui-term-form-open.png' });
 
     console.log('\nC. Cancelling changes nothing');
     const close = page.getByRole('button', { name: /close|cancel/i }).last();

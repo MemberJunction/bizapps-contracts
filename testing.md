@@ -5,7 +5,7 @@ against the **matrix**, not against the tests that happen to exist — an empty 
 every written test is green.
 
 > **Last full sweep:** 2026-08-05, branch `mjdev/contracts-night`, instance `contracts-dev`.
-> **Totals: 85 tier-2 assertions + 65 tier-5 assertions, all passing.** Every number below was
+> **Totals: 85 tier-2 assertions + 67 tier-5 assertions, all passing.** Every number below was
 > observed, not estimated. Where something was not run, it says so.
 
 ---
@@ -24,7 +24,7 @@ npx tsx test-harnesses/server/constraints.ts    # 21
 # Tier 5 — real Chrome, driven only through the UI
 URL=$(mjdev explorer-url contracts-dev | grep -oE 'http://localhost:[0-9]+/#token=[A-Za-z0-9._-]+')
 node test-harnesses/ui-lifecycle.mjs       "$URL"   # 8
-node test-harnesses/ui-form-editing.mjs    "$URL"   # 9
+node test-harnesses/ui-form-editing.mjs    "$URL"   # 11
 node test-harnesses/ui-history.mjs         "$URL"   # 5
 node test-harnesses/ui-navigation.mjs      "$URL"   # 23
 node test-harnesses/ui-create-to-active.mjs "$URL"  # 11 — CREATES a contract
@@ -82,6 +82,7 @@ produces a red tier-3/4/5 against green tier-2, which is an environment artefact
 | X.15 event log is append-only | — | ✓ | — | ✓ | T2 proves edit and delete are both refused AND that the row is unchanged in the DB afterwards. |
 | Creating a contract with coverage | — | ⚠ | — | ✓ | Driven end-to-end through the UI; T2 covers the entity rules underneath. |
 | Term / line editing via MJ's form shells | — | — | — | ✓ | jsdom cannot route the overlay mount; asserted by diffing `document.body.children`. |
+| Custom priority-2 forms WIN dispatch | — | — | — | ✓ | Asserted on the custom panel names. The generated form still renders and still shows the data, so a lost registration would look fine — which is why this needs its own check. |
 | Audit timeline rendering | — | — | — | ✓ | |
 | Workspace search + status filter | — | — | — | ✓ | 10 assertions: exact-match, description match, no-match says so, status filter both ways, Clear. |
 | Billing worklist page | — | — | — | ✓ | Renders and surfaces the failed event. |
