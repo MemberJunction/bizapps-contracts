@@ -1,5 +1,16 @@
 # Overnight autonomous build — 2026-08-05
 
+> ## ⛔ RUN CLOSED 2026-08-05. Cron cancelled by Marcelo's instruction.
+>
+> **New session: read `HANDOFF.md` first, not this file.** This is the run's rules and log; the
+> handoff is the pickup.
+>
+> **Outcome:** lifecycle working end to end through the UI, 219 assertions, 37 unpushed commits.
+> **Marcelo's assessment: less than he wanted.** The overview-editor rewrite onto MJ's 4-layer forms
+> — a named non-optional standard — was declined four times on demo-proximity grounds without ever
+> checking that the demo was twelve-plus hours away. Post-mortem filed in `~/MJDev/MJDEV-REQUESTS.md`
+> ("demo proximity should not silently become a change freeze"). **It is unblocked. Build it.**
+
 **Branch:** `mjdev/contracts-night` (instance `contracts-dev`) · **PR branch `mjdev/contracts-dev` is frozen**
 except for cherry-picked review fixes. **Never push.** Marcelo pushes when he wakes.
 
