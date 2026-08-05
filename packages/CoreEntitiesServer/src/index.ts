@@ -28,12 +28,14 @@
  */
 import { LoadContractEntityServer } from './ContractEntityServer.js';
 import { LoadContractTermEntityServer } from './ContractTermEntityServer.js';
+import { LoadContractEventEntityServer } from './ContractEventEntityServer.js';
 import { LoadActivateTermOperation } from './ActivateTermOperation.js';
 import { LoadRenewTermOperation } from './RenewTermOperation.js';
 import { LoadTerminateContractOperation } from './TerminateContractOperation.js';
 
 export { ContractEntityServer, LoadContractEntityServer } from './ContractEntityServer.js';
 export { ContractTermEntityServer, LoadContractTermEntityServer } from './ContractTermEntityServer.js';
+export { ContractEventEntityServer, LoadContractEventEntityServer } from './ContractEventEntityServer.js';
 
 // Remote operations — the write API the UI calls. State changes live here rather than in Actions:
 // orders settled that split for the family (Actions are for agent/workflow-invocable work; the
@@ -54,6 +56,7 @@ export type { TerminateContractInput, TerminateContractOutput } from './Terminat
 export function LoadMjBizappsContractsEntitiesServer(): void {
     LoadContractEntityServer();
     LoadContractTermEntityServer();
+    LoadContractEventEntityServer();
     LoadActivateTermOperation();
     LoadRenewTermOperation();
     LoadTerminateContractOperation();

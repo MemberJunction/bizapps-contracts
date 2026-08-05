@@ -5,7 +5,7 @@
   "displayName": "BizApps Contracts",
   "description": "The agreement envelope for MemberJunction — commitment, term structure, escalation, renewal, and the billing event that consolidates many revenue streams onto one document. Produces orders through BizApps Orders' own operations; it never prices, taxes, or books.",
   "version": "0.1.0",
-  "license": "<Set-this>",
+  "license": "ISC",
   "icon": "fa-solid fa-file-signature",
   "color": "#264FAF",
   "publisher": {
@@ -74,11 +74,14 @@
     "sourceDirectory": "packages"
   },
   "categories": [
-    "Template"
+    "Sales",
+    "Finance"
   ],
   "tags": [
-    "template",
-    "sample",
-    "starter"
+    "contracts",
+    "agreements",
+    "renewals",
+    "subscription-billing",
+    "revenue"
   ]
 }

@@ -198,7 +198,7 @@ export class TerminateContractOperation extends BaseRemotableOperation<Terminate
             const log = await md.GetEntityObject<mjBizAppsContractsContractEventEntity>(E_LOG, user);
             log.NewRecord();
             log.ContractID = contract.ID;
-            log.EventType = 'Terminated';
+            log.EventType = 'ContractTerminated';
             log.EventDate = new Date();
             log.PerformedByUserID = user.ID;
             log.Payload = JSON.stringify({

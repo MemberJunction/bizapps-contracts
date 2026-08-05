@@ -316,10 +316,26 @@ export const mjBizAppsContractsContractEventSchema = z.object({
         * * Display Name: Contract Term ID
         * * SQL Data Type: uniqueidentifier
         * * Related Entity/Foreign Key: MJ_BizApps_Contracts: Contract Terms (vwContractTerms.ID)`),
-    EventType: z.string().describe(`
+    EventType: z.union([z.literal('AmendmentApplied'), z.literal('BillingEventFailed'), z.literal('BillingEventGenerated'), z.literal('ContractCreated'), z.literal('ContractExecuted'), z.literal('ContractExpired'), z.literal('ContractSuperseded'), z.literal('ContractTerminated'), z.literal('SentForSignature'), z.literal('SignatureRejected'), z.literal('TermActivated'), z.literal('TermCompleted'), z.literal('TermRenewed'), z.literal('TermTerminated')]).describe(`
         * * Field Name: EventType
         * * Display Name: Event Type
-        * * SQL Data Type: nvarchar(50)`),
+        * * SQL Data Type: nvarchar(50)
+    * * Value List Type: List
+    * * Possible Values 
+    *   * AmendmentApplied
+    *   * BillingEventFailed
+    *   * BillingEventGenerated
+    *   * ContractCreated
+    *   * ContractExecuted
+    *   * ContractExpired
+    *   * ContractSuperseded
+    *   * ContractTerminated
+    *   * SentForSignature
+    *   * SignatureRejected
+    *   * TermActivated
+    *   * TermCompleted
+    *   * TermRenewed
+    *   * TermTerminated`),
     EventDate: z.date().describe(`
         * * Field Name: EventDate
         * * Display Name: Event Date
@@ -1661,11 +1677,27 @@ export class mjBizAppsContractsContractEventEntity extends BaseEntity<mjBizAppsC
     * * Field Name: EventType
     * * Display Name: Event Type
     * * SQL Data Type: nvarchar(50)
+    * * Value List Type: List
+    * * Possible Values 
+    *   * AmendmentApplied
+    *   * BillingEventFailed
+    *   * BillingEventGenerated
+    *   * ContractCreated
+    *   * ContractExecuted
+    *   * ContractExpired
+    *   * ContractSuperseded
+    *   * ContractTerminated
+    *   * SentForSignature
+    *   * SignatureRejected
+    *   * TermActivated
+    *   * TermCompleted
+    *   * TermRenewed
+    *   * TermTerminated
     */
-    get EventType(): string {
+    get EventType(): 'AmendmentApplied' | 'BillingEventFailed' | 'BillingEventGenerated' | 'ContractCreated' | 'ContractExecuted' | 'ContractExpired' | 'ContractSuperseded' | 'ContractTerminated' | 'SentForSignature' | 'SignatureRejected' | 'TermActivated' | 'TermCompleted' | 'TermRenewed' | 'TermTerminated' {
         return this.Get('EventType');
     }
-    set EventType(value: string) {
+    set EventType(value: 'AmendmentApplied' | 'BillingEventFailed' | 'BillingEventGenerated' | 'ContractCreated' | 'ContractExecuted' | 'ContractExpired' | 'ContractSuperseded' | 'ContractTerminated' | 'SentForSignature' | 'SignatureRejected' | 'TermActivated' | 'TermCompleted' | 'TermRenewed' | 'TermTerminated') {
         this.Set('EventType', value);
     }
 

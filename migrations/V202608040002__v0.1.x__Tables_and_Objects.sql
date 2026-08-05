@@ -133,6 +133,10 @@ CREATE TABLE __mj_BizAppsContracts.Contract (
     ExternalReferenceID NVARCHAR(255) NULL,
     CONSTRAINT PK_Contract PRIMARY KEY (ID),
     CONSTRAINT CK_Contract_Status CHECK (Status IN ('Draft','PendingSignature','Active','Expired','Terminated','Superseded')),
+    -- SupersededByContractID exists BECAUSE a superseded contract had no way to name its successor.
+    -- Leaving it optional preserves the exact state the column was added to eliminate, and the
+    -- successor chain the workspace walks then dead-ends with no explanation. (X.6)
+    CONSTRAINT CK_Contract_SupersededHasSuccessor CHECK (Status <> 'Superseded' OR SupersededByContractID IS NOT NULL),
     -- Exactly one customer, organization XOR person — the idiom common.ContactMethod
     -- and Relationship already use. Each column is named ONCE: CodeGen derives the
     -- generated validation method name from the constraint expression, and repeating a
@@ -268,7 +272,13 @@ CREATE TABLE __mj_BizAppsContracts.ContractLine (
     CONSTRAINT CK_ContractLine_Dates CHECK (StartDate IS NULL OR EndDate IS NULL OR EndDate >= StartDate),
     -- A subscription may only be attached to a line that is actually a subscription.
     CONSTRAINT CK_ContractLine_SubscriptionOnlyOnSubscriptionLine CHECK (SubscriptionID IS NULL OR LineType = 'Subscription'),
-    CONSTRAINT CK_ContractLine_SubscriptionTypeOnlyOnSubscriptionLine CHECK (SubscriptionTypeID IS NULL OR LineType = 'Subscription')
+    CONSTRAINT CK_ContractLine_SubscriptionTypeOnlyOnSubscriptionLine CHECK (SubscriptionTypeID IS NULL OR LineType = 'Subscription'),
+    -- The mirror of the constraint above, and the one that actually matters: nothing REQUIRED the
+    -- type on a subscription line, so the row saved and the failure landed at BILLING time — a Failed
+    -- event on a live contract — instead of at write time on a draft. orders.Subscription
+    -- .SubscriptionTypeID is NOT NULL, so the engine cannot materialize without it. Same shape as
+    -- CK_ContractBillingSchedule_CadenceNeedsFrequency one table over. (X.5)
+    CONSTRAINT CK_ContractLine_SubscriptionNeedsType CHECK (LineType <> 'Subscription' OR SubscriptionTypeID IS NOT NULL)
 );
 GO
 
@@ -324,6 +334,9 @@ CREATE TABLE __mj_BizAppsContracts.ContractBillingEvent (
     -- scheduled driver re-running over a Generated row must be unable to bill again,
     -- and it can only trust that if Generated implies an order exists.
     CONSTRAINT CK_ContractBillingEvent_GeneratedHasOrder CHECK (Status <> 'Generated' OR OrderID IS NOT NULL),
+    -- "When was this bill produced" was optional in the one status where it must exist. The engine
+    -- stamps OrderID, ComputedAmount AND GeneratedAt together; only the first was enforced. (X.12)
+    CONSTRAINT CK_ContractBillingEvent_GeneratedHasTimestamp CHECK (Status <> 'Generated' OR GeneratedAt IS NOT NULL),
     -- Symmetrically, a Failed event must say why. "Failed" with no reason is a
     -- support ticket nobody can answer.
     CONSTRAINT CK_ContractBillingEvent_FailedHasReason CHECK (Status <> 'Failed' OR LEN(LTRIM(ISNULL(FailureReason, ''))) > 0),
@@ -336,6 +349,16 @@ GO
 CREATE UNIQUE NONCLUSTERED INDEX UQ_ContractBillingEvent_Order
     ON __mj_BizAppsContracts.ContractBillingEvent (OrderID)
     WHERE OrderID IS NOT NULL;
+GO
+
+-- ONE SUBSCRIPTION, ONE LINE. BillingMode='External' exists to make "exactly one thing spawns
+-- orders for a subscription" true by construction (master §4.1). Two contract lines pointing at the
+-- same orders.Subscription re-opens the duplicate-billing hole from the other side — the side the
+-- BillingMode design does not cover. Filtered, exactly like UQ_ContractBillingEvent_Order above,
+-- because the column is null until materialization. (X.9)
+CREATE UNIQUE NONCLUSTERED INDEX UQ_ContractLine_Subscription
+    ON __mj_BizAppsContracts.ContractLine (SubscriptionID)
+    WHERE SubscriptionID IS NOT NULL;
 GO
 
 -- The scheduled driver's access path: Status='Scheduled' AND ScheduledDate <= today.
@@ -390,6 +413,10 @@ CREATE TABLE __mj_BizAppsContracts.ContractAmendment (
     CONSTRAINT PK_ContractAmendment PRIMARY KEY (ID),
     CONSTRAINT CK_ContractAmendment_AmendmentType CHECK (AmendmentType IN ('AddProduct','ChangeQuantity','ChangePrice','Coterm','PartialTerminate','Other')),
     CONSTRAINT CK_ContractAmendment_Status CHECK (Status IN ('Draft','PendingApproval','Approved','Rejected','Applied','Cancelled')),
+    -- An amendment marked Approved with no ApprovalTaskID is an approval with no record — precisely
+    -- what routing non-standard terms through an approval task exists to prevent (§6). Rejected is
+    -- included: a rejection is equally a decision somebody made and must be traceable to it. (X.14)
+    CONSTRAINT CK_ContractAmendment_ApprovedHasTask CHECK (Status NOT IN ('Approved','Rejected') OR ApprovalTaskID IS NOT NULL),
     CONSTRAINT CK_ContractAmendment_AmendmentNumber CHECK (AmendmentNumber > 0)
 );
 GO
@@ -415,7 +442,23 @@ CREATE TABLE __mj_BizAppsContracts.ContractEvent (
     EventDate DATETIMEOFFSET NOT NULL DEFAULT SYSDATETIMEOFFSET(),
     Payload NVARCHAR(MAX) NULL,
     PerformedByUserID UNIQUEIDENTIFIER NULL,
-    CONSTRAINT PK_ContractEvent PRIMARY KEY (ID)
+    CONSTRAINT PK_ContractEvent PRIMARY KEY (ID),
+    -- A CLOSED VOCABULARY. This was the schema's only unconstrained value column — every other value
+    -- list here is CHECK-enforced — so EventType='asdf' saved happily, the History tab could not
+    -- render a known set, and no query could trust a type filter. It also let two conventions drift
+    -- apart unnoticed: the demo seed was writing 'TermRenewed' while the renewal operation wrote
+    -- 'Renewed', for the same event. Naming the set is what forced them back together. (X.15)
+    --
+    -- Note the prefix discipline: Contract* for things that happen to the agreement, Term* for things
+    -- that happen to a period, BillingEvent* for things that happen to a scheduled bill. A reader can
+    -- tell the subject of an event from its type alone.
+    CONSTRAINT CK_ContractEvent_EventType CHECK (EventType IN (
+        'ContractCreated','ContractExecuted','ContractTerminated','ContractSuperseded','ContractExpired',
+        'SentForSignature','SignatureRejected',
+        'TermActivated','TermRenewed','TermCompleted','TermTerminated',
+        'AmendmentApplied',
+        'BillingEventGenerated','BillingEventFailed'
+    ))
 );
 GO
 

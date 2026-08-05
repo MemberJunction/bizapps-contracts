@@ -74,7 +74,8 @@ async function main(): Promise<void> {
         user: process.env.DB_USERNAME,
         password: process.env.DB_PASSWORD,
         database: process.env.DB_DATABASE,
-        options: { encrypt: false, trustServerCertificate: true },
+        // Required for DML against ContractLine, which now carries a filtered unique index.
+        options: { encrypt: false, trustServerCertificate: true, enableQuotedIdentifier: true },
         requestTimeout: 60000,
     }).connect();
 
@@ -334,12 +335,12 @@ async function main(): Promise<void> {
     const kinds = (logs.Results ?? []).map((l) => l.EventType).sort();
     check(
         'C.11 every transition left a lifecycle event (2 activations, 1 renewal, 1 termination)',
-        JSON.stringify(kinds) === JSON.stringify(['Renewed', 'TermActivated', 'TermActivated', 'Terminated']),
+        JSON.stringify(kinds) === JSON.stringify(['ContractTerminated', 'TermActivated', 'TermActivated', 'TermRenewed']),
         JSON.stringify(kinds),
     );
     check(
         'C.12 the termination reason is recorded on the event',
-        (logs.Results ?? []).some((l) => l.EventType === 'Terminated' && l.Payload?.includes('customer consolidation')),
+        (logs.Results ?? []).some((l) => l.EventType === 'ContractTerminated' && l.Payload?.includes('customer consolidation')),
     );
 
     // ---- D. Teardown -----------------------------------------------------------------------------
@@ -352,7 +353,7 @@ async function main(): Promise<void> {
         user,
     );
     for (const row of mine.Results ?? []) {
-        await teardown(md, rv, user, row.ID);
+        await teardown(md, rv, user, row.ID, pool);
     }
     const leftover = await rv.RunView<{ ID: string }>(
         { EntityName: E_CONTRACT, Fields: ['ID'], ExtraFilter: `Description LIKE '${TAG}%'`, ResultType: 'simple', BypassCache: true },
@@ -368,7 +369,7 @@ async function main(): Promise<void> {
 }
 
 /** FK-aware, deepest first: events → schedules → lines → logs → terms → contract. */
-async function teardown(md: Metadata, rv: RunView, user: UserInfo, contractID: string): Promise<void> {
+async function teardown(md: Metadata, rv: RunView, user: UserInfo, contractID: string, pool: sql.ConnectionPool): Promise<void> {
     const terms = await rv.RunView<{ ID: string }>(
         { EntityName: E_TERM, Fields: ['ID'], ExtraFilter: `ContractID='${contractID}'`, ResultType: 'simple', BypassCache: true },
         user,
@@ -395,7 +396,10 @@ async function teardown(md: Metadata, rv: RunView, user: UserInfo, contractID: s
     await del(E_BILLING_EVENT, `ContractTermID IN (${inList})`);
     await del(E_SCHEDULE, `ContractTermID IN (${inList})`);
     await del(E_LINE, `ContractTermID IN (${inList})`);
-    await del(E_LOG, `ContractID='${contractID}'`);
+    // NOT through the entity layer: ContractEventEntityServer refuses Delete outright, because an
+    // audit trail that a caller can erase is not an audit trail. That refusal is the feature — so
+    // the harness cleans up its own events with raw SQL, beneath the guard it is testing.
+    await pool.request().query(`DELETE FROM __mj_BizAppsContracts.ContractEvent WHERE ContractID = '${contractID}'`);
     // Renewals reference their predecessor, so delete the chain newest-first.
     for (const id of termIDs.reverse()) {
         const t = await md.GetEntityObject<mjBizAppsContractsContractTermEntity>(E_TERM, user);

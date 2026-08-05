@@ -250,7 +250,7 @@ export class RenewTermOperation extends BaseRemotableOperation<RenewTermInput, R
             log.NewRecord();
             log.ContractID = prior.ContractID;
             log.ContractTermID = next.ID;
-            log.EventType = 'Renewed';
+            log.EventType = 'TermRenewed';
             log.EventDate = new Date();
             log.PerformedByUserID = user.ID;
             log.Payload = JSON.stringify({
