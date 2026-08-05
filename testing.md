@@ -5,7 +5,7 @@ against the **matrix**, not against the tests that happen to exist — an empty 
 every written test is green.
 
 > **Last full sweep:** 2026-08-05, branch `mjdev/contracts-night`, instance `contracts-dev`.
-> **Totals: 80 tier-2 assertions + 38 tier-5 assertions, all passing.** Every number below was
+> **Totals: 80 tier-2 assertions + 63 tier-5 assertions, all passing.** Every number below was
 > observed, not estimated. Where something was not run, it says so.
 
 ---
@@ -26,6 +26,7 @@ URL=$(mjdev explorer-url contracts-dev | grep -oE 'http://localhost:[0-9]+/#toke
 node test-harnesses/ui-lifecycle.mjs       "$URL"   # 8
 node test-harnesses/ui-form-editing.mjs    "$URL"   # 9
 node test-harnesses/ui-history.mjs         "$URL"   # 5
+node test-harnesses/ui-navigation.mjs      "$URL"   # 21
 node test-harnesses/ui-create-to-active.mjs "$URL"  # 11 — CREATES a contract
 node test-harnesses/ui-full-loop.mjs       "$URL"   # 9  — WRITES to the demo contract
 ```

@@ -144,6 +144,23 @@ workspace edit pane on this before adding any more hand-built fields.
 
 ## Log
 
+- **05:25** — **Coverage ledger + gap closing.** `testing.md` now exists (the protocol requires it and
+  it did not): how to run every tier, a feature×tier matrix, and every remaining gap CODED with the
+  reason. **80 tier-2 + 63 tier-5 assertions, all passing.** Closed gaps 5a/5b/5c with a new
+  `ui-navigation.mjs` (21 assertions over the pages and tabs that had none). The History tab now
+  renders a real audit timeline — event types as sentences, payload detail pulled out — which is where
+  the invariant work becomes visible to a person.
+  **Found while doing it:** (a) `CK_ContractLine_SubscriptionNeedsType` correctly refused the create
+  page's own lines, because the page never collected a subscription type — the invariant was right and
+  the UI had not caught up; it now demands the type BEFORE the save. (b) Gap **5f** — MJ's grid renders
+  the entity's raw columns and does NOT take its column set from `RunViewParams.Fields`, so Coverage
+  shows `ProductID` as a bare UUID. Recorded rather than fought after three attempts.
+  **Four harness self-deceptions caught**, all of which had produced confident wrong results: a search
+  asserted on the wrong page, nav clicks landing on a `<span>` inside the nav `<button>` (fixed by
+  targeting by ROLE — which TEST-ARCHITECTURE already says), an unscoped `/^billing/i` matching the
+  left-nav item instead of the workspace tab (a FALSE PASS that derailed the rest of the run), and
+  contract types asserted by code when the page lists them by name.
+
 - **03:20** — **Invariants hardened + questions posted.** PR #2 comment "AI questions from the
   overnight work" is up (10 items, each naming the guess and what changes if the answer differs) —
   https://github.com/MemberJunction/bizapps-contracts/pull/2#issuecomment-5189321195
