@@ -166,6 +166,20 @@ workspace edit pane on this before adding any more hand-built fields.
 
 ## Log
 
+- **11:45 — X.4 closed, X.3 partly addressed; the loop has run dry.** The master plan's §3 still told a
+  reader there are nine tables, that `DocumentFileID` exists, and that `ContractTerm.Status` has four
+  values — none true of the shipped migration, and each changed deliberately by a LATER section of the
+  SAME plan. The corrections existed; the pointers back did not. Added as-built markers rather than
+  rewriting the text: the original records what was intended, and past-tensing it would lose why each
+  change was made. Every claim in the markers verified against the live schema first.
+  X.3 is marked ◐ not ✅ on purpose — the schema is right (`ApprovalTaskID` IS a hard FK), but
+  reconciling the two stated rationales is Amith's ruling, not my typo fix.
+
+  **THIS IS THE THIRD CONSECUTIVE CYCLE ENDING WITH NOTHING UNBLOCKED**, and the yield is falling:
+  operations and UI → invariants and engine → constraints → documentation markers. Everything left
+  needs a person (see Blocked). **Recommend pausing the cron** rather than firing it into an empty
+  queue; the work will resume the moment there is a ruling or PR feedback.
+
 - **11:15** — **X.7 and X.11 closed; thirteen of eighteen contradictions now done.** X.7's constraint
   covered only `Active`, so a contract could reach a terminal state with no pricing moment — the path
   being "leave Active, THEN null it", which is what made the original decorative. X.11 let a billing
