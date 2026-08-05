@@ -253,21 +253,31 @@
           </div>
           <div class="card-body flush">
             <table class="grid">
-              <thead><tr><th>Product</th><th>Line type</th><th class="num">Qty</th><th class="num">Contracted price</th><th class="num">Discount</th><th>Window</th><th>Subscription</th></tr></thead>
+              <thead><tr><th>Product</th><th>Covered as</th><th>Subscription type</th><th class="num">Qty</th><th class="num">Contracted price</th><th class="num">Discount</th><th>Coverage window</th><th>Materialized</th></tr></thead>
               <tbody>
-                <tr><td class="strong">Association Platform — Enterprise</td><td><span class="mj-stat-badge">Subscription</span></td><td class="num">1</td><td class="num">$28,000.00</td><td class="num muted">—</td><td class="sec">full term</td><td class="mono sec">SUB-3312 <span class="mj-stat-badge info">External</span></td></tr>
-                <tr><td class="strong">Member Portal add-on</td><td><span class="mj-stat-badge">Subscription</span></td><td class="num">1</td><td class="num">$6,500.00</td><td class="num muted">—</td><td class="sec">full term</td><td class="mono sec">SUB-3313 <span class="mj-stat-badge info">External</span></td></tr>
-                <tr><td class="strong">Events module</td><td><span class="mj-stat-badge">Subscription</span></td><td class="num">1</td><td class="num muted">catalog</td><td class="num">10%</td><td class="sec">full term</td><td class="mono sec">SUB-3314 <span class="mj-stat-badge info">External</span></td></tr>
-                <tr><td class="strong">Data migration services</td><td><span class="mj-stat-badge">Milestone</span></td><td class="num">1</td><td class="num">$45,000.00</td><td class="num muted">—</td><td class="sec">3 milestones</td><td class="muted">—</td></tr>
-                <tr><td class="strong">Onboarding setup fee</td><td><span class="mj-stat-badge">OneTime</span></td><td class="num">1</td><td class="num">$8,000.00</td><td class="num muted">—</td><td class="sec">Jan 2026</td><td class="muted">—</td></tr>
-                <tr><td class="strong">Premium support</td><td><span class="mj-stat-badge">Subscription</span></td><td class="num">1</td><td class="num">$9,000.00</td><td class="num muted">—</td><td class="sec"><span class="mj-stat-badge info">Mar 15 – Dec 31</span></td><td class="mono sec">SUB-3390 <span class="mj-stat-badge info">External</span></td></tr>
-                <tr><td class="strong">Annual minimum</td><td><span class="mj-stat-badge">Minimum</span></td><td class="num">—</td><td class="num">$400,000.00</td><td class="num muted">—</td><td class="sec">full term</td><td class="muted">—</td></tr>
+                <tr><td class="strong">Association Platform — Enterprise</td><td><span class="mj-stat-badge">Subscription</span></td><td class="sec">Enterprise annual</td><td class="num">1</td><td class="num">$28,000.00</td><td class="num muted">—</td><td class="sec">full term</td><td class="mono sec">SUB-3312 <span class="mj-stat-badge success" title="Contract owns this subscription's billing">contract-billed</span></td></tr>
+                <tr><td class="strong">Member Portal add-on</td><td><span class="mj-stat-badge">Subscription</span></td><td class="sec">Enterprise annual</td><td class="num">1</td><td class="num">$6,500.00</td><td class="num muted">—</td><td class="sec">full term</td><td class="mono sec">SUB-3313 <span class="mj-stat-badge success">contract-billed</span></td></tr>
+                <tr><td class="strong">Events module</td><td><span class="mj-stat-badge">Subscription</span></td><td class="sec">Enterprise annual</td><td class="num">1</td><td class="num muted">catalog</td><td class="num">10%</td><td class="sec">full term</td><td class="mono sec">SUB-3314 <span class="mj-stat-badge success">contract-billed</span></td></tr>
+                <tr><td class="strong">Data migration services</td><td><span class="mj-stat-badge">Milestone</span></td><td class="muted">—</td><td class="num">1</td><td class="num">$45,000.00</td><td class="num muted">—</td><td class="sec">3 milestones</td><td class="muted">—</td></tr>
+                <tr><td class="strong">Onboarding setup fee</td><td><span class="mj-stat-badge">OneTime</span></td><td class="muted">—</td><td class="num">1</td><td class="num">$8,000.00</td><td class="num muted">—</td><td class="sec">Jan 2026</td><td class="muted">—</td></tr>
+                <tr><td class="strong">Premium support</td><td><span class="mj-stat-badge">Subscription</span></td><td class="sec">Enterprise annual</td><td class="num">1</td><td class="num">$9,000.00</td><td class="num muted">—</td><td class="sec"><span class="mj-stat-badge info">Mar 15 – Dec 31</span></td><td class="mono sec">SUB-3390 <span class="mj-stat-badge success">contract-billed</span></td></tr>
+                <tr><td class="strong">Annual minimum</td><td><span class="mj-stat-badge">Minimum</span></td><td class="muted">—</td><td class="num">—</td><td class="num">$400,000.00</td><td class="num muted">—</td><td class="sec">full term</td><td class="muted">—</td></tr>
               </tbody>
             </table>
           </div>
         </div>
 
-        <div class="note info" style="margin-top:16px;">
+        <div class="note gap" style="margin-top:16px;">
+          <i class="fa-solid fa-hand-pointer"></i>
+          <div><strong>This table is where the agreement is decided, not where an order is entered.</strong> Product,
+            how it is covered, <em>which subscription type it becomes</em>
+            (<code>ContractLine.SubscriptionTypeID</code> — orders' <code>Subscription.SubscriptionTypeID</code> is NOT NULL,
+            so the engine cannot materialize one without it), the coverage window and the negotiated price are all
+            contract provisions chosen here. "Materialized" is the read-only result: the subscription the engine
+            created, flagged contract-billed so orders' own renewal spawner leaves it alone.</div>
+        </div>
+
+        <div class="note info" style="margin-top:12px;">
           <i class="fa-solid fa-circle-check"></i>
           <div><strong>Settled: a contract discount OVERRIDES, it does not stack</strong> (Amith, 2026-08-04). Orders owns
             the discount mechanics; the contract states the negotiated intent that outranks whatever would

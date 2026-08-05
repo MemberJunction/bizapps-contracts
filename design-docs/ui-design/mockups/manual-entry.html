@@ -151,35 +151,59 @@
           <div class="card">
             <div class="card-body flush">
               <table class="grid">
-                <thead><tr><th>Product</th><th>Line type</th><th class="num">Qty</th><th class="num">Contracted price</th><th class="num">Discount</th><th>Window</th><th></th></tr></thead>
+                <thead><tr>
+                  <th style="width:24%">Product</th><th>Covered as</th><th>Subscription type</th>
+                  <th>Coverage window</th><th class="num">Qty</th><th class="num">Contracted price</th><th class="num">Discount</th><th></th>
+                </tr></thead>
                 <tbody>
                   <tr>
                     <td><select class="mj-input"><option>Association Platform — Enterprise</option></select></td>
-                    <td><select class="mj-input"><option>Subscription</option><option>OneTime</option><option>Milestone</option><option>Minimum</option></select></td>
-                    <td class="num"><input class="mj-input" style="width:64px;text-align:right" value="1" /></td>
-                    <td class="num"><input class="mj-input" style="width:112px;text-align:right" value="29,120.00" /></td>
-                    <td class="num"><input class="mj-input" style="width:76px;text-align:right" placeholder="—" /></td>
-                    <td class="sec">full term</td>
+                    <td><select class="mj-input"><option>Subscription</option><option>One-time fee</option><option>Milestone</option><option>Minimum commitment</option><option>Usage</option></select></td>
+                    <td><select class="mj-input"><option>Enterprise annual</option><option>Org membership</option><option>Seat-based</option><option>Term licence</option></select></td>
+                    <td><select class="mj-input"><option>Full term</option><option>Custom dates…</option></select></td>
+                    <td class="num"><input class="mj-input" style="width:60px;text-align:right" value="1" /></td>
+                    <td class="num"><input class="mj-input" style="width:108px;text-align:right" value="29,120.00" /></td>
+                    <td class="num"><input class="mj-input" style="width:70px;text-align:right" placeholder="—" /></td>
                     <td><button class="mj-btn subtle sm"><i class="fa-solid fa-xmark"></i></button></td>
                   </tr>
                   <tr>
                     <td><select class="mj-input"><option>Member Portal add-on</option></select></td>
                     <td><select class="mj-input"><option>Subscription</option></select></td>
-                    <td class="num"><input class="mj-input" style="width:64px;text-align:right" value="1" /></td>
-                    <td class="num"><input class="mj-input" style="width:112px;text-align:right" placeholder="catalog price" /></td>
-                    <td class="num"><input class="mj-input" style="width:76px;text-align:right" value="10%" /></td>
-                    <td class="sec">full term</td>
+                    <td><select class="mj-input"><option>Enterprise annual</option></select></td>
+                    <td><select class="mj-input"><option>Full term</option></select></td>
+                    <td class="num"><input class="mj-input" style="width:60px;text-align:right" value="1" /></td>
+                    <td class="num"><input class="mj-input" style="width:108px;text-align:right" placeholder="catalog" /></td>
+                    <td class="num"><input class="mj-input" style="width:70px;text-align:right" value="10%" /></td>
+                    <td><button class="mj-btn subtle sm"><i class="fa-solid fa-xmark"></i></button></td>
+                  </tr>
+                  <tr>
+                    <td><select class="mj-input"><option>Onboarding setup fee</option></select></td>
+                    <td><select class="mj-input"><option>One-time fee</option></select></td>
+                    <td><output class="muted" style="font-size:12.5px">—</output></td>
+                    <td><select class="mj-input"><option>Month 1</option></select></td>
+                    <td class="num"><input class="mj-input" style="width:60px;text-align:right" value="1" /></td>
+                    <td class="num"><input class="mj-input" style="width:108px;text-align:right" value="8,000.00" /></td>
+                    <td class="num"><input class="mj-input" style="width:70px;text-align:right" placeholder="—" /></td>
                     <td><button class="mj-btn subtle sm"><i class="fa-solid fa-xmark"></i></button></td>
                   </tr>
                 </tbody>
               </table>
             </div>
-            <div class="card-body" style="padding-top:12px;">
+            <div class="card-body" style="padding-top:12px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
               <button class="mj-btn sm"><i class="fa-solid fa-plus"></i> Add line</button>
-              <span class="sec" style="font-size:12.5px;margin-left:12px;">
-                Leave the price blank to bill at the catalog price — the contract still governs what is covered.
+              <span class="sec" style="font-size:12.5px;">
+                Leave the price blank to bill at the catalog price — the agreement still governs what is covered.
               </span>
             </div>
+          </div>
+
+          <div class="note info" style="margin-top:14px;">
+            <i class="fa-solid fa-circle-info"></i>
+            <div><strong>This is a contract sheet, not an order form.</strong> You are stating what the customer is
+              entitled to and on what terms — product, how it is covered, which subscription type it becomes, over
+              what window, at what negotiated price. <strong>No order is created here.</strong> When a term activates and
+              its billing schedule comes due, the engine assembles the draft, prices it through orders, and
+              materializes the order there. Nothing on this screen computes money.</div>
           </div>
         </fieldset>
 
@@ -220,9 +244,11 @@
       wizard would force a sequence the paper does not have. One card, one form, sections in the order a contract is
       actually read. The full workspace pattern stays where the volume is.
       <br /><br />
-      <b>What this form is not.</b> It records the AGREEMENT — parties, term, clauses, paper. It is not an order
-      entry form: the covered-products grid below stays deliberately thin, because the real line-entry experience is
-      orders' custom order form, which we port in rather than reimplement here.
+      <b>What this form is not.</b> It is not an order form and it is not orders' form embedded. Every field here is
+      a contract provision — including the subscription type, which is a negotiated choice
+      (<code>ContractLine.SubscriptionTypeID</code>) rather than something the engine guesses when it materializes the
+      subscription. What contracts deliberately does NOT do is compute: no totals, no tax, no proration, no
+      resolved prices. Those belong to orders and stay there.
     </p>
 
   </main>

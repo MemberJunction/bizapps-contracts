@@ -37,14 +37,17 @@
   <div class="note gap" style="margin-bottom:22px;">
     <i class="fa-solid fa-scale-balanced"></i>
     <div>
-      <strong>Round 2 reframe: contracts is a wrapper over orders, not a parallel system.</strong> Orders is the
-      definitive and only place we bill anyone, and it owns pricing, price history and discount mechanics. What
-      this app owns is the <em>agreement</em>: terms and their clauses (escalation cap, renewal notice,
-      cancellation window), the paper, renewal and rejection, and the decision about what lands on one document.
-      The line-entry experience is orders' custom order form ported in — not reimplemented here. Chrome follows
-      the same restraint: a nav rail because there are five destinations, section tabs on the contract because
-      one agreement genuinely has seven faces, and <strong>no</strong> draft-tab workspace on manual entry, because that
-      task happens a few times a year.
+      <strong>This is its own UI, not orders wearing a hat.</strong> Contracts does not re-expose orders' order
+      form, and it does not reimplement orders either. It is the place you record what was <em>agreed</em> —
+      the customer, the products covered, the term and its clauses, and the subscription types and timelines
+      those products become — and from that the backend creates the orders that flow to journal entries.
+      <br /><br />
+      The division is about <em>authority</em>, not about screens: orders remains the only place anyone is billed
+      and owns pricing, price history and discount mechanics, so nothing here recomputes money. But choosing a
+      product, a subscription type, a coverage window, an escalation cap or a notice period is a
+      <strong>contract</strong> decision, and it gets a first-class contract-native surface. Chrome follows the same
+      restraint: a nav rail because there are five destinations, section tabs because one agreement genuinely
+      has eight faces, and <strong>no</strong> draft-tab workspace on manual entry, because that task runs a few times a year.
     </div>
   </div>
 
@@ -69,7 +72,8 @@
       <span class="mj-stat-badge info tag"><i class="fa-solid fa-keyboard"></i> Job 3 · manual entry</span>
       <h3>3 — Manual contract entry</h3>
       <p>One card, one form — deliberately <em>not</em> accounting's draft-tab workspace, because this path runs a
-        few times a year. Records the agreement and its clauses; line entry is orders' form, ported.</p>
+        few times a year. Contract-native selection: customer, products, subscription types and timelines, terms
+        and clauses. The order is a backend consequence, never something typed here.</p>
     </a>
 
     <a class="index-card" href="billing-worklist.html">
@@ -100,8 +104,9 @@
       <li><strong>Is the term the primary object?</strong> These screens lead with the contract and nest terms. Terms carry
         the money, the dates and every clause — leading with the <em>active term</em> and treating the contract as its
         header is a defensible alternative, and arguably truer now that terms carry their own paper.</li>
-      <li><strong>How does the ported order form sit inside the contract?</strong> Inline on Coverage, a routed sub-screen, or
-        a modal? This decides whether Coverage stays a summary or becomes the real editor.</li>
+      <li><strong>How much does Coverage decide?</strong> It now selects product + subscription type + timeline + price.
+        The open question is where it stops — does the contract also pin things like trial periods and renewal
+        lead days (both live on orders' Subscription), or does it set the type and let the type's own defaults carry them?</li>
       <li><strong>Which <code>AsOf</code> does the engine pass on renewal</strong> — likely the individual subscription end dates
         (Andrew's call).</li>
       <li><strong>Does <code>&lt;mj-record-files&gt;</code> get built here or donated to MJ base?</strong> Every app that acquires paper
