@@ -84,6 +84,20 @@ practice orders adopted. Switch to additive-only at first publish.
 
 ## 3. Data model
 
+> ⚠ **AS-BUILT DIVERGENCE (2026-08-05).** This section describes the schema as PLANNED. Three of its
+> statements are no longer true of the shipped migration, and each was changed deliberately by a later
+> section of this same plan — the corrections existed, the pointers back to here did not:
+>
+> - **"Nine tables" — there are TEN.** `ContractSequence` was added for `CTR-{seq}` numbering, the
+>   same singleton-counter shape orders uses for `ORD-`/`PAY-`.
+> - **`DocumentFileID` is gone** from `Contract`, `ContractTerm` and `ContractAmendment` — see §10.2.
+> - **`ContractTerm.Status` has five values, not four** — `PendingSignature` was added.
+>
+> The original text below is left exactly as written: it is the record of what was intended, and
+> rewriting it in the past tense would lose the reason each change was made. **Ground truth is
+> `migrations/V202608040002__v0.1.x__Tables_and_Objects.sql`**, with `docs/ERD.md` as the readable
+> projection of it. (Logged as X.4 in `plans/FEATURE-LIST.md`.)
+
 Nine tables. Configuration-as-data throughout, following the Sonar/Caliber doctrine: a `ContractType`
 row carries the defaults, and the engine reads them rather than branching on a type string.
 
@@ -110,6 +124,11 @@ core) · `CustomerOrganizationID` / `CustomerPersonID` (common; exactly one, `CH
 `Status` (`Draft` | `PendingSignature` | `Active` | `Expired` | `Terminated` | `Superseded`) ·
 `Description` · `EffectiveDate` · `ExecutedDate` · `DocumentFileID` (MJ `Files`) · `AutoRenew` ·
 `CancellationWindowDays` · `TerminationPolicy` · `ExternalReferenceID`.
+
+> ⚠ **As built:** `DocumentFileID` was **removed** (§10.2 — files attach through
+> `__mj.FileEntityRecordLink`), and two columns were **added** that are not listed above:
+> `SupersededByContractID` (the successor a `Superseded` contract names) and `PricedAt` (the as-of
+> date every price on the agreement resolves from — §12).
 
 ### 3.3 `ContractTerm` — the period
 
@@ -159,6 +178,11 @@ it." A failed generation stays `Failed` with a reason rather than silently retry
 `ContractTermID` · `AmendmentNumber` · `EffectiveDate` · `AmendmentType` (`AddProduct` |
 `ChangeQuantity` | `ChangePrice` | `Coterm` | `PartialTerminate` | `Other`) · `Description` ·
 `DocumentFileID` · `Status` · `ApprovalTaskID` (soft ref → tasks).
+
+> ⚠ **As built:** `DocumentFileID` was **removed** (§10.2). And `ApprovalTaskID` is a **hard FK**, not
+> a soft reference — §10.1 #4's no-soft-keys mandate overrides the DG-6 rationale quoted here, which
+> is the contradiction logged as X.3. The prose is left as written because reconciling the two
+> rationales is a call for Amith, not a typo to fix.
 
 Amendments change a live term. **Renewals start a new one** — see §5 and D-1.
 
@@ -325,7 +349,7 @@ constrain a decision here.
 | Phase | Work |
 |---|---|
 | **C0** | Orders PR: `Subscription.BillingMode` + the resolver slot (§4). Land first. |
-| **C1** | Repo bootstrap, `mj-app.json`, baseline migration (nine tables), CodeGen, `ContractType` seed metadata |
+| **C1** | Repo bootstrap, `mj-app.json`, baseline migration (nine tables — **ten as built**, see §3), CodeGen, `ContractType` seed metadata |
 | **C2** | `ContractPriceResolver` + registration; integration checks proving contracted price wins, declines cleanly, and refuses on ambiguity |
 | **C3** | Billing-event engine + `Contracts.GenerateBillingEvent` + the Scheduled Job |
 | **C4** | `Contracts.CreateFromDeal` (called *by* sales — the operation lives here, the caller lives above) · renewal + amendment + co-term operations |
