@@ -74,6 +74,21 @@ module.exports = {
   excludeSchemas: ['sys', 'staging', 'dbo', '__mj'],
 
   // ==========================================================================
+  // Integration testing
+  // ==========================================================================
+  // `mj test` loads these modules before resolving a `MJ: Tests` record's check
+  // bundles — the extension seam MJ's testing framework exposes for apps outside
+  // MJ core. Our package registers its bundles on `IntegrationCheckRegistry` as an
+  // import side effect. Same seam bizapps-orders uses.
+  //
+  // NOTE the module must be resolvable from the CLI's location — run the WORKSPACE
+  // cli (`./node_modules/.bin/mj`), never a globally installed one, which ships its
+  // own published testing packages and cannot see this private package.
+  testing: {
+    checkModules: ['@mj-biz-apps/contracts-integration-tests'],
+  },
+
+  // ==========================================================================
   // SQL output for migrations — RECOMMENDED
   // ==========================================================================
   // CodeGen writes the SQL it executed into ./migrations/codegen/. After a

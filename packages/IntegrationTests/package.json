@@ -1,0 +1,32 @@
+{
+  "name": "@mj-biz-apps/contracts-integration-tests",
+  "type": "module",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Integration check bundles for BizApps Contracts, dispatched by `mj test` via MJ's testing framework.",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": "./dist/index.js",
+    "./checks/*": "./dist/checks/*.js"
+  },
+  "scripts": {
+    "build": "tsc && tsc-alias -f"
+  },
+  "author": "MemberJunction.com",
+  "license": "ISC",
+  "devDependencies": {
+    "typescript": "^5.9.3",
+    "tsc-alias": "^1.8.10",
+    "@types/node": "^22.10.2"
+  },
+  "dependencies": {
+    "@mj-biz-apps/contracts-entities": "0.1.0",
+    "@mj-biz-apps/contracts-core-entities-server": "0.1.0"
+  },
+  "peerDependencies": {
+    "@memberjunction/core": "^5.44.0",
+    "@memberjunction/global": "^5.44.0",
+    "@memberjunction/testing-integration": "^5.44.0"
+  }
+}
