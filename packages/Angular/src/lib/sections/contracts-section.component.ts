@@ -93,6 +93,12 @@ interface EventRow {
 }
 interface Lookup { ID: string; Name: string }
 
+/** One entry in a contract's audit trail. The vocabulary is closed and the rows cannot be edited. */
+interface LogRow {
+    ID: string; ContractID: string; ContractTermID: string | null;
+    EventType: string; EventDate: Date; Payload: string | null; PerformedByUser: string | null;
+}
+
 /**
  * One row of coverage on the first term — what the contract actually entitles the customer to.
  *
@@ -211,6 +217,14 @@ interface Draft {
         .pv-l { margin: 0; padding: 12px 14px 12px 32px; font-size: 12.5px; line-height: 1.7; color: var(--mj-text-secondary, #475569); }
         .pv-f { display: flex; justify-content: flex-end; gap: 8px; padding: 12px 14px; background: var(--mj-color-neutral-50, #f8fafc); border-top: 1px solid var(--mj-border-subtle, #f1f5f9); }
         .tm { display: flex; align-items: flex-end; gap: 12px; padding: 12px 0 0; margin-top: 12px; border-top: 1px solid var(--mj-border-subtle, #f1f5f9); }
+
+        .ev { display: grid; grid-template-columns: 110px 1fr; gap: 14px; padding: 11px 0; border-bottom: 1px solid var(--mj-border-subtle, #f1f5f9); font-size: 12.5px; }
+        .ev:last-child { border-bottom: none; }
+        .ev-d { color: var(--mj-text-secondary, #475569); }
+        .ev-b { min-width: 0; }
+        .ev-x { margin-top: 5px; display: flex; flex-wrap: wrap; gap: 12px; color: var(--mj-text-secondary, #475569); }
+        .ev-x span::before { content: '· '; }
+        .ev-x span:first-child::before { content: ''; }
 
         .cov { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--mj-border-subtle, #f1f5f9); }
         .cov-h { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
@@ -544,8 +558,30 @@ interface Draft {
                             </div>
                         </div>
                         <div *ngIf="Tab === 'history'">
-                            <mj-explorer-entity-data-grid [Params]="P.eventlog" [Height]="400" [ShowToolbar]="true" [ToolbarConfig]="Toolbar" (Navigate)="OnNavigate($event)"></mj-explorer-entity-data-grid>
-                            <div class="note info">The immutable <strong>system</strong> record. Customer-visible events also write a <code>common.Activity</code> row.</div>
+                            <div class="cb" *ngIf="LogOf(c.ID).length">
+                                <div class="ev" *ngFor="let e of LogOf(c.ID)">
+                                    <div class="ev-d">
+                                        {{ e.EventDate | date: 'mediumDate' }}<br />
+                                        <span class="pv-s">{{ e.EventDate | date: 'shortTime' }}</span>
+                                    </div>
+                                    <div class="ev-b">
+                                        <div>
+                                            <span class="badge" [ngClass]="EventTone(e.EventType)">{{ EventLabel(e.EventType) }}</span>
+                                            <span class="pv-s" *ngIf="e.PerformedByUser"> by {{ e.PerformedByUser }}</span>
+                                        </div>
+                                        <div class="ev-x" *ngIf="EventDetail(e.Payload).length">
+                                            <span *ngFor="let d of EventDetail(e.Payload)">{{ d }}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="empty" *ngIf="!LogOf(c.ID).length">Nothing has happened to this contract yet.</div>
+                            <div class="note ok">
+                                This log is <strong>append-only and enforced</strong> — an event cannot be edited or
+                                deleted, and <code>EventType</code> is a closed vocabulary. An audit trail whose
+                                immutability is only a comment is not an audit trail.
+                            </div>
+                            <mj-explorer-entity-data-grid [Params]="P.eventlog" [Height]="260" [ShowToolbar]="true" [ToolbarConfig]="Toolbar" (Navigate)="OnNavigate($event)"></mj-explorer-entity-data-grid>
                         </div>
 
                         <div class="foot" *ngIf="Tab === 'overview'">
@@ -881,6 +917,7 @@ export class MJCContractsSectionComponent extends BaseResourceComponent implemen
     public Contracts: ContractRow[] = [];
     public Terms: TermRow[] = [];
     public Events: EventRow[] = [];
+    public Log: LogRow[] = [];
     public Types: Lookup[] = [];
     public Companies: Lookup[] = [];
     public Orgs: Lookup[] = [];
@@ -1327,6 +1364,65 @@ export class MJCContractsSectionComponent extends BaseResourceComponent implemen
         return this.D.Lines.filter((l) => l.ProductID && l.ContractedUnitPrice == null).length;
     }
 
+    // ---- the audit trail --------------------------------------------------------------------------
+
+    public LogOf(contractID: string): LogRow[] {
+        return this.Log.filter((l) => l.ContractID === contractID);
+    }
+
+    /** A human sentence for an event type. The vocabulary is closed, so this map is exhaustive. */
+    public EventLabel(t: string): string {
+        const map: Record<string, string> = {
+            ContractCreated: 'Contract created',
+            ContractExecuted: 'Contract executed',
+            ContractTerminated: 'Contract terminated',
+            ContractSuperseded: 'Superseded by a replacement',
+            ContractExpired: 'Contract expired',
+            SentForSignature: 'Sent for signature',
+            SignatureRejected: 'Signature rejected',
+            TermActivated: 'Term activated',
+            TermRenewed: 'Term renewed',
+            TermCompleted: 'Term completed',
+            TermTerminated: 'Term terminated',
+            AmendmentApplied: 'Amendment applied',
+            BillingEventGenerated: 'Billing event generated',
+            BillingEventFailed: 'Billing event failed',
+        };
+        return map[t] ?? t;
+    }
+
+    public EventTone(t: string): string {
+        if (t.includes('Failed') || t.includes('Rejected') || t.includes('Terminated')) return 'err';
+        if (t.includes('Activated') || t.includes('Executed') || t.includes('Renewed')) return 'ok';
+        if (t.includes('Expired') || t.includes('Superseded')) return 'warn';
+        return 'info';
+    }
+
+    /**
+     * The parts of a payload worth reading, as short phrases. Deliberately a whitelist rather than a
+     * dump of every key: an audit trail people actually read beats one that is technically complete.
+     */
+    public EventDetail(payload: string | null): string[] {
+        if (!payload) return [];
+        try {
+            const p = JSON.parse(payload) as Record<string, unknown>;
+            const out: string[] = [];
+            if (typeof p.reason === 'string') out.push(p.reason);
+            if (typeof p.termNumber === 'number') out.push(`term ${p.termNumber}`);
+            if (typeof p.renewalOfTermNumber === 'number') out.push(`renewed from term ${p.renewalOfTermNumber}`);
+            if (typeof p.appliedEscalationPercent === 'number') out.push(`+${(p.appliedEscalationPercent * 100).toFixed(2)}% applied`);
+            if (p.escalationWasClamped === true) out.push('capped at the negotiated ceiling');
+            if (typeof p.occurrences === 'number') out.push(`${p.occurrences} billing event(s) scheduled`);
+            if (typeof p.lineCount === 'number') out.push(`${p.lineCount} line(s) carried forward`);
+            if (typeof p.billingEventsCancelled === 'number') out.push(`${p.billingEventsCancelled} future billing event(s) cancelled`);
+            if (typeof p.billingEventsRetained === 'number' && p.billingEventsRetained) out.push(`${p.billingEventsRetained} retained`);
+            if (typeof p.effectiveDate === 'string') out.push(`effective ${p.effectiveDate}`);
+            return out;
+        } catch {
+            return [];
+        }
+    }
+
     public Touch(): void { this.BufferDirty = true; this.Message = ''; }
 
     public ResetEdits(): void {
@@ -1524,7 +1620,7 @@ export class MJCContractsSectionComponent extends BaseResourceComponent implemen
     /** One batch — six reads always needed together should not be six round trips. */
     private async load(): Promise<void> {
         const rv = new RunView();
-        const [contracts, terms, events, types, companies, orgs, people, users, payterms, currencies, products] = await rv.RunViews([
+        const [contracts, terms, events, types, companies, orgs, people, users, payterms, currencies, products, log] = await rv.RunViews([
             { EntityName: E_CONTRACTS, Fields: ['ID', 'ContractNumber', 'Status', 'Description', 'EffectiveDate', 'ExecutedDate', 'PricedAt', 'AutoRenew', 'CancellationWindowDays', 'ExternalReferenceID'], OrderBy: 'ContractNumber', ResultType: 'simple' },
             { EntityName: E_TERMS, Fields: ['ID', 'ContractID', 'TermNumber', 'Status', 'StartDate', 'EndDate', 'CommittedAmount', 'EscalationPercent', 'MaxEscalationPercent', 'RenewalNoticeDays', 'BillingFrequency', 'ExecutedDate'], OrderBy: 'TermNumber', ResultType: 'simple' },
             { EntityName: E_EVENTS, Fields: ['ID', 'ContractTermID', 'ScheduledDate', 'Status', 'ComputedAmount', 'FailureReason'], OrderBy: 'ScheduledDate', ResultType: 'simple' },
@@ -1536,6 +1632,7 @@ export class MJCContractsSectionComponent extends BaseResourceComponent implemen
             { EntityName: E_PAYTERMS, Fields: ['ID', 'Name'], OrderBy: 'Name', ResultType: 'simple' },
             { EntityName: E_CURRENCIES, Fields: ['ID', 'Name'], OrderBy: 'Name', ResultType: 'simple' },
             { EntityName: E_PRODUCTS, Fields: ['ID', 'Name'], OrderBy: 'Name', ResultType: 'simple' },
+            { EntityName: E_EVENTLOG, Fields: ['ID', 'ContractID', 'ContractTermID', 'EventType', 'EventDate', 'Payload', 'PerformedByUser'], OrderBy: 'EventDate DESC', ResultType: 'simple' },
         ]);
 
         // RunView reports failure via Success — it never throws — so each result is checked.
@@ -1550,6 +1647,7 @@ export class MJCContractsSectionComponent extends BaseResourceComponent implemen
         this.PayTerms = payterms?.Success ? (payterms.Results as Lookup[]) : [];
         this.Currencies = currencies?.Success ? (currencies.Results as Lookup[]) : [];
         this.Products = products?.Success ? (products.Results as Lookup[]) : [];
+        this.Log = log?.Success ? (log.Results as LogRow[]) : [];
 
         this.Counts = {
             Scheduled: this.Events.filter((e) => e.Status === 'Scheduled').length,
