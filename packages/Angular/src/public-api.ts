@@ -100,3 +100,9 @@ export function LoadMjBizappsContractsClient(): void {
     void ContractTermFilesPanel;
     void ContractAmendmentFilesPanel;
 }
+
+// The unified contract workspace — one surface for viewing, editing and creating, with the inner
+// tab strip that carries the three states. Exported so other sections (and other apps) can host it.
+export * from './lib/nav/contracts-nav.model';
+export * from './lib/workspace/contract-tabs.model';
+export * from './lib/workspace/contract-workspace.component';

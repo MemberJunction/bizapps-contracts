@@ -33,9 +33,13 @@ import { BaseFormsModule, MJFormPresenterService } from '@memberjunction/ng-base
 import type { FormNavigationEvent } from '@memberjunction/ng-base-forms';
 import {
     MJLeftNavComponent, MJLeftNavContentComponent, MJPageLayoutComponent, MJPageHeaderComponent,
-    MJPageBodyComponent, MJButtonDirective,
-    type MJLeftNavSection, type MJLeftNavItem,
+    MJPageBodyComponent, MJButtonDirective, MJTabNavComponent,
+    type MJLeftNavSection, type MJLeftNavItem, type TabConfig,
 } from '@memberjunction/ng-ui-components';
+// The IA as data, and the one surface that views, edits and creates a contract.
+import { BuildLeftNavSections, CONTRACTS_SECTIONS, DefaultPageFor, SubPagesFor } from '../nav/contracts-nav.model';
+import { MJCContractWorkspaceComponent, type WorkspaceLookups } from '../workspace/contract-workspace.component';
+import { ContractDraft, type ContractDraftPayload } from '@mj-biz-apps/contracts-entities';
 import { RunView, Metadata, CompositeKey, type RunViewParams } from '@memberjunction/core';
 import type { ResourceData } from '@memberjunction/core-entities';
 // The pure presentation helpers. They live in their own module because they are ordinary functions
@@ -67,7 +71,6 @@ import type {
 } from '@mj-biz-apps/contracts-entities';
 // Accounting's session-tab framework — marked TRANSFER-BACKLOG (destined for MJ base); Marcelo
 // authorised using it now rather than waiting for the move.
-import { WorkspaceCardComponent, WorkspaceTabStore } from '@mj-biz-apps/accounting-ng';
 
 const E_CONTRACTS = 'MJ_BizApps_Contracts: Contracts';
 const E_TYPES = 'MJ_BizApps_Contracts: Contract Types';
@@ -112,48 +115,7 @@ interface LogRow {
     EventType: string; EventDate: Date; Payload: string | null; PerformedByUser: string | null;
 }
 
-/**
- * One row of coverage on the first term — what the contract actually entitles the customer to.
- *
- * This exists because a term with no lines is not activatable: `Contracts.ActivateTerm` refuses it,
- * on the grounds that an Active term covering nothing bills nothing. Without a way to enter coverage
- * at creation, everything a person creates in the app is a dead end — it can never be activated and
- * therefore never renewed. `ContractedUnitPrice` is nullable on purpose: null means "resolve from the
- * catalog", which is a different statement from zero.
- */
-interface LineDraft {
-    ProductID: string;
-    LineType: string;
-    /**
-     * Required on a Subscription line and forbidden on every other kind — both halves are CHECK
-     * constraints. It is chosen on the CONTRACT, before any subscription exists, because
-     * orders.Subscription.SubscriptionTypeID is NOT NULL and the choice (membership vs seat-based vs
-     * term licence, who may hold it, its renewal lead time) is a provision that gets negotiated.
-     */
-    SubscriptionTypeID: string;
-    Quantity: number | null;
-    ContractedUnitPrice: number | null;
-    DiscountPercent: number | null;
-    Description: string;
-}
 
-/** What the create page edits. Plain data — it becomes a BaseEntity only at save. */
-interface Draft {
-    // --- Contract. Every field below is a real column; nothing here is invented.
-    ContractNumber: string; ContractTypeID: string; CompanyID: string; CustomerOrganizationID: string;
-    CustomerPersonID: string; PrimaryContactPersonID: string; OwnerUserID: string; ParentContractID: string;
-    Status: string; Description: string; EffectiveDate: string; ExecutedDate: string; PricedAt: string;
-    AutoRenew: boolean; CancellationWindowDays: number | null; TerminationPolicy: string; ExternalReferenceID: string;
-    // --- Optional first ContractTerm, created in the same action.
-    CreateTerm: boolean;
-    TermStart: string; TermEnd: string; CommittedAmount: number | null; BillingFrequency: string;
-    AnchorMonth: number | null; AnchorDay: number | null; PaymentTermsTypeID: string; CurrencyID: string;
-    EscalationPercent: number | null; EscalationBasis: string; MaxEscalationPercent: number | null;
-    RenewalNoticeDays: number | null; RenewalProbability: number | null;
-    EarlyTerminationDate: string; TermExecutedDate: string; TermNotes: string;
-    // --- Coverage on that first term. Without at least one, the term cannot be activated.
-    Lines: LineDraft[];
-}
 
 
 @RegisterClass(BaseResourceComponent, 'ContractsSectionResource')
@@ -163,7 +125,8 @@ interface Draft {
     imports: [
         CommonModule, FormsModule, BaseFormsModule, MJButtonDirective,
         MJPageLayoutComponent, MJPageHeaderComponent, MJPageBodyComponent,
-        MJLeftNavComponent, MJLeftNavContentComponent, WorkspaceCardComponent,
+        MJLeftNavComponent, MJLeftNavContentComponent,
+        MJTabNavComponent, MJCContractWorkspaceComponent,
     ],
     styles: [
         `
@@ -305,7 +268,11 @@ interface Draft {
         <mj-page-header Title="Contracts" Icon="fa-solid fa-file-signature"
                         Subtitle="Agreements, the terms that run them, and the billing they produce">
             <div actions>
-                <button mjButton="primary" (click)="GoCreate()"><i class="fa-solid fa-plus"></i> New contract</button>
+                <!-- TOP NAV CROSSES SECTIONS, the rail moves within one — MJ's rule, and the reason
+                     Billing is a peer of Contracts rather than a page beneath it: "what failed and
+                     why" is a different job from "what did we agree". -->
+                <mj-tab-nav [Tabs]="SectionTabs" [ActiveKey]="Section" (TabChange)="SelectSection($event)"></mj-tab-nav>
+                <button mjButton="primary" (click)="NewContract()"><i class="fa-solid fa-plus"></i> New contract</button>
                 <button mjButton (click)="Refresh()"><i class="fa-solid fa-rotate"></i> Refresh</button>
             </div>
         </mj-page-header>
@@ -346,6 +313,15 @@ interface Draft {
             </div>
 
             <!-- ============ 2. WORKSPACE (editing) ============ -->
+            <!-- ============ 2. WORKSPACE — viewing, editing AND creating, one surface ============
+                 Consolidated 2026-08-05. A contract is never finished being created: a draft gains a
+                 term next week, coverage after review, a schedule when the cadence is agreed. Two
+                 surfaces forced somebody to decide when the thing stopped being created, and every
+                 entity appearing after that became an argument about which surface owned it.
+
+                 The OUTER strip is open documents — several contracts side by side, a new one being
+                 simply a card with no id. The INNER tabs are panes of one contract, each carrying one
+                 of three states so the strip teaches the sequence as well as showing it. -->
             <div class="wrap" *ngIf="Page === 'workspace'">
                 <div class="searchbar">
                     <span class="searchbox">
@@ -358,545 +334,41 @@ interface Draft {
                         <option *ngFor="let s of StatusOptions" [value]="s">{{ s }}</option>
                     </select>
                     <button mjButton (click)="ClearSearch()" *ngIf="Query || StatusFilter">Clear</button>
+                    <button mjButton="primary" (click)="NewContract()"><i class="fa-solid fa-plus"></i> New contract</button>
                 </div>
 
-                <div class="card" *ngIf="Query || StatusFilter">
-                    <div class="ch">Matches <span class="r">{{ Matches.length }}</span></div>
-                    <div class="picker" *ngIf="Matches.length">
-                        <button class="pick" *ngFor="let m of Matches" [class.on]="m.ID === CurrentID" (click)="Load(m)">
-                            <span class="pn">{{ m.ContractNumber }}</span>
-                            <span class="badge" [ngClass]="Tone(m.Status)">{{ m.Status }}</span>
-                            <span class="pd">{{ m.Description || '—' }}</span>
+                <div class="card" *ngIf="Matches.length && !OpenContracts.length">
+                    <div class="ch">Open one</div>
+                    <div class="picks">
+                        <button class="pick" *ngFor="let c of Matches" (click)="OpenContract(c)">
+                            <span class="pn">{{ c.ContractNumber }}</span>
+                            <span class="pd">{{ c.Description || '—' }}</span>
                         </button>
                     </div>
-                    <div class="empty" *ngIf="!Matches.length">Nothing matches that search.</div>
                 </div>
 
-                <div class="sechead" *ngIf="!Current">
-                    <h2>Contract workspace</h2>
-                    <p>Search above to open a contract, or pick one from the Contracts page. Opening the
-                       <strong>Full record</strong> uses MJ's record viewer and its tab system.</p>
-                </div>
-
-                <ng-container *ngIf="Current as c">
-                    <div class="card">
-                        <div class="ident">
-                            <span class="n">{{ c.ContractNumber }}</span>
-                            <span class="badge" [ngClass]="Tone(c.Status)">{{ c.Status }}</span>
-                            <span class="badge" *ngIf="c.AutoRenew">Auto-renew</span>
-                            <span class="sp">
-                                <button mjButton (click)="OpenRecord(c)"><i class="fa-solid fa-up-right-from-square"></i> Full record</button>
-                                <button mjButton="primary" [disabled]="!Dirty || Saving" (click)="SaveEdits()">
-                                    <i class="fa-solid fa-check"></i> {{ Saving ? 'Saving…' : 'Save changes' }}
-                                </button>
-                            </span>
-                        </div>
-
-                        <div class="tabs">
-                            <button *ngFor="let t of Tabs" [class.on]="t.k === Tab" (click)="Tab = t.k">
-                                {{ t.l }}<span class="n" *ngIf="t.n !== null">{{ t.n }}</span>
-                            </button>
-                        </div>
-
-                        <div class="cb" *ngIf="Tab === 'overview'">
-                            <fieldset class="pl">
-                                <legend class="lg">The agreement</legend>
-                                <div class="fg">
-                                    <label class="fld"><span>Contract number</span><input class="in" [(ngModel)]="Edit.ContractNumber" (ngModelChange)="Touch()" /></label>
-                                    <label class="fld"><span>Status</span>
-                                        <select class="sel" [(ngModel)]="Edit.Status" (ngModelChange)="Touch()">
-                                            <option *ngFor="let s of LegalStatusesFrom(c.Status)" [value]="s">{{ s }}</option>
-                                        </select>
-                                        <span class="pv-s" *ngIf="IsTerminalStatus(c.Status)">
-                                            {{ c.Status }} is final — nothing follows it.
-                                        </span>
-                                    </label>
-                                    <label class="fld"><span>External reference</span><input class="in" [(ngModel)]="Edit.ExternalReferenceID" (ngModelChange)="Touch()" /></label>
-                                    <label class="fld s3"><span>Description</span><textarea class="ta" rows="2" [(ngModel)]="Edit.Description" (ngModelChange)="Touch()"></textarea></label>
-                                </div>
-                            </fieldset>
-
-                            <fieldset class="pl">
-                                <legend class="lg">Dates &amp; pricing</legend>
-                                <div class="fg">
-                                    <label class="fld"><span>Priced as of</span><input class="in" type="date" [(ngModel)]="Edit.PricedAt" (ngModelChange)="Touch()" />
-                                        <span class="hint">Prices resolve from the catalog as of this date and lock. Backdate for paper signed earlier.</span></label>
-                                    <label class="fld"><span>Effective</span><input class="in" type="date" [(ngModel)]="Edit.EffectiveDate" (ngModelChange)="Touch()" /></label>
-                                    <label class="fld"><span>Executed</span><input class="in" type="date" [(ngModel)]="Edit.ExecutedDate" (ngModelChange)="Touch()" />
-                                        <span class="hint">May legitimately precede Effective — signing in December for a January term is ordinary.</span></label>
-                                </div>
-                            </fieldset>
-
-                            <fieldset class="pl" style="margin-bottom:0;">
-                                <legend class="lg">Renewal &amp; termination</legend>
-                                <div class="fg">
-                                    <label class="fld"><span>Auto-renew</span>
-                                        <select class="sel" [(ngModel)]="Edit.AutoRenew" (ngModelChange)="Touch()">
-                                            <option [ngValue]="true">Yes — renews without a deal</option>
-                                            <option [ngValue]="false">No — renewal is a deal</option>
-                                        </select>
-                                    </label>
-                                    <label class="fld"><span>Cancellation window (days)</span><input class="in" type="number" [(ngModel)]="Edit.CancellationWindowDays" (ngModelChange)="Touch()" /></label>
-                                    <div class="fld"><span>Terms</span><div class="ro">{{ TermsOf(c.ID).length }} · {{ CommittedOf(c.ID) | currency: 'USD' : 'symbol' : '1.0-0' }} committed</div></div>
-                                </div>
-
-                                <!-- Ending an agreement is not a status dropdown. It stops future billing,
-                                     which is the part that actually matters, so it gets a deliberate control
-                                     with a required reason and a preview of exactly what will be cancelled. -->
-                                <div class="tm" *ngIf="CanTerminate(c)">
-                                    <label class="fld"><span>Termination reason</span>
-                                        <input class="in" [(ngModel)]="Op.Reason" placeholder="Why is this ending?" />
-                                    </label>
-                                    <label class="fld"><span>Effective date</span>
-                                        <input class="in" type="date" [(ngModel)]="Op.EffectiveDate" />
-                                    </label>
-                                    <button mjButton="danger" [disabled]="Op.Busy || !Op.Reason.trim()"
-                                            (click)="PreviewTermination(c)">
-                                        <i class="fa-solid fa-ban"></i> Terminate…
-                                    </button>
-                                </div>
-
-                                <div class="pv" *ngIf="Op.Termination as t">
-                                    <div class="pv-h">
-                                        <strong>Terminating {{ c.ContractNumber }}</strong>
-                                        <span class="badge warn">effective {{ t.EffectiveDate | date: 'mediumDate' }}</span>
-                                    </div>
-                                    <ul class="pv-l">
-                                        <li><strong>{{ t.TermsTerminated }}</strong> live term(s) will be terminated.</li>
-                                        <li><strong>{{ t.BillingEventsCancelled }}</strong> future billing event(s) will be cancelled.</li>
-                                        <li *ngIf="t.BillingEventsRetained">
-                                            <strong>{{ t.BillingEventsRetained }}</strong> event(s) on or before that date
-                                            <em>stay</em> — those periods were covered and are still owed.
-                                        </li>
-                                    </ul>
-                                    <div class="pv-f">
-                                        <button mjButton [disabled]="Op.Busy" (click)="CancelPreview()">Cancel</button>
-                                        <button mjButton="danger" [disabled]="Op.Busy" (click)="ConfirmTermination(c)">
-                                            {{ Op.Busy ? 'Terminating…' : 'Terminate this contract' }}
-                                        </button>
-                                    </div>
-                                </div>
-                            </fieldset>
-                        </div>
-
-                        <div *ngIf="Tab === 'terms'">
-                            <div class="cov-h" style="padding:12px 16px 0;">
-                                <div class="pv-s">Each term is a period with its own dates, money and cadence.</div>
-                                <button mjButton (click)="AddTerm(c)"><i class="fa-solid fa-plus"></i> Add term</button>
-                            </div>
-                            <div class="cb" *ngIf="TermsOf(c.ID).length">
-                                <div class="tl-row" *ngFor="let t of TermsOf(c.ID)">
-                                    <div class="tl-w">Term {{ t.TermNumber }}<br /><span style="color:var(--mj-text-muted,#64748b)">{{ t.StartDate | date: 'yyyy' }}</span></div>
-                                    <div>
-                                        <div class="tl-bar"><div class="tl-fill" [ngClass]="Fill(t)" style="width:100%">
-                                            {{ t.StartDate | date: 'mediumDate' }} – {{ t.EndDate | date: 'mediumDate' }} · {{ t.Status }}
-                                        </div></div>
-                                        <div class="tl-m">
-                                            <span>Committed <strong>{{ t.CommittedAmount | currency: 'USD' : 'symbol' : '1.0-0' }}</strong></span>
-                                            <span>{{ t.BillingFrequency }}</span>
-                                            <span *ngIf="t.EscalationPercent != null">+{{ t.EscalationPercent * 100 | number: '1.0-2' }}%<span *ngIf="t.MaxEscalationPercent != null"> (cap {{ t.MaxEscalationPercent * 100 | number: '1.0-2' }}%)</span></span>
-                                            <span *ngIf="t.RenewalNoticeDays != null">{{ t.RenewalNoticeDays }}d notice</span>
-                                            <span *ngIf="t.ExecutedDate">executed {{ t.ExecutedDate | date: 'mediumDate' }}</span>
-                                        </div>
-                                    </div>
-                                    <div class="tl-act">
-                                        <button mjButton (click)="EditTerm(t)" title="Edit this term in its own form">
-                                            <i class="fa-solid fa-pen"></i>
-                                        </button>
-                                        <button mjButton (click)="AddCoverage(t)" title="Add a coverage line to this term">
-                                            <i class="fa-solid fa-layer-group"></i>
-                                        </button>
-                                        <button mjButton *ngIf="CanActivate(t)" [disabled]="Op.Busy"
-                                                (click)="Activate(t)" title="Move the term to Active and create its billing schedule">
-                                            <i class="fa-solid fa-play"></i> Activate
-                                        </button>
-                                        <button mjButton *ngIf="CanRenew(t)" [disabled]="Op.Busy"
-                                                (click)="PreviewRenewal(t)" title="See the escalated numbers before committing">
-                                            <i class="fa-solid fa-rotate"></i> Renew…
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Renewal preview. The numbers here come from the SAME operation that will
-                                 create the term — the confirm button re-runs it without PreviewOnly, so
-                                 what a person approves is what gets written. -->
-                            <div class="pv" *ngIf="Op.Renewal as r">
-                                <div class="pv-h">
-                                    <div>
-                                        <strong>Renewal preview — term {{ r.NewTermNumber }}</strong>
-                                        <div class="pv-s">{{ r.StartDate | date: 'mediumDate' }} – {{ r.EndDate | date: 'mediumDate' }}</div>
-                                    </div>
-                                    <span class="badge" [class.warn]="r.EscalationWasClamped">
-                                        +{{ (r.AppliedEscalationPercent || 0) * 100 | number: '1.0-2' }}%
-                                        <ng-container *ngIf="r.EscalationWasClamped"> — capped</ng-container>
-                                    </span>
-                                </div>
-                                <div class="note gap" *ngIf="r.EscalationWasClamped">
-                                    The requested increase exceeded this term's negotiated ceiling, so the
-                                    <strong>ceiling</strong> was applied — not the request, and not a refusal.
-                                </div>
-                                <table class="pv-t">
-                                    <thead><tr><th>Line</th><th class="r">Current</th><th class="r">Renewed</th></tr></thead>
-                                    <tbody>
-                                        <tr *ngFor="let l of r.Lines">
-                                            <td>{{ l.Description }}</td>
-                                            <td class="r">{{ l.PreviousUnitPrice == null ? '—' : (l.PreviousUnitPrice | currency: 'USD') }}</td>
-                                            <td class="r"><strong>{{ l.NewUnitPrice == null ? '—' : (l.NewUnitPrice | currency: 'USD') }}</strong></td>
-                                        </tr>
-                                    </tbody>
-                                </table>
-                                <div class="pv-f">
-                                    <button mjButton [disabled]="Op.Busy" (click)="CancelPreview()">Cancel</button>
-                                    <button mjButton="primary" [disabled]="Op.Busy" (click)="ConfirmRenewal()">
-                                        {{ Op.Busy ? 'Renewing…' : 'Create this term' }}
-                                    </button>
-                                </div>
-                            </div>
-                            <div class="empty" *ngIf="!TermsOf(c.ID).length">No terms on this contract yet.</div>
-                            <mj-explorer-entity-data-grid [Params]="P.terms" [Height]="220" [ShowToolbar]="true" [ToolbarConfig]="Toolbar" (Navigate)="OnNavigate($event)"></mj-explorer-entity-data-grid>
-                        </div>
-
-                        <div *ngIf="Tab === 'coverage'">
-                            <div class="cov-h" style="padding:0 0 12px;">
-                                <div class="pv-s">Click a line to edit it. Coverage is what the term entitles the customer to.</div>
-                                <button mjButton (click)="AddCoverageToLiveTerm(c)" [disabled]="!LiveTermOf(c.ID)">
-                                    <i class="fa-solid fa-plus"></i> Add line
-                                </button>
-                            </div>
-                            <mj-explorer-entity-data-grid
-                                [Params]="P.lines" [Height]="400" [ShowToolbar]="true" [ToolbarConfig]="Toolbar"
-                                (AfterRowClick)="OpenLine($event)"
-                                (Navigate)="OnNavigate($event)"
-                            ></mj-explorer-entity-data-grid>
-                            <div class="note ok">A contract discount <strong>overrides</strong> order-level discounting rather than stacking, so the value here is the operative one.</div>
-                        </div>
-                        <div *ngIf="Tab === 'billing'">
-                            <div class="ch">Schedules</div>
-                            <mj-explorer-entity-data-grid [Params]="P.schedules" [Height]="170" [ShowToolbar]="true" [ToolbarConfig]="Toolbar" (Navigate)="OnNavigate($event)"></mj-explorer-entity-data-grid>
-                            <div class="ch">Billing events</div>
-                            <mj-explorer-entity-data-grid [Params]="P.events" [Height]="260" [ShowToolbar]="true" [ToolbarConfig]="Toolbar" (Navigate)="OnNavigate($event)"></mj-explorer-entity-data-grid>
-                        </div>
-                        <div *ngIf="Tab === 'commitments'">
-                            <mj-explorer-entity-data-grid [Params]="P.commitments" [Height]="400" [ShowToolbar]="true" [ToolbarConfig]="Toolbar" (Navigate)="OnNavigate($event)"></mj-explorer-entity-data-grid>
-                        </div>
-                        <div *ngIf="Tab === 'amendments'">
-                            <mj-explorer-entity-data-grid [Params]="P.amendments" [Height]="400" [ShowToolbar]="true" [ToolbarConfig]="Toolbar" (Navigate)="OnNavigate($event)"></mj-explorer-entity-data-grid>
-                            <div class="note gap">Amendments change a <strong>live</strong> term; renewals start a new one.</div>
-                        </div>
-                        <div *ngIf="Tab === 'documents'">
-                            <div class="note gap" style="margin:16px;">
-                                Documents attach through MJ's polymorphic <code>__mj.FileEntityRecordLink</code> — not a column
-                                here. The record-scoped panel is mounted on the full record form, since MJ ships no such widget yet.
-                            </div>
-                        </div>
-                        <div *ngIf="Tab === 'history'">
-                            <div class="cb" *ngIf="LogOf(c.ID).length">
-                                <div class="ev" *ngFor="let e of LogOf(c.ID)">
-                                    <div class="ev-d">
-                                        {{ e.EventDate | date: 'mediumDate' }}<br />
-                                        <span class="pv-s">{{ e.EventDate | date: 'shortTime' }}</span>
-                                    </div>
-                                    <div class="ev-b">
-                                        <div>
-                                            <span class="badge" [ngClass]="EventTone(e.EventType)">{{ EventLabel(e.EventType) }}</span>
-                                            <span class="pv-s" *ngIf="e.PerformedByUser"> by {{ e.PerformedByUser }}</span>
-                                        </div>
-                                        <div class="ev-x" *ngIf="EventDetail(e.Payload).length">
-                                            <span *ngFor="let d of EventDetail(e.Payload)">{{ d }}</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="empty" *ngIf="!LogOf(c.ID).length">Nothing has happened to this contract yet.</div>
-                            <div class="note ok">
-                                This log is <strong>append-only and enforced</strong> — an event cannot be edited or
-                                deleted, and <code>EventType</code> is a closed vocabulary. An audit trail whose
-                                immutability is only a comment is not an audit trail.
-                            </div>
-                            <mj-explorer-entity-data-grid [Params]="P.eventlog" [Height]="260" [ShowToolbar]="true" [ToolbarConfig]="Toolbar" (Navigate)="OnNavigate($event)"></mj-explorer-entity-data-grid>
-                        </div>
-
-                        <div class="foot" *ngIf="Tab === 'overview'">
-                            <span class="msg">{{ Message || 'Edits save straight to the record. Validation lives in the database for now.' }}</span>
-                            <span class="sp">
-                                <button mjButton (click)="ResetEdits()" [disabled]="!Dirty">Discard</button>
-                                <button mjButton="primary" [disabled]="!Dirty || Saving" (click)="SaveEdits()">{{ Saving ? 'Saving…' : 'Save changes' }}</button>
-                            </span>
-                        </div>
+                <!-- The open-documents strip. Several agreements stay open at once, which is how they
+                     are actually read — a renewal beside its predecessor. -->
+                <div class="card" *ngIf="OpenContracts.length">
+                    <div class="ch" style="gap:8px; flex-wrap:wrap;">
+                        <button mjButton *ngFor="let doc of OpenContracts"
+                                [variant]="doc.Key === ActiveDocKey ? 'primary' : 'flat'"
+                                (click)="ActivateDoc(doc.Key)">
+                            {{ doc.Draft.ContractNumber || 'New contract' }}
+                            <i class="fa-solid fa-xmark" style="margin-left:8px" (click)="CloseDoc(doc.Key, $event)"></i>
+                        </button>
+                        <span class="r"><button mjButton variant="icon" (click)="NewContract()"><i class="fa-solid fa-plus"></i></button></span>
                     </div>
-                </ng-container>
+
+                    <mjc-contract-workspace *ngIf="ActiveDoc as doc"
+                        [Draft]="doc.Draft"
+                        [Lookups]="WorkspaceLookups"
+                        (Saved)="OnContractSaved($event)">
+                    </mjc-contract-workspace>
+                </div>
             </div>
 
-            <!-- ============ 3. CREATE — accounting's workspace structure ============ -->
-            <div class="wrap" *ngIf="Page === 'create'">
-                <div class="sechead">
-                    <h2>New contract</h2>
-                    <p>Record what was agreed. The order is produced later by the billing engine — nothing here creates one.
-                       Several drafts can be open at once; each tab keeps its own.</p>
-                </div>
 
-                <mj-workspace-card
-                    AriaLabel="Contract entry workspace"
-                    [Tabs]="Drafts.Tabs"
-                    [ActiveId]="Drafts.ActiveId"
-                    NewTabLabel="New contract"
-                    [ShowFooter]="true"
-                    ConfirmLabel="Create contract"
-                    ConfirmIcon="fa-solid fa-check"
-                    [ConfirmDisabled]="!CanCreate"
-                    [ConfirmBusy]="Saving"
-                    ConfirmBusyLabel="Creating…"
-                    DraftLabel="Keep as draft tab"
-                    [ShowDraft]="true"
-                    (TabSelected)="SwitchDraft($event)"
-                    (TabClosed)="CloseDraft($event)"
-                    (NewTabRequested)="NewDraft()"
-                    (Confirm)="Create()"
-                    (SaveDraft)="KeepDraft()"
-                    (Discard)="DiscardDraft()">
-
-                    <span workspaceFooterNote>
-                        Created <strong>Draft</strong> — it bills nothing until a term is activated and a schedule exists.
-                        <ng-container *ngIf="Error"> · <span style="color:var(--mj-status-error-text,#b91c1c)">{{ Error }}</span></ng-container>
-                    </span>
-
-                    <ng-container workspaceHeader>
-                        <span class="n">{{ D.ContractNumber || 'New contract' }}</span>
-                        <span class="badge">Draft</span>
-                        <span class="badge info" *ngIf="D.PricedAt">Priced as of {{ D.PricedAt }}</span>
-                        <span class="modes" style="margin-left:auto;">
-                            <button [class.on]="Mode === 'fast'" (click)="Mode = 'fast'"><i class="fa-solid fa-bolt"></i> Fast entry</button>
-                            <button [class.on]="Mode === 'detail'" (click)="Mode = 'detail'"><i class="fa-solid fa-list-check"></i> Detailed</button>
-                        </span>
-                    </ng-container>
-
-                    <div class="scroller">
-                        <fieldset class="pl">
-                            <legend class="lg">The agreement</legend>
-                            <div class="fg">
-                                <label class="fld"><span>Contract number</span><input class="in" [(ngModel)]="D.ContractNumber" placeholder="CTR-001900" /></label>
-                                <label class="fld"><span>Contract type</span>
-                                    <select class="sel" [(ngModel)]="D.ContractTypeID">
-                                        <option value="">Pick a type…</option>
-                                        <option *ngFor="let t of Types" [value]="t.ID">{{ t.Name }}</option>
-                                    </select>
-                                </label>
-                                <label class="fld"><span>Selling company</span>
-                                    <select class="sel" [(ngModel)]="D.CompanyID">
-                                        <option value="">Pick a company…</option>
-                                        <option *ngFor="let co of Companies" [value]="co.ID">{{ co.Name }}</option>
-                                    </select>
-                                </label>
-                                <label class="fld s2"><span>Customer organization</span>
-                                    <select class="sel" [(ngModel)]="D.CustomerOrganizationID">
-                                        <option value="">Pick a customer…</option>
-                                        <option *ngFor="let o of Orgs" [value]="o.ID">{{ o.Name }}</option>
-                                    </select>
-                                    <span class="hint">An organization or a person, never both — the database enforces it.</span>
-                                </label>
-                                <label class="fld"><span>Status</span>
-                                    <select class="sel" [(ngModel)]="D.Status"><option *ngFor="let st of StatusOptions" [value]="st">{{ st }}</option></select>
-                                </label>
-                                <label class="fld s3"><span>Description</span><textarea class="ta" rows="2" [(ngModel)]="D.Description" placeholder="What this agreement covers"></textarea></label>
-                            </div>
-                            <div class="fg" style="margin-top:14px;" *ngIf="Mode === 'detail'">
-                                <label class="fld"><span>Customer person <span class="hint">instead of an organization</span></span>
-                                    <select class="sel" [(ngModel)]="D.CustomerPersonID">
-                                        <option value="">— none —</option>
-                                        <option *ngFor="let p of People" [value]="p.ID">{{ p.Name }}</option>
-                                    </select>
-                                </label>
-                                <label class="fld"><span>Primary contact</span>
-                                    <select class="sel" [(ngModel)]="D.PrimaryContactPersonID">
-                                        <option value="">— none —</option>
-                                        <option *ngFor="let p of People" [value]="p.ID">{{ p.Name }}</option>
-                                    </select>
-                                </label>
-                                <label class="fld"><span>Owner</span>
-                                    <select class="sel" [(ngModel)]="D.OwnerUserID">
-                                        <option value="">— none —</option>
-                                        <option *ngFor="let u of Users" [value]="u.ID">{{ u.Name }}</option>
-                                    </select>
-                                </label>
-                                <label class="fld s2"><span>Parent contract <span class="hint">MSA → SOW nesting</span></span>
-                                    <select class="sel" [(ngModel)]="D.ParentContractID">
-                                        <option value="">— none —</option>
-                                        <option *ngFor="let pc of Contracts" [value]="pc.ID">{{ pc.ContractNumber }}</option>
-                                    </select>
-                                </label>
-                            </div>
-                        </fieldset>
-
-                        <fieldset class="pl">
-                            <legend class="lg">Dates &amp; pricing</legend>
-                            <div class="fg">
-                                <label class="fld"><span>Priced as of</span><input class="in" type="date" [(ngModel)]="D.PricedAt" />
-                                    <span class="hint">Locks catalog prices onto this agreement. Backdate when entering paper signed earlier.</span></label>
-                                <label class="fld"><span>Effective</span><input class="in" type="date" [(ngModel)]="D.EffectiveDate" /></label>
-                                <label class="fld"><span>Executed</span><input class="in" type="date" [(ngModel)]="D.ExecutedDate" />
-                                    <span class="hint">May precede Effective — signing in December for a January term is ordinary.</span></label>
-                            </div>
-                        </fieldset>
-
-                        <fieldset class="pl">
-                            <legend class="lg">Renewal &amp; termination</legend>
-                            <div class="fg">
-                                <label class="fld"><span>Auto-renew</span>
-                                    <select class="sel" [(ngModel)]="D.AutoRenew">
-                                        <option [ngValue]="true">Yes — renews without a deal</option>
-                                        <option [ngValue]="false">No — renewal is a deal</option>
-                                    </select>
-                                </label>
-                                <label class="fld"><span>Cancellation window (days)</span><input class="in" type="number" [(ngModel)]="D.CancellationWindowDays" /></label>
-                                <label class="fld"><span>External reference</span><input class="in" [(ngModel)]="D.ExternalReferenceID" placeholder="CDP or counterparty ref" /></label>
-                                <label class="fld s3" *ngIf="Mode === 'detail'"><span>Termination policy</span>
-                                    <textarea class="ta" rows="2" [(ngModel)]="D.TerminationPolicy" placeholder="The clause as written"></textarea></label>
-                            </div>
-                        </fieldset>
-
-                        <fieldset class="pl" style="margin-bottom:0;">
-                            <legend class="lg" style="text-transform:none;letter-spacing:0;font-size:12.5px;">
-                                <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
-                                    <input type="checkbox" [(ngModel)]="D.CreateTerm" />
-                                    Also create the first term — the period that carries the money and the dates
-                                </label>
-                            </legend>
-                            <div class="fg" *ngIf="D.CreateTerm">
-                                <label class="fld"><span>Start date</span><input class="in" type="date" [(ngModel)]="D.TermStart" /></label>
-                                <label class="fld"><span>End date</span><input class="in" type="date" [(ngModel)]="D.TermEnd" /></label>
-                                <label class="fld"><span>Committed amount</span><input class="in" type="number" [(ngModel)]="D.CommittedAmount" /></label>
-                                <label class="fld"><span>Billing frequency</span>
-                                    <select class="sel" [(ngModel)]="D.BillingFrequency">
-                                        <option *ngFor="let f of Frequencies" [value]="f">{{ f }}</option>
-                                    </select>
-                                </label>
-                                <label class="fld"><span>Billing anchor <span class="hint">month / day</span></span>
-                                    <span style="display:flex;gap:8px;">
-                                        <input class="in" type="number" min="1" max="12" placeholder="month" [(ngModel)]="D.AnchorMonth" />
-                                        <input class="in" type="number" min="1" max="31" placeholder="day" [(ngModel)]="D.AnchorDay" />
-                                    </span>
-                                </label>
-                                <label class="fld"><span>Payment terms</span>
-                                    <select class="sel" [(ngModel)]="D.PaymentTermsTypeID">
-                                        <option value="">— none —</option>
-                                        <option *ngFor="let pt of PayTerms" [value]="pt.ID">{{ pt.Name }}</option>
-                                    </select>
-                                    <span class="hint">Owned by orders — this list comes from there.</span>
-                                </label>
-                                <ng-container *ngIf="Mode === 'detail'">
-                                    <label class="fld"><span>Escalation %</span><input class="in" type="number" step="0.01" placeholder="4.0" [(ngModel)]="D.EscalationPercent" /></label>
-                                    <label class="fld"><span>Escalation basis</span>
-                                        <select class="sel" [(ngModel)]="D.EscalationBasis">
-                                            <option value="">— none —</option>
-                                            <option value="PriorTerm">on prior term</option>
-                                            <option value="ListPrice">to list price</option>
-                                            <option value="Index">by index</option>
-                                        </select>
-                                    </label>
-                                    <label class="fld"><span>Escalation cap %</span><input class="in" type="number" step="0.01" placeholder="5.0" [(ngModel)]="D.MaxEscalationPercent" />
-                                        <span class="hint">Ceiling on any renewal increase — the clause customers dispute.</span></label>
-                                    <label class="fld"><span>Renewal notice (days)</span><input class="in" type="number" [(ngModel)]="D.RenewalNoticeDays" />
-                                        <span class="hint">Notice before a price change — a different clause from cancellation.</span></label>
-                                    <label class="fld"><span>Currency</span>
-                                        <select class="sel" [(ngModel)]="D.CurrencyID">
-                                            <option value="">— none —</option>
-                                            <option *ngFor="let cu of Currencies" [value]="cu.ID">{{ cu.Name }}</option>
-                                        </select>
-                                        <span class="hint">Recorded only — nothing converts.</span>
-                                    </label>
-                                    <label class="fld"><span>Renewal probability %</span><input class="in" type="number" min="0" max="100" [(ngModel)]="D.RenewalProbability" /></label>
-                                    <label class="fld"><span>Early termination date</span><input class="in" type="date" [(ngModel)]="D.EarlyTerminationDate" /></label>
-                                    <label class="fld"><span>Term executed</span><input class="in" type="date" [(ngModel)]="D.TermExecutedDate" /></label>
-                                    <label class="fld"><span>Notes</span><input class="in" [(ngModel)]="D.TermNotes" /></label>
-                                </ng-container>
-                            </div>
-
-                            <!-- COVERAGE. Not optional decoration: a term with no lines cannot be
-                                 activated, so a contract created without coverage is a dead end that
-                                 can never be activated and therefore never renewed. -->
-                            <div class="cov" *ngIf="D.CreateTerm">
-                                <div class="cov-h">
-                                    <div>
-                                        <strong>Coverage</strong>
-                                        <div class="pv-s">What this term entitles the customer to</div>
-                                    </div>
-                                    <button mjButton (click)="AddLine()"><i class="fa-solid fa-plus"></i> Add line</button>
-                                </div>
-
-                                <div class="note gap" *ngIf="!D.Lines.length" style="margin:0 0 12px;">
-                                    A term with no coverage <strong>cannot be activated</strong> — add at least one
-                                    line, or the contract will be created but stuck in Draft.
-                                </div>
-                                <div class="note err" *ngIf="CoverageProblems.length" style="margin:0 0 12px;">
-                                    <div><span *ngFor="let m of CoverageProblems">{{ m }}<br /></span></div>
-                                </div>
-
-                                <table class="cov-t" *ngIf="D.Lines.length">
-                                    <thead>
-                                        <tr>
-                                            <th>Product</th><th>Type</th><th>Subscription type</th><th class="r">Qty</th>
-                                            <th class="r">Unit price</th><th class="r">Disc %</th><th>Description</th><th></th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <tr *ngFor="let l of D.Lines; let i = index">
-                                            <td>
-                                                <select class="sel" [(ngModel)]="l.ProductID" [ngModelOptions]="{standalone:true}">
-                                                    <option value="">Choose a product…</option>
-                                                    <option *ngFor="let p of Products" [value]="p.ID">{{ p.Name }}</option>
-                                                </select>
-                                            </td>
-                                            <td>
-                                                <select class="sel" [(ngModel)]="l.LineType" [ngModelOptions]="{standalone:true}">
-                                                    <option *ngFor="let t of LineTypes" [value]="t">{{ t }}</option>
-                                                </select>
-                                            </td>
-                                            <td>
-                                                <select class="sel" *ngIf="l.LineType === 'Subscription'"
-                                                        [(ngModel)]="l.SubscriptionTypeID" [ngModelOptions]="{standalone:true}">
-                                                    <option value="">Required…</option>
-                                                    <option *ngFor="let st of SubscriptionTypes" [value]="st.ID">{{ st.Name }}</option>
-                                                </select>
-                                                <span class="pv-s" *ngIf="l.LineType !== 'Subscription'">—</span>
-                                            </td>
-                                            <td class="r"><input class="in nm" type="number" min="0" [(ngModel)]="l.Quantity" [ngModelOptions]="{standalone:true}" /></td>
-                                            <td class="r"><input class="in nm" type="number" min="0" step="0.01" placeholder="catalog" [(ngModel)]="l.ContractedUnitPrice" [ngModelOptions]="{standalone:true}" /></td>
-                                            <td class="r"><input class="in nm" type="number" min="0" max="100" [(ngModel)]="l.DiscountPercent" [ngModelOptions]="{standalone:true}" /></td>
-                                            <td><input class="in" [(ngModel)]="l.Description" [ngModelOptions]="{standalone:true}" placeholder="What this covers" /></td>
-                                            <td><button mjButton (click)="RemoveLine(i)" title="Remove this line"><i class="fa-solid fa-xmark"></i></button></td>
-                                        </tr>
-                                    </tbody>
-                                    <tfoot>
-                                        <tr>
-                                            <td colspan="7" class="r">
-                                                Priced coverage <strong>{{ LinesSubtotal | currency: 'USD' }}</strong>
-                                                <span class="pv-s" *ngIf="CatalogPricedCount">
-                                                    · {{ CatalogPricedCount }} line(s) priced from the catalog, so not counted here
-                                                </span>
-                                            </td>
-                                            <td></td>
-                                        </tr>
-                                    </tfoot>
-                                </table>
-
-                                <div class="note gap" style="margin:12px 0 0;" *ngIf="CatalogPricedCount">
-                                    Leaving a unit price empty means <strong>resolve from the catalog</strong> — which is a
-                                    different statement from a price of zero, and is why the field is not defaulted.
-                                </div>
-                            </div>
-                        </fieldset>
-
-                        <div class="note gap" style="margin:16px 0 0;" *ngIf="Mode === 'fast'">
-                            <strong>Fast entry</strong> carries everything an ordinary agreement needs. <strong>Detailed</strong>
-                            adds customer-as-person, contact and owner, MSA nesting, the termination clause and the full
-                            escalation set. Switching keeps what you have typed.
-                        </div>
-                    </div>
-                </mj-workspace-card>
-            </div>
-
-            <!-- ============ 4. BILLING WORKLIST ============ -->
             <div class="wrap" *ngIf="Page === 'billing'">
                 <div class="sechead">
                     <h2>Billing worklist</h2>
@@ -951,7 +423,23 @@ export class MJCContractsSectionComponent extends BaseResourceComponent implemen
     // like, reused everywhere, with the generated validation attached to it.
     private readonly forms = inject(MJFormPresenterService);
 
+    /** Which top-level section is showing. The rail and the pages both hang off this. */
+    public Section = 'contracts';
     public Page = 'contracts';
+
+    /**
+     * The open contracts, each with its own draft.
+     *
+     * This is the OUTER tabbing system — open documents, not panes. Several agreements stay open at
+     * once because that is how they are actually read (a renewal beside its predecessor), and each
+     * carries its own draft so switching never leaks one contract's unsaved edits into another.
+     *
+     * A contract being CREATED is simply a document whose draft has no id. There is no separate
+     * create surface, and that is the whole point of the consolidation.
+     */
+    public OpenContracts: { Key: string; Draft: ContractDraft }[] = [];
+    public ActiveDocKey = '';
+    private docSeed = 0;
     public Tab = 'overview';
     public Mode: 'fast' | 'detail' = 'fast';
     public Saving = false;
@@ -975,15 +463,11 @@ export class MJCContractsSectionComponent extends BaseResourceComponent implemen
     public readonly LineTypes = ['Subscription', 'OneTime', 'Milestone', 'Usage', 'Minimum'];
     public readonly Frequencies = ['Monthly', 'Quarterly', 'SemiAnnual', 'Annual', 'Milestone', 'Custom'];
     /** Open drafts on the create page — accounting's card owns the strip; this owns the state. */
-    public readonly Drafts = new WorkspaceTabStore<Draft>();
     public Query = '';
     public StatusFilter = '';
     public Counts = { Scheduled: 0, Generated: 0, Failed: 0, Skipped: 0 };
 
     public CurrentID: string | null = null;
-    private fallbackDraft: Draft = MJCContractsSectionComponent.blank();
-    /** The active draft's data. Each create tab keeps its own, so drafts never bleed together. */
-    public get D(): Draft { return this.Drafts.ActiveTab?.State ?? this.fallbackDraft; }
 
     public readonly StatusOptions = ['Draft', 'PendingSignature', 'Active', 'Expired', 'Terminated', 'Superseded'];
 
@@ -1030,22 +514,6 @@ export class MJCContractsSectionComponent extends BaseResourceComponent implemen
 
     private termsBy = new Map<string, TermRow[]>();
 
-    private static blank(): Draft {
-        const today = new Date().toISOString().slice(0, 10);
-        return {
-            ContractNumber: '', ContractTypeID: '', CompanyID: '', CustomerOrganizationID: '',
-            CustomerPersonID: '', PrimaryContactPersonID: '', OwnerUserID: '', ParentContractID: '',
-            Status: 'Draft', Description: '', EffectiveDate: '', ExecutedDate: '', PricedAt: today,
-            AutoRenew: true, CancellationWindowDays: null, TerminationPolicy: '', ExternalReferenceID: '',
-            CreateTerm: false,
-            TermStart: '', TermEnd: '', CommittedAmount: null, BillingFrequency: 'Annual',
-            AnchorMonth: null, AnchorDay: null, PaymentTermsTypeID: '', CurrencyID: '',
-            EscalationPercent: null, EscalationBasis: '', MaxEscalationPercent: null,
-            RenewalNoticeDays: null, RenewalProbability: null,
-            EarlyTerminationDate: '', TermExecutedDate: '', TermNotes: '',
-            Lines: [],
-        };
-    }
 
     public async ngOnInit(): Promise<void> {
         await this.load();
@@ -1054,16 +522,24 @@ export class MJCContractsSectionComponent extends BaseResourceComponent implemen
     public override async GetResourceDisplayName(_d: ResourceData): Promise<string> { return 'Contracts'; }
     public override async GetResourceIconClass(_d: ResourceData): Promise<string> { return 'fa-solid fa-file-signature'; }
 
+    /** The three top-level sections, shaped for MJ's tab component. */
+    public get SectionTabs(): TabConfig[] {
+        return CONTRACTS_SECTIONS.map((s) => ({ key: s.Id, label: s.Label, icon: s.Icon }));
+    }
+
+    /** The rail for whichever section is active — declared once, in the nav model. */
     public get NavSections(): MJLeftNavSection[] {
-        return [
-            { items: [
-                { id: 'contracts', icon: 'fa-solid fa-file-signature', label: 'Contracts', description: 'The agreement roster', badge: this.Contracts.length || undefined },
-                { id: 'workspace', icon: 'fa-solid fa-layer-group', label: 'Workspace', description: this.Current ? this.Current.ContractNumber : 'Open a contract' },
-                { id: 'create', icon: 'fa-solid fa-plus', label: 'New contract', description: 'Fast or detailed entry' },
-                { id: 'billing', icon: 'fa-solid fa-conveyor-belt', label: 'Billing worklist', description: 'Due, generated and failed', badge: this.Counts.Failed || undefined },
-            ] },
-            { label: 'Setup', items: [{ id: 'types', icon: 'fa-solid fa-sliders', label: 'Contract types', description: 'Defaults and rules' }] },
-        ];
+        return BuildLeftNavSections(SubPagesFor(this.Section), {
+            BillingFailed: this.Counts.Failed || undefined,
+            RenewalsDue: this.RenewingCount || undefined,
+        });
+    }
+
+    public SelectSection(id: string): void {
+        if (!CONTRACTS_SECTIONS.some((s) => s.Id === id)) return;
+        this.Section = id;
+        this.Page = DefaultPageFor(id);
+        this.cdr.detectChanges();
     }
 
     public get Tabs(): { k: string; l: string; n: number | null }[] {
@@ -1084,20 +560,12 @@ export class MJCContractsSectionComponent extends BaseResourceComponent implemen
         return this.CurrentID ? (this.Contracts.find((c) => c.ID === this.CurrentID) ?? null) : null;
     }
 
-    /** The workspace edits one contract at a time — MJ's record viewer is where several are held open. */
-    public Buffer: Partial<Draft> = {};
-    public BufferDirty = false;
-    public get Edit(): Partial<Draft> { return this.Buffer; }
-    public get Dirty(): boolean { return this.BufferDirty; }
     public get Failed(): EventRow[] { return this.Events.filter((e) => e.Status === 'Failed'); }
     public get ActiveCount(): number { return this.Contracts.filter((c) => c.Status === 'Active').length; }
     public get TotalCommitted(): number { return this.Terms.filter((t) => t.Status === 'Active').reduce((s, t) => s + (t.CommittedAmount ?? 0), 0); }
     public get RenewingCount(): number {
         const now = Date.now(), horizon = now + 90 * 864e5;
         return this.Terms.filter((t) => t.EndDate && new Date(t.EndDate).getTime() >= now && new Date(t.EndDate).getTime() <= horizon).length;
-    }
-    public get CanCreate(): boolean {
-        return !!(this.D.ContractNumber?.trim() && this.D.ContractTypeID && this.D.CompanyID && this.D.CustomerOrganizationID);
     }
 
     public TermsOf(id: string): TermRow[] { return this.termsBy.get(id) ?? []; }
@@ -1106,9 +574,218 @@ export class MJCContractsSectionComponent extends BaseResourceComponent implemen
     public Tone(s: string | null): string { return statusTone(s); }
     public Fill(t: TermRow): string { return termFill(t.Status); }
 
+    // ── The open-documents strip ────────────────────────────────────────────────────────────────
+
+    public get ActiveDoc(): { Key: string; Draft: ContractDraft } | null {
+        return this.OpenContracts.find((d) => d.Key === this.ActiveDocKey) ?? this.OpenContracts[0] ?? null;
+    }
+
+    /** Everything the workspace's pickers need, resolved once here so the pane never queries. */
+    public get WorkspaceLookups(): WorkspaceLookups {
+        return {
+            Types: this.Types,
+            Companies: this.Companies,
+            Organizations: this.Orgs,
+            People: this.People,
+            Users: this.Users,
+            Products: this.Products,
+            SubscriptionTypes: this.SubscriptionTypes,
+            PaymentTerms: this.PayTerms,
+            Currencies: this.Currencies,
+        };
+    }
+
+    /**
+     * Open a NEW contract — which is simply a document whose draft has no id.
+     *
+     * Note what does NOT happen here: no navigation to a different page, no separate create mode,
+     * no different component. That is the consolidation working.
+     */
+    public NewContract(): void {
+        const draft = new ContractDraft();
+        draft.Status = 'Draft';
+        // Seed the single-company case so the commonest contract needs one fewer choice. A
+        // multi-company tenant sees a picker with a value already selected, which is still correct.
+        if (this.Companies.length === 1) draft.CompanyID = this.Companies[0].ID;
+        this.docSeed += 1;
+        const key = `new-${this.docSeed}`;
+        this.OpenContracts.push({ Key: key, Draft: draft });
+        this.ActiveDocKey = key;
+        this.Section = 'contracts';
+        this.Page = 'workspace';
+        this.cdr.detectChanges();
+    }
+
+    /** Open an existing contract, loading its whole tree. Already-open contracts are re-focused. */
+    public async OpenContract(row: ContractRow): Promise<void> {
+        const existing = this.OpenContracts.find((d) => d.Draft.ID === row.ID);
+        if (existing) {
+            this.ActiveDocKey = existing.Key;
+            this.Page = 'workspace';
+            this.cdr.detectChanges();
+            return;
+        }
+
+        const draft = await this.loadDraft(row.ID);
+        if (!draft) return;
+        this.docSeed += 1;
+        const key = `open-${this.docSeed}`;
+        this.OpenContracts.push({ Key: key, Draft: draft });
+        this.ActiveDocKey = key;
+        this.Section = 'contracts';
+        this.Page = 'workspace';
+        this.cdr.detectChanges();
+    }
+
+    public ActivateDoc(key: string): void {
+        this.ActiveDocKey = key;
+        this.cdr.detectChanges();
+    }
+
+    public CloseDoc(key: string, event?: Event): void {
+        event?.stopPropagation();
+        const index = this.OpenContracts.findIndex((d) => d.Key === key);
+        if (index < 0) return;
+        this.OpenContracts.splice(index, 1);
+        if (this.ActiveDocKey === key) this.ActiveDocKey = this.OpenContracts[0]?.Key ?? '';
+        this.cdr.detectChanges();
+    }
+
+    /**
+     * After a save: refresh the roster, and re-point the open document at the SAVED draft.
+     *
+     * The re-point is not cosmetic. The workspace rebuilds its draft from what the server wrote (so
+     * it shows the allocated number and the derived term numbers), which REPLACES its own reference
+     * — leaving the shell still holding the pre-save object. The visible symptom was a document tab
+     * still reading "New contract" beside a header reading CTR-000079; the invisible one is worse,
+     * because closing and reopening that tab would resurrect a draft with no id and create a second
+     * contract on the next save.
+     */
+    public async OnContractSaved(payload: ContractDraftPayload): Promise<void> {
+        const doc = this.OpenContracts.find((d) => d.Key === this.ActiveDocKey);
+        if (doc) doc.Draft = ContractDraft.FromPayload(payload);
+        await this.load();
+        this.cdr.detectChanges();
+    }
+
+    /**
+     * Read a contract's whole tree into a draft.
+     *
+     * FOUR READS, not one per term: the lines, schedules and commitments come back in one query
+     * each filtered on every term at once, then are distributed in memory. A RunView per term would
+     * be the anti-pattern the data-access rules name explicitly.
+     */
+    private async loadDraft(contractID: string): Promise<ContractDraft | null> {
+        const rv = new RunView();
+        const [contracts, terms] = await rv.RunViews([
+            { EntityName: E_CONTRACTS, ExtraFilter: `ID='${contractID}'`, ResultType: 'simple' },
+            { EntityName: E_TERMS, ExtraFilter: `ContractID='${contractID}'`, OrderBy: 'TermNumber ASC', ResultType: 'simple' },
+        ]);
+        if (!contracts?.Success || !contracts.Results?.length) {
+            this.Error = `Could not load contract ${contractID}.`;
+            return null;
+        }
+
+        const termRows = (terms?.Results ?? []) as Record<string, unknown>[];
+        const termIDs = termRows.map((t) => String(t['ID']));
+        const inList = termIDs.length ? termIDs.map((id) => `'${id}'`).join(',') : `'00000000-0000-0000-0000-000000000000'`;
+        const [lines, schedules, commitments] = await rv.RunViews([
+            { EntityName: E_LINES, ExtraFilter: `ContractTermID IN (${inList})`, OrderBy: 'DisplayOrder ASC', ResultType: 'simple' },
+            { EntityName: E_SCHEDULES, ExtraFilter: `ContractTermID IN (${inList})`, ResultType: 'simple' },
+            { EntityName: E_COMMITMENTS, ExtraFilter: `ContractTermID IN (${inList})`, ResultType: 'simple' },
+        ]);
+
+        const header = contracts.Results[0] as Record<string, unknown>;
+        const iso = (v: unknown): string | null => {
+            if (!v) return null;
+            const d = new Date(String(v));
+            return Number.isNaN(d.getTime()) ? null : d.toISOString().slice(0, 10);
+        };
+        const byTerm = <T extends Record<string, unknown>>(rows: T[] | undefined, termID: string): T[] =>
+            (rows ?? []).filter((r) => String(r['ContractTermID']).toLowerCase() === termID.toLowerCase());
+
+        return ContractDraft.FromPayload({
+            ID: String(header['ID']),
+            ContractNumber: (header['ContractNumber'] as string) ?? null,
+            ContractTypeID: String(header['ContractTypeID'] ?? ''),
+            CompanyID: String(header['CompanyID'] ?? ''),
+            CustomerOrganizationID: (header['CustomerOrganizationID'] as string) ?? null,
+            CustomerPersonID: (header['CustomerPersonID'] as string) ?? null,
+            PrimaryContactPersonID: (header['PrimaryContactPersonID'] as string) ?? null,
+            OwnerUserID: (header['OwnerUserID'] as string) ?? null,
+            ParentContractID: (header['ParentContractID'] as string) ?? null,
+            Status: String(header['Status'] ?? 'Draft'),
+            Description: (header['Description'] as string) ?? null,
+            EffectiveDate: iso(header['EffectiveDate']),
+            ExecutedDate: iso(header['ExecutedDate']),
+            PricedAt: iso(header['PricedAt']),
+            AutoRenew: !!header['AutoRenew'],
+            CancellationWindowDays: (header['CancellationWindowDays'] as number) ?? null,
+            TerminationPolicy: (header['TerminationPolicy'] as string) ?? null,
+            ExternalReferenceID: (header['ExternalReferenceID'] as string) ?? null,
+            Terms: termRows.map((t) => {
+                const termID = String(t['ID']);
+                return {
+                    ID: termID,
+                    StartDate: iso(t['StartDate']) ?? '',
+                    EndDate: iso(t['EndDate']) ?? '',
+                    Status: String(t['Status'] ?? 'Pending'),
+                    BillingFrequency: String(t['BillingFrequency'] ?? 'Annual'),
+                    CommittedAmount: (t['CommittedAmount'] as number) ?? null,
+                    EscalationPercent: (t['EscalationPercent'] as number) ?? null,
+                    EscalationBasis: (t['EscalationBasis'] as string) ?? null,
+                    MaxEscalationPercent: (t['MaxEscalationPercent'] as number) ?? null,
+                    RenewalNoticeDays: (t['RenewalNoticeDays'] as number) ?? null,
+                    RenewalProbability: (t['RenewalProbability'] as number) ?? null,
+                    PaymentTermsTypeID: (t['PaymentTermsTypeID'] as string) ?? null,
+                    CurrencyID: (t['CurrencyID'] as string) ?? null,
+                    EarlyTerminationDate: iso(t['EarlyTerminationDate']),
+                    ExecutedDate: iso(t['ExecutedDate']),
+                    Notes: (t['Notes'] as string) ?? null,
+                    Lines: byTerm(lines?.Results as Record<string, unknown>[] | undefined, termID).map((l) => ({
+                        ID: String(l['ID']),
+                        ProductID: String(l['ProductID'] ?? ''),
+                        LineType: String(l['LineType'] ?? 'OneTime'),
+                        Quantity: Number(l['Quantity'] ?? 1),
+                        ContractedUnitPrice: (l['ContractedUnitPrice'] as number) ?? null,
+                        DiscountPct: (l['DiscountPct'] as number) ?? null,
+                        StartDate: iso(l['StartDate']),
+                        EndDate: iso(l['EndDate']),
+                        SubscriptionTypeID: (l['SubscriptionTypeID'] as string) ?? null,
+                        Description: (l['Description'] as string) ?? null,
+                    })),
+                    Schedules: byTerm(schedules?.Results as Record<string, unknown>[] | undefined, termID).map((sc) => ({
+                        ID: String(sc['ID']),
+                        ScheduleType: String(sc['ScheduleType'] ?? 'Cadence'),
+                        Frequency: (sc['Frequency'] as string) ?? null,
+                        AnchorDate: iso(sc['AnchorDate']),
+                        IsActive: sc['IsActive'] !== false,
+                        Notes: (sc['Notes'] as string) ?? null,
+                    })),
+                    Commitments: byTerm(commitments?.Results as Record<string, unknown>[] | undefined, termID).map((cm) => ({
+                        ID: String(cm['ID']),
+                        CommitmentType: String(cm['CommitmentType'] ?? 'Minimum'),
+                        CommittedAmount: Number(cm['CommittedAmount'] ?? 0),
+                        ConsumedAmount: Number(cm['ConsumedAmount'] ?? 0),
+                        PeriodStart: iso(cm['PeriodStart']),
+                        PeriodEnd: iso(cm['PeriodEnd']),
+                        TrueUpPolicy: String(cm['TrueUpPolicy'] ?? 'BillShortfall'),
+                        Status: String(cm['Status'] ?? 'Open'),
+                    })),
+                };
+            }),
+            RemovedTermIDs: [],
+            RemovedLineIDs: [],
+            RemovedScheduleIDs: [],
+            RemovedCommitmentIDs: [],
+        });
+    }
+
     public OnNav(item: MJLeftNavItem): void {
         this.Page = item.id;
-        if (item.id === 'create' && !this.Drafts.Count) this.NewDraft();
+        // Opening the workspace with nothing in it is a dead end, so seed a new contract — which is
+        // exactly what "create" used to be, before the two surfaces merged.
+        if (item.id === 'workspace' && !this.OpenContracts.length) this.NewContract();
         this.cdr.detectChanges();
     }
 
@@ -1136,8 +813,6 @@ export class MJCContractsSectionComponent extends BaseResourceComponent implemen
         this.CurrentID = c.ID;
         this.Tab = 'overview';
         this.Message = '';
-        this.Buffer = this.bufferFor(c);
-        this.BufferDirty = false;
         this.scope(c.ID);
         this.cdr.detectChanges();
     }
@@ -1147,38 +822,10 @@ export class MJCContractsSectionComponent extends BaseResourceComponent implemen
 
     // ---- create-page draft tabs (accounting's workspace card) ----
 
-    public NewDraft(): void {
-        const d = MJCContractsSectionComponent.blank();
-        const id = `draft-${Date.now()}`;
-        this.Drafts.Open({ Id: id, Label: 'New contract', Icon: 'fa-solid fa-file-circle-plus', Status: 'draft', State: d });
-        this.Error = '';
-        this.cdr.detectChanges();
-    }
 
-    public SwitchDraft(id: string): void { this.Drafts.Activate(id); this.Error = ''; this.cdr.detectChanges(); }
 
-    public CloseDraft(id: string): void {
-        const t = this.Drafts.Tabs.find((x) => x.Id === id);
-        if (t?.Dirty && !confirm('This draft has unsaved entry. Close it?')) return;
-        this.Drafts.Close(id);
-        this.cdr.detectChanges();
-    }
 
-    /** Keep the draft as a tab — the card's secondary action; nothing is written. */
-    public KeepDraft(): void {
-        const t = this.Drafts.ActiveTab;
-        if (t) this.Drafts.UpdateState(t.Id, t.State, false);
-        this.Error = '';
-        this.cdr.detectChanges();
-    }
 
-    public DiscardDraft(): void {
-        const t = this.Drafts.ActiveTab;
-        if (t) this.Drafts.Close(t.Id);
-        if (!this.Drafts.Count) this.NewDraft();
-        this.cdr.detectChanges();
-    }
-    public GoCreate(): void { this.Page = 'create'; this.Error = ''; this.cdr.detectChanges(); }
 
     /** The grid emits a navigation INTENT; MJ's NavigationService is what actually opens a tab. */
     public OnNavigate(e: FormNavigationEvent): void {
@@ -1416,54 +1063,11 @@ export class MJCContractsSectionComponent extends BaseResourceComponent implemen
         }
     }
 
-    // ---- coverage rows on the create page ---------------------------------------------------------
 
-    public AddLine(): void {
-        this.D.Lines.push({ ProductID: '', LineType: 'Subscription', SubscriptionTypeID: '', Quantity: 1, ContractedUnitPrice: null, DiscountPercent: null, Description: '' });
-        this.cdr.detectChanges();
-    }
 
-    public RemoveLine(i: number): void {
-        this.D.Lines.splice(i, 1);
-        this.cdr.detectChanges();
-    }
 
-    /**
-     * True once the draft would produce an ACTIVATABLE term — i.e. a term with at least one line that
-     * names a product. Surfaced in the UI so the dead end is visible while it can still be fixed,
-     * rather than discovered later as a refusal from ActivateTerm.
-     */
-    public get TermIsCovered(): boolean {
-        return this.D.Lines.some((l) => !!l.ProductID) && this.CoverageProblems.length === 0;
-    }
 
-    /**
-     * What would be REFUSED on save, said before the person presses the button.
-     *
-     * These mirror CHECK constraints exactly. Letting the write fail and surfacing a raw
-     * CREATE_ENTITY_ERROR would be technically correct and useless — the person cannot tell which of
-     * five rows is wrong, and the contract is already created by then.
-     */
-    public get CoverageProblems(): string[] {
-        const out: string[] = [];
-        this.D.Lines.forEach((l, i) => {
-            if (!l.ProductID) return; // an empty row is not an error — it is just unfinished
-            if (l.LineType === 'Subscription' && !l.SubscriptionTypeID) {
-                out.push(`Line ${i + 1} is a subscription and needs a subscription type — the billing engine cannot create one without it.`);
-            }
-        });
-        return out;
-    }
 
-    /** What the coverage adds up to, for the lines that state a price. */
-    public get LinesSubtotal(): number {
-        return coverageSubtotal(this.D.Lines);
-    }
-
-    /** Lines priced from the catalog rather than the contract — they cannot be totalled here. */
-    public get CatalogPricedCount(): number {
-        return this.D.Lines.filter((l) => l.ProductID && l.ContractedUnitPrice == null).length;
-    }
 
     // ---- the audit trail --------------------------------------------------------------------------
 
@@ -1478,159 +1082,11 @@ export class MJCContractsSectionComponent extends BaseResourceComponent implemen
 
     public EventDetail(payload: string | null): string[] { return eventDetail(payload); }
 
-    public Touch(): void { this.BufferDirty = true; this.Message = ''; }
 
-    public ResetEdits(): void {
-        const row = this.Current;
-        if (row) { this.Buffer = this.bufferFor(row); this.BufferDirty = false; }
-        this.cdr.detectChanges();
-    }
 
-    /** Writes through `BaseEntity` — the sanctioned write path, so entity rules and audit apply. */
-    public async SaveEdits(): Promise<void> {
-        if (!this.CurrentID) return;
-        this.Saving = true; this.Message = '';
-        try {
-            const md = new Metadata();
-            const rec = await md.GetEntityObject<mjBizAppsContractsContractEntity>(E_CONTRACTS);
-            if (!(await rec.Load(this.CurrentID))) { this.Message = 'Could not load that contract.'; return; }
 
-            rec.ContractNumber = this.Edit.ContractNumber ?? rec.ContractNumber;
-            rec.Status = (this.Edit.Status ?? rec.Status) as typeof rec.Status;
-            rec.Description = this.Edit.Description || null;
-            rec.ExternalReferenceID = this.Edit.ExternalReferenceID || null;
-            rec.EffectiveDate = this.toDate(this.Edit.EffectiveDate);
-            rec.ExecutedDate = this.toDate(this.Edit.ExecutedDate);
-            rec.PricedAt = this.toDate(this.Edit.PricedAt);
-            rec.AutoRenew = !!this.Edit.AutoRenew;
-            rec.CancellationWindowDays = this.Edit.CancellationWindowDays ?? null;
 
-            // Save returns false on failure — it does not throw.
-            const ok = await rec.Save();
-            this.Message = ok ? 'Saved.' : `Save failed: ${rec.LatestResult?.CompleteMessage ?? 'unknown error'}`;
-            if (ok) { this.BufferDirty = false; await this.load(); }
-        } finally {
-            this.Saving = false;
-            this.cdr.detectChanges();
-        }
-    }
 
-    /** Create → the record lands in the roster, then opens in the workspace. The golden path. */
-    public async Create(): Promise<void> {
-        this.Saving = true; this.Error = '';
-        try {
-            const md = new Metadata();
-            const rec = await md.GetEntityObject<mjBizAppsContractsContractEntity>(E_CONTRACTS);
-            rec.NewRecord();
-            rec.ContractNumber = this.D.ContractNumber.trim();
-            rec.ContractTypeID = this.D.ContractTypeID;
-            rec.CompanyID = this.D.CompanyID;
-            rec.CustomerOrganizationID = this.D.CustomerOrganizationID || null;
-            rec.CustomerPersonID = this.D.CustomerPersonID || null;
-            rec.PrimaryContactPersonID = this.D.PrimaryContactPersonID || null;
-            rec.OwnerUserID = this.D.OwnerUserID || null;
-            rec.ParentContractID = this.D.ParentContractID || null;
-            rec.TerminationPolicy = this.D.TerminationPolicy || null;
-            rec.Status = this.D.Status as typeof rec.Status;
-            rec.Description = this.D.Description || null;
-            rec.ExternalReferenceID = this.D.ExternalReferenceID || null;
-            rec.EffectiveDate = this.toDate(this.D.EffectiveDate);
-            rec.ExecutedDate = this.toDate(this.D.ExecutedDate);
-            rec.PricedAt = this.toDate(this.D.PricedAt);
-            rec.AutoRenew = !!this.D.AutoRenew;
-            rec.CancellationWindowDays = this.D.CancellationWindowDays ?? null;
-
-            const ok = await rec.Save();
-            if (!ok) { this.Error = `Could not create: ${rec.LatestResult?.CompleteMessage ?? 'unknown error'}`; return; }
-
-            const newID = rec.ID;
-            if (this.D.CreateTerm) await this.createFirstTerm(newID);
-
-            await this.load();
-            const row = this.Contracts.find((c) => c.ID === newID);
-            if (row) this.Load(row);
-            const done = this.Drafts.ActiveTab;
-            if (done) this.Drafts.Close(done.Id);
-            this.fallbackDraft = MJCContractsSectionComponent.blank();
-            this.Tab = 'overview';
-            this.Page = 'workspace';
-        } finally {
-            this.Saving = false;
-            this.cdr.detectChanges();
-        }
-    }
-
-    /**
-     * The optional first term, written in the same action. Percent inputs are entered as PERCENT and
-     * stored as a FRACTION (4.0 -> 0.04) because that is the schema's convention — the same shape
-     * orders uses for OrderLine.DiscountPct.
-     */
-    private async createFirstTerm(contractID: string): Promise<void> {
-        const md = new Metadata();
-        const t = await md.GetEntityObject<mjBizAppsContractsContractTermEntity>(E_TERMS);
-        t.NewRecord();
-        t.ContractID = contractID;
-        t.TermNumber = 1;
-        t.Status = 'Pending';
-        t.StartDate = this.toDate(this.D.TermStart) ?? new Date();
-        t.EndDate = this.toDate(this.D.TermEnd) ?? new Date();
-        t.BillingFrequency = this.D.BillingFrequency as typeof t.BillingFrequency;
-        t.CommittedAmount = this.D.CommittedAmount ?? null;
-        t.BillingAnchorMonth = this.D.AnchorMonth ?? null;
-        t.BillingAnchorDay = this.D.AnchorDay ?? null;
-        t.PaymentTermsTypeID = this.D.PaymentTermsTypeID || null;
-        t.CurrencyID = this.D.CurrencyID || null;
-        t.EscalationPercent = this.pct(this.D.EscalationPercent);
-        t.EscalationBasis = (this.D.EscalationBasis || null) as typeof t.EscalationBasis;
-        t.MaxEscalationPercent = this.pct(this.D.MaxEscalationPercent);
-        t.RenewalNoticeDays = this.D.RenewalNoticeDays ?? null;
-        t.RenewalProbability = this.pct(this.D.RenewalProbability);
-        t.EarlyTerminationDate = this.toDate(this.D.EarlyTerminationDate);
-        t.ExecutedDate = this.toDate(this.D.TermExecutedDate);
-        t.Notes = this.D.TermNotes || null;
-
-        if (!(await t.Save())) {
-            this.Error = `Contract created, but the first term failed: ${t.LatestResult?.CompleteMessage ?? 'unknown error'}`;
-            return;
-        }
-
-        await this.createLines(t.ID, md);
-    }
-
-    /**
-     * The coverage rows. Reported individually rather than as one lump: if line 3 of 5 fails, the
-     * person needs to know WHICH one, because the other four are already saved and re-entering all
-     * five would duplicate them.
-     */
-    private async createLines(termID: string, md: Metadata): Promise<void> {
-        const failures: string[] = [];
-        let order = 1;
-
-        for (const l of this.D.Lines) {
-            if (!l.ProductID) continue; // a blank row the person added and left empty is not an error
-            const line = await md.GetEntityObject<mjBizAppsContractsContractLineEntity>(E_LINES);
-            line.NewRecord();
-            line.ContractTermID = termID;
-            line.ProductID = l.ProductID;
-            line.LineType = (l.LineType || 'Subscription') as typeof line.LineType;
-            // Set ONLY on a subscription line: CK_ContractLine_SubscriptionTypeOnlyOnSubscriptionLine
-            // rejects it anywhere else, and CK_ContractLine_SubscriptionNeedsType requires it here.
-            line.SubscriptionTypeID = l.LineType === 'Subscription' ? l.SubscriptionTypeID || null : null;
-            line.Quantity = l.Quantity ?? 1;
-            line.ContractedUnitPrice = l.ContractedUnitPrice;
-            line.DiscountPct = this.pct(l.DiscountPercent);
-            line.Description = l.Description || null;
-            line.DisplayOrder = order;
-            if (!(await line.Save())) {
-                failures.push(`line ${order} (${l.Description || 'unnamed'}): ${line.LatestResult?.CompleteMessage ?? 'unknown error'}`);
-            }
-            order++;
-        }
-
-        if (failures.length) {
-            this.Error = `Contract and term created, but coverage failed — ${failures.join('; ')}`;
-        }
-    }
 
     /** Percent in the UI, fraction in the database. */
     private pct(v: number | null): number | null { return percentToFraction(v); }
@@ -1647,15 +1103,6 @@ export class MJCContractsSectionComponent extends BaseResourceComponent implemen
         return v ? new Date(v + 'T00:00:00') : null;
     }
 
-    private bufferFor(c: ContractRow): Partial<Draft> {
-        return {
-            ContractNumber: c.ContractNumber, Status: c.Status, Description: c.Description ?? '',
-            ExternalReferenceID: c.ExternalReferenceID ?? '',
-            EffectiveDate: (c.EffectiveDate ?? '').slice(0, 10), ExecutedDate: (c.ExecutedDate ?? '').slice(0, 10),
-            PricedAt: (c.PricedAt ?? '').slice(0, 10), AutoRenew: c.AutoRenew,
-            CancellationWindowDays: c.CancellationWindowDays,
-        };
-    }
 
     /** Params are REASSIGNED, never mutated — an in-place edit does not trip change detection. */
     private scope(contractID: string): void {
