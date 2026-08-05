@@ -157,9 +157,12 @@ the exact split before you commit.
 **Never touched:** events already `Generated` or `Invoiced`. Money that has left the building is not
 un-billed by a state change here; reversing it is an accounting act.
 
-**What it refuses:** terminating without a reason; terminating a contract already Terminated or
-Superseded. A **Completed** term is skipped rather than terminated — it ran its course, it was not
-cut short.
+**What it refuses:** terminating without a reason (the button stays disabled until you give one);
+terminating a contract already Terminated or Superseded. A **Completed** term is skipped rather than
+terminated — it ran its course, it was not cut short.
+
+> This click path is covered end-to-end by `test-harnesses/ui-terminate.mjs` (14 assertions), so what
+> is written above is what the app does rather than what it was designed to do.
 
 ### Open for Andrew
 

@@ -5,7 +5,7 @@ against the **matrix**, not against the tests that happen to exist — an empty 
 every written test is green.
 
 > **Last full sweep:** 2026-08-05, branch `mjdev/contracts-night`, instance `contracts-dev`.
-> **Totals: 32 tier-1 + 101 tier-2 + 70 tier-5 = 203 assertions, all passing.** Every number below was
+> **Totals: 32 tier-1 + 101 tier-2 + 84 tier-5 = 217 assertions, all passing.** Every number below was
 > observed, not estimated. Where something was not run, it says so.
 
 ---
@@ -33,9 +33,15 @@ node test-harnesses/ui-history.mjs         "$URL"   # 5
 node test-harnesses/ui-navigation.mjs      "$URL"   # 26
 node test-harnesses/ui-create-to-active.mjs "$URL"  # 11 — CREATES a contract
 node test-harnesses/ui-full-loop.mjs       "$URL"   # 9  — WRITES to the demo contract
+node test-harnesses/ui-terminate.mjs       "$URL"   # 14 — TERMINATES the demo contract
 ```
 
-**Two of the UI harnesses write, and both ship their undo.** `ui-create-to-active` stamps every
+**Three of the UI harnesses write, and all three ship their undo.** `ui-terminate` terminates the
+demo contract; `demo/restore-demo-after-loop.sql` un-terminates it AND un-cancels the billing events,
+which it did not originally do — un-terminating without that leaves the demo looking healthy while
+its schedule is dead.
+
+**Two of the other UI harnesses write, and both ship their undo.** `ui-create-to-active` stamps every
 contract it makes with a `UI-E2E ` number prefix → `demo/cleanup-ui-e2e.sql`. `ui-full-loop` genuinely
 renews and activates the demo contract → `demo/restore-demo-after-loop.sql` puts it back to its seeded
 three terms. Run the cleanup after either. A test that leaves the demo in a different state than it
@@ -76,7 +82,7 @@ produces a red tier-3/4/5 against green tier-2, which is an environment artefact
 | Over-cap escalation is clamped, not rejected | — | ✓ | — | ✓ | |
 | Renewal refuses a second renewal of one term | — | ✓ | — | — | |
 | Renewal carries committed amount + line prices forward | — | ✓ | — | ✓ | T5 verifies in the DB: 471,744 × 1.04 = 490,613.76. |
-| **TerminateContract** — cancels FUTURE events, retains past | — | ✓ | — | ⚠ | The load-bearing one. T2 re-reads the schedule and asserts the exact split. T5 asserts the control + preview; the write path is proven at T2. |
+| **TerminateContract** — cancels FUTURE events, retains past | — | ✓ | — | ✓ | T2 re-reads the schedule and asserts the exact split. T5 now drives the whole path in a browser — reason required, preview reports the split, confirm terminates, history records the reason. |
 | Termination requires a reason | — | ✓ | — | ✓ | |
 | Termination preview writes nothing | — | ✓ | — | — | |
 | Termination skips Completed terms | — | ✓ | — | — | Found by a test: `Completed` is terminal, so including them rolled back the whole transaction. |
