@@ -61,6 +61,7 @@ import './lib/generated/generated-forms.module';
 import { GeneratedFormsModule } from './lib/generated/generated-forms.module';
 import { MJCContractsSectionComponent } from './lib/sections/contracts-section.component';
 import { MJCContractFormComponent } from './lib/forms/contract.form.component';
+import { ContractFilesPanel, ContractTermFilesPanel, ContractAmendmentFilesPanel } from './lib/panels/record-files.panel';
 export { GeneratedFormsModule } from './lib/generated/generated-forms.module';
 export { mjBizAppsContractsContractAmendmentFormComponent } from './lib/generated/Entities/mjBizAppsContractsContractAmendment/mjbizappscontractscontractamendment.form.component';
 export { mjBizAppsContractsContractBillingEventFormComponent } from './lib/generated/Entities/mjBizAppsContractsContractBillingEvent/mjbizappscontractscontractbillingevent.form.component';
@@ -79,6 +80,8 @@ export { mjBizAppsContractsContractTypeFormComponent } from './lib/generated/Ent
 export { MJCContractsSectionComponent } from './lib/sections/contracts-section.component';
 /* Custom Contract form — overrides the generated one at priority 2. */
 export { MJCContractFormComponent } from './lib/forms/contract.form.component';
+/* Record-scoped Documents panel — mounts into any of the three forms via BaseFormPanel slots. */
+export { RecordFilesPanelBase, ContractFilesPanel, ContractTermFilesPanel, ContractAmendmentFilesPanel } from './lib/panels/record-files.panel';
 
 export function LoadMjBizappsContractsClient(): void {
     // Importing this module is what registers everything above. The reference
@@ -87,4 +90,7 @@ export function LoadMjBizappsContractsClient(): void {
     void GeneratedFormsModule;
     void MJCContractsSectionComponent;
     void MJCContractFormComponent;
+    void ContractFilesPanel;
+    void ContractTermFilesPanel;
+    void ContractAmendmentFilesPanel;
 }

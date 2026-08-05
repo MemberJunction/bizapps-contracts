@@ -28,8 +28,18 @@ import { FormsModule } from '@angular/forms';
 import { RegisterClass } from '@memberjunction/global';
 import { BaseResourceComponent } from '@memberjunction/ng-shared';
 import { BaseFormsModule } from '@memberjunction/ng-base-forms';
-import { MJLeftNavComponent, type MJLeftNavSection, type MJLeftNavItem } from '@memberjunction/ng-ui-components';
-import { RunView, type RunViewParams } from '@memberjunction/core';
+import {
+    MJLeftNavComponent, MJLeftNavContentComponent, MJPageLayoutComponent, MJPageHeaderComponent,
+    MJPageBodyComponent, MJButtonDirective,
+    type MJLeftNavSection, type MJLeftNavItem,
+} from '@memberjunction/ng-ui-components';
+import { NavigationService } from '@memberjunction/ng-shared';
+import type { FormNavigationEvent } from '@memberjunction/ng-base-forms';
+// Accounting's session-tab framework. It is marked TRANSFER-BACKLOG (destined for MJ base) and
+// Marcelo explicitly authorised reuse now rather than waiting for the move — so contracts consumes
+// it from @mj-biz-apps/accounting-ng, which is already a declared app dependency.
+import { WorkspaceTabStripComponent, WorkspaceTabStore } from '@mj-biz-apps/accounting-ng';
+import { RunView, CompositeKey, type RunViewParams } from '@memberjunction/core';
 import type { ResourceData } from '@memberjunction/core-entities';
 import type { AfterRowClickEventArgs } from '@memberjunction/ng-entity-viewer';
 
@@ -183,10 +193,27 @@ function toneFor(status: string | null | undefined): string {
 @Component({
     selector: 'mjc-contracts-section',
     standalone: true,
-    imports: [CommonModule, FormsModule, BaseFormsModule, MJLeftNavComponent],
+    imports: [
+        CommonModule, FormsModule, BaseFormsModule, MJButtonDirective,
+        MJPageLayoutComponent, MJPageHeaderComponent, MJPageBodyComponent,
+        MJLeftNavComponent, MJLeftNavContentComponent, WorkspaceTabStripComponent,
+    ],
     styles: [SHARED_STYLES],
     template: `
-      <div class="shell">
+      <mj-page-layout>
+        <mj-page-header Title="Contracts" Icon="fa-solid fa-file-signature"
+                        Subtitle="Agreements, the terms that run them, and the billing they produce">
+            <div actions>
+                <button mjButton="primary" (click)="NewContract()">
+                    <i class="fa-solid fa-plus"></i> New contract
+                </button>
+                <button mjButton (click)="Refresh()">
+                    <i class="fa-solid fa-rotate"></i> Refresh
+                </button>
+            </div>
+        </mj-page-header>
+
+        <mj-page-body [Flex]="true" [Padding]="false" Direction="row">
         <mj-left-nav
             [Sections]="NavSections"
             [ActiveId]="ActiveNav"
@@ -194,7 +221,7 @@ function toneFor(status: string | null | undefined): string {
             (ItemClicked)="OnNav($event)"
         ></mj-left-nav>
 
-        <div class="pane">
+        <mj-left-nav-content>
         <div class="wrap" *ngIf="ActiveNav === 'contracts'">
             <!-- ===================== ROSTER ===================== -->
             <ng-container>
@@ -243,14 +270,58 @@ function toneFor(status: string | null | undefined): string {
                         [ShowToolbar]="true"
                         [ToolbarConfig]="RosterToolbar"
                         (AfterDataLoad)="OnRosterLoaded()"
+                        (AfterRowClick)="OpenRow($event)"
+                        (Navigate)="OnNavigate($event)"
                     ></mj-explorer-entity-data-grid>
-                    <div class="note info">
+                    <div class="note info" *ngIf="!Workspace.Count">
                         <strong>New contract</strong> in the toolbar opens the contract form. <strong>Double-click</strong> any
                         row to open that contract as its own MJ record tab — the standard Explorer way to view a record,
                         so several contracts stay open side by side and the browser's history works.
                     </div>
                 </div>
             </ng-container>
+
+            <!-- ===================== WORKSPACE (session tabs) ===================== -->
+            <div class="card" *ngIf="Workspace.Count">
+                <mj-workspace-tab-strip
+                    [Tabs]="Workspace.Tabs"
+                    [ActiveId]="Workspace.ActiveId"
+                    [ShowNewTab]="false"
+                    (TabSelected)="Workspace.Activate($event)"
+                    (TabClosed)="Workspace.Close($event)"
+                ></mj-workspace-tab-strip>
+
+                <ng-container *ngIf="OpenContract as c">
+                    <div class="ident">
+                        <span class="name">{{ c.ContractNumber }}</span>
+                        <span class="badge" [ngClass]="Tone(c.Status)">{{ c.Status }}</span>
+                        <span class="badge" *ngIf="c.AutoRenew">Auto-renew</span>
+                        <span class="right" style="margin-left:auto;">
+                            <button mjButton (click)="OpenAsRecordTab(c)">
+                                <i class="fa-solid fa-up-right-from-square"></i> Open as record
+                            </button>
+                        </span>
+                    </div>
+
+                    <div class="grid2">
+                        <div class="fld"><span class="k">Effective</span><span class="v">{{ c.EffectiveDate ? (c.EffectiveDate | date: 'mediumDate') : '—' }}</span></div>
+                        <div class="fld"><span class="k">Executed</span><span class="v">{{ c.ExecutedDate ? (c.ExecutedDate | date: 'mediumDate') : '—' }}</span></div>
+                        <div class="fld"><span class="k">Priced as of</span><span class="v">{{ c.PricedAt ? (c.PricedAt | date: 'mediumDate') : '—' }}</span></div>
+                        <div class="fld"><span class="k">Auto-renew</span><span class="v">{{ c.AutoRenew ? 'Yes' : 'No' }}</span></div>
+                        <div class="fld"><span class="k">Cancellation window</span><span class="v">{{ c.CancellationWindowDays != null ? c.CancellationWindowDays + ' days' : '—' }}</span></div>
+                        <div class="fld"><span class="k">External reference</span><span class="v">{{ c.ExternalReferenceID || '—' }}</span></div>
+                    </div>
+
+                    <div class="card-head">Terms</div>
+                    <mj-explorer-entity-data-grid [Params]="WsTermsParams" [Height]="200"></mj-explorer-entity-data-grid>
+
+                    <div class="card-head">Coverage</div>
+                    <mj-explorer-entity-data-grid [Params]="WsLinesParams" [Height]="200"></mj-explorer-entity-data-grid>
+
+                    <div class="card-head">Billing events</div>
+                    <mj-explorer-entity-data-grid [Params]="WsEventsParams" [Height]="200"></mj-explorer-entity-data-grid>
+                </ng-container>
+            </div>
         </div>
 
         <!-- ===================== BILLING WORKLIST ===================== -->
@@ -327,18 +398,27 @@ function toneFor(status: string | null | undefined): string {
                 ></mj-explorer-entity-data-grid>
             </div>
         </div>
-        </div>
-      </div>
+        </mj-left-nav-content>
+        </mj-page-body>
+      </mj-page-layout>
     `,
 })
 export class MJCContractsSectionComponent extends BaseResourceComponent implements OnInit {
     private readonly cdr = inject(ChangeDetectorRef);
+    /** MJ's own navigator — this is what actually opens a record tab. */
+    private readonly nav = inject(NavigationService);
 
     public Contracts: ContractRow[] = [];
     public Terms: TermRow[] = [];
     public Events: EventRow[] = [];
     public ActiveNav: string = 'contracts';
     public EventCounts = { Scheduled: 0, Generated: 0, Failed: 0, Skipped: 0 };
+
+    /** Session tabs for the viewing space — accounting's store, state typed to our roster row. */
+    public readonly Workspace = new WorkspaceTabStore<ContractRow>();
+    public WsTermsParams: RunViewParams = { EntityName: ENTITY_TERMS };
+    public WsLinesParams: RunViewParams = { EntityName: ENTITY_LINES };
+    public WsEventsParams: RunViewParams = { EntityName: ENTITY_EVENTS };
 
     public AllEventsParams: RunViewParams = { EntityName: ENTITY_EVENTS, OrderBy: 'ScheduledDate' };
     public AllAmendmentsParams: RunViewParams = { EntityName: ENTITY_AMENDMENTS, OrderBy: 'AmendmentNumber' };
@@ -396,6 +476,78 @@ export class MJCContractsSectionComponent extends BaseResourceComponent implemen
                 items: [{ id: 'types', icon: 'fa-solid fa-sliders', label: 'Contract types', description: 'Defaults and rules' }],
             },
         ];
+    }
+
+    /**
+     * THE VIEWING SPACE. The grid only EMITS a navigation intent — it does not navigate — so the host
+     * has to act on it, which is the step that was missing: rows were 'opening' into nothing.
+     * Handing it to NavigationService opens the record as a real MJ record tab, which is Explorer's
+     * standard viewing space: several contracts stay open at once and browser history works.
+     */
+    public OnNavigate(event: FormNavigationEvent): void {
+        if (event.Kind === 'record' && event.PrimaryKey) {
+            this.nav.OpenEntityRecord(event.EntityName, event.PrimaryKey);
+        } else if (event.Kind === 'new-record') {
+            this.nav.OpenNewEntityRecord(event.EntityName);
+        }
+    }
+
+    /**
+     * Clicking a row opens it in the WORKSPACE — the viewing space — rather than throwing the user
+     * out to a record tab. Session tabs (accounting's framework) mean several contracts stay open
+     * side by side and switching between them keeps their state, which is how contracts are actually
+     * read: a renewal beside its predecessor. 'Open as record' is still one click away for the full
+     * MJ form.
+     */
+    public OpenRow(args: AfterRowClickEventArgs): void {
+        const row = args?.row as Record<string, unknown> | undefined;
+        const id = row?.['ID'];
+        if (typeof id !== 'string') return;
+        const contract = this.Contracts.find((c) => c.ID === id);
+        if (!contract) return;
+
+        const existing = this.Workspace.Tabs.find((t) => t.Id === id);
+        if (existing) {
+            this.Workspace.Activate(id);
+        } else {
+            this.Workspace.Open({
+                Id: id,
+                Label: contract.ContractNumber,
+                Icon: 'fa-solid fa-file-signature',
+                Status: 'complete',
+                State: contract,
+            });
+        }
+        this.scopeWorkspaceGrids(id);
+        this.cdr.detectChanges();
+    }
+
+    public OpenAsRecordTab(c: ContractRow): void {
+        this.nav.OpenEntityRecord(ENTITY_CONTRACTS, CompositeKey.FromID(c.ID));
+    }
+
+    /** The contract shown in the active workspace tab. */
+    public get OpenContract(): ContractRow | null {
+        const id = this.Workspace.ActiveId;
+        return id ? (this.Contracts.find((c) => c.ID === id) ?? null) : null;
+    }
+
+    private scopeWorkspaceGrids(contractID: string): void {
+        const termIDs = (this.termsByContract.get(contractID) ?? []).map((t) => `'${t.ID}'`);
+        const termScope = termIDs.length ? `ContractTermID IN (${termIDs.join(',')})` : '1=0';
+        this.WsTermsParams = { EntityName: ENTITY_TERMS, ExtraFilter: `ContractID='${contractID}'`, OrderBy: 'TermNumber' };
+        this.WsLinesParams = { EntityName: ENTITY_LINES, ExtraFilter: termScope, OrderBy: 'DisplayOrder' };
+        this.WsEventsParams = { EntityName: ENTITY_EVENTS, ExtraFilter: termScope, OrderBy: 'ScheduledDate' };
+    }
+
+    /** Header action — same destination the grid's own New button reaches. */
+    public NewContract(): void {
+        this.nav.OpenNewEntityRecord(ENTITY_CONTRACTS);
+    }
+
+    public async Refresh(): Promise<void> {
+        this.ContractsParams = { ...this.ContractsParams };
+        await this.load();
     }
 
     public OnNav(item: MJLeftNavItem): void {
