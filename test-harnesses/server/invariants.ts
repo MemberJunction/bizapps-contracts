@@ -201,11 +201,51 @@ async function main(): Promise<void> {
     if (underSaved) createdTerms.push(under.ID);
     check('D.2 escalation 4% under a 5% cap is allowed', underSaved, under.LatestResult?.CompleteMessage ?? '');
 
-    const uncapped = await mkTerm(c2.ID, '2031-01-01', '2031-12-31');
-    uncapped.EscalationPercent = 0.20;
-    const uncappedSaved = await uncapped.Save();
-    if (uncappedSaved) createdTerms.push(uncapped.ID);
-    check('D.3 a null cap means uncapped, not zero — 20% is allowed', uncappedSaved, uncapped.LatestResult?.CompleteMessage ?? '');
+    // D.3 needs a GENUINELY uncapped term, and since 2026-08-05 that means a contract whose TYPE
+    // sets no default ceiling. A new term now inherits `ContractType.DefaultMaxEscalationPercent`,
+    // so on a Standard contract (5%) there is no such thing as an uncapped new term — which is the
+    // intended behaviour and the reason this test moved rather than being relaxed.
+    //
+    // SOW carries a null default, so it is the honest way to prove the rule. Asserting the default
+    // is null first, so that if the seed ever gives SOW a ceiling this fails as a stale fixture
+    // rather than silently testing nothing.
+    const sowTypeID = (types?.Results as { ID: string; Code: string }[] | undefined)?.find((t) => t.Code === 'SOW')?.ID;
+    check('D.3a the SOW type genuinely sets no default ceiling (fixture check)', !!sowTypeID);
+
+    if (sowTypeID) {
+        const sowContract = await md.GetEntityObject<mjBizAppsContractsContractEntity>(E_CONTRACT, user);
+        sowContract.NewRecord();
+        sowContract.ContractTypeID = sowTypeID;
+        sowContract.CompanyID = companyID;
+        sowContract.CustomerOrganizationID = orgID;
+        sowContract.Status = 'Draft';
+        sowContract.Description = 'tier2-invariants: uncapped SOW';
+        if (await sowContract.Save()) createdContracts.push(sowContract.ID);
+
+        const uncapped = await md.GetEntityObject<mjBizAppsContractsContractTermEntity>(E_TERM, user);
+        uncapped.NewRecord();
+        uncapped.ContractID = sowContract.ID;
+        uncapped.StartDate = new Date('2031-01-01');
+        uncapped.EndDate = new Date('2031-12-31');
+        uncapped.Status = 'Pending';
+        uncapped.BillingFrequency = 'Annual';
+        uncapped.EscalationPercent = 0.20;
+        const uncappedSaved = await uncapped.Save();
+        if (uncappedSaved) createdTerms.push(uncapped.ID);
+        check('D.3b a null cap really does mean uncapped — 20% is allowed', uncappedSaved, uncapped.LatestResult?.CompleteMessage ?? '');
+        check('D.3c and the term genuinely has no ceiling, rather than one that happens to exceed 20%',
+            uncapped.MaxEscalationPercent === null || uncapped.MaxEscalationPercent === undefined,
+            `got ${uncapped.MaxEscalationPercent}`);
+    }
+
+    // The complement: on a Standard contract (5% default) a new term is NOT uncapped, which is the
+    // behaviour change that made the old version of this test stale.
+    const inherited = await mkTerm(c2.ID, '2032-01-01', '2032-12-31');
+    inherited.EscalationPercent = 0.20;
+    const inheritedSaved = await inherited.Save();
+    if (inheritedSaved) createdTerms.push(inherited.ID);
+    check('D.4 on a Standard contract the SAME 20% is refused, because the type supplies a 5% ceiling',
+        inheritedSaved === false, inheritedSaved ? 'it saved' : '');
 
     console.log('\nE. Teardown');
     // FK-aware: terms reference contracts, so terms go first.

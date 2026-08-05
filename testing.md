@@ -5,7 +5,7 @@ against the **matrix**, not against the tests that happen to exist — an empty 
 every written test is green.
 
 > **Last full sweep:** 2026-08-05, branch `mjdev/contracts-night`, instance `contracts-dev`.
-> **Totals: 32 tier-1 + 85 tier-2 + 69 tier-5 = 186 assertions, all passing.** Every number below was
+> **Totals: 32 tier-1 + 92 tier-2 + 69 tier-5 = 193 assertions, all passing.** Every number below was
 > observed, not estimated. Where something was not run, it says so.
 
 ---
@@ -21,9 +21,9 @@ started) and, for tier 5, MJExplorer.
 npx turbo run test --filter=@mj-biz-apps/contracts-ng    # 32
 
 # Tier 2 — in-process, direct SQL, MJAPI-free
-npx tsx test-harnesses/server/invariants.ts     # 19
+npx tsx test-harnesses/server/invariants.ts     # 22
 npx tsx test-harnesses/server/lifecycle.ts      # 45
-npx tsx test-harnesses/server/constraints.ts    # 21
+npx tsx test-harnesses/server/constraints.ts    # 25
 
 # Tier 5 — real Chrome, driven only through the UI
 URL=$(mjdev explorer-url contracts-dev | grep -oE 'http://localhost:[0-9]+/#token=[A-Za-z0-9._-]+')
@@ -63,6 +63,7 @@ produces a red tier-3/4/5 against green tier-2, which is an environment artefact
 | Contract legal status **moves** | — | ✓ | ⚠ | ✓ | The CHECK knows only the legal SET. T2 proves `Terminated → Active` is refused, did not persist, AND that the refusal explains itself. T5 proves the control offers only the legal moves, so the error is one nobody has to read. |
 | Refusals reach the caller, not just the console | — | ✓ | — | — | The rules live in `Validate()`/`ValidateAsync()`, so `LatestResult` carries the reason. T2 asserts the MESSAGES, not only the `false`. |
 | Term numbering derived as max+1 | — | ✓ | ⚠ | ⚠ | |
+| Contract-type defaults applied to a NEW term | — | ✓ | — | — | 4 assertions incl. the two negatives: an explicit value is never overwritten, and an EXISTING term is never retrofitted — that would change an agreement. |
 | Escalation cap enforced | — | ✓ | ⚠ | ✓ | T2 proves the refusal; T5 shows the "capped" badge and the ceiling actually applied. |
 | A null cap means uncapped, not zero | — | ✓ | — | — | |
 | **ActivateTerm** — status + schedule + events, atomically | — | ✓ | ✓ | ✓ | T2 asserts exactly 4 events on the term anchor; T5 drives the button and re-reads the DB. |
@@ -140,5 +141,10 @@ The ones that would change tests if answered differently:
   `mjdev restart contracts-dev api`. Not a code bug.
 - **`ClassFactory: no registration found for base class 'BaseEntity'`** during `mj sync push` — a
   benign fallback warning, not an error.
+- **A tier-5 harness failing ONCE immediately after `mjdev restart api`** — Explorer reconnects to a
+  freshly-restarted API on its own schedule, so a run started the instant the API answers can catch
+  it mid-reconnect. Seen once on `ui-lifecycle`; not reproducible in three subsequent runs. If it
+  happens, re-run before investigating. Recorded rather than dismissed, because "it passed the second
+  time" is exactly how a real intermittent failure gets talked away.
 - **Orders' TVP deadlock during `reapply-migrations`** — a known filed issue with a documented
   `mj migrate` workaround; unrelated to this app.

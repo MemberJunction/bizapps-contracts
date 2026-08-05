@@ -267,6 +267,55 @@ async function main(): Promise<void> {
     check('X.6b CK_Contract_SupersededHasSuccessor exists', await constraintExists('CK_Contract_SupersededHasSuccessor'));
     check('X.15e CK_ContractEvent_EventType exists', await constraintExists('CK_ContractEvent_EventType'));
 
+    console.log('\nENGINE — contract-type defaults on a NEW term');
+
+    // The Standard type carries a 5% ceiling and 30 days notice. A term created without them should
+    // inherit both; a term that SPECIFIES them must keep its own, because those are what was
+    // negotiated. Exact values, from the seeded metadata.
+    const inherit = await md.GetEntityObject<mjBizAppsContractsContractTermEntity>(E_TERM, user);
+    inherit.NewRecord();
+    inherit.ContractID = cB.ID;
+    inherit.StartDate = new Date('2042-01-01');
+    inherit.EndDate = new Date('2042-12-31');
+    inherit.Status = 'Pending';
+    inherit.BillingFrequency = 'Annual';
+    const inheritSaved = await inherit.Save();
+    check('E.1 a new term inherits its contract type\'s escalation ceiling', inheritSaved && inherit.MaxEscalationPercent === 0.05,
+        `saved=${inheritSaved} cap=${inherit.MaxEscalationPercent} · ${inherit.LatestResult?.CompleteMessage ?? ''}`);
+    check('E.2 and its renewal notice period', inherit.RenewalNoticeDays === 30, `got ${inherit.RenewalNoticeDays}`);
+
+    const explicit = await md.GetEntityObject<mjBizAppsContractsContractTermEntity>(E_TERM, user);
+    explicit.NewRecord();
+    explicit.ContractID = cB.ID;
+    explicit.StartDate = new Date('2043-01-01');
+    explicit.EndDate = new Date('2043-12-31');
+    explicit.Status = 'Pending';
+    explicit.BillingFrequency = 'Annual';
+    explicit.MaxEscalationPercent = 0.08;
+    explicit.RenewalNoticeDays = 120;
+    const explicitSaved = await explicit.Save();
+    check('E.3 a term that STATES its own ceiling keeps it — the default never overwrites',
+        explicitSaved && explicit.MaxEscalationPercent === 0.08 && explicit.RenewalNoticeDays === 120,
+        `cap=${explicit.MaxEscalationPercent} notice=${explicit.RenewalNoticeDays}`);
+
+    // The negative case, and the one that would be WRONG: an existing term must never acquire a
+    // ceiling it was not negotiated with. Retrofitting one would change an agreement.
+    const uncapped = await md.GetEntityObject<mjBizAppsContractsContractTermEntity>(E_TERM, user);
+    uncapped.NewRecord();
+    uncapped.ContractID = cB.ID;
+    uncapped.StartDate = new Date('2044-01-01');
+    uncapped.EndDate = new Date('2044-12-31');
+    uncapped.Status = 'Pending';
+    uncapped.BillingFrequency = 'Annual';
+    uncapped.MaxEscalationPercent = 0.08;
+    await uncapped.Save();
+    uncapped.MaxEscalationPercent = null;
+    const clearedSaved = await uncapped.Save();
+    await uncapped.Load(uncapped.ID);
+    check('E.4 clearing an EXISTING term\'s ceiling leaves it cleared — no retrofit on update',
+        clearedSaved && (uncapped.MaxEscalationPercent === null || uncapped.MaxEscalationPercent === undefined),
+        `got ${uncapped.MaxEscalationPercent}`);
+
     console.log('\nTeardown');
     // Raw SQL, deepest-first: the entity layer now REFUSES to delete events, which is the point of
     // X.15 — so the harness cannot use it to clean up after itself.

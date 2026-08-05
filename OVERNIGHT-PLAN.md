@@ -166,6 +166,19 @@ workspace edit pane on this before adding any more hand-built fields.
 
 ## Log
 
+- **10:05** — **BaseEngine standard applied** (it was the one named standard with no implementation
+  here — orders and accounting both have an engine, contracts had none). `ContractsEngine` caches
+  `ContractType`, the app's only genuinely high-read/low-write entity; contracts/terms/lines are the
+  opposite shape and caching them would trade a cheap query for a stale read.
+  Its first real consumer: a NEW term now inherits `DefaultMaxEscalationPercent` and
+  `DefaultRenewalNoticeDays` from its contract's type — which is what "the columns ARE the rules"
+  means in practice, rather than a term being created with no ceiling at all.
+  **That change broke a test, correctly:** `D.3 a null cap means uncapped` assumed a new Standard-type
+  term has no cap, and now it inherits 5%. The RULE is unchanged; the fixture was stale. Rewritten to
+  prove it on a SOW contract, whose type genuinely sets no default — plus a fixture-check that SOW's
+  default really is null, and a complement asserting the SAME 20% IS refused on a Standard contract.
+  A better test than the one it replaced. 92 tier-2 assertions now.
+
 - **09:40 — QUEUE EXHAUSTED.** Every numbered item is DONE (1, 2, 3, 3b, 3c, 4, 7, 8, 8b, 9, 10) or
   BLOCKED on something only a person can decide (5 storage account · 6 signature account · 11 whether
   contracts should be the first app in the family to ship PG migrations).

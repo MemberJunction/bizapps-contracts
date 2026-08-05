@@ -37,6 +37,11 @@ export { ContractEntityServer, LoadContractEntityServer } from './ContractEntity
 export { ContractTermEntityServer, LoadContractTermEntityServer } from './ContractTermEntityServer.js';
 export { ContractEventEntityServer, LoadContractEventEntityServer } from './ContractEventEntityServer.js';
 
+// The lookup cache. Exported so callers outside this package can read a contract type's rules
+// without another RunView — and so the CONVENTION matches OrdersEngine, which is exported the same
+// way from the same position in the orders package.
+export { ContractsEngine, LoadContractsEngine } from './ContractsEngine.js';
+
 // Remote operations — the write API the UI calls. State changes live here rather than in Actions:
 // orders settled that split for the family (Actions are for agent/workflow-invocable work; the
 // operations that MUTATE are the callable API), and consistency across the apps is worth more than
