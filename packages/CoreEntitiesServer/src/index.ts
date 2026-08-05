@@ -40,6 +40,7 @@ import { LoadRenewTermOperation } from './RenewTermOperation.js';
 import { LoadTerminateContractOperation } from './TerminateContractOperation.js';
 import { LoadSaveContractOperation } from './SaveContractOperation.js';
 import { LoadGenerateBillingEventOperation } from './GenerateBillingEventOperation.js';
+import { LoadAmendTermOperation } from './AmendTermOperation.js';
 
 export { ContractEntityServer, LoadContractEntityServer } from './ContractEntityServer.js';
 export { ContractTermEntityServer, LoadContractTermEntityServer } from './ContractTermEntityServer.js';
@@ -83,6 +84,11 @@ export type { SaveContractInput, SaveContractOutput } from './SaveContractOperat
 // driver; the bridge is where orders plugs in to price and materialise (blocked on the C0 seams).
 export { GenerateBillingEventOperation, LoadGenerateBillingEventOperation, RunDueBillingEvents } from './GenerateBillingEventOperation.js';
 export type { GenerateBillingEventInput, GenerateBillingEventOutput } from './GenerateBillingEventOperation.js';
+
+// Co-terming (plan §5.4) — the capability standalone subscriptions structurally cannot provide, and
+// the reason the contract owns the calendar.
+export { AmendTermOperation, LoadAmendTermOperation } from './AmendTermOperation.js';
+export type { AmendTermInput, AmendTermOutput } from './AmendTermOperation.js';
 export {
     RegisterOrdersBillingBridge,
     GetOrdersBillingBridge,
@@ -119,4 +125,5 @@ export function LoadMjBizappsContractsEntitiesServer(): void {
     LoadTerminateContractOperation();
     LoadSaveContractOperation();
     LoadGenerateBillingEventOperation();
+    LoadAmendTermOperation();
 }

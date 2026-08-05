@@ -41,8 +41,10 @@ import {
     ContractsActivateTermOperation,
     ContractsRenewTermOperation,
     ContractsTerminateContractOperation,
+    ContractsAmendTermOperation,
     type ContractDraftIssue,
     type ContractDraftPayload,
+    type AmendTermOutput,
     type RenewTermOutput,
     type TerminateContractOutput,
 } from '@mj-biz-apps/contracts-entities';
@@ -289,6 +291,9 @@ const TERM_STATUSES = ['Pending', 'PendingSignature', 'Active', 'Completed', 'Te
                 <button mjButton variant="flat" *ngIf="CanRenew(term)" [disabled]="Op.Busy" (click)="PreviewRenewal(term)">
                   <i class="fa-solid fa-rotate"></i> Renew…
                 </button>
+                <button mjButton variant="flat" *ngIf="CanAmend(term)" [disabled]="Op.Busy" (click)="StartAmendment(term)">
+                  <i class="fa-solid fa-file-pen"></i> Add product…
+                </button>
                 <button mjButton variant="flat" *ngIf="term.ID" [title]="'Open this term in its own form'" (click)="OpenForm(TERM_ENTITY, term.ID, 'Term ' + (term.TermNumber || ''))">
                   <i class="fa-solid fa-up-right-from-square"></i> Form
                 </button>
@@ -311,6 +316,51 @@ const TERM_STATUSES = ['Pending', 'PendingSignature', 'Active', 'Completed', 'Te
               <div style="display:flex; gap:8px; margin-top:10px;">
                 <button mjButton [disabled]="Op.Busy" (click)="CommitRenewal(term)">Renew this term</button>
                 <button mjButton variant="flat" (click)="CancelPreview()">Cancel</button>
+              </div>
+            </div>
+
+            <!-- CO-TERMING (plan §5.4). The new product's coverage ends with the TERM, so it lands
+                 on the SAME renewal date as everything else the customer already has — which is the
+                 thing standalone subscriptions structurally cannot do. -->
+            <div class="issues" *ngIf="Amend.TermID === term.ID" style="border-left-color: var(--mj-brand-primary); margin-bottom: 12px;">
+              <h4>Add a product to term {{ term.TermNumber }}, mid-term</h4>
+              <div class="grid">
+                <div class="fld">
+                  <label>Product</label>
+                  <select [(ngModel)]="Amend.ProductID">
+                    <option value="">Choose…</option>
+                    <option *ngFor="let p of Lookups.Products" [value]="p.ID">{{ p.Name }}</option>
+                  </select>
+                </div>
+                <div class="fld">
+                  <label>Line type</label>
+                  <select [(ngModel)]="Amend.LineType">
+                    <option *ngFor="let t of LineTypes" [value]="t">{{ t }}</option>
+                  </select>
+                </div>
+                <div class="fld" *ngIf="Amend.LineType === 'Subscription'">
+                  <label>Subscription type</label>
+                  <select [(ngModel)]="Amend.SubscriptionTypeID">
+                    <option [ngValue]="null">Choose…</option>
+                    <option *ngFor="let st of Lookups.SubscriptionTypes" [value]="st.ID">{{ st.Name }}</option>
+                  </select>
+                </div>
+                <div class="fld"><label>Quantity</label><input type="number" [(ngModel)]="Amend.Quantity" /></div>
+                <div class="fld"><label>Contracted unit price</label><input type="number" step="0.01" [(ngModel)]="Amend.ContractedUnitPrice" /></div>
+                <div class="fld"><label>Effective date</label><input type="date" [(ngModel)]="Amend.EffectiveDate" /></div>
+                <div class="fld" style="grid-column: 1 / -1;">
+                  <label>What changed, and why</label>
+                  <input type="text" [(ngModel)]="Amend.Description" placeholder="Recorded on the amendment and the audit trail" />
+                </div>
+              </div>
+              <ul *ngIf="Amend.Preview">
+                <li>Coverage would run {{ Amend.Preview.StubStart }} → {{ Amend.Preview.StubEnd }} — co-termed with the rest of the agreement</li>
+                <li>{{ Amend.Preview.StubDays }} days, prorated on the next billing event</li>
+              </ul>
+              <div style="display:flex; gap:8px; margin-top:10px;">
+                <button mjButton variant="flat" [disabled]="Op.Busy || !CanPreviewAmendment" (click)="PreviewAmendment(term)">Preview</button>
+                <button mjButton [disabled]="Op.Busy || !Amend.Preview || !Amend.Description.trim()" (click)="CommitAmendment(term)">Add it</button>
+                <button mjButton variant="flat" (click)="CancelAmendment()">Cancel</button>
               </div>
             </div>
 
@@ -779,6 +829,99 @@ export class MJCContractWorkspaceComponent {
             this.CancelPreview();
             this.ReloadRequested.emit(this.Draft.ID!);
         });
+    }
+
+    /** A running term can take a mid-term change. */
+    public CanAmend(term: ContractDraftTerm): boolean {
+        return !!term.ID && term.Status === 'Active';
+    }
+
+    public Amend: {
+        TermID: string | null;
+        ProductID: string;
+        LineType: string;
+        SubscriptionTypeID: string | null;
+        Quantity: number;
+        ContractedUnitPrice: number | null;
+        EffectiveDate: string;
+        Description: string;
+        Preview: AmendTermOutput | null;
+    } = {
+        TermID: null, ProductID: '', LineType: 'Subscription', SubscriptionTypeID: null,
+        Quantity: 1, ContractedUnitPrice: null, EffectiveDate: '', Description: '', Preview: null,
+    };
+
+    public get CanPreviewAmendment(): boolean {
+        if (!this.Amend.ProductID) return false;
+        if (this.Amend.LineType === 'Subscription' && !this.Amend.SubscriptionTypeID) return false;
+        return true;
+    }
+
+    public StartAmendment(term: ContractDraftTerm): void {
+        this.Amend = {
+            TermID: term.ID,
+            ProductID: '',
+            LineType: 'Subscription',
+            SubscriptionTypeID: null,
+            Quantity: 1,
+            ContractedUnitPrice: null,
+            // Today by default: a mid-term change is normally happening now, and the stub runs from
+            // here to the term's end.
+            EffectiveDate: new Date().toISOString().slice(0, 10),
+            Description: '',
+            Preview: null,
+        };
+        this.cdr.detectChanges();
+    }
+
+    public CancelAmendment(): void {
+        this.Amend.TermID = null;
+        this.Amend.Preview = null;
+        this.cdr.detectChanges();
+    }
+
+    /** The real computation, write suppressed — so the co-term window is seen before it is agreed. */
+    public async PreviewAmendment(term: ContractDraftTerm): Promise<void> {
+        if (!term.ID) return;
+        await this.runOp(async () => {
+            const result = await new ContractsAmendTermOperation().Execute(this.amendInput(term.ID!, true));
+            const output = result?.Output;
+            if (!output?.Success) {
+                this.Message = output?.Message ?? result?.ErrorMessage ?? 'Could not preview the amendment.';
+                return;
+            }
+            this.Amend.Preview = output;
+        });
+    }
+
+    public async CommitAmendment(term: ContractDraftTerm): Promise<void> {
+        if (!term.ID || !this.Amend.Description.trim()) return;
+        await this.runOp(async () => {
+            const result = await new ContractsAmendTermOperation().Execute(this.amendInput(term.ID!, false));
+            const output = result?.Output;
+            if (!output?.Success) {
+                this.Message = output?.Message ?? result?.ErrorMessage ?? 'The amendment failed.';
+                return;
+            }
+            this.Message = output.Message ?? 'Amendment applied.';
+            this.CancelAmendment();
+            this.ReloadRequested.emit(this.Draft.ID ?? '');
+        });
+    }
+
+    private amendInput(termID: string, previewOnly: boolean) {
+        return {
+            ContractTermID: termID,
+            AmendmentType: 'AddProduct',
+            Description: this.Amend.Description.trim() || 'Product added mid-term',
+            EffectiveDate: this.Amend.EffectiveDate || undefined,
+            ProductID: this.Amend.ProductID,
+            LineType: this.Amend.LineType,
+            Quantity: this.Amend.Quantity,
+            ContractedUnitPrice: this.Amend.ContractedUnitPrice,
+            SubscriptionTypeID: this.Amend.SubscriptionTypeID,
+            PreviewOnly: previewOnly,
+        };
     }
 
     public CancelPreview(): void {

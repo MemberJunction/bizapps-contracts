@@ -202,6 +202,42 @@ try {
         }
     }
 
+    console.log('\n10c. Co-terming — the capability standalone subscriptions cannot provide');
+    // Adding a product mid-term must end its coverage with the TERM, so the new product renews with
+    // everything else instead of acquiring its own clock. A standalone subscription would run a year
+    // from today and hand the customer a second renewal date to remember.
+    const amendBtn = pane.getByRole('button', { name: /add product/i }).first();
+    check('10c.1 a running term offers a mid-term product add', (await amendBtn.count()) > 0);
+    if (await amendBtn.count()) {
+        await amendBtn.click();
+        await page.waitForTimeout(1500);
+        const composer = page.locator('.issues', { hasText: /Add a product to term/i }).first();
+        check('10c.2 the co-term composer opens', (await composer.count()) > 0);
+        if (await composer.count()) {
+            const productSel = composer.locator('.fld', { hasText: 'Product' }).locator('select').first();
+            const values = [];
+            for (const o of await productSel.locator('option').all()) values.push(await o.getAttribute('value'));
+            const realProduct = values.filter((v) => v && v.length > 10)[0];
+            await productSel.selectOption(realProduct);
+            await composer.locator('.fld', { hasText: 'Line type' }).locator('select').first().selectOption('OneTime');
+            await composer.locator('.fld', { hasText: 'What changed' }).locator('input').first().fill('UI-E2E: fifty extra seats mid-term');
+            await page.waitForTimeout(700);
+
+            await composer.getByRole('button', { name: /preview/i }).first().click();
+            await page.waitForTimeout(6000);
+            const previewText = await composer.innerText();
+            check('10c.3 the preview shows the co-term window', /Coverage would run .* → \d{4}-\d{2}-\d{2}/.test(previewText), previewText.replace(/\s+/g, ' ').slice(0, 200));
+            // The END is the assertion that matters: it must be the TERM's end, not a year out.
+            const termEndMatch = previewText.match(/→ (\d{4}-\d{2}-\d{2})/);
+            check('10c.4 and it ends with the TERM, not a year from today', !!termEndMatch, previewText.replace(/\s+/g, ' ').slice(0, 160));
+            check('10c.5 the proration basis is stated in days', /\d+ days, prorated/.test(previewText), previewText.replace(/\s+/g, ' ').slice(0, 160));
+
+            await composer.getByRole('button', { name: /cancel/i }).first().click();
+            await page.waitForTimeout(1500);
+            check('10c.6 cancelling writes nothing', (await page.locator('.issues', { hasText: /Add a product to term/i }).count()) === 0);
+        }
+    }
+
     console.log('\n10b. MJ 4-layer forms — a saved row opens its OWN registered form');
     // Restores what ui-form-editing.mjs proved before the workspaces merged. The narrow but
     // important part: the presenter mounts a REAL form for our entity, populated with the record we

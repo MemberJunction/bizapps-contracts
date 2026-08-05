@@ -12,6 +12,7 @@ Convention: `.mjdev-docs/PLANNING-SYSTEM.md` §7. IDs are append-only and never 
 | # | Question | Reviewer | Status |
 |---|---|---|---|
 | [Q1](#q1) | May a contract be Active with no term? | Andrew | OPEN — proceeding |
+| [Q2](#q2) | How should ChangeQuantity / ChangePrice / PartialTerminate amendments be applied? | Andrew | OPEN — proceeding |
 
 ---
 
@@ -64,5 +65,49 @@ Convention: `.mjdev-docs/PLANNING-SYSTEM.md` §7. IDs are append-only and never 
   `test-harnesses/server/invariants.ts` (B.4/B.5, which now use their own contract). Both were
   changed because the behaviour intentionally changed, not to make a red test green — they assert
   status-transition rules and were using a bare contract as a fixture convenience.
+
+- **Answer:** _(pending)_
+
+---
+
+<a id="q2"></a>
+
+### Q2 · How should ChangeQuantity / ChangePrice / PartialTerminate amendments be applied? — review: Andrew — added 2026-08-05
+
+- **Status:** OPEN — proceeding
+- **Requested reviewer:** Andrew (SoundPostAndrew)
+- **Features:** amendments; `Contracts.AmendTerm`
+
+- **Proposed solution (what we are implementing):** **`Contracts.AmendTerm` applies `AddProduct` and
+  `Coterm` only, and REFUSES the other three with the reason.** Co-terming is specified exactly by
+  master plan §5.4 — an amendment plus a line whose `StartDate` is the amendment date and whose
+  `EndDate` is the term's — so it is built, tested and reachable from the workspace.
+
+  The other three are refused because the record cannot express them. `ContractAmendment` has
+  `ContractTermID`, `AmendmentNumber`, `EffectiveDate`, `AmendmentType`, `Description`, `Status` and
+  `ApprovalTaskID`. There is no column saying WHICH line changed or TO WHAT VALUE. So applying a
+  `ChangeQuantity` would mean the operation guessing which of a term's lines was meant — and a wrong
+  guess produces an amendment marked `Applied` against a term nothing actually changed on, which is
+  the worst available outcome: it looks done and is not.
+
+  Refusing names the reason rather than silently doing nothing, and nothing is written.
+
+- **The question for Andrew:** (1) Should these amendment kinds carry their change ON the amendment
+  row — a `ContractAmendmentLine` child, say, recording the target line and the before/after values —
+  so the amendment is a self-contained record of what changed? (2) Or should the change stay on the
+  operation's INPUT, with the amendment remaining a record that *a* change of that kind happened and
+  the line's own audit trail carrying the detail? (3) Is `PartialTerminate` a distinct thing from
+  ending a line's coverage early, or is it exactly that?
+
+- **Context to share:** `plans/bizapps-contracts-master.md` §5.4 and §3.8;
+  `AmendTermOperation.ts`; integration checks `contracts-amendment.AM7` (the refusal) and AM1
+  (co-terming working).
+
+- **What motivates this now:** `AmendTerm` shipped 2026-08-05 and covers the specified half. The
+  unspecified half is the remainder of plan C4.
+
+- **Fixed constraints (not up for debate):** whichever shape wins, an amendment must stay
+  ALL-OR-NONE with the change it authorises — AM2 asserts that a line which fails to save leaves no
+  amendment row behind, and that holds under any answer.
 
 - **Answer:** _(pending)_

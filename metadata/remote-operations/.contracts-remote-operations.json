@@ -141,5 +141,43 @@
       "lastModified": "2026-08-05T18:13:52.478Z",
       "checksum": "97de2a3876698e0bf65247346f3a5cae5e7334f12a0d65df804b19638be9dfa9"
     }
+  },
+  {
+    "_comments": [
+      "Co-terming (master plan §5.4) — the capability standalone subscriptions structurally cannot",
+      "provide, and the reason the contract owns the calendar. Adding a product mid-term creates an",
+      "amendment plus a line whose EndDate is the TERM's, so the new product renews with everything",
+      "else instead of acquiring its own clock.",
+      "",
+      "It applies AddProduct and Coterm only. ContractAmendment records THAT a term changed and of what",
+      "kind, not WHICH line changed or to what value, so ChangeQuantity/ChangePrice/PartialTerminate",
+      "would have to be guessed — and a wrong guess produces an amendment marked Applied against a term",
+      "nothing actually changed on. Refused with the reason instead; raised as Q2 for Andrew."
+    ],
+    "fields": {
+      "Name": "Amend Term",
+      "OperationKey": "Contracts.AmendTerm",
+      "CategoryID": "@lookup:MJ: Remote Operation Categories.Name=Contract Lifecycle",
+      "Description": "Change a term that is RUNNING, without restarting it. Adding a product mid-term creates a ContractAmendment plus a co-term line whose window runs from the amendment date to the TERM's end date, so the new product lands on the same renewal date as everything else the customer already has and the stub period prorates on the next billing event. All-or-none: the amendment and the line are written together or neither is. PreviewOnly computes the stub window and its day count without writing. Refuses a term that is not Active, an amendment dated outside its term, and the amendment kinds whose change cannot be derived from the record.",
+      "InputTypeName": "AmendTermInput",
+      "InputTypeDefinition": "@file:types/contracts-amend-term.input.ts",
+      "InputTypeIsArray": false,
+      "OutputTypeName": "AmendTermOutput",
+      "OutputTypeDefinition": "@file:types/contracts-amend-term.output.ts",
+      "OutputTypeIsArray": false,
+      "ExecutionMode": "Sync",
+      "RequiredScope": "contracts:write",
+      "RequiresSystemUser": false,
+      "GenerationType": "Manual",
+      "CodeApprovalStatus": "Approved",
+      "Status": "Active"
+    },
+    "primaryKey": {
+      "ID": "06F49FFB-E36D-4695-88B6-F9803EECF648"
+    },
+    "sync": {
+      "lastModified": "2026-08-05T19:26:59.556Z",
+      "checksum": "97bcab7b5969e9043e07c62c1e7c612cce0df04957b13bfc8ae1853b13be67ed"
+    }
   }
 ]

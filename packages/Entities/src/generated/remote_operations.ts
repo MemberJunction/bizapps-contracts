@@ -78,6 +78,70 @@ export interface ActivateTermOutput {
 }
 
 /**
+ * Input for `Contracts.AmendTerm`.
+ *
+ * An amendment changes a term that is RUNNING; a renewal starts a new one. Conflating the two is the
+ * single most common contract-model mistake — a customer who adds fifty seats in month four has not
+ * started a new agreement, and forcing that through a renewal would restart their term, re-date
+ * their renewal notice and re-baseline their escalation.
+ *
+ * THE CHANGE COMES IN ON THIS INPUT, not off the amendment row. `ContractAmendment` records THAT a
+ * term changed, when, of what kind, and who approved it — it has no columns saying which line
+ * changed or to what value. So `AddProduct` and `Coterm` are applied from what is supplied here, and
+ * the other kinds are refused rather than guessed at.
+ *
+ * NO import statements — definitions are emitted verbatim.
+ */
+export interface AmendTermInput {
+    ContractTermID: string;
+    /** `AddProduct` or `Coterm`. Other kinds are refused with the reason. */
+    AmendmentType: string;
+    /** What changed and why. Recorded on the amendment and on the lifecycle event. */
+    Description: string;
+    /** ISO date (YYYY-MM-DD). Defaults to today. The co-term stub starts here. */
+    EffectiveDate?: string;
+    /** The product being added mid-term. */
+    ProductID?: string;
+    Quantity?: number;
+    ContractedUnitPrice?: number | null;
+    /** Required when the added line is a Subscription — orders cannot materialise one without it. */
+    SubscriptionTypeID?: string | null;
+    LineType?: string;
+    /** The approval task, where one was required. */
+    ApprovalTaskID?: string | null;
+    /** Compute and report, write nothing. */
+    PreviewOnly?: boolean;
+}
+
+/**
+ * Output for `Contracts.AmendTerm`.
+ *
+ * The stub window is the whole point of the return value. Adding a product mid-term creates a line
+ * whose EndDate is the TERM's end date, so the new product lands on the SAME renewal date as
+ * everything else the customer already has — and `StubDays` is what the next billing event prorates.
+ * A standalone subscription would instead run a year from the amendment date and hand the customer
+ * a second renewal date to remember.
+ *
+ * NO import statements — definitions are emitted verbatim.
+ */
+export interface AmendTermOutput {
+    Success: boolean;
+    Message?: string;
+    Preview: boolean;
+    ContractTermID?: string;
+    AmendmentID?: string;
+    AmendmentNumber?: number;
+    /** The co-term stub that would be, or was, created. */
+    LineID?: string;
+    /** ISO date (YYYY-MM-DD) — the amendment date. */
+    StubStart?: string;
+    /** ISO date (YYYY-MM-DD) — the TERM's end date, which is the point. */
+    StubEnd?: string;
+    /** Days of the term the stub covers; what the proration is of. */
+    StubDays?: number;
+}
+
+/**
  * Input for `Contracts.RenewTerm`.
  *
  * `PreviewOnly` is the important one: renewal is where a human wants to see the escalated numbers
@@ -2247,6 +2311,22 @@ export class AISkillImportMarkdownOperation extends BaseRemotableOperation<AISki
  */
 export class ContractsActivateTermOperation extends BaseRemotableOperation<ActivateTermInput, ActivateTermOutput> {
     public readonly OperationKey = "Contracts.ActivateTerm";
+    public readonly ExecutionMode = 'Sync' as const;
+    public readonly RequiredScope = "contracts:write";
+    public readonly RequiresSystemUser = false;
+}
+
+// ============================================================
+// Contracts.AmendTerm — Amend Term
+// ============================================================
+/**
+ * Amend Term
+ * Change a term that is RUNNING, without restarting it. Adding a product mid-term creates a ContractAmendment plus a co-term line whose window runs from the amendment date to the TERM's end date, so the new product lands on the same renewal date as everything else the customer already has and the stub period prorates on the next billing event. All-or-none: the amendment and the line are written together or neither is. PreviewOnly computes the stub window and its day count without writing. Refuses a term that is not Active, an amendment dated outside its term, and the amendment kinds whose change cannot be derived from the record.
+ * GenerationType=Manual — the server body is supplied by a hand-authored subclass registered
+ * under 'Contracts.AmendTerm'. This generated base provides the typed contract only (client-safe).
+ */
+export class ContractsAmendTermOperation extends BaseRemotableOperation<AmendTermInput, AmendTermOutput> {
+    public readonly OperationKey = "Contracts.AmendTerm";
     public readonly ExecutionMode = 'Sync' as const;
     public readonly RequiredScope = "contracts:write";
     public readonly RequiresSystemUser = false;

@@ -20,7 +20,8 @@
  * BUNDLES
  *   contracts-composition    CC1–CC16   the contract as one entity, one transaction, one tree
  *   contracts-save-contract  SC1–SC9    the BROWSER's path to that tree, through a draft payload
- *   contracts-billing        BE1–BE12   the engine that decides what to bill, and the driver
+ *   contracts-billing        BE1–BE15   the engine that decides what to bill, and the driver
+ *   contracts-amendment      AM1–AM8    changing a LIVE term, and co-terming (plan §5.4)
  *
  * @module @mj-biz-apps/contracts-integration-tests
  */
@@ -28,8 +29,10 @@
 import './checks/composition.checks.js';
 import './checks/save-contract.checks.js';
 import './checks/billing.checks.js';
+import './checks/amendment.checks.js';
 
 export { CompositionChecks } from './checks/composition.checks.js';
 export { SaveContractChecks } from './checks/save-contract.checks.js';
 export { BillingChecks } from './checks/billing.checks.js';
+export { AmendmentChecks } from './checks/amendment.checks.js';
 export * from './fixture.js';
