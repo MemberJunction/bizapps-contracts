@@ -197,7 +197,7 @@ function toneFor(status: string | null | undefined): string {
         <div class="pane">
         <div class="wrap" *ngIf="ActiveNav === 'contracts'">
             <!-- ===================== ROSTER ===================== -->
-            <ng-container *ngIf="!SelectedContract">
+            <ng-container>
                 <div class="head">
                     <div>
                         <div class="eyebrow">Viewing</div>
@@ -242,132 +242,13 @@ function toneFor(status: string | null | undefined): string {
                         [Height]="420"
                         [ShowToolbar]="true"
                         [ToolbarConfig]="RosterToolbar"
-                        (AfterRowClick)="OpenContract($event)"
                         (AfterDataLoad)="OnRosterLoaded()"
                     ></mj-explorer-entity-data-grid>
                     <div class="note info">
-                        <strong>New contract</strong> in the toolbar opens MJ's record form — save it and it appears here.
-                        Single-click a row to open its workspace below; double-click to open the raw record.
+                        <strong>New contract</strong> in the toolbar opens the contract form. <strong>Double-click</strong> any
+                        row to open that contract as its own MJ record tab — the standard Explorer way to view a record,
+                        so several contracts stay open side by side and the browser's history works.
                     </div>
-                </div>
-            </ng-container>
-
-            <!-- ===================== WORKSPACE ===================== -->
-            <ng-container *ngIf="SelectedContract as c">
-                <div class="head">
-                    <div>
-                        <div class="eyebrow">Viewing contract</div>
-                        <h1>
-                            {{ c.ContractNumber }}
-                            <span class="badge" [ngClass]="Tone(c.Status)">{{ c.Status }}</span>
-                            <span class="badge" *ngIf="c.AutoRenew">Auto-renew</span>
-                        </h1>
-                        <p class="sub">{{ c.Description || 'No description recorded.' }}</p>
-                    </div>
-                    <div class="actions">
-                        <button class="btn" (click)="CloseContract()">← All contracts</button>
-                    </div>
-                </div>
-
-                <div class="card">
-                    <div class="tabs">
-                        <button *ngFor="let t of Tabs" [class.active]="t.key === ActiveTab" (click)="ActiveTab = t.key">
-                            {{ t.label }}<span class="n" *ngIf="t.count !== null">{{ t.count }}</span>
-                        </button>
-                    </div>
-
-                    <!-- OVERVIEW -->
-                    <ng-container *ngIf="ActiveTab === 'overview'">
-                        <div class="grid2">
-                            <div class="fld"><span class="k">Status</span><span class="v">{{ c.Status }}</span></div>
-                            <div class="fld"><span class="k">Effective</span><span class="v">{{ c.EffectiveDate ? (c.EffectiveDate | date: 'mediumDate') : '—' }}</span></div>
-                            <div class="fld"><span class="k">Executed</span><span class="v">{{ c.ExecutedDate ? (c.ExecutedDate | date: 'mediumDate') : '—' }}</span></div>
-                            <div class="fld"><span class="k">Priced as of</span><span class="v">{{ c.PricedAt ? (c.PricedAt | date: 'mediumDate') : '—' }}</span></div>
-                            <div class="fld"><span class="k">Auto-renew</span><span class="v">{{ c.AutoRenew ? 'Yes' : 'No' }}</span></div>
-                            <div class="fld"><span class="k">Cancellation window</span><span class="v">{{ c.CancellationWindowDays != null ? c.CancellationWindowDays + ' days' : '—' }}</span></div>
-                            <div class="fld"><span class="k">External reference</span><span class="v">{{ c.ExternalReferenceID || '—' }}</span></div>
-                            <div class="fld"><span class="k">Terms</span><span class="v">{{ SelectedTerms.length }}</span></div>
-                            <div class="fld"><span class="k">Total committed</span><span class="v">{{ CommittedFor(c.ID) | currency: 'USD' : 'symbol' : '1.0-0' }}</span></div>
-                        </div>
-                        <div class="note info" *ngIf="c.PricedAt">
-                            Prices on this agreement were resolved from the catalog as of
-                            <strong>{{ c.PricedAt | date: 'mediumDate' }}</strong> and locked. Renewals escalate from the
-                            contract's own prior price rather than re-reading the catalog.
-                        </div>
-                    </ng-container>
-
-                    <!-- TERMS -->
-                    <ng-container *ngIf="ActiveTab === 'terms'">
-                        <div class="tl" *ngIf="SelectedTerms.length; else noTerms">
-                            <div class="tl-row" *ngFor="let t of SelectedTerms">
-                                <div class="tl-when">
-                                    Term {{ t.TermNumber }}<br />
-                                    <span class="muted">{{ t.StartDate | date: 'yyyy' }}</span>
-                                </div>
-                                <div>
-                                    <div class="tl-bar">
-                                        <div class="tl-fill" [ngClass]="TermFill(t)" [style.width.%]="100">
-                                            {{ t.StartDate | date: 'mediumDate' }} – {{ t.EndDate | date: 'mediumDate' }} · {{ t.Status }}
-                                        </div>
-                                    </div>
-                                    <div class="tl-meta">
-                                        <span>Committed <strong>{{ t.CommittedAmount | currency: 'USD' : 'symbol' : '1.0-0' }}</strong></span>
-                                        <span>{{ t.BillingFrequency }}</span>
-                                        <span *ngIf="t.EscalationPercent != null">
-                                            +{{ t.EscalationPercent * 100 | number: '1.0-2' }}%
-                                            <span class="muted" *ngIf="t.MaxEscalationPercent != null">(cap {{ t.MaxEscalationPercent * 100 | number: '1.0-2' }}%)</span>
-                                            <span class="muted" *ngIf="t.EscalationBasis"> on {{ t.EscalationBasis }}</span>
-                                        </span>
-                                        <span *ngIf="t.RenewalNoticeDays != null">{{ t.RenewalNoticeDays }}d notice</span>
-                                        <span *ngIf="t.RenewalProbability != null">renewal {{ t.RenewalProbability * 100 | number: '1.0-0' }}%</span>
-                                        <span *ngIf="t.ExecutedDate">executed {{ t.ExecutedDate | date: 'mediumDate' }}</span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        <ng-template #noTerms><div class="empty">No terms on this contract yet.</div></ng-template>
-                        <div class="searchrow" style="border-top:1px solid var(--mj-border-subtle,#f1f5f9);border-bottom:none;">
-                            <span class="muted" style="font-size:12.5px;">Select a term to scope Coverage and Billing:</span>
-                            <select class="f" [(ngModel)]="SelectedTermID" (ngModelChange)="OnTermChange()">
-                                <option [ngValue]="null">— all terms —</option>
-                                <option *ngFor="let t of SelectedTerms" [ngValue]="t.ID">Term {{ t.TermNumber }} ({{ t.Status }})</option>
-                            </select>
-                        </div>
-                    </ng-container>
-
-                    <!-- GRID-BACKED TABS -->
-                    <ng-container *ngIf="ActiveTab === 'coverage'">
-                        <mj-explorer-entity-data-grid [Params]="LinesParams" [Height]="420"></mj-explorer-entity-data-grid>
-                    </ng-container>
-                    <ng-container *ngIf="ActiveTab === 'billing'">
-                        <mj-explorer-entity-data-grid [Params]="SchedulesParams" [Height]="180"></mj-explorer-entity-data-grid>
-                        <div class="card-head" style="border-top:1px solid var(--mj-border-subtle,#f1f5f9);">Billing events</div>
-                        <mj-explorer-entity-data-grid [Params]="EventsParams" [Height]="300"></mj-explorer-entity-data-grid>
-                    </ng-container>
-                    <ng-container *ngIf="ActiveTab === 'commitments'">
-                        <mj-explorer-entity-data-grid [Params]="CommitmentsParams" [Height]="380"></mj-explorer-entity-data-grid>
-                    </ng-container>
-                    <ng-container *ngIf="ActiveTab === 'amendments'">
-                        <mj-explorer-entity-data-grid [Params]="AmendmentsParams" [Height]="380"></mj-explorer-entity-data-grid>
-                    </ng-container>
-                    <ng-container *ngIf="ActiveTab === 'documents'">
-                        <div class="empty">
-                            Documents attach through MJ's polymorphic <span class="mono">__mj.FileEntityRecordLink</span>
-                            (EntityID + RecordID) — not a column on this schema.
-                            <br /><br />
-                            The record-scoped file panel does not exist in MJ yet: <span class="mono">ng-file-storage</span>
-                            ships category-scoped browsers only. <strong>&lt;mj-record-files&gt;</strong> is one of the two
-                            components this app is building to donate back.
-                        </div>
-                    </ng-container>
-                    <ng-container *ngIf="ActiveTab === 'history'">
-                        <mj-explorer-entity-data-grid [Params]="EventLogParams" [Height]="380"></mj-explorer-entity-data-grid>
-                        <div class="note info">
-                            This is the immutable <strong>system</strong> record. Customer-visible events also write a
-                            <span class="mono">common.Activity</span> row so the agreement appears on the account timeline —
-                            two different things, neither replacing the other.
-                        </div>
-                    </ng-container>
                 </div>
             </ng-container>
         </div>
@@ -456,10 +337,7 @@ export class MJCContractsSectionComponent extends BaseResourceComponent implemen
     public Contracts: ContractRow[] = [];
     public Terms: TermRow[] = [];
     public Events: EventRow[] = [];
-    public SelectedContract: ContractRow | null = null;
-    public SelectedTermID: string | null = null;
-    public ActiveTab = 'overview';
-    public ActiveNav = 'contracts';
+    public ActiveNav: string = 'contracts';
     public EventCounts = { Scheduled: 0, Generated: 0, Failed: 0, Skipped: 0 };
 
     public AllEventsParams: RunViewParams = { EntityName: ENTITY_EVENTS, OrderBy: 'ScheduledDate' };
@@ -522,9 +400,6 @@ export class MJCContractsSectionComponent extends BaseResourceComponent implemen
 
     public OnNav(item: MJLeftNavItem): void {
         this.ActiveNav = item.id;
-        if (item.id !== 'contracts') {
-            this.SelectedContract = null;
-        }
         this.cdr.detectChanges();
     }
 
@@ -532,18 +407,6 @@ export class MJCContractsSectionComponent extends BaseResourceComponent implemen
         return this.Events.filter((e) => e.Status === 'Failed');
     }
 
-    public get Tabs(): { key: string; label: string; count: number | null }[] {
-        return [
-            { key: 'overview', label: 'Overview', count: null },
-            { key: 'terms', label: 'Terms', count: this.SelectedTerms.length },
-            { key: 'coverage', label: 'Coverage', count: null },
-            { key: 'billing', label: 'Billing', count: null },
-            { key: 'commitments', label: 'Commitments', count: null },
-            { key: 'amendments', label: 'Amendments', count: null },
-            { key: 'documents', label: 'Documents', count: null },
-            { key: 'history', label: 'History', count: null },
-        ];
-    }
 
     public get ActiveCount(): number {
         return this.Contracts.filter((c) => c.Status === 'Active').length;
@@ -567,73 +430,21 @@ export class MJCContractsSectionComponent extends BaseResourceComponent implemen
         }).length;
     }
 
-    public get SelectedTerms(): TermRow[] {
-        return this.SelectedContract ? (this.termsByContract.get(this.SelectedContract.ID) ?? []) : [];
-    }
 
-    public CommittedFor(contractID: string): number {
-        return (this.termsByContract.get(contractID) ?? []).reduce((s, t) => s + (t.CommittedAmount ?? 0), 0);
-    }
 
     public Tone(status: string | null): string {
         return toneFor(status);
     }
 
-    public TermFill(t: TermRow): string {
-        if (t.Status === 'Active') return 'active';
-        if (t.Status === 'Completed' || t.Status === 'Terminated') return 'done';
-        return 'future';
-    }
 
-    public OpenContract(args: AfterRowClickEventArgs): void {
-        const row = args?.row as Record<string, unknown> | undefined;
-        const id = row?.['ID'];
-        if (typeof id !== 'string') return;
-        this.SelectedContract = this.Contracts.find((c) => c.ID === id) ?? null;
-        this.ActiveTab = 'overview';
-        this.SelectedTermID = null;
-        this.scopeChildGrids();
-        this.cdr.detectChanges();
-    }
 
     /** The grid reloaded — a contract may have just been created, so refresh the strip + lookups. */
     public async OnRosterLoaded(): Promise<void> {
         await this.load();
     }
 
-    public CloseContract(): void {
-        this.SelectedContract = null;
-        this.SelectedTermID = null;
-        this.cdr.detectChanges();
-    }
 
-    public OnTermChange(): void {
-        this.scopeChildGrids();
-        this.cdr.detectChanges();
-    }
 
-    /**
-     * Aims every child grid at the current selection. Params objects are REASSIGNED rather than
-     * mutated — an in-place edit would not trip Angular's input change detection, so the grid would
-     * keep showing the previous contract's rows.
-     */
-    private scopeChildGrids(): void {
-        const c = this.SelectedContract;
-        if (!c) return;
-        const termIDs = (this.termsByContract.get(c.ID) ?? []).map((t) => `'${t.ID}'`);
-        const termScope = this.SelectedTermID
-            ? `ContractTermID='${this.SelectedTermID}'`
-            : termIDs.length
-              ? `ContractTermID IN (${termIDs.join(',')})`
-              : `1=0`;
-
-        this.LinesParams = { EntityName: ENTITY_LINES, ExtraFilter: termScope, OrderBy: 'DisplayOrder' };
-        this.SchedulesParams = { EntityName: ENTITY_SCHEDULES, ExtraFilter: termScope };
-        this.EventsParams = { EntityName: ENTITY_EVENTS, ExtraFilter: termScope, OrderBy: 'ScheduledDate' };
-        this.CommitmentsParams = { EntityName: ENTITY_COMMITMENTS, ExtraFilter: termScope };
-        this.AmendmentsParams = { EntityName: ENTITY_AMENDMENTS, ExtraFilter: termScope, OrderBy: 'AmendmentNumber' };
-        this.EventLogParams = { EntityName: ENTITY_EVENTLOG, ExtraFilter: `ContractID='${c.ID}'`, OrderBy: 'EventDate DESC' };
-    }
 
     /** One `RunViews` batch — three round trips for data always needed together would be three too many. */
     private async load(): Promise<void> {

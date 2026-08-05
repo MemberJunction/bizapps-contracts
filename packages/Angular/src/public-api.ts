@@ -60,6 +60,7 @@ import '@mj-biz-apps/contracts-entities';
 import './lib/generated/generated-forms.module';
 import { GeneratedFormsModule } from './lib/generated/generated-forms.module';
 import { MJCContractsSectionComponent } from './lib/sections/contracts-section.component';
+import { MJCContractFormComponent } from './lib/forms/contract.form.component';
 export { GeneratedFormsModule } from './lib/generated/generated-forms.module';
 export { mjBizAppsContractsContractAmendmentFormComponent } from './lib/generated/Entities/mjBizAppsContractsContractAmendment/mjbizappscontractscontractamendment.form.component';
 export { mjBizAppsContractsContractBillingEventFormComponent } from './lib/generated/Entities/mjBizAppsContractsContractBillingEvent/mjbizappscontractscontractbillingevent.form.component';
@@ -76,6 +77,8 @@ export { mjBizAppsContractsContractTypeFormComponent } from './lib/generated/Ent
 /* The Explorer tab. Its @RegisterClass key must match the DriverClass in
  * metadata/applications/.contracts-application.json — that pairing is the entire wiring. */
 export { MJCContractsSectionComponent } from './lib/sections/contracts-section.component';
+/* Custom Contract form — overrides the generated one at priority 2. */
+export { MJCContractFormComponent } from './lib/forms/contract.form.component';
 
 export function LoadMjBizappsContractsClient(): void {
     // Importing this module is what registers everything above. The reference
@@ -83,4 +86,5 @@ export function LoadMjBizappsContractsClient(): void {
     // can drop the module import and the registrations never fire.
     void GeneratedFormsModule;
     void MJCContractsSectionComponent;
+    void MJCContractFormComponent;
 }
