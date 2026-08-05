@@ -5,7 +5,7 @@ against the **matrix**, not against the tests that happen to exist — an empty 
 every written test is green.
 
 > **Last full sweep:** 2026-08-05 (afternoon), branch `mjdev/contracts-night`, instance `contracts-dev`.
-> **Totals: 52 tier-1 + 101 tier-2 (tsx) + 48 integration + 77 tier-5 = 278 assertions, all passing.**
+> **Totals: 52 tier-1 + 101 tier-2 (tsx) + 48 integration + 86 tier-5 = 287 assertions, all passing.**
 > Every number below was observed, not estimated. Where something was not run, it says so.
 >
 > **The suite moved to MJ's integration tier this afternoon** (`mj test` / `test-harnesses/integration.mjs`),

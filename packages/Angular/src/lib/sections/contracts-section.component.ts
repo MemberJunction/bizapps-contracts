@@ -102,6 +102,12 @@ interface ContractRow {
     EffectiveDate: string | null; ExecutedDate: string | null; PricedAt: string | null;
     AutoRenew: boolean; CancellationWindowDays: number | null; ExternalReferenceID: string | null;
 }
+/* The cross-contract worklist rows. Deliberately flat and read-only: these views exist to FIND a
+   contract, and every one of them opens the real workspace on click. */
+interface ScheduleRow { ID: string; ContractTermID: string; ScheduleType: string; Frequency: string | null; AnchorDate: string | null; IsActive: boolean }
+interface CommitmentRow { ID: string; ContractTermID: string; CommitmentType: string; CommittedAmount: number; ConsumedAmount: number; PeriodStart: string | null; PeriodEnd: string | null; TrueUpPolicy: string; Status: string }
+interface AmendmentRow { ID: string; ContractTermID: string; AmendmentNumber: number; EffectiveDate: string; AmendmentType: string; Description: string | null; Status: string }
+
 interface TermRow {
     ID: string; ContractID: string; TermNumber: number; Status: string;
     StartDate: string | null; EndDate: string | null; CommittedAmount: number | null;
@@ -139,6 +145,24 @@ interface LogRow {
     styles: [
         `
         .wrap { padding: var(--mj-space-5, 20px) var(--mj-space-6, 24px) var(--mj-space-10, 40px); }
+        /* The cross-contract worklists. App-authored rather than a raw entity grid, because the
+           point of these screens is to resolve a foreign key into something a person recognises —
+           and every row opens the real workspace. */
+        .wl { width: 100%; border-collapse: collapse; }
+        .wl th { text-align: left; font-size: 11.5px; font-weight: 600; text-transform: uppercase;
+                 letter-spacing: 0.03em; color: var(--mj-text-secondary); padding: 8px 12px;
+                 border-bottom: 1px solid var(--mj-border-default); white-space: nowrap; }
+        .wl td { padding: 10px 12px; font-size: 13px; color: var(--mj-text-primary);
+                 border-bottom: 1px solid var(--mj-border-subtle, var(--mj-border-default)); }
+        .wl tbody tr { cursor: pointer; }
+        .wl tbody tr:hover { background: color-mix(in srgb, var(--mj-brand-primary) 6%, transparent); }
+        .wl .where { font-weight: 600; white-space: nowrap; }
+        .wl .muted { color: var(--mj-text-secondary); }
+        .wl .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+        .wl-empty { padding: 28px; text-align: center; color: var(--mj-text-secondary); font-size: 13px; }
+        .bar { position: relative; height: 6px; border-radius: 3px; background: var(--mj-border-default); min-width: 90px; }
+        .bar > span { position: absolute; inset: 0 auto 0 0; border-radius: 3px; background: var(--mj-brand-primary); }
+        .bar.over > span { background: var(--mj-color-danger, #d33); }
         .sechead { margin-bottom: var(--mj-space-4, 16px); }
         .sechead h2 { margin: 0; font-size: 18px; font-weight: 700; letter-spacing: -.01em; color: var(--mj-text-primary, #1e293b); }
         .sechead p { margin: 4px 0 0; font-size: 13px; color: var(--mj-text-secondary, #475569); max-width: 82ch; line-height: 1.55; }
@@ -307,12 +331,23 @@ interface LogRow {
 
                 <div class="card">
                     <div class="ch">Contracts <span class="r">{{ Contracts.length }} total</span></div>
-                    <mj-explorer-entity-data-grid
-                        [Params]="P.contracts" [Height]="420"
-                        [ShowToolbar]="true" [ToolbarConfig]="Toolbar"
-                        (AfterRowClick)="OpenWorkspace($event)"
-                        (Navigate)="OnNavigate($event)"
-                    ></mj-explorer-entity-data-grid>
+                    <div class="wl-empty" *ngIf="!Contracts.length">No contracts yet.</div>
+                    <table class="wl" *ngIf="Contracts.length">
+                        <thead><tr>
+                            <th>Contract</th><th>Description</th><th>Status</th><th class="num">Terms</th>
+                            <th class="num">Committed</th><th>Effective</th>
+                        </tr></thead>
+                        <tbody>
+                            <tr *ngFor="let c of Contracts" (click)="OpenContract(c)" [title]="'Open ' + c.ContractNumber + ' in the workspace'">
+                                <td class="where">{{ c.ContractNumber }}</td>
+                                <td class="muted">{{ c.Description || '—' }}</td>
+                                <td><span class="pill" [class]="Tone(c.Status)">{{ c.Status }}</span></td>
+                                <td class="num">{{ TermsOf(c.ID).length }}</td>
+                                <td class="num">{{ CommittedOf(c.ID) | currency: 'USD' : 'symbol' : '1.0-0' }}</td>
+                                <td class="muted">{{ c.EffectiveDate ? (c.EffectiveDate | date: 'mediumDate') : '—' }}</td>
+                            </tr>
+                        </tbody>
+                    </table>
                 </div>
             </div>
 
@@ -427,8 +462,21 @@ interface LogRow {
                 </div>
 
                 <div class="card">
-                    <div class="ch">All billing events</div>
-                    <mj-explorer-entity-data-grid [Params]="P.allEvents" [Height]="420" [ShowToolbar]="true" [ToolbarConfig]="Toolbar" (Navigate)="OnNavigate($event)"></mj-explorer-entity-data-grid>
+                    <div class="ch">All billing events <span class="r">{{ Events.length }}</span></div>
+                    <div class="wl-empty" *ngIf="!Events.length">No billing events yet — activating a term creates them.</div>
+                    <table class="wl" *ngIf="Events.length">
+                        <thead><tr><th>Contract</th><th>Scheduled</th><th>Status</th><th class="num">Amount</th><th>Reason</th></tr></thead>
+                        <tbody>
+                            <tr *ngFor="let e of Events" (click)="OpenByChild(e.ContractTermID)"
+                                [title]="'Open ' + WhereOf(e.ContractTermID) + ' in the workspace'">
+                                <td class="where">{{ WhereOf(e.ContractTermID) }}</td>
+                                <td>{{ e.ScheduledDate | date: 'mediumDate' }}</td>
+                                <td><span class="pill" [class]="Tone(e.Status)">{{ e.Status }}</span></td>
+                                <td class="num">{{ e.ComputedAmount != null ? (e.ComputedAmount | currency: 'USD') : '—' }}</td>
+                                <td class="muted">{{ e.FailureReason || '—' }}</td>
+                            </tr>
+                        </tbody>
+                    </table>
                 </div>
             </div>
 
@@ -493,7 +541,22 @@ interface LogRow {
                     <h2>Amendments</h2>
                 </div>
                 <div class="card">
-                    <mj-explorer-entity-data-grid [Params]="P.allAmendments" [Height]="440" [ShowToolbar]="true" [ToolbarConfig]="Toolbar" (Navigate)="OnNavigate($event)"></mj-explorer-entity-data-grid>
+                    <div class="ch">Amendments <span class="r">{{ Amendments.length }}</span></div>
+                    <div class="wl-empty" *ngIf="!Amendments.length">No amendments raised. Add a product mid-term from a running term to create one.</div>
+                    <table class="wl" *ngIf="Amendments.length">
+                        <thead><tr><th>Contract</th><th>#</th><th>Effective</th><th>Type</th><th>Description</th><th>Status</th></tr></thead>
+                        <tbody>
+                            <tr *ngFor="let am of Amendments" (click)="OpenByChild(am.ContractTermID)"
+                                [title]="'Open ' + WhereOf(am.ContractTermID) + ' in the workspace'">
+                                <td class="where">{{ WhereOf(am.ContractTermID) }}</td>
+                                <td class="num">{{ am.AmendmentNumber }}</td>
+                                <td>{{ am.EffectiveDate | date: 'mediumDate' }}</td>
+                                <td>{{ am.AmendmentType }}</td>
+                                <td class="muted">{{ am.Description || '—' }}</td>
+                                <td><span class="pill" [class]="Tone(am.Status)">{{ am.Status }}</span></td>
+                            </tr>
+                        </tbody>
+                    </table>
                 </div>
             </div>
 
@@ -503,7 +566,21 @@ interface LogRow {
                     <h2>Billing schedules</h2>
                 </div>
                 <div class="card">
-                    <mj-explorer-entity-data-grid [Params]="P.allSchedules" [Height]="440" [ShowToolbar]="true" [ToolbarConfig]="Toolbar" (Navigate)="OnNavigate($event)"></mj-explorer-entity-data-grid>
+                    <div class="ch">Billing schedules <span class="r">{{ Schedules.length }}</span></div>
+                    <div class="wl-empty" *ngIf="!Schedules.length">No schedules yet — activating a term creates one from its cadence.</div>
+                    <table class="wl" *ngIf="Schedules.length">
+                        <thead><tr><th>Contract</th><th>Type</th><th>Frequency</th><th>Anchor</th><th>Active</th></tr></thead>
+                        <tbody>
+                            <tr *ngFor="let sc of Schedules" (click)="OpenByChild(sc.ContractTermID)"
+                                [title]="'Open ' + WhereOf(sc.ContractTermID) + ' in the workspace'">
+                                <td class="where">{{ WhereOf(sc.ContractTermID) }}</td>
+                                <td>{{ sc.ScheduleType }}</td>
+                                <td class="muted">{{ sc.Frequency || '—' }}</td>
+                                <td class="muted">{{ sc.AnchorDate ? (sc.AnchorDate | date: 'mediumDate') : '—' }}</td>
+                                <td class="muted">{{ sc.IsActive ? 'Yes' : 'No' }}</td>
+                            </tr>
+                        </tbody>
+                    </table>
                 </div>
             </div>
 
@@ -513,7 +590,23 @@ interface LogRow {
                     <h2>Commitments</h2>
                 </div>
                 <div class="card">
-                    <mj-explorer-entity-data-grid [Params]="P.allCommitments" [Height]="440" [ShowToolbar]="true" [ToolbarConfig]="Toolbar" (Navigate)="OnNavigate($event)"></mj-explorer-entity-data-grid>
+                    <div class="ch">Commitments <span class="r">{{ Commitments.length }}</span></div>
+                    <div class="wl-empty" *ngIf="!Commitments.length">No commitments recorded.</div>
+                    <table class="wl" *ngIf="Commitments.length">
+                        <thead><tr><th>Contract</th><th>Type</th><th class="num">Committed</th><th class="num">Consumed</th><th>Used</th><th>True-up</th><th>Status</th></tr></thead>
+                        <tbody>
+                            <tr *ngFor="let cm of Commitments" (click)="OpenByChild(cm.ContractTermID)"
+                                [title]="'Open ' + WhereOf(cm.ContractTermID) + ' in the workspace'">
+                                <td class="where">{{ WhereOf(cm.ContractTermID) }}</td>
+                                <td>{{ cm.CommitmentType }}</td>
+                                <td class="num">{{ cm.CommittedAmount | currency: 'USD' : 'symbol' : '1.0-0' }}</td>
+                                <td class="num">{{ cm.ConsumedAmount | currency: 'USD' : 'symbol' : '1.0-0' }}</td>
+                                <td><span class="bar" [class.over]="cm.ConsumedAmount > cm.CommittedAmount"><span [style.width.%]="ConsumedPct(cm)"></span></span></td>
+                                <td class="muted">{{ cm.TrueUpPolicy }}</td>
+                                <td><span class="pill" [class]="Tone(cm.Status)">{{ cm.Status }}</span></td>
+                            </tr>
+                        </tbody>
+                    </table>
                 </div>
             </div>
 
@@ -572,6 +665,9 @@ export class MJCContractsSectionComponent extends BaseResourceComponent implemen
     public Error = '';
 
     public Contracts: ContractRow[] = [];
+    public Schedules: ScheduleRow[] = [];
+    public Commitments: CommitmentRow[] = [];
+    public Amendments: AmendmentRow[] = [];
     public Terms: TermRow[] = [];
     public Events: EventRow[] = [];
     public Log: LogRow[] = [];
@@ -690,6 +786,44 @@ export class MJCContractsSectionComponent extends BaseResourceComponent implemen
             .sort((a, b) => new Date(a.EndDate!).getTime() - new Date(b.EndDate!).getTime());
     }
 
+    /* ── Resolving a foreign key to something a person recognises ──────────────────────────────
+     *
+     * Every cross-contract worklist used to be a raw entity grid, which renders
+     * `66666666-0000-4000-…` for `ContractBillingScheduleID` and expects the reader to know what
+     * that is. A UUID on screen is a failure to answer the question the screen exists to answer.
+     *
+     * MJ's grid ignores `RunViewParams.Fields`, so narrowing the query was never the fix; and the
+     * denormalised name a view would carry does not exist for a TERM, which has no name — only a
+     * number, and only in the context of its contract. So these worklists resolve through the
+     * contracts and terms already in memory, and render "CTR-001842 · term 3".
+     * ────────────────────────────────────────────────────────────────────────────────────────── */
+
+    /** The term behind any child row. */
+    public TermOf(termID: string): TermRow | null {
+        return this.Terms.find((t) => t.ID === termID) ?? null;
+    }
+
+    /** "CTR-001842 · term 3" — what a person calls this row out loud. */
+    public WhereOf(termID: string): string {
+        const term = this.TermOf(termID);
+        if (!term) return '—';
+        return `${this.ContractNumberOf(term.ContractID)} · term ${term.TermNumber}`;
+    }
+
+    /** Open the contract a CHILD row belongs to, as a workspace tab. */
+    public async OpenByChild(termID: string): Promise<void> {
+        const term = this.TermOf(termID);
+        if (!term) return;
+        const row = this.Contracts.find((c) => c.ID === term.ContractID);
+        if (row) await this.OpenContract(row);
+    }
+
+    /** How much of a commitment is used, for the consumed-versus-committed bar. */
+    public ConsumedPct(c: CommitmentRow): number {
+        if (!c.CommittedAmount) return 0;
+        return Math.min(100, Math.round((c.ConsumedAmount / c.CommittedAmount) * 100));
+    }
+
     public ContractNumberOf(contractID: string): string {
         return this.Contracts.find((c) => c.ID === contractID)?.ContractNumber ?? '—';
     }
@@ -804,13 +938,36 @@ export class MJCContractsSectionComponent extends BaseResourceComponent implemen
             Status: 'draft',
             State: draft,
         });
-        this.Section = 'contracts';
+        // No Section assignment: only the Contracts resource reaches this code, and writing to it
+        // is what made the Billing tab render the Contracts rail under a "Billing" highlight.
         this.Page = 'workspace';
         this.cdr.detectChanges();
     }
 
-    /** Open an existing contract, loading its whole tree. Already-open contracts are re-focused. */
+    /**
+     * Open an existing contract.
+     *
+     * IN THE CONTRACTS SECTION this opens the workspace in place, which is the main path.
+     *
+     * FROM BILLING OR SETUP it opens MJ's own record tab instead. An earlier version switched
+     * `this.Section` to 'contracts' and showed the workspace inside the Billing tab — so the top
+     * nav highlighted Billing while the rail and the content were the Contracts workspace. The
+     * screen said two different things about where you were.
+     *
+     * Sections are separate registered resources with separate tab stores, so carrying "open THIS
+     * contract" across to the Contracts tab needs a handoff that does not exist yet; `OpenNavItemByName`
+     * would land the user on the Contracts section without the contract, which is worse than a
+     * record tab that actually shows it. Tracked rather than bodged.
+     */
     public async OpenContract(row: ContractRow): Promise<void> {
+        if (this.Section !== 'contracts') {
+            this.nav.OpenEntityRecord(E_CONTRACTS, CompositeKey.FromID(row.ID));
+            return;
+        }
+        await this.openInWorkspace(row);
+    }
+
+    private async openInWorkspace(row: ContractRow): Promise<void> {
         const existing = this.Drafts.Tabs.find((t) => t.State.ID === row.ID);
         if (existing) {
             this.Drafts.Activate(existing.Id);
@@ -831,7 +988,8 @@ export class MJCContractsSectionComponent extends BaseResourceComponent implemen
             Status: 'complete',
             State: draft,
         });
-        this.Section = 'contracts';
+        // No Section assignment: only the Contracts resource reaches this code, and writing to it
+        // is what made the Billing tab render the Contracts rail under a "Billing" highlight.
         this.Page = 'workspace';
         this.cdr.detectChanges();
     }
@@ -1355,7 +1513,8 @@ export class MJCContractsSectionComponent extends BaseResourceComponent implemen
     /** One batch — six reads always needed together should not be six round trips. */
     private async load(): Promise<void> {
         const rv = new RunView();
-        const [contracts, terms, events, types, companies, orgs, people, users, payterms, currencies, products, subtypes, log] = await rv.RunViews([
+        const [contracts, terms, events, types, companies, orgs, people, users, payterms, currencies, products, subtypes, log,
+               schedules, commitments, amendments] = await rv.RunViews([
             { EntityName: E_CONTRACTS, Fields: ['ID', 'ContractNumber', 'Status', 'Description', 'EffectiveDate', 'ExecutedDate', 'PricedAt', 'AutoRenew', 'CancellationWindowDays', 'ExternalReferenceID'], OrderBy: 'ContractNumber', ResultType: 'simple' },
             { EntityName: E_TERMS, Fields: ['ID', 'ContractID', 'TermNumber', 'Status', 'StartDate', 'EndDate', 'CommittedAmount', 'EscalationPercent', 'MaxEscalationPercent', 'RenewalNoticeDays', 'BillingFrequency', 'ExecutedDate'], OrderBy: 'TermNumber', ResultType: 'simple' },
             { EntityName: E_EVENTS, Fields: ['ID', 'ContractTermID', 'ScheduledDate', 'Status', 'ComputedAmount', 'FailureReason'], OrderBy: 'ScheduledDate', ResultType: 'simple' },
@@ -1369,6 +1528,12 @@ export class MJCContractsSectionComponent extends BaseResourceComponent implemen
             { EntityName: E_PRODUCTS, Fields: ['ID', 'Name'], OrderBy: 'Name', ResultType: 'simple' },
             { EntityName: E_SUBTYPES, Fields: ['ID', 'Name'], OrderBy: 'Name', ResultType: 'simple' },
             { EntityName: E_EVENTLOG, Fields: ['ID', 'ContractID', 'ContractTermID', 'EventType', 'EventDate', 'Payload', 'PerformedByUser'], OrderBy: 'EventDate DESC', ResultType: 'simple' },
+            // The cross-contract sets. Loaded here rather than by a grid so the worklists can show
+            // the CONTRACT NUMBER and TERM NUMBER a person recognises instead of the raw foreign
+            // keys — resolving those needs the contracts and terms, which this method already has.
+            { EntityName: E_SCHEDULES, Fields: ['ID', 'ContractTermID', 'ScheduleType', 'Frequency', 'AnchorDate', 'IsActive'], ResultType: 'simple' },
+            { EntityName: E_COMMITMENTS, Fields: ['ID', 'ContractTermID', 'CommitmentType', 'CommittedAmount', 'ConsumedAmount', 'PeriodStart', 'PeriodEnd', 'TrueUpPolicy', 'Status'], ResultType: 'simple' },
+            { EntityName: E_AMENDMENTS, Fields: ['ID', 'ContractTermID', 'AmendmentNumber', 'EffectiveDate', 'AmendmentType', 'Description', 'Status'], OrderBy: 'EffectiveDate DESC', ResultType: 'simple' },
         ]);
 
         // RunView reports failure via Success — it never throws — so each result is checked.
@@ -1385,6 +1550,9 @@ export class MJCContractsSectionComponent extends BaseResourceComponent implemen
         this.Products = products?.Success ? (products.Results as Lookup[]) : [];
         this.SubscriptionTypes = subtypes?.Success ? (subtypes.Results as Lookup[]) : [];
         this.Log = log?.Success ? (log.Results as LogRow[]) : [];
+        this.Schedules = schedules?.Success ? (schedules.Results as ScheduleRow[]) : [];
+        this.Commitments = commitments?.Success ? (commitments.Results as CommitmentRow[]) : [];
+        this.Amendments = amendments?.Success ? (amendments.Results as AmendmentRow[]) : [];
 
         this.Counts = {
             Scheduled: this.Events.filter((e) => e.Status === 'Scheduled').length,

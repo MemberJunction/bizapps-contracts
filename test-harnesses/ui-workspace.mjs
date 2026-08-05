@@ -120,6 +120,14 @@ try {
             const body = (await page.locator('mj-left-nav-content').innerText()).trim();
             // Not "did it not crash" — did it put anything on the screen at all.
             check(`1b.${section}/${item} renders content`, body.length > 40, `${body.length} chars rendered`);
+
+            // AND NO RAW UUIDs. Every cross-contract worklist used to be an entity grid rendering
+            // `66666666-0000-4000-…` for a foreign key and expecting the reader to know what that
+            // was. A UUID on screen is a failure to answer the question the screen exists to answer,
+            // and it comes back the moment someone drops a raw grid in — so it is asserted, not
+            // remembered.
+            const uuids = body.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-/gi) || [];
+            check(`1b.${section}/${item} shows no raw UUIDs`, uuids.length === 0, `${uuids.length}: ${uuids.slice(0, 2).join(', ')}`);
         }
     }
     // Back to Contracts › Workspace for the rest of the run.
