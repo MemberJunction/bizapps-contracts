@@ -39,7 +39,10 @@ import {
 import { RunView, Metadata, CompositeKey, type RunViewParams } from '@memberjunction/core';
 import type { ResourceData } from '@memberjunction/core-entities';
 import type { AfterRowClickEventArgs } from '@memberjunction/ng-entity-viewer';
-import type { mjBizAppsContractsContractEntity } from '@mj-biz-apps/contracts-entities';
+import type { mjBizAppsContractsContractEntity, mjBizAppsContractsContractTermEntity } from '@mj-biz-apps/contracts-entities';
+// Accounting's session-tab framework — marked TRANSFER-BACKLOG (destined for MJ base); Marcelo
+// authorised using it now rather than waiting for the move.
+import { WorkspaceTabStripComponent, WorkspaceTabStore } from '@mj-biz-apps/accounting-ng';
 
 const E_CONTRACTS = 'MJ_BizApps_Contracts: Contracts';
 const E_TYPES = 'MJ_BizApps_Contracts: Contract Types';
@@ -52,6 +55,10 @@ const E_AMENDMENTS = 'MJ_BizApps_Contracts: Contract Amendments';
 const E_EVENTLOG = 'MJ_BizApps_Contracts: Contract Events';
 const E_COMPANIES = 'MJ: Companies';
 const E_ORGS = 'MJ_BizApps_Common: Organizations';
+const E_PEOPLE = 'MJ_BizApps_Common: People';
+const E_USERS = 'MJ: Users';
+const E_PAYTERMS = 'MJ_BizApps_Orders: Payment Terms Types';
+const E_CURRENCIES = 'MJ_BizApps_Accounting: Currencies';
 
 interface ContractRow {
     ID: string; ContractNumber: string; Status: string; Description: string | null;
@@ -72,10 +79,22 @@ interface Lookup { ID: string; Name: string }
 
 /** What the create page edits. Plain data — it becomes a BaseEntity only at save. */
 interface Draft {
+    // --- Contract. Every field below is a real column; nothing here is invented.
     ContractNumber: string; ContractTypeID: string; CompanyID: string; CustomerOrganizationID: string;
+    CustomerPersonID: string; PrimaryContactPersonID: string; OwnerUserID: string; ParentContractID: string;
     Status: string; Description: string; EffectiveDate: string; ExecutedDate: string; PricedAt: string;
-    AutoRenew: boolean; CancellationWindowDays: number | null; ExternalReferenceID: string;
+    AutoRenew: boolean; CancellationWindowDays: number | null; TerminationPolicy: string; ExternalReferenceID: string;
+    // --- Optional first ContractTerm, created in the same action.
+    CreateTerm: boolean;
+    TermStart: string; TermEnd: string; CommittedAmount: number | null; BillingFrequency: string;
+    AnchorMonth: number | null; AnchorDay: number | null; PaymentTermsTypeID: string; CurrencyID: string;
+    EscalationPercent: number | null; EscalationBasis: string; MaxEscalationPercent: number | null;
+    RenewalNoticeDays: number | null; RenewalProbability: number | null;
+    EarlyTerminationDate: string; TermExecutedDate: string; TermNotes: string;
 }
+
+/** One open contract in the workspace: the row plus its own edit buffer, so tabs never share state. */
+interface TabState { Row: ContractRow; Edit: Partial<Draft> }
 
 @RegisterClass(BaseResourceComponent, 'ContractsSectionResource')
 @Component({
@@ -84,7 +103,7 @@ interface Draft {
     imports: [
         CommonModule, FormsModule, BaseFormsModule, MJButtonDirective,
         MJPageLayoutComponent, MJPageHeaderComponent, MJPageBodyComponent,
-        MJLeftNavComponent, MJLeftNavContentComponent,
+        MJLeftNavComponent, MJLeftNavContentComponent, WorkspaceTabStripComponent,
     ],
     styles: [
         `
@@ -218,8 +237,15 @@ interface Draft {
                     <p>No contract open — pick one from the Contracts page.</p>
                 </div>
 
+                <div class="card" *ngIf="Open.Count" style="margin-bottom:0;border-bottom-left-radius:0;border-bottom-right-radius:0;">
+                    <mj-workspace-tab-strip
+                        [Tabs]="Open.Tabs" [ActiveId]="Open.ActiveId" [ShowNewTab]="false"
+                        (TabSelected)="SwitchTab($event)" (TabClosed)="CloseTab($event)"
+                    ></mj-workspace-tab-strip>
+                </div>
+
                 <ng-container *ngIf="Current as c">
-                    <div class="card">
+                    <div class="card" [style.border-top-left-radius]="Open.Count ? '0' : null" [style.border-top-right-radius]="Open.Count ? '0' : null">
                         <div class="ident">
                             <span class="n">{{ c.ContractNumber }}</span>
                             <span class="badge" [ngClass]="Tone(c.Status)">{{ c.Status }}</span>
@@ -387,7 +413,33 @@ interface Draft {
                                 <label class="fld"><span>Status</span>
                                     <select class="sel" [(ngModel)]="D.Status"><option *ngFor="let s of StatusOptions" [value]="s">{{ s }}</option></select>
                                 </label>
-                                <label class="fld s3" *ngIf="Mode === 'detail'"><span>Description</span><textarea class="ta" rows="2" [(ngModel)]="D.Description"></textarea></label>
+                                <label class="fld s3"><span>Description</span><textarea class="ta" rows="2" [(ngModel)]="D.Description" placeholder="What this agreement covers"></textarea></label>
+                            </div>
+                            <div class="fg" style="margin-top:14px;" *ngIf="Mode === 'detail'">
+                                <label class="fld"><span>Customer person <span class="hint">instead of an organization</span></span>
+                                    <select class="sel" [(ngModel)]="D.CustomerPersonID">
+                                        <option value="">— none —</option>
+                                        <option *ngFor="let p of People" [value]="p.ID">{{ p.Name }}</option>
+                                    </select>
+                                </label>
+                                <label class="fld"><span>Primary contact</span>
+                                    <select class="sel" [(ngModel)]="D.PrimaryContactPersonID">
+                                        <option value="">— none —</option>
+                                        <option *ngFor="let p of People" [value]="p.ID">{{ p.Name }}</option>
+                                    </select>
+                                </label>
+                                <label class="fld"><span>Owner</span>
+                                    <select class="sel" [(ngModel)]="D.OwnerUserID">
+                                        <option value="">— none —</option>
+                                        <option *ngFor="let u of Users" [value]="u.ID">{{ u.Name }}</option>
+                                    </select>
+                                </label>
+                                <label class="fld s2"><span>Parent contract <span class="hint">MSA → SOW nesting</span></span>
+                                    <select class="sel" [(ngModel)]="D.ParentContractID">
+                                        <option value="">— none —</option>
+                                        <option *ngFor="let pc of Contracts" [value]="pc.ID">{{ pc.ContractNumber }}</option>
+                                    </select>
+                                </label>
                             </div>
                         </fieldset>
 
@@ -401,23 +453,91 @@ interface Draft {
                             </div>
                         </fieldset>
 
-                        <fieldset class="pl" style="margin-bottom:0;" *ngIf="Mode === 'detail'">
+                        <fieldset class="pl">
                             <legend class="lg">Renewal &amp; termination</legend>
                             <div class="fg">
                                 <label class="fld"><span>Auto-renew</span>
                                     <select class="sel" [(ngModel)]="D.AutoRenew">
-                                        <option [ngValue]="true">Yes</option><option [ngValue]="false">No</option>
+                                        <option [ngValue]="true">Yes — renews without a deal</option>
+                                        <option [ngValue]="false">No — renewal is a deal</option>
                                     </select>
                                 </label>
                                 <label class="fld"><span>Cancellation window (days)</span><input class="in" type="number" [(ngModel)]="D.CancellationWindowDays" /></label>
-                                <label class="fld"><span>External reference</span><input class="in" [(ngModel)]="D.ExternalReferenceID" /></label>
+                                <label class="fld"><span>External reference</span><input class="in" [(ngModel)]="D.ExternalReferenceID" placeholder="CDP or counterparty ref" /></label>
+                                <label class="fld s3" *ngIf="Mode === 'detail'"><span>Termination policy</span>
+                                    <textarea class="ta" rows="2" [(ngModel)]="D.TerminationPolicy" placeholder="The clause as written"></textarea></label>
+                            </div>
+                        </fieldset>
+
+                        <fieldset class="pl" style="margin-bottom:0;">
+                            <legend class="lg" style="text-transform:none;letter-spacing:0;font-size:12.5px;">
+                                <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+                                    <input type="checkbox" [(ngModel)]="D.CreateTerm" />
+                                    Also create the first term — the period that actually carries the money and the dates
+                                </label>
+                            </legend>
+                            <div class="fg" *ngIf="D.CreateTerm">
+                                <label class="fld"><span>Start date</span><input class="in" type="date" [(ngModel)]="D.TermStart" /></label>
+                                <label class="fld"><span>End date</span><input class="in" type="date" [(ngModel)]="D.TermEnd" /></label>
+                                <label class="fld"><span>Committed amount</span><input class="in" type="number" [(ngModel)]="D.CommittedAmount" /></label>
+
+                                <label class="fld"><span>Billing frequency</span>
+                                    <select class="sel" [(ngModel)]="D.BillingFrequency">
+                                        <option *ngFor="let f of Frequencies" [value]="f">{{ f }}</option>
+                                    </select>
+                                </label>
+                                <label class="fld"><span>Billing anchor <span class="hint">month / day</span></span>
+                                    <span style="display:flex;gap:8px;">
+                                        <input class="in" type="number" min="1" max="12" placeholder="month" [(ngModel)]="D.AnchorMonth" />
+                                        <input class="in" type="number" min="1" max="31" placeholder="day" [(ngModel)]="D.AnchorDay" />
+                                    </span>
+                                </label>
+                                <label class="fld"><span>Payment terms</span>
+                                    <select class="sel" [(ngModel)]="D.PaymentTermsTypeID">
+                                        <option value="">— none —</option>
+                                        <option *ngFor="let pt of PayTerms" [value]="pt.ID">{{ pt.Name }}</option>
+                                    </select>
+                                    <span class="hint">Owned by orders — this list comes from there.</span>
+                                </label>
+
+                                <ng-container *ngIf="Mode === 'detail'">
+                                    <label class="fld"><span>Escalation %</span><input class="in" type="number" step="0.01" placeholder="4.0" [(ngModel)]="D.EscalationPercent" /></label>
+                                    <label class="fld"><span>Escalation basis</span>
+                                        <select class="sel" [(ngModel)]="D.EscalationBasis">
+                                            <option value="">— none —</option>
+                                            <option value="PriorTerm">on prior term</option>
+                                            <option value="ListPrice">to list price</option>
+                                            <option value="Index">by index</option>
+                                        </select>
+                                    </label>
+                                    <label class="fld"><span>Escalation cap %</span><input class="in" type="number" step="0.01" placeholder="5.0" [(ngModel)]="D.MaxEscalationPercent" />
+                                        <span class="hint">Ceiling on any renewal increase — the clause customers dispute.</span></label>
+
+                                    <label class="fld"><span>Renewal notice (days)</span><input class="in" type="number" [(ngModel)]="D.RenewalNoticeDays" />
+                                        <span class="hint">Notice before a price change — a different clause from cancellation.</span></label>
+                                    <label class="fld"><span>Currency</span>
+                                        <select class="sel" [(ngModel)]="D.CurrencyID">
+                                            <option value="">— none —</option>
+                                            <option *ngFor="let cu of Currencies" [value]="cu.ID">{{ cu.Name }}</option>
+                                        </select>
+                                        <span class="hint">Recorded only — nothing converts.</span>
+                                    </label>
+                                    <label class="fld"><span>Renewal probability %</span><input class="in" type="number" min="0" max="100" [(ngModel)]="D.RenewalProbability" />
+                                        <span class="hint">Read by the renewal forecast in sales.</span></label>
+
+                                    <label class="fld"><span>Early termination date</span><input class="in" type="date" [(ngModel)]="D.EarlyTerminationDate" /></label>
+                                    <label class="fld"><span>Term executed</span><input class="in" type="date" [(ngModel)]="D.TermExecutedDate" /></label>
+                                    <label class="fld"><span>Notes</span><input class="in" [(ngModel)]="D.TermNotes" /></label>
+                                </ng-container>
                             </div>
                         </fieldset>
                     </div>
 
                     <div class="note gap" *ngIf="Mode === 'fast'">
-                        <strong>Fast entry</strong> shows the fields most agreements need. <strong>Detailed</strong> adds
-                        description, renewal and reference. Switching keeps everything you have typed.
+                        <strong>Fast entry</strong> carries everything an ordinary agreement needs — parties, dates, the
+                        pricing lock, renewal basics, and optionally the first term. <strong>Detailed</strong> adds the rest:
+                        customer-as-person, contact and owner, MSA nesting, the termination clause, and the full escalation
+                        set (basis, cap, notice, currency, probability). Switching keeps everything you have typed.
                     </div>
                     <div class="note err" *ngIf="Error">{{ Error }}</div>
 
@@ -488,7 +608,6 @@ export class MJCContractsSectionComponent extends BaseResourceComponent implemen
     public Tab = 'overview';
     public Mode: 'fast' | 'detail' = 'fast';
     public Saving = false;
-    public Dirty = false;
     public Message = '';
     public Error = '';
 
@@ -498,10 +617,16 @@ export class MJCContractsSectionComponent extends BaseResourceComponent implemen
     public Types: Lookup[] = [];
     public Companies: Lookup[] = [];
     public Orgs: Lookup[] = [];
+    public People: Lookup[] = [];
+    public Users: Lookup[] = [];
+    public PayTerms: Lookup[] = [];
+    public Currencies: Lookup[] = [];
+    /** Open contracts — the workspace is the tabbed EDITING space, so each tab owns its own buffer. */
+    public readonly Open = new WorkspaceTabStore<TabState>();
+    public readonly Frequencies = ['Monthly', 'Quarterly', 'SemiAnnual', 'Annual', 'Milestone', 'Custom'];
     public Counts = { Scheduled: 0, Generated: 0, Failed: 0, Skipped: 0 };
 
     public CurrentID: string | null = null;
-    public Edit: Partial<Draft> = {};
     public D: Draft = MJCContractsSectionComponent.blank();
 
     public readonly StatusOptions = ['Draft', 'PendingSignature', 'Active', 'Expired', 'Terminated', 'Superseded'];
@@ -527,8 +652,15 @@ export class MJCContractsSectionComponent extends BaseResourceComponent implemen
         const today = new Date().toISOString().slice(0, 10);
         return {
             ContractNumber: '', ContractTypeID: '', CompanyID: '', CustomerOrganizationID: '',
+            CustomerPersonID: '', PrimaryContactPersonID: '', OwnerUserID: '', ParentContractID: '',
             Status: 'Draft', Description: '', EffectiveDate: '', ExecutedDate: '', PricedAt: today,
-            AutoRenew: true, CancellationWindowDays: null, ExternalReferenceID: '',
+            AutoRenew: true, CancellationWindowDays: null, TerminationPolicy: '', ExternalReferenceID: '',
+            CreateTerm: false,
+            TermStart: '', TermEnd: '', CommittedAmount: null, BillingFrequency: 'Annual',
+            AnchorMonth: null, AnchorDay: null, PaymentTermsTypeID: '', CurrencyID: '',
+            EscalationPercent: null, EscalationBasis: '', MaxEscalationPercent: null,
+            RenewalNoticeDays: null, RenewalProbability: null,
+            EarlyTerminationDate: '', TermExecutedDate: '', TermNotes: '',
         };
     }
 
@@ -568,6 +700,14 @@ export class MJCContractsSectionComponent extends BaseResourceComponent implemen
     public get Current(): ContractRow | null {
         return this.CurrentID ? (this.Contracts.find((c) => c.ID === this.CurrentID) ?? null) : null;
     }
+
+    /** The active tab's edit buffer. Tabs never share one. */
+    public get Edit(): Partial<Draft> {
+        return this.Open.ActiveTab?.State?.Edit ?? {};
+    }
+    public get Dirty(): boolean {
+        return !!this.Open.ActiveTab?.Dirty;
+    }
     public get Failed(): EventRow[] { return this.Events.filter((e) => e.Status === 'Failed'); }
     public get ActiveCount(): number { return this.Contracts.filter((c) => c.Status === 'Active').length; }
     public get TotalCommitted(): number { return this.Terms.filter((t) => t.Status === 'Active').reduce((s, t) => s + (t.CommittedAmount ?? 0), 0); }
@@ -605,21 +745,64 @@ export class MJCContractsSectionComponent extends BaseResourceComponent implemen
     }
     public OpenRecord(c: ContractRow): void { this.nav.OpenEntityRecord(E_CONTRACTS, CompositeKey.FromID(c.ID)); }
 
-    /** Roster row → the workspace, scoped to that contract. */
+    /**
+     * Roster row → the workspace, as a SESSION TAB. Several contracts stay open at once, which is how
+     * they are actually read — a renewal beside its predecessor — and each tab carries its own edit
+     * buffer so switching never leaks one contract's unsaved changes into another.
+     */
     public OpenWorkspace(args: AfterRowClickEventArgs): void {
         const id = (args?.row as Record<string, unknown> | undefined)?.['ID'];
         if (typeof id !== 'string') return;
+        const row = this.Contracts.find((c) => c.ID === id);
+        if (!row) return;
+
+        if (this.Open.Tabs.some((t) => t.Id === id)) {
+            this.Open.Activate(id);
+        } else {
+            this.Open.Open({ Id: id, Label: row.ContractNumber, Icon: 'fa-solid fa-file-signature', Status: 'complete', State: { Row: row, Edit: this.bufferFor(row) } });
+        }
         this.CurrentID = id;
         this.Tab = 'overview';
         this.Message = '';
-        this.fillEdit();
         this.scope(id);
         this.Page = 'workspace';
         this.cdr.detectChanges();
     }
 
-    public Touch(): void { this.Dirty = true; this.Message = ''; }
-    public ResetEdits(): void { this.fillEdit(); this.cdr.detectChanges(); }
+    public SwitchTab(id: string): void {
+        this.Open.Activate(id);
+        this.CurrentID = id;
+        this.Tab = 'overview';
+        this.Message = '';
+        this.scope(id);
+        this.cdr.detectChanges();
+    }
+
+    /** Closing a tab with unsaved edits confirms first — the one real hazard of session tabs. */
+    public CloseTab(id: string): void {
+        const tab = this.Open.Tabs.find((t) => t.Id === id);
+        if (tab?.Dirty && !confirm('This contract has unsaved changes. Close it and discard them?')) return;
+        this.Open.Close(id);
+        this.CurrentID = this.Open.ActiveId;
+        if (this.CurrentID) this.scope(this.CurrentID);
+        this.cdr.detectChanges();
+    }
+
+    public Touch(): void {
+        const t = this.Open.ActiveTab;
+        if (t) this.Open.UpdateState(t.Id, t.State, true);
+        this.Message = '';
+    }
+
+    public ResetEdits(): void {
+        const t = this.Open.ActiveTab;
+        const row = this.Current;
+        if (t && row) {
+            this.Open.UpdateState(t.Id, { Row: row, Edit: this.bufferFor(row) }, false);
+            this.Open.MarkClean(t.Id);
+        }
+        this.cdr.detectChanges();
+    }
 
     /** Writes through `BaseEntity` — the sanctioned write path, so entity rules and audit apply. */
     public async SaveEdits(): Promise<void> {
@@ -643,7 +826,11 @@ export class MJCContractsSectionComponent extends BaseResourceComponent implemen
             // Save returns false on failure — it does not throw.
             const ok = await rec.Save();
             this.Message = ok ? 'Saved.' : `Save failed: ${rec.LatestResult?.CompleteMessage ?? 'unknown error'}`;
-            if (ok) { this.Dirty = false; await this.load(); }
+            if (ok) {
+                const t = this.Open.ActiveTab;
+                if (t) this.Open.MarkClean(t.Id);
+                await this.load();
+            }
         } finally {
             this.Saving = false;
             this.cdr.detectChanges();
@@ -661,6 +848,11 @@ export class MJCContractsSectionComponent extends BaseResourceComponent implemen
             rec.ContractTypeID = this.D.ContractTypeID;
             rec.CompanyID = this.D.CompanyID;
             rec.CustomerOrganizationID = this.D.CustomerOrganizationID || null;
+            rec.CustomerPersonID = this.D.CustomerPersonID || null;
+            rec.PrimaryContactPersonID = this.D.PrimaryContactPersonID || null;
+            rec.OwnerUserID = this.D.OwnerUserID || null;
+            rec.ParentContractID = this.D.ParentContractID || null;
+            rec.TerminationPolicy = this.D.TerminationPolicy || null;
             rec.Status = this.D.Status as typeof rec.Status;
             rec.Description = this.D.Description || null;
             rec.ExternalReferenceID = this.D.ExternalReferenceID || null;
@@ -674,9 +866,12 @@ export class MJCContractsSectionComponent extends BaseResourceComponent implemen
             if (!ok) { this.Error = `Could not create: ${rec.LatestResult?.CompleteMessage ?? 'unknown error'}`; return; }
 
             const newID = rec.ID;
+            if (this.D.CreateTerm) await this.createFirstTerm(newID);
+
             await this.load();
+            const row = this.Contracts.find((c) => c.ID === newID);
+            if (row) this.Open.Open({ Id: newID, Label: row.ContractNumber, Icon: 'fa-solid fa-file-signature', Status: 'complete', State: { Row: row, Edit: this.bufferFor(row) } });
             this.CurrentID = newID;
-            this.fillEdit();
             this.scope(newID);
             this.D = MJCContractsSectionComponent.blank();
             this.Tab = 'overview';
@@ -685,6 +880,45 @@ export class MJCContractsSectionComponent extends BaseResourceComponent implemen
             this.Saving = false;
             this.cdr.detectChanges();
         }
+    }
+
+    /**
+     * The optional first term, written in the same action. Percent inputs are entered as PERCENT and
+     * stored as a FRACTION (4.0 -> 0.04) because that is the schema's convention — the same shape
+     * orders uses for OrderLine.DiscountPct.
+     */
+    private async createFirstTerm(contractID: string): Promise<void> {
+        const md = new Metadata();
+        const t = await md.GetEntityObject<mjBizAppsContractsContractTermEntity>(E_TERMS);
+        t.NewRecord();
+        t.ContractID = contractID;
+        t.TermNumber = 1;
+        t.Status = 'Pending';
+        t.StartDate = this.toDate(this.D.TermStart) ?? new Date();
+        t.EndDate = this.toDate(this.D.TermEnd) ?? new Date();
+        t.BillingFrequency = this.D.BillingFrequency as typeof t.BillingFrequency;
+        t.CommittedAmount = this.D.CommittedAmount ?? null;
+        t.BillingAnchorMonth = this.D.AnchorMonth ?? null;
+        t.BillingAnchorDay = this.D.AnchorDay ?? null;
+        t.PaymentTermsTypeID = this.D.PaymentTermsTypeID || null;
+        t.CurrencyID = this.D.CurrencyID || null;
+        t.EscalationPercent = this.pct(this.D.EscalationPercent);
+        t.EscalationBasis = (this.D.EscalationBasis || null) as typeof t.EscalationBasis;
+        t.MaxEscalationPercent = this.pct(this.D.MaxEscalationPercent);
+        t.RenewalNoticeDays = this.D.RenewalNoticeDays ?? null;
+        t.RenewalProbability = this.pct(this.D.RenewalProbability);
+        t.EarlyTerminationDate = this.toDate(this.D.EarlyTerminationDate);
+        t.ExecutedDate = this.toDate(this.D.TermExecutedDate);
+        t.Notes = this.D.TermNotes || null;
+
+        if (!(await t.Save())) {
+            this.Error = `Contract created, but the first term failed: ${t.LatestResult?.CompleteMessage ?? 'unknown error'}`;
+        }
+    }
+
+    /** Percent in the UI, fraction in the database. */
+    private pct(v: number | null): number | null {
+        return v == null ? null : v / 100;
     }
 
     public async Refresh(): Promise<void> {
@@ -699,18 +933,14 @@ export class MJCContractsSectionComponent extends BaseResourceComponent implemen
         return v ? new Date(v + 'T00:00:00') : null;
     }
 
-    private fillEdit(): void {
-        const c = this.Current;
-        this.Edit = c
-            ? {
-                  ContractNumber: c.ContractNumber, Status: c.Status, Description: c.Description ?? '',
-                  ExternalReferenceID: c.ExternalReferenceID ?? '',
-                  EffectiveDate: (c.EffectiveDate ?? '').slice(0, 10), ExecutedDate: (c.ExecutedDate ?? '').slice(0, 10),
-                  PricedAt: (c.PricedAt ?? '').slice(0, 10), AutoRenew: c.AutoRenew,
-                  CancellationWindowDays: c.CancellationWindowDays,
-              }
-            : {};
-        this.Dirty = false;
+    private bufferFor(c: ContractRow): Partial<Draft> {
+        return {
+            ContractNumber: c.ContractNumber, Status: c.Status, Description: c.Description ?? '',
+            ExternalReferenceID: c.ExternalReferenceID ?? '',
+            EffectiveDate: (c.EffectiveDate ?? '').slice(0, 10), ExecutedDate: (c.ExecutedDate ?? '').slice(0, 10),
+            PricedAt: (c.PricedAt ?? '').slice(0, 10), AutoRenew: c.AutoRenew,
+            CancellationWindowDays: c.CancellationWindowDays,
+        };
     }
 
     /** Params are REASSIGNED, never mutated — an in-place edit does not trip change detection. */
@@ -732,13 +962,17 @@ export class MJCContractsSectionComponent extends BaseResourceComponent implemen
     /** One batch — six reads always needed together should not be six round trips. */
     private async load(): Promise<void> {
         const rv = new RunView();
-        const [contracts, terms, events, types, companies, orgs] = await rv.RunViews([
+        const [contracts, terms, events, types, companies, orgs, people, users, payterms, currencies] = await rv.RunViews([
             { EntityName: E_CONTRACTS, Fields: ['ID', 'ContractNumber', 'Status', 'Description', 'EffectiveDate', 'ExecutedDate', 'PricedAt', 'AutoRenew', 'CancellationWindowDays', 'ExternalReferenceID'], OrderBy: 'ContractNumber', ResultType: 'simple' },
             { EntityName: E_TERMS, Fields: ['ID', 'ContractID', 'TermNumber', 'Status', 'StartDate', 'EndDate', 'CommittedAmount', 'EscalationPercent', 'MaxEscalationPercent', 'RenewalNoticeDays', 'BillingFrequency', 'ExecutedDate'], OrderBy: 'TermNumber', ResultType: 'simple' },
             { EntityName: E_EVENTS, Fields: ['ID', 'ContractTermID', 'ScheduledDate', 'Status', 'ComputedAmount', 'FailureReason'], OrderBy: 'ScheduledDate', ResultType: 'simple' },
             { EntityName: E_TYPES, Fields: ['ID', 'Name'], OrderBy: 'Name', ResultType: 'simple' },
             { EntityName: E_COMPANIES, Fields: ['ID', 'Name'], OrderBy: 'Name', ResultType: 'simple' },
             { EntityName: E_ORGS, Fields: ['ID', 'Name'], OrderBy: 'Name', ResultType: 'simple' },
+            { EntityName: E_PEOPLE, Fields: ['ID', 'Name'], OrderBy: 'Name', ResultType: 'simple' },
+            { EntityName: E_USERS, Fields: ['ID', 'Name'], OrderBy: 'Name', ResultType: 'simple' },
+            { EntityName: E_PAYTERMS, Fields: ['ID', 'Name'], OrderBy: 'Name', ResultType: 'simple' },
+            { EntityName: E_CURRENCIES, Fields: ['ID', 'Name'], OrderBy: 'Name', ResultType: 'simple' },
         ]);
 
         // RunView reports failure via Success — it never throws — so each result is checked.
@@ -748,6 +982,10 @@ export class MJCContractsSectionComponent extends BaseResourceComponent implemen
         this.Types = types?.Success ? (types.Results as Lookup[]) : [];
         this.Companies = companies?.Success ? (companies.Results as Lookup[]) : [];
         this.Orgs = orgs?.Success ? (orgs.Results as Lookup[]) : [];
+        this.People = people?.Success ? (people.Results as Lookup[]) : [];
+        this.Users = users?.Success ? (users.Results as Lookup[]) : [];
+        this.PayTerms = payterms?.Success ? (payterms.Results as Lookup[]) : [];
+        this.Currencies = currencies?.Success ? (currencies.Results as Lookup[]) : [];
 
         this.Counts = {
             Scheduled: this.Events.filter((e) => e.Status === 'Scheduled').length,
