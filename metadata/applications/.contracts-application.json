@@ -1,0 +1,46 @@
+[
+  {
+    "_comments": [
+      "The BizApps Contracts Application — what makes this app appear in MJ Explorer at all.",
+      "",
+      "WITHOUT THIS FILE the app is invisible. CodeGen auto-creates a schema-named application",
+      "(__mj_BizAppsContracts) that carries the entities, but that is a container for admin access,",
+      "not a destination: it has no nav items and no icon, so nobody finds the app by looking.",
+      "This row is the user-facing app.",
+      "",
+      "DefaultNavItems is the top tab bar. Each item is ResourceType 'Custom' pointing at a",
+      "DriverClass registered via @RegisterClass(BaseResourceComponent, '<DriverClass>') in",
+      "@mj-biz-apps/contracts-ng. BOTH HALVES ARE REQUIRED: metadata without a registered class",
+      "renders a dead tab, and a registered class without metadata never appears.",
+      "",
+      "DefaultForNewUser is true so the app lands for new users without a per-persona grant. When",
+      "it is false you must run `mjdev apps enable <slug> <app>` or the app stays hidden even though",
+      "everything is installed correctly — a confusing failure that looks like a build problem.",
+      "",
+      "The fixed UUID means a re-push against a rebuilt database UPDATES this row rather than",
+      "creating a second Application with the same name."
+    ],
+    "fields": {
+      "Name": "Contracts",
+      "Description": "The agreement envelope — commitment, term structure, escalation, renewal and the billing event. Contracts decides what is owed and when; orders remains the only place anyone is billed.",
+      "Icon": "fa-solid fa-file-signature",
+      "DefaultForNewUser": true,
+      "DefaultNavItems": [
+        {
+          "Label": "Contracts",
+          "Icon": "fa-solid fa-file-signature",
+          "ResourceType": "Custom",
+          "DriverClass": "ContractsSectionResource",
+          "isDefault": true
+        }
+      ]
+    },
+    "primaryKey": {
+      "ID": "7C1D2E3F-4A5B-4C6D-8E9F-0A1B2C3D4E5F"
+    },
+    "sync": {
+      "lastModified": "2026-08-05T02:06:05.851Z",
+      "checksum": "229af24e8071e1b1ecc3bc7d65bf968e66ed9b99a79d29e1e57ad73b3157e4b2"
+    }
+  }
+]

@@ -59,6 +59,7 @@
 import '@mj-biz-apps/contracts-entities';
 import './lib/generated/generated-forms.module';
 import { GeneratedFormsModule } from './lib/generated/generated-forms.module';
+import { MJCContractsSectionComponent } from './lib/sections/contracts-section.component';
 export { GeneratedFormsModule } from './lib/generated/generated-forms.module';
 export { mjBizAppsContractsContractAmendmentFormComponent } from './lib/generated/Entities/mjBizAppsContractsContractAmendment/mjbizappscontractscontractamendment.form.component';
 export { mjBizAppsContractsContractBillingEventFormComponent } from './lib/generated/Entities/mjBizAppsContractsContractBillingEvent/mjbizappscontractscontractbillingevent.form.component';
@@ -71,9 +72,15 @@ export { mjBizAppsContractsContractSequenceFormComponent } from './lib/generated
 export { mjBizAppsContractsContractTermFormComponent } from './lib/generated/Entities/mjBizAppsContractsContractTerm/mjbizappscontractscontractterm.form.component';
 export { mjBizAppsContractsContractTypeFormComponent } from './lib/generated/Entities/mjBizAppsContractsContractType/mjbizappscontractscontracttype.form.component';
 
+
+/* The Explorer tab. Its @RegisterClass key must match the DriverClass in
+ * metadata/applications/.contracts-application.json — that pairing is the entire wiring. */
+export { MJCContractsSectionComponent } from './lib/sections/contracts-section.component';
+
 export function LoadMjBizappsContractsClient(): void {
     // Importing this module is what registers everything above. The reference
     // below is an anti-tree-shake anchor: without a live use, a production build
     // can drop the module import and the registrations never fire.
     void GeneratedFormsModule;
+    void MJCContractsSectionComponent;
 }
