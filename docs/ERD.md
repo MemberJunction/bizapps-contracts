@@ -10,20 +10,26 @@
 > hand-edit the diagrams.
 >
 > **Schema:** `__mj_BizAppsContracts` · **Entity prefix:** `MJ_BizApps_Contracts: ` · **Keys:** UUID throughout
-> **Generated:** 2026-08-05 (re-checked against the live schema after the invariant pass) · 10 tables ·
-> 13 internal relationships · 13 cross-app foreign keys
+> **Re-verified:** 2026-08-05 (afternoon) against the live database · **10 tables · 13 internal
+> relationships · 13 cross-app foreign keys · 55 CHECK constraints · 6 unique indexes** beyond the
+> primary keys.
+>
+> **The table shape below is UNCHANGED since the morning** — the afternoon's work added no migration,
+> no table and no column. Every count above was read back out of `sys.tables`, `sys.columns`,
+> `sys.foreign_keys`, `sys.check_constraints` and `sys.indexes` rather than taken on trust, and each
+> table's column list here matches the live table exactly once the two CodeGen-managed audit columns
+> (`__mj_CreatedAt`, `__mj_UpdatedAt`) are allowed for.
 >
 > (Ten is the app's own tables. `sys.tables` reports eleven in this schema because Flyway keeps its
 > `flyway_schema_history` there; an earlier edit of this header counted it and said eleven, which was
 > wrong — that table belongs to the migration tool, not to the model.)
 >
-> **Constraints added 2026-08-05** and not yet reflected in the section text below:
-> `CK_Contract_SupersededHasSuccessor` · `CK_ContractLine_SubscriptionNeedsType` ·
-> `CK_ContractBillingEvent_GeneratedHasTimestamp` · `CK_ContractAmendment_ApprovedHasTask` ·
-> `CK_ContractEvent_EventType` (closed vocabulary) · `UQ_ContractLine_Subscription` (filtered) ·
-> `'Cancelled'` added to `CK_ContractBillingEvent_Status`. Two rules that a CHECK cannot express live
-> in the entity layer: a renewal chain may not cross contracts, and `ContractEvent` is append-only.
-> See `testing.md` for what proves each one.
+> **What DID change on 2026-08-05 (afternoon) is where the rules live, not what the tables are.**
+> Five entities that had CHECK constraints and no server subclass now have one, so the schema is no
+> longer the only thing enforcing them — see **§7.2**, which replaces the two-line footnote this
+> header used to carry. An ERD that shows only the tables now under-describes the model by a fair
+> margin: read §7.1 and §7.2 together, because a constraint you cannot find in `sys.check_constraints`
+> is not necessarily absent.
 
 ---
 
@@ -369,7 +375,8 @@ for a scheduled bill, so the subject of an event is readable from its type alone
 
 ### 7.1 Rules that are NOT value lists
 
-Four state-implies-field CHECKs and one filtered unique index, all added 2026-08-05:
+Four state-implies-field CHECKs and one filtered unique index. Each says "this status OBLIGES that
+column", which a value list cannot express:
 
 | Constraint | Rule |
 |---|---|
@@ -379,15 +386,86 @@ Four state-implies-field CHECKs and one filtered unique index, all added 2026-08
 | `CK_ContractAmendment_ApprovedHasTask` | `Approved` or `Rejected` requires `ApprovalTaskID` — an approval with no record is what the task integration exists to prevent |
 | `UQ_ContractLine_Subscription` (filtered) | One `orders.Subscription` per line; two lines owning one is a duplicate-billing shape |
 
-Two more rules cannot be expressed as constraints at all and live in the entity layer, where
-`Validate()`/`ValidateAsync()` surface the reason to every caller:
+---
 
-- **A renewal chain may not cross contracts.** A CHECK cannot read the row it points at. Walking a
-  crossed chain would surface another contract's terms as this one's history.
-- **`ContractEvent` is append-only.** CodeGen generates working `spUpdate`/`spDelete`, so the table's
-  own "never edited, never deleted" comment was documentation rather than a mechanism.
-- **Escalation may not exceed its cap.** A two-column comparison; also the rule a renewal CLAMPS to
-  rather than failing on.
+### 7.2 The rules that are NOT in the schema at all
+
+**Read this section as part of the ERD, not as an appendix.** A reader who takes the tables above as
+the whole model will conclude the database enforces everything, and it does not. As of 2026-08-05
+**nine of the ten tables have a server subclass** — every one except `ContractSequence`, which is a
+counter rather than a record with rules — and a material share of what makes a contract *correct*
+lives there rather than in `sys.check_constraints`.
+
+**Why anything lives outside the schema.** A CHECK constraint sees ONE ROW and no siblings. Three
+kinds of rule are therefore unreachable from it:
+
+1. **Two-column comparisons.** CodeGen derives a generated validation method name from a constraint's
+   expression, and a constraint naming two columns makes it emit a call to a method it never defines
+   — a build break in generated code that orders already hit. So the escalation cap cannot be a CHECK
+   here even though it is single-row.
+2. **Cross-row rules.** A CHECK cannot read the row a foreign key points at, so "coverage must sit
+   inside its term" and "an amendment targets a RUNNING term" have nowhere to live in the schema.
+3. **Rules about a whole collection.** "An Active contract needs at least one term" is a statement
+   about rows that do not exist yet at insert time.
+
+**And why the readable half matters even when the CHECK already exists.** A constraint reports itself
+as `CK_ContractLine_SubscriptionNeedsType` — a symbol, in a database error, arriving at a UI that can
+only render it verbatim. Several rules below are therefore MIRRORED in `Validate()` as sentences
+while the CHECK stays exactly where it is as the un-bypassable floor. The mirror is not a
+replacement: a rule living only in TypeScript is a rule that direct SQL walks straight past.
+
+| Entity | Rule enforced in the entity layer | Why it cannot be a CHECK |
+|---|---|---|
+| `Contract` | Legal status MOVES (`Terminated → Active` refused; `Superseded` terminal) | `CK_Contract_Status` knows the legal SET, not transitions |
+| `Contract` | `ContractNumber` allocated from `ContractSequence`; `PricedAt` defaulted | A read-modify-write, not a predicate |
+| `Contract` | An **Active** contract must have at least one term | A statement about a collection |
+| `ContractTerm` | `TermNumber` derived from the contract's existing terms | Requires reading siblings |
+| `ContractTerm` | Escalation may not exceed its cap; a renewal CLAMPS rather than failing | Two-column comparison (see 1 above) |
+| `ContractTerm` | A renewal chain may not cross contracts | Compares this row to the row it points at |
+| `ContractTerm` | Unset ceiling/notice inherited from the contract TYPE on a new term | A lookup, and only for new records |
+| `ContractTerm` | An **Active** term must have at least one coverage line | A statement about a collection |
+| `ContractLine` | Coverage must sit inside its term's dates, both ends | Cross-row |
+| `ContractLine` | A **closed** term gains no new coverage | Cross-row |
+| `ContractLine` | The Subscription trio, said readably | Mirrors three CHECKs so the UI can show a sentence |
+| `ContractBillingSchedule` | A schedule that has already BILLED is frozen | Compares this row to the existence of rows in another table |
+| `ContractBillingSchedule` | The anchor must fall inside the term | Cross-row |
+| `ContractCommitment` | A settled commitment is terminal — reopening would bill one shortfall twice | Transitions again |
+| `ContractCommitment` | The period must sit inside the term | Cross-row |
+| `ContractAmendment` | An amendment targets a term that is **RUNNING** | Cross-row, and the distinction the whole table exists for |
+| `ContractAmendment` | `AmendmentNumber` derived per term | Requires reading siblings |
+| `ContractType` | A type's default escalation must fit under its own default ceiling | Two-column comparison (see 1 above) |
+| `ContractEvent` | Append-only — edit and delete both refused | CodeGen generates working `spUpdate`/`spDelete`, so the table's own "never edited" comment was documentation rather than a mechanism |
+
+**Two mechanical traps worth knowing before adding to this layer**, both sprung in this package:
+
+- A rule placed in `ValidateAsync()` without `DefaultSkipAsyncValidation = false` on the class is
+  **dead code that reads as live**. It compiles, looks correct, and never runs.
+- `BaseEntity._InnerSave` skips its whole body — validation included — when the record is not dirty
+  (`baseEntity.ts:2531`). A save that only removes a CHILD touches no field on the parent, so the
+  parent's cross-child rules never run unless it passes `IgnoreDirtyState`.
+
+`testing.md` maps each rule above to the check that proves it.
+
+---
+
+### 7.3 The write API, and what a diagram cannot show
+
+The tables say what CAN be stored. **Six remote operations** say what the app actually DOES, and two
+of them are the reason several columns exist at all:
+
+| Operation | What it does to the schema |
+|---|---|
+| `Contracts.SaveContract` | Writes a whole agreement — contract, terms, coverage, schedules, commitments — in ONE transaction. Removals are NAMED in the payload, never inferred from absence, because a client holding two of five terms would otherwise delete the other three. |
+| `Contracts.ActivateTerm` | Turns a term Active AND creates its `ContractBillingSchedule` plus the `ContractBillingEvent` rows its cadence implies. A term marked Active with no schedule bills nothing. **Reads `ContractTerm.BillingAnchorMonth` / `BillingAnchorDay`** — until 2026-08-05 those two columns were written by `RenewTerm` and read by nothing at all. |
+| `Contracts.RenewTerm` | Creates the next term with `RenewalOfTermID` set, clamping escalation to the ceiling. |
+| `Contracts.TerminateContract` | Moves the contract and its live terms to Terminated and CANCELS future billing events while RETAINING those on or before the effective date — periods already covered are still owed. |
+| `Contracts.AmendTerm` | Co-terming (plan §5.4): a `ContractAmendment` plus a `ContractLine` whose `EndDate` is the **TERM's**, so a mid-term product renews with everything else instead of acquiring its own clock. |
+| `Contracts.GenerateBillingEvent` | Claims a `Scheduled` event, assembles what is owed for the period, and stamps `OrderID` / `ComputedAmount` / `GeneratedAt` together — which is what `CK_ContractBillingEvent_GeneratedHasOrder` and `_GeneratedHasTimestamp` exist to guarantee. |
+
+**`ContractSequence` and `IX_ContractBillingEvent_Due` only make sense read against this table.** The
+sequence exists because `ContractNumber` is allocated by a read-modify-write that must not interleave;
+the index exists because the scheduled driver's only query is
+`Status='Scheduled' AND ScheduledDate <= today`.
 
 ---
 

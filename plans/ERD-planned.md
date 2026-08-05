@@ -15,11 +15,19 @@
 
 | # | Change | Driver | Status |
 |---|---|---|---|
-| P-1 | `ContractLine` → `OrderLine` mapping (a link row, or an identifier stamped on the generated order line) | Renewal pricing walks the previous term's orders to find what a line cost. Matching by `ProductID` inside the order works when a product appears once and is ambiguous when it does not. | **Needed before the renewal engine (C4).** Deliberately NOT solved by shadow-copying prices onto `ContractLine` — see `docs/ERD.md` §8. |
+| P-1 | `ContractLine` → `OrderLine` mapping (a link row, or an identifier stamped on the generated order line) | Renewal pricing walks the previous term's orders to find what a line cost. Matching by `ProductID` inside the order works when a product appears once and is ambiguous when it does not. | **Now concrete, not hypothetical.** `Contracts.GenerateBillingEvent` (2026-08-05) assembles a draft from lines and hands it to orders — so the moment the C0 seams land there IS a generated order line per contract line, and nothing records which produced which. Deliberately NOT solved by shadow-copying prices onto `ContractLine` — see `docs/ERD.md` §8. |
 | P-2 | Usage metering source for `LineType='Usage'` | The value is in the list; nothing supplies a quantity. Orders' metering engine is deferred. | Out of v1 by decision. The value stays so the schema does not change when metering arrives. |
 | P-3 | Index source for `EscalationBasis='Index'` | Same shape as P-2: the value exists, nothing resolves it. A bare code column was tried and rejected as insufficient. | Deferred until a real index feed exists. |
 | P-4 | Term-level `PricedAt` | `Contract.PricedAt` is the as-of date for the ORIGINAL pricing. A renewal term priced on a different date, or a backdated manual renewal, may want its own. | **Open question.** Contract-level is what was ruled; raise it if a renewal needs to price as of its own moment rather than the contract's. |
 | P-5 | `Contract`/`ContractTerm` ↔ `Deal` reverse-lookup view | "Which deals produced this contract" is a real screen need, and the link is `Deal.ContractID` pointing down from `bizapps-sales`. | Blocked — `bizapps-sales` does not exist yet. **No column here, ever** (L-15). |
+| P-6 | A **milestone reached-marker** on `ContractLine` (a nullable `MilestoneReachedDate`, or a `ContractMilestone` child if one line can carry several) | `Milestone` is a valid `LineType` AND a valid `ScheduleType`, and NOTHING marks one reached. The billing engine therefore bills a milestone line in NO period — asserted deliberately by `contracts-billing.BE6`, because billing every period would be wrong in the expensive direction. | **This is what makes plan C3 step 2 incomplete.** A child table is probably right: an implementation milestone and a payment milestone are not the same event, and a single date column caps it at one. |
+| P-7 | Something that ADVANCES `ContractCommitment.ConsumedAmount` | The column exists and nothing writes it, so the shortfall maths in `GenerateBillingEvent` is correct and its INPUT is manual. "Consumed versus committed" is half of what the master plan says this app owns. | Open on SHAPE, not on need: is consumption rolled up from the orders a term produced (which needs P-1), stamped by the billing engine as it bills, or posted by an external event? The first is truest and the most blocked. |
+
+> **Note on sequencing (2026-08-05).** P-6 and P-7 are the two remaining items that need a MIGRATION,
+> and the app's practice is to edit the baseline in place and re-prove from zero
+> (`drop-schema → migrate → codegen → sync → re-seed`). That destroys and rebuilds the demo dataset,
+> and the test suite guards the CODE rather than the DATA — so verify `demo/seed-demo-contract.sql`
+> restores pristine state BEFORE running the migration, not after.
 
 ## Rejected — recorded so they are not re-proposed
 
