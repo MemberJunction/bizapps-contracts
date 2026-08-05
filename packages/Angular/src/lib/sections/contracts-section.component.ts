@@ -1649,7 +1649,16 @@ export class MJCContractsSectionComponent extends BaseResourceComponent implemen
         this.P = {
             ...this.P,
             terms: { EntityName: E_TERMS, ExtraFilter: `ContractID='${contractID}'`, OrderBy: 'TermNumber' },
-            lines: { EntityName: E_LINES, ExtraFilter: scope, OrderBy: 'DisplayOrder' },
+            // FIELDS ARE NAMED DELIBERATELY. Left to its defaults the grid renders the entity's raw
+            // columns, so coverage displayed ProductID as a bare UUID and no description at all —
+            // technically the right rows, and unreadable. `Product` and `SubscriptionType` are the
+            // view's denormalized name columns, which is what a person is actually looking for.
+            lines: {
+                EntityName: E_LINES,
+                ExtraFilter: scope,
+                OrderBy: 'DisplayOrder',
+                Fields: ['DisplayOrder', 'Description', 'Product', 'LineType', 'SubscriptionType', 'Quantity', 'ContractedUnitPrice', 'DiscountPct', 'StartDate', 'EndDate'],
+            },
             schedules: { EntityName: E_SCHEDULES, ExtraFilter: scope },
             events: { EntityName: E_EVENTS, ExtraFilter: scope, OrderBy: 'ScheduledDate' },
             commitments: { EntityName: E_COMMITMENTS, ExtraFilter: scope },

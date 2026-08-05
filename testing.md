@@ -81,9 +81,10 @@ produces a red tier-3/4/5 against green tier-2, which is an environment artefact
 | Creating a contract with coverage | — | ⚠ | — | ✓ | Driven end-to-end through the UI; T2 covers the entity rules underneath. |
 | Term / line editing via MJ's form shells | — | — | — | ✓ | jsdom cannot route the overlay mount; asserted by diffing `document.body.children`. |
 | Audit timeline rendering | — | — | — | ✓ | |
-| Roster search + filter | — | — | — | ✗ | **Gap `5a`.** |
-| Billing worklist page | — | — | — | ✗ | **Gap `5b`.** |
-| Coverage / Commitments / Amendments tabs | — | — | — | ✗ | **Gap `5c`** — they render MJ's grid, which is not ours to test, but nothing asserts they bind the right params. |
+| Workspace search + status filter | — | — | — | ✓ | 10 assertions: exact-match, description match, no-match says so, status filter both ways, Clear. |
+| Billing worklist page | — | — | — | ✓ | Renders and surfaces the failed event. |
+| Contract types setup page | — | — | — | ✓ | All six seeded types listed **by name**. |
+| Coverage / Billing / Commitments / Amendments tabs | — | — | — | ✓ | Asserted on VALUES belonging to the open contract, so a wrong `ExtraFilter` fails. |
 | Documents tab (file links) | — | — | — | ✗ | **Gap `5d`** — feature not built. |
 | Signature status panel | — | — | — | ✗ | **Gap `5e`** — feature not built; needs a provider account. |
 | Billing event generation | — | ✗ | ✗ | ✗ | **Blocked, not a gap** — needs the orders seams (D-2). Nothing to test yet. |
@@ -94,9 +95,7 @@ produces a red tier-3/4/5 against green tier-2, which is an environment artefact
 
 | Code | Gap | Why it is still open |
 |---|---|---|
-| `5a` | Roster search and status filter unasserted | Cheap; simply not yet written. Should be. |
-| `5b` | Billing worklist page unasserted | Same. |
-| `5c` | The four grid-only tabs assert nothing about their bound params | A wrong `ExtraFilter` would show the wrong rows and no test would notice. |
+| `5f` | The Coverage grid shows `ProductID` as a raw UUID and no description | **A real UX problem, not a test gap.** MJ's `mj-explorer-entity-data-grid` renders the entity's own columns and does **not** take its column set from `RunViewParams.Fields` — setting `Fields` changed nothing. So a person reading Coverage sees `22222222-0000-…` where they want "Onboarding setup fee". Needs the right MJ mechanism (a User View, or a grid column input); raised on the PR. The tab's tests assert prices instead, which still prove the binding. |
 | `5d` | Documents tab | Feature not built — the panel lists links but the upload path is not wired. |
 | `5e` | Signature status panel | Feature not built; sending needs a provider account. |
 | `1a` | No tier-1 unit tests | The pure helpers (date stepping, percent handling) are module-private. Rather than export them purely for tests — a test seam the protocol forbids — they are covered through the operations at tier 2, where the month-boundary cases now live. Revisit if they grow. |
