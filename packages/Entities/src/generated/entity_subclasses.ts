@@ -401,6 +401,11 @@ export const mjBizAppsContractsContractLineSchema = z.object({
         * * Display Name: End Date
         * * SQL Data Type: date
         * * Description: Co-term stubs live here: a line added mid-term starts at the amendment date and ends at the TERM's end date, so the stub prorates on the next billing event. This is the capability standalone subscriptions structurally cannot provide, and the reason the contract owns the calendar.`),
+    SubscriptionTypeID: z.string().nullable().describe(`
+        * * Field Name: SubscriptionTypeID
+        * * Display Name: Subscription Type ID
+        * * SQL Data Type: uniqueidentifier
+        * * Related Entity/Foreign Key: MJ_BizApps_Orders: Subscription Types (vwSubscriptionTypes.ID)`),
     SubscriptionID: z.string().nullable().describe(`
         * * Field Name: SubscriptionID
         * * Display Name: Subscription ID
@@ -429,6 +434,10 @@ export const mjBizAppsContractsContractLineSchema = z.object({
     Product: z.string().describe(`
         * * Field Name: Product
         * * Display Name: Product
+        * * SQL Data Type: nvarchar(200)`),
+    SubscriptionType: z.string().nullable().describe(`
+        * * Field Name: SubscriptionType
+        * * Display Name: Subscription Type
         * * SQL Data Type: nvarchar(200)`),
 });
 
@@ -1859,6 +1868,19 @@ export class mjBizAppsContractsContractLineEntity extends BaseEntity<mjBizAppsCo
     }
 
     /**
+    * * Field Name: SubscriptionTypeID
+    * * Display Name: Subscription Type ID
+    * * SQL Data Type: uniqueidentifier
+    * * Related Entity/Foreign Key: MJ_BizApps_Orders: Subscription Types (vwSubscriptionTypes.ID)
+    */
+    get SubscriptionTypeID(): string | null {
+        return this.Get('SubscriptionTypeID');
+    }
+    set SubscriptionTypeID(value: string | null) {
+        this.Set('SubscriptionTypeID', value);
+    }
+
+    /**
     * * Field Name: SubscriptionID
     * * Display Name: Subscription ID
     * * SQL Data Type: uniqueidentifier
@@ -1924,6 +1946,15 @@ export class mjBizAppsContractsContractLineEntity extends BaseEntity<mjBizAppsCo
     */
     get Product(): string {
         return this.Get('Product');
+    }
+
+    /**
+    * * Field Name: SubscriptionType
+    * * Display Name: Subscription Type
+    * * SQL Data Type: nvarchar(200)
+    */
+    get SubscriptionType(): string | null {
+        return this.Get('SubscriptionType');
     }
 }
 

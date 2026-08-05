@@ -224,6 +224,13 @@ CREATE TABLE __mj_BizAppsContracts.ContractLine (
     DiscountPct DECIMAL(7,4) NULL,
     StartDate DATE NULL,
     EndDate DATE NULL,
+    -- WHICH KIND of subscription this line will materialize, chosen on the CONTRACT before any
+    -- subscription exists. orders.Subscription.SubscriptionTypeID is NOT NULL, so the billing engine
+    -- cannot create one without this — and the choice (membership vs seat-based vs term licence, who
+    -- may hold it, its renewal lead time) is a contract provision that gets negotiated, not an
+    -- orders-side detail to be guessed at materialization time.
+    SubscriptionTypeID UNIQUEIDENTIFIER NULL,
+    -- Set AFTER materialization: the subscription this line actually produced.
     SubscriptionID UNIQUEIDENTIFIER NULL,
     Description NVARCHAR(MAX) NULL,
     DisplayOrder INT NOT NULL DEFAULT 0,
@@ -240,7 +247,8 @@ CREATE TABLE __mj_BizAppsContracts.ContractLine (
     -- billing event. That is the capability standalone subscriptions cannot provide.
     CONSTRAINT CK_ContractLine_Dates CHECK (StartDate IS NULL OR EndDate IS NULL OR EndDate >= StartDate),
     -- A subscription may only be attached to a line that is actually a subscription.
-    CONSTRAINT CK_ContractLine_SubscriptionOnlyOnSubscriptionLine CHECK (SubscriptionID IS NULL OR LineType = 'Subscription')
+    CONSTRAINT CK_ContractLine_SubscriptionOnlyOnSubscriptionLine CHECK (SubscriptionID IS NULL OR LineType = 'Subscription'),
+    CONSTRAINT CK_ContractLine_SubscriptionTypeOnlyOnSubscriptionLine CHECK (SubscriptionTypeID IS NULL OR LineType = 'Subscription')
 );
 GO
 
@@ -522,6 +530,11 @@ GO
 -- The materialized subscription for a LineType='Subscription' line. This is the
 -- linkage that lives HERE and points UP the graph — orders never learns the word
 -- "contract"; it only learns that a subscription's BillingMode is 'External'.
+ALTER TABLE __mj_BizAppsContracts.ContractLine
+    ADD CONSTRAINT FK_ContractLine_SubscriptionType
+    FOREIGN KEY (SubscriptionTypeID) REFERENCES __mj_BizAppsOrders.SubscriptionType(ID);
+GO
+
 ALTER TABLE __mj_BizAppsContracts.ContractLine
     ADD CONSTRAINT FK_ContractLine_Subscription
     FOREIGN KEY (SubscriptionID) REFERENCES __mj_BizAppsOrders.Subscription(ID);
