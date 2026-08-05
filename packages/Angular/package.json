@@ -25,7 +25,8 @@
     "@memberjunction/global": "^5.44.0",
     "@memberjunction/ng-base-forms": "^5.44.0",
     "@memberjunction/ng-entity-viewer": "^5.44.0",
-    "@memberjunction/ng-link-directives": "^5.44.0"
+    "@memberjunction/ng-link-directives": "^5.44.0",
+    "@memberjunction/ng-ui-components": "^5.50.0"
   },
   "devDependencies": {
     "@angular/compiler": "21.1.3",

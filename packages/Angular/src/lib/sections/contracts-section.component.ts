@@ -28,6 +28,7 @@ import { FormsModule } from '@angular/forms';
 import { RegisterClass } from '@memberjunction/global';
 import { BaseResourceComponent } from '@memberjunction/ng-shared';
 import { BaseFormsModule } from '@memberjunction/ng-base-forms';
+import { MJLeftNavComponent, type MJLeftNavSection, type MJLeftNavItem } from '@memberjunction/ng-ui-components';
 import { RunView, type RunViewParams } from '@memberjunction/core';
 import type { ResourceData } from '@memberjunction/core-entities';
 import type { AfterRowClickEventArgs } from '@memberjunction/ng-entity-viewer';
@@ -83,6 +84,8 @@ interface EventRow {
 /** Shared look for both tabs — MJ tokens with fallbacks, so it tracks the host theme. */
 const SHARED_STYLES = `
     :host { display:block; height:100%; overflow:auto; background:var(--mj-bg-page,#f8fafc); color:var(--mj-text-primary,#1e293b); }
+    .shell { display:flex; height:100%; min-height:0; }
+    .pane { flex:1; min-width:0; overflow:auto; }
     .wrap { padding:20px 24px 40px; }
     .head { display:flex; align-items:flex-start; gap:16px; margin-bottom:18px; }
     .head h1 { margin:0; font-size:20px; font-weight:700; letter-spacing:-.01em; display:flex; align-items:center; gap:10px; }
@@ -180,10 +183,19 @@ function toneFor(status: string | null | undefined): string {
 @Component({
     selector: 'mjc-contracts-section',
     standalone: true,
-    imports: [CommonModule, FormsModule, BaseFormsModule],
+    imports: [CommonModule, FormsModule, BaseFormsModule, MJLeftNavComponent],
     styles: [SHARED_STYLES],
     template: `
-        <div class="wrap">
+      <div class="shell">
+        <mj-left-nav
+            [Sections]="NavSections"
+            [ActiveId]="ActiveNav"
+            MobileTitle="Contracts"
+            (ItemClicked)="OnNav($event)"
+        ></mj-left-nav>
+
+        <div class="pane">
+        <div class="wrap" *ngIf="ActiveNav === 'contracts'">
             <!-- ===================== ROSTER ===================== -->
             <ng-container *ngIf="!SelectedContract">
                 <div class="head">
@@ -359,6 +371,83 @@ function toneFor(status: string | null | undefined): string {
                 </div>
             </ng-container>
         </div>
+
+        <!-- ===================== BILLING WORKLIST ===================== -->
+        <div class="wrap" *ngIf="ActiveNav === 'billing'">
+            <div class="head">
+                <div>
+                    <div class="eyebrow">Automation</div>
+                    <h1>Billing worklist</h1>
+                    <p class="sub">
+                        What the scheduled job is about to do, and what it could not do. A failed event is never retried
+                        automatically — retrying into a duplicate bill is worse than a late one — so anything red here stays
+                        red until a person clears it.
+                    </p>
+                </div>
+            </div>
+            <div class="kpis">
+                <div class="kpi"><div class="label">Scheduled</div><div class="value">{{ EventCounts.Scheduled }}</div><div class="foot">awaiting generation</div></div>
+                <div class="kpi"><div class="label">Generated</div><div class="value">{{ EventCounts.Generated }}</div><div class="foot">orders produced</div></div>
+                <div class="kpi"><div class="label">Failed</div><div class="value err">{{ EventCounts.Failed }}</div><div class="foot">needs a human</div></div>
+                <div class="kpi"><div class="label">Skipped</div><div class="value warn">{{ EventCounts.Skipped }}</div><div class="foot">deliberately not billed</div></div>
+            </div>
+            <div class="card" *ngIf="FailedEvents.length">
+                <div class="card-head">Failed<span class="right">{{ FailedEvents.length }}</span></div>
+                <div class="note err" *ngFor="let e of FailedEvents">
+                    <div><strong>{{ e.ScheduledDate | date: 'mediumDate' }}</strong> — {{ e.FailureReason }}</div>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-head">All billing events</div>
+                <mj-explorer-entity-data-grid
+                    [Params]="AllEventsParams" [Height]="420"
+                    [ShowToolbar]="true" [ToolbarConfig]="RosterToolbar"
+                ></mj-explorer-entity-data-grid>
+            </div>
+        </div>
+
+        <!-- ===================== AMENDMENTS ===================== -->
+        <div class="wrap" *ngIf="ActiveNav === 'amendments'">
+            <div class="head">
+                <div>
+                    <div class="eyebrow">Change control</div>
+                    <h1>Amendments</h1>
+                    <p class="sub">
+                        Amendments change a <strong>live</strong> term. Renewals start a new one — conflating the two is the
+                        most common contract-model mistake, so they are deliberately different screens.
+                    </p>
+                </div>
+            </div>
+            <div class="card">
+                <mj-explorer-entity-data-grid
+                    [Params]="AllAmendmentsParams" [Height]="460"
+                    [ShowToolbar]="true" [ToolbarConfig]="RosterToolbar"
+                ></mj-explorer-entity-data-grid>
+            </div>
+        </div>
+
+        <!-- ===================== SETUP: CONTRACT TYPES ===================== -->
+        <div class="wrap" *ngIf="ActiveNav === 'types'">
+            <div class="head">
+                <div>
+                    <div class="eyebrow">Setup</div>
+                    <h1>Contract types</h1>
+                    <p class="sub">
+                        Configuration-as-data: the columns <em>are</em> the rules. A type carries the default term, cadence,
+                        escalation and its cap, notice and cancellation windows — and the engine reads them rather than
+                        branching on a type name.
+                    </p>
+                </div>
+            </div>
+            <div class="card">
+                <mj-explorer-entity-data-grid
+                    [Params]="TypesParams" [Height]="460"
+                    [ShowToolbar]="true" [ToolbarConfig]="RosterToolbar"
+                ></mj-explorer-entity-data-grid>
+            </div>
+        </div>
+        </div>
+      </div>
     `,
 })
 export class MJCContractsSectionComponent extends BaseResourceComponent implements OnInit {
@@ -370,6 +459,12 @@ export class MJCContractsSectionComponent extends BaseResourceComponent implemen
     public SelectedContract: ContractRow | null = null;
     public SelectedTermID: string | null = null;
     public ActiveTab = 'overview';
+    public ActiveNav = 'contracts';
+    public EventCounts = { Scheduled: 0, Generated: 0, Failed: 0, Skipped: 0 };
+
+    public AllEventsParams: RunViewParams = { EntityName: ENTITY_EVENTS, OrderBy: 'ScheduledDate' };
+    public AllAmendmentsParams: RunViewParams = { EntityName: ENTITY_AMENDMENTS, OrderBy: 'AmendmentNumber' };
+    public TypesParams: RunViewParams = { EntityName: 'MJ_BizApps_Contracts: Contract Types', OrderBy: 'Name' };
     /**
      * The toolbar MJ already ships — search, add, refresh, export. Turning these on is why this
      * component has no search box and no "new" button of its own: creating a contract opens MJ's
@@ -402,6 +497,39 @@ export class MJCContractsSectionComponent extends BaseResourceComponent implemen
     }
     public override async GetResourceIconClass(_data: ResourceData): Promise<string> {
         return 'fa-solid fa-file-signature';
+    }
+
+    /**
+     * The rail. MJ's own `<mj-left-nav>` — top nav crosses SECTIONS, left nav moves within one, and
+     * everything here is one section: the agreements and the machinery that bills them. Setup is its
+     * own group because configuration is a different job from operating the book.
+     */
+    public get NavSections(): MJLeftNavSection[] {
+        return [
+            {
+                items: [
+                    { id: 'contracts', icon: 'fa-solid fa-file-signature', label: 'Contracts', description: 'The agreement roster', badge: this.Contracts.length || undefined },
+                    { id: 'billing', icon: 'fa-solid fa-conveyor-belt', label: 'Billing worklist', description: 'Due, generated and failed', badge: this.EventCounts.Failed || undefined },
+                    { id: 'amendments', icon: 'fa-solid fa-file-pen', label: 'Amendments', description: 'Mid-term changes' },
+                ],
+            },
+            {
+                label: 'Setup',
+                items: [{ id: 'types', icon: 'fa-solid fa-sliders', label: 'Contract types', description: 'Defaults and rules' }],
+            },
+        ];
+    }
+
+    public OnNav(item: MJLeftNavItem): void {
+        this.ActiveNav = item.id;
+        if (item.id !== 'contracts') {
+            this.SelectedContract = null;
+        }
+        this.cdr.detectChanges();
+    }
+
+    public get FailedEvents(): EventRow[] {
+        return this.Events.filter((e) => e.Status === 'Failed');
     }
 
     public get Tabs(): { key: string; label: string; count: number | null }[] {
@@ -536,112 +664,19 @@ export class MJCContractsSectionComponent extends BaseResourceComponent implemen
         this.Terms = terms?.Success ? (terms.Results as TermRow[]) : [];
         this.Events = events?.Success ? (events.Results as EventRow[]) : [];
 
+        this.EventCounts = {
+            Scheduled: this.Events.filter((e) => e.Status === 'Scheduled').length,
+            Generated: this.Events.filter((e) => e.Status === 'Generated').length,
+            Failed: this.Events.filter((e) => e.Status === 'Failed').length,
+            Skipped: this.Events.filter((e) => e.Status === 'Skipped').length,
+        };
+
         this.termsByContract = new Map();
         for (const t of this.Terms) {
             const list = this.termsByContract.get(t.ContractID) ?? [];
             list.push(t);
             this.termsByContract.set(t.ContractID, list);
         }
-        this.cdr.detectChanges();
-    }
-}
-
-// =====================================================================================
-// TAB 2 — the billing worklist
-// =====================================================================================
-
-@RegisterClass(BaseResourceComponent, 'ContractsBillingResource')
-@Component({
-    selector: 'mjc-contracts-billing',
-    standalone: true,
-    imports: [CommonModule, FormsModule, BaseFormsModule],
-    styles: [SHARED_STYLES],
-    template: `
-        <div class="wrap">
-            <div class="head">
-                <div>
-                    <div class="eyebrow">Automation</div>
-                    <h1>Billing worklist</h1>
-                    <p class="sub">
-                        What the scheduled job is about to do, and what it could not do. A failed event is never retried
-                        automatically — retrying into a duplicate bill is worse than a late one — so anything red here stays
-                        red until a person clears it.
-                    </p>
-                </div>
-            </div>
-
-            <div class="kpis">
-                <div class="kpi"><div class="label">Scheduled</div><div class="value">{{ Counts.Scheduled }}</div><div class="foot">awaiting generation</div></div>
-                <div class="kpi"><div class="label">Generated</div><div class="value">{{ Counts.Generated }}</div><div class="foot">orders produced</div></div>
-                <div class="kpi"><div class="label">Failed</div><div class="value err">{{ Counts.Failed }}</div><div class="foot">needs a human</div></div>
-                <div class="kpi"><div class="label">Skipped</div><div class="value warn">{{ Counts.Skipped }}</div><div class="foot">deliberately not billed</div></div>
-            </div>
-
-            <div class="card" *ngIf="Failed.length">
-                <div class="card-head">Failed<span class="right">{{ Failed.length }}</span></div>
-                <div class="note err" *ngFor="let e of Failed">
-                    <div>
-                        <strong>{{ e.ScheduledDate | date: 'mediumDate' }}</strong> — {{ e.FailureReason }}
-                    </div>
-                </div>
-            </div>
-
-            <div class="card">
-                <div class="card-head">All billing events</div>
-                <div class="searchrow">
-                    <select class="f" [(ngModel)]="StatusFilter" (ngModelChange)="ApplyFilter()">
-                        <option value="">All statuses</option>
-                        <option value="Scheduled">Scheduled</option>
-                        <option value="Generated">Generated</option>
-                        <option value="Failed">Failed</option>
-                        <option value="Skipped">Skipped</option>
-                    </select>
-                </div>
-                <mj-explorer-entity-data-grid [Params]="EventsParams" [Height]="420"></mj-explorer-entity-data-grid>
-            </div>
-        </div>
-    `,
-})
-export class MJCContractsBillingComponent extends BaseResourceComponent implements OnInit {
-    private readonly cdr = inject(ChangeDetectorRef);
-
-    public Counts = { Scheduled: 0, Generated: 0, Failed: 0, Skipped: 0 };
-    public Failed: EventRow[] = [];
-    public StatusFilter = '';
-    public EventsParams: RunViewParams = { EntityName: ENTITY_EVENTS, OrderBy: 'ScheduledDate' };
-
-    public async ngOnInit(): Promise<void> {
-        const rv = new RunView();
-        const res = await rv.RunView<EventRow>({
-            EntityName: ENTITY_EVENTS,
-            Fields: ['ID', 'ContractTermID', 'ScheduledDate', 'Status', 'ComputedAmount', 'FailureReason'],
-            OrderBy: 'ScheduledDate',
-            ResultType: 'simple',
-        });
-        const rows = res?.Success ? res.Results : [];
-        this.Counts = {
-            Scheduled: rows.filter((r) => r.Status === 'Scheduled').length,
-            Generated: rows.filter((r) => r.Status === 'Generated').length,
-            Failed: rows.filter((r) => r.Status === 'Failed').length,
-            Skipped: rows.filter((r) => r.Status === 'Skipped').length,
-        };
-        this.Failed = rows.filter((r) => r.Status === 'Failed');
-        this.cdr.detectChanges();
-    }
-
-    public override async GetResourceDisplayName(_data: ResourceData): Promise<string> {
-        return 'Billing worklist';
-    }
-    public override async GetResourceIconClass(_data: ResourceData): Promise<string> {
-        return 'fa-solid fa-conveyor-belt';
-    }
-
-    public ApplyFilter(): void {
-        this.EventsParams = {
-            EntityName: ENTITY_EVENTS,
-            ExtraFilter: this.StatusFilter ? `Status='${this.StatusFilter}'` : undefined,
-            OrderBy: 'ScheduledDate',
-        };
         this.cdr.detectChanges();
     }
 }
