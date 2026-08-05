@@ -12,17 +12,37 @@
  *   src/generated/  — CodeGen GraphQLServer output (resolvers; do not edit)
  *   src/            — hand-written resolvers / engines / providers
  *
- * AFTER YOUR FIRST CODEGEN RUN: CodeGen writes src/generated/generated.ts
- * (GraphQL resolvers for your entities). Uncomment the export below so they
- * ship with the package, and commit the generated code with its migration:
+ * THE RESOLVERS ARE WIRED BELOW, and both halves are required. Importing
+ * './generated/generated.js' fires its @Resolver registrations; exporting
+ * RESOLVER_PATHS is what lets MJAPI pass the files to createMJServer() so the
+ * types actually land in the GraphQL schema.
  *
- *   export * from './generated/generated';
- *
- * TODO(template): rename the function to Load<YourApp>Server and keep it in
- * sync with mj-app.json "startupExport".
+ * Skipping either half fails in a way that looks like an app bug rather than a
+ * wiring one: MJAPI boots clean, the app appears, reads work — and the first WRITE
+ * dies with `Unknown type "Create<Entity>Input"` from the client, because the
+ * mutation was never in the schema. The startup line is the tell: an app with
+ * resolvers logs "(+N resolver paths)"; this app logged none.
  */
+import { fileURLToPath } from 'node:url';
+import { resolve } from 'node:path';
+
 import { LoadMjBizappsContractsEntitiesServer } from '@mj-biz-apps/contracts-core-entities-server';
 import { LoadMjBizappsContractsActions } from '@mj-biz-apps/contracts-actions';
+
+// Generated GraphQL resolvers — the import fires their registrations.
+import './generated/generated.js';
+export * from './generated/generated.js';
+
+const __dirname = fileURLToPath(new URL('.', import.meta.url));
+
+/**
+ * Absolute paths to the resolver files, for createMJServer(). The `*Resolver.{js,ts}` suffix on the
+ * custom line is deliberate: `*.{js,ts}` would also match emitted `*.d.ts`, which then fails to load.
+ */
+export const RESOLVER_PATHS = [
+    resolve(__dirname, 'generated/generated.{js,ts}'),
+    resolve(__dirname, 'resolvers/*Resolver.{js,ts}'),
+];
 
 export function LoadMjBizappsContractsServer(): void {
     // Chain the sub-package loaders so a single startupExport call registers
