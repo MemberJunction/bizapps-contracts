@@ -5,7 +5,7 @@ against the **matrix**, not against the tests that happen to exist — an empty 
 every written test is green.
 
 > **Last full sweep:** 2026-08-05, branch `mjdev/contracts-night`, instance `contracts-dev`.
-> **Totals: 32 tier-1 + 85 tier-2 + 69 tier-5 assertions, all passing.** Every number below was
+> **Totals: 32 tier-1 + 85 tier-2 + 69 tier-5 = 186 assertions, all passing.** Every number below was
 > observed, not estimated. Where something was not run, it says so.
 
 ---

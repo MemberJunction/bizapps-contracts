@@ -111,12 +111,18 @@ workspace edit pane on this before adding any more hand-built fields.
       says so next to the field, because a refusal a person could have avoided is worse UX than a
       sentence. Proven in Chrome that the OVERRIDE wins dispatch (the generated form would still look
       fine, which is exactly why that needed asserting).
-- [ ] **5. `<mj-record-files>` upload path.** The panel lists linked files; wire attach through MJ's
+- [ ] **5. BLOCKED — `<mj-record-files>` upload path.** 7 storage PROVIDERS are registered but
+      **0 storage ACCOUNTS** are configured, so nothing can be uploaded and nothing could be
+      demonstrated. Which provider and whose credentials is Marcelo's call. Original:
+      **5. `<mj-record-files>` upload path.** The panel lists linked files; wire attach through MJ's
       storage providers and create the `FileEntityRecordLink` row.
-- [ ] **6. `<mj-record-signature-status>` panel** on Contract + ContractTerm, reading
+- [ ] **6. BLOCKED — signature panel.** Reading `__mj.SignatureRequest` works, but there are 0 rows
+      and 0 signature accounts, so the panel would render an empty state and prove nothing. Needs a
+      provider account. Original:
+      **6. `<mj-record-signature-status>` panel** on Contract + ContractTerm, reading
       `__mj.SignatureRequest` (`EntityID`/`RecordID`). Read-only first; sending needs a provider account.
-- [~] **7. Tier-2 server test harness** — STARTED (`test-harnesses/server/invariants.ts`, 16 checks). Extend per FEATURE-LIST. (`test-harnesses/server/`) — in-process, direct SQL: sequence
-      allocation, term numbering, the XOR customer rule, escalation-cap bounds. Exact values, not liveness.
+- [x] **7. Tier-2 server test harness.** ✅ DONE — three harnesses, 85 assertions:
+      `invariants.ts` (19), `lifecycle.ts` (45), `constraints.ts` (21, every one a REFUSAL).
 - [x] **8. Unit tests** for the pure helpers. ✅ DONE — 32 Vitest assertions replacing this package's
       `echo "No tests configured yet"` stub, which passed vacuously. Helpers extracted to
       `lib/contract-format.ts` (decomposition, not a test seam — nothing was widened for a test) and
@@ -159,6 +165,16 @@ workspace edit pane on this before adding any more hand-built fields.
 | **PG conversion (item 11)** | **Neither bizapps-orders NOR bizapps-accounting ships a PostgreSQL variant** — both have the same SQL-Server-only layout we do. Making contracts the FIRST app in the family to carry PG migrations is a project decision about the family's direction, not a mechanical task, and doing it unilaterally would diverge from the structural model I am told to follow. Needs Amith. |
 
 ## Log
+
+- **09:40 — QUEUE EXHAUSTED.** Every numbered item is DONE (1, 2, 3, 3b, 3c, 4, 7, 8, 8b, 9, 10) or
+  BLOCKED on something only a person can decide (5 storage account · 6 signature account · 11 whether
+  contracts should be the first app in the family to ship PG migrations).
+  **Final sweep, all green: 32 tier-1 · 85 tier-2 · 69 tier-5 = 186 assertions.** Demo restored and
+  verified pristine (terms=3 lines=3 audit=4 billing=3, zero cap violations).
+  **The one unblocked thing I am NOT doing without a ruling:** rewriting the working overview editor
+  onto MJ's 4-layer forms. It is the right change and the standards call for it, but it replaces a
+  verified-working surface hours before a demo, and the term/line editing that most needed those
+  shells already has them. That is Marcelo's call, not mine.
 
 - **09:25** — **Item 10 done; item 11 BLOCKED and logged.** The ERD's entities and fields were already
   right — I verified column-by-column rather than assuming, which also caught that a header edit of
