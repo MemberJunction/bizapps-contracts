@@ -47,7 +47,7 @@ export { ContractsEngine, LoadContractsEngine } from './ContractsEngine.js';
 // Remote operations — the write API the UI calls. State changes live here rather than in Actions:
 // orders settled that split for the family (Actions are for agent/workflow-invocable work; the
 // operations that MUTATE are the callable API), and consistency across the apps is worth more than
-// this app's original plan text, which said Actions. Recorded in OVERNIGHT-PLAN.md.
+// this app's original plan text, which said Actions. Raised on PR #2 rather than changed silently.
 export { ActivateTermOperation, LoadActivateTermOperation } from './ActivateTermOperation.js';
 export type { ActivateTermInput, ActivateTermOutput } from './ActivateTermOperation.js';
 export { RenewTermOperation, LoadRenewTermOperation } from './RenewTermOperation.js';

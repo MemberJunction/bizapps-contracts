@@ -237,3 +237,8 @@ migrations/v*/*__RSU_*.sql
 # explicitly un-ignore this one subtree.
 !/templates/claude-pack/dist/
 !/templates/claude-pack/dist/**
+
+# Session artifacts — these belong in the INSTANCE (~/MJDev/instances/<slug>/), not in the app.
+# A handoff or run plan is about how an agent session worked, not about the product.
+HANDOFF.md
+OVERNIGHT-PLAN.md
