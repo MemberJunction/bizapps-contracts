@@ -28,6 +28,11 @@
  */
 import { LoadContractEntityServer } from './ContractEntityServer.js';
 import { LoadContractTermEntityServer } from './ContractTermEntityServer.js';
+import { LoadContractLineEntityServer } from './ContractLineEntityServer.js';
+import { LoadContractBillingScheduleEntityServer } from './ContractBillingScheduleEntityServer.js';
+import { LoadContractCommitmentEntityServer } from './ContractCommitmentEntityServer.js';
+import { LoadContractAmendmentEntityServer } from './ContractAmendmentEntityServer.js';
+import { LoadContractTypeEntityServer } from './ContractTypeEntityServer.js';
 import { LoadContractEventEntityServer } from './ContractEventEntityServer.js';
 import { LoadContractBillingEventEntityServer } from './ContractBillingEventEntityServer.js';
 import { LoadActivateTermOperation } from './ActivateTermOperation.js';
@@ -36,8 +41,19 @@ import { LoadTerminateContractOperation } from './TerminateContractOperation.js'
 
 export { ContractEntityServer, LoadContractEntityServer } from './ContractEntityServer.js';
 export { ContractTermEntityServer, LoadContractTermEntityServer } from './ContractTermEntityServer.js';
+export { ContractLineEntityServer, LoadContractLineEntityServer } from './ContractLineEntityServer.js';
+export { ContractBillingScheduleEntityServer, LoadContractBillingScheduleEntityServer } from './ContractBillingScheduleEntityServer.js';
+export { ContractCommitmentEntityServer, LoadContractCommitmentEntityServer } from './ContractCommitmentEntityServer.js';
+export { ContractAmendmentEntityServer, LoadContractAmendmentEntityServer } from './ContractAmendmentEntityServer.js';
+export { ContractTypeEntityServer, LoadContractTypeEntityServer } from './ContractTypeEntityServer.js';
 export { ContractEventEntityServer, LoadContractEventEntityServer } from './ContractEventEntityServer.js';
 export { ContractBillingEventEntityServer, LoadContractBillingEventEntityServer } from './ContractBillingEventEntityServer.js';
+
+// The one implementation of "a parent entity owns child rows", shared by the contract's terms and
+// each term's coverage, schedules and commitments. Exported so an operation can compose a tree
+// without re-deriving the hydrated-versus-empty rule that makes the validators correct.
+export { ChildCollection } from './ChildCollection.js';
+export type { ChildCollectionConfig } from './ChildCollection.js';
 
 // The lookup cache. Exported so callers outside this package can read a contract type's rules
 // without another RunView — and so the CONVENTION matches OrdersEngine, which is exported the same
@@ -63,6 +79,11 @@ export type { TerminateContractInput, TerminateContractOutput } from './Terminat
 export function LoadMjBizappsContractsEntitiesServer(): void {
     LoadContractEntityServer();
     LoadContractTermEntityServer();
+    LoadContractLineEntityServer();
+    LoadContractBillingScheduleEntityServer();
+    LoadContractCommitmentEntityServer();
+    LoadContractAmendmentEntityServer();
+    LoadContractTypeEntityServer();
     LoadContractEventEntityServer();
     LoadContractBillingEventEntityServer();
     LoadActivateTermOperation();
