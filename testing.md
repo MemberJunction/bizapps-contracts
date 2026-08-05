@@ -5,7 +5,7 @@ against the **matrix**, not against the tests that happen to exist — an empty 
 every written test is green.
 
 > **Last full sweep:** 2026-08-05, branch `mjdev/contracts-night`, instance `contracts-dev`.
-> **Totals: 85 tier-2 assertions + 67 tier-5 assertions, all passing.** Every number below was
+> **Totals: 32 tier-1 + 85 tier-2 + 67 tier-5 assertions, all passing.** Every number below was
 > observed, not estimated. Where something was not run, it says so.
 
 ---
@@ -16,6 +16,10 @@ Tier 2 needs the instance database. Tiers 3 and 5 additionally need MJAPI **read
 started) and, for tier 5, MJExplorer.
 
 ```sh
+# Tier 1 — pure logic, no DB, no Angular compile. Run from the INSTANCE WORKTREE root:
+#   the app-root `npm test` cannot resolve turbo tasks from inside a dev-linked member.
+npx turbo run test --filter=@mj-biz-apps/contracts-ng    # 32
+
 # Tier 2 — in-process, direct SQL, MJAPI-free
 npx tsx test-harnesses/server/invariants.ts     # 19
 npx tsx test-harnesses/server/lifecycle.ts      # 45
@@ -50,6 +54,9 @@ produces a red tier-3/4/5 against green tier-2, which is an environment artefact
 
 | Feature / invariant | T1 unit | T2 server | T3 API | T5 browser | Notes |
 |---|---|---|---|---|---|
+| Status/event tone + label mapping | ✓ | — | — | ✓ | 32 assertions on the pure helpers, including that an unmapped event type falls back to the RAW value so a widened CHECK looks wrong rather than invisible. |
+| Percent ↔ fraction conversion | ✓ | — | — | — | Round-trips without drift; null stays null, because blank is an absence and zero is a claim. |
+| Coverage subtotal | ✓ | — | — | ✓ | Catalog-priced lines are EXCLUDED, not counted as zero. |
 | `ContractNumber` allocation from the sequence | — | ✓ | ⚠ | ⚠ | Allocation is a read-modify-write in `Save()`; T2 asserts the number shape AND that the sequence advances by exactly 1. Nothing above adds machinery. |
 | `PricedAt` defaults rather than staying null | — | ✓ | ⚠ | ⚠ | Same. |
 | An explicit contract number is not overwritten | — | ✓ | ⚠ | ⚠ | Same. |
@@ -101,7 +108,7 @@ produces a red tier-3/4/5 against green tier-2, which is an environment artefact
 | `5f` | The Coverage grid shows `ProductID` as a raw UUID and no description | **A real UX problem, not a test gap.** MJ's `mj-explorer-entity-data-grid` renders the entity's own columns and does **not** take its column set from `RunViewParams.Fields` — setting `Fields` changed nothing. So a person reading Coverage sees `22222222-0000-…` where they want "Onboarding setup fee". Needs the right MJ mechanism (a User View, or a grid column input); raised on the PR. The tab's tests assert prices instead, which still prove the binding. |
 | `5d` | Documents tab | Feature not built — the panel lists links but the upload path is not wired. |
 | `5e` | Signature status panel | Feature not built; sending needs a provider account. |
-| `1a` | No tier-1 unit tests | The pure helpers (date stepping, percent handling) are module-private. Rather than export them purely for tests — a test seam the protocol forbids — they are covered through the operations at tier 2, where the month-boundary cases now live. Revisit if they grow. |
+| `1b` | The operations' date helpers still have no tier-1 tests | They are module-private to the operation files, and exporting them purely for tests is a seam the protocol forbids. Covered through the operations at tier 2, where the month-boundary cases live (7 assertions). The presentation helpers were extractable because they are genuinely standalone functions; these are not. |
 | `4a` | No tier-4 (component + API, headless) | Not initialized for this app. It would absorb much of what tier 5 currently carries. Opt-in, and not initialized without being asked. |
 
 **No box above is empty for the reason "it is covered at another tier."** Where a `⚠` appears, it

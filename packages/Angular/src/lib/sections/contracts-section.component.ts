@@ -38,6 +38,18 @@ import {
 } from '@memberjunction/ng-ui-components';
 import { RunView, Metadata, CompositeKey, type RunViewParams } from '@memberjunction/core';
 import type { ResourceData } from '@memberjunction/core-entities';
+// The pure presentation helpers. They live in their own module because they are ordinary functions
+// of their arguments — and having one implementation means a change to how a status reads happens
+// once, not once here and once wherever else it was copied.
+import {
+    statusTone,
+    eventTone,
+    eventLabel,
+    eventDetail,
+    percentToFraction,
+    termFill,
+    coverageSubtotal,
+} from '../contract-format';
 // The app's OWN typed Remote Operation clients — generated from metadata/remote-operations/ into the
 // browser-safe Entities package. The UI calls these; it does not reimplement what they decide.
 import {
@@ -1081,18 +1093,8 @@ export class MJCContractsSectionComponent extends BaseResourceComponent implemen
     public TermsOf(id: string): TermRow[] { return this.termsBy.get(id) ?? []; }
     public CommittedOf(id: string): number { return this.TermsOf(id).reduce((s, t) => s + (t.CommittedAmount ?? 0), 0); }
 
-    public Tone(s: string | null): string {
-        switch (s) {
-            case 'Active': case 'Generated': case 'Completed': case 'Applied': return 'ok';
-            case 'PendingSignature': case 'Pending': case 'Scheduled': case 'Open': return 'info';
-            case 'Failed': case 'Terminated': case 'Rejected': return 'err';
-            case 'Expired': case 'Superseded': case 'Skipped': return 'warn';
-            default: return '';
-        }
-    }
-    public Fill(t: TermRow): string {
-        return t.Status === 'Active' ? 'now' : (t.Status === 'Completed' || t.Status === 'Terminated') ? 'done' : 'next';
-    }
+    public Tone(s: string | null): string { return statusTone(s); }
+    public Fill(t: TermRow): string { return termFill(t.Status); }
 
     public OnNav(item: MJLeftNavItem): void {
         this.Page = item.id;
@@ -1419,11 +1421,7 @@ export class MJCContractsSectionComponent extends BaseResourceComponent implemen
 
     /** What the coverage adds up to, for the lines that state a price. */
     public get LinesSubtotal(): number {
-        return this.D.Lines.reduce((sum, l) => {
-            if (l.ContractedUnitPrice == null) return sum;
-            const gross = l.ContractedUnitPrice * (l.Quantity ?? 1);
-            return sum + gross * (1 - (l.DiscountPercent ?? 0) / 100);
-        }, 0);
+        return coverageSubtotal(this.D.Lines);
     }
 
     /** Lines priced from the catalog rather than the contract — they cannot be totalled here. */
@@ -1438,57 +1436,11 @@ export class MJCContractsSectionComponent extends BaseResourceComponent implemen
     }
 
     /** A human sentence for an event type. The vocabulary is closed, so this map is exhaustive. */
-    public EventLabel(t: string): string {
-        const map: Record<string, string> = {
-            ContractCreated: 'Contract created',
-            ContractExecuted: 'Contract executed',
-            ContractTerminated: 'Contract terminated',
-            ContractSuperseded: 'Superseded by a replacement',
-            ContractExpired: 'Contract expired',
-            SentForSignature: 'Sent for signature',
-            SignatureRejected: 'Signature rejected',
-            TermActivated: 'Term activated',
-            TermRenewed: 'Term renewed',
-            TermCompleted: 'Term completed',
-            TermTerminated: 'Term terminated',
-            AmendmentApplied: 'Amendment applied',
-            BillingEventGenerated: 'Billing event generated',
-            BillingEventFailed: 'Billing event failed',
-        };
-        return map[t] ?? t;
-    }
+    public EventLabel(t: string): string { return eventLabel(t); }
 
-    public EventTone(t: string): string {
-        if (t.includes('Failed') || t.includes('Rejected') || t.includes('Terminated')) return 'err';
-        if (t.includes('Activated') || t.includes('Executed') || t.includes('Renewed')) return 'ok';
-        if (t.includes('Expired') || t.includes('Superseded')) return 'warn';
-        return 'info';
-    }
+    public EventTone(t: string): string { return eventTone(t); }
 
-    /**
-     * The parts of a payload worth reading, as short phrases. Deliberately a whitelist rather than a
-     * dump of every key: an audit trail people actually read beats one that is technically complete.
-     */
-    public EventDetail(payload: string | null): string[] {
-        if (!payload) return [];
-        try {
-            const p = JSON.parse(payload) as Record<string, unknown>;
-            const out: string[] = [];
-            if (typeof p.reason === 'string') out.push(p.reason);
-            if (typeof p.termNumber === 'number') out.push(`term ${p.termNumber}`);
-            if (typeof p.renewalOfTermNumber === 'number') out.push(`renewed from term ${p.renewalOfTermNumber}`);
-            if (typeof p.appliedEscalationPercent === 'number') out.push(`+${(p.appliedEscalationPercent * 100).toFixed(2)}% applied`);
-            if (p.escalationWasClamped === true) out.push('capped at the negotiated ceiling');
-            if (typeof p.occurrences === 'number') out.push(`${p.occurrences} billing event(s) scheduled`);
-            if (typeof p.lineCount === 'number') out.push(`${p.lineCount} line(s) carried forward`);
-            if (typeof p.billingEventsCancelled === 'number') out.push(`${p.billingEventsCancelled} future billing event(s) cancelled`);
-            if (typeof p.billingEventsRetained === 'number' && p.billingEventsRetained) out.push(`${p.billingEventsRetained} retained`);
-            if (typeof p.effectiveDate === 'string') out.push(`effective ${p.effectiveDate}`);
-            return out;
-        } catch {
-            return [];
-        }
-    }
+    public EventDetail(payload: string | null): string[] { return eventDetail(payload); }
 
     public Touch(): void { this.BufferDirty = true; this.Message = ''; }
 
@@ -1645,9 +1597,7 @@ export class MJCContractsSectionComponent extends BaseResourceComponent implemen
     }
 
     /** Percent in the UI, fraction in the database. */
-    private pct(v: number | null): number | null {
-        return v == null ? null : v / 100;
-    }
+    private pct(v: number | null): number | null { return percentToFraction(v); }
 
     public async Refresh(): Promise<void> {
         await this.load();

@@ -117,7 +117,10 @@ workspace edit pane on this before adding any more hand-built fields.
       `__mj.SignatureRequest` (`EntityID`/`RecordID`). Read-only first; sending needs a provider account.
 - [~] **7. Tier-2 server test harness** — STARTED (`test-harnesses/server/invariants.ts`, 16 checks). Extend per FEATURE-LIST. (`test-harnesses/server/`) — in-process, direct SQL: sequence
       allocation, term numbering, the XOR customer rule, escalation-cap bounds. Exact values, not liveness.
-- [ ] **8. Unit tests** for the pure helpers (percent↔fraction, term fill state, tone mapping).
+- [x] **8. Unit tests** for the pure helpers. ✅ DONE — 32 Vitest assertions replacing this package's
+      `echo "No tests configured yet"` stub, which passed vacuously. Helpers extracted to
+      `lib/contract-format.ts` (decomposition, not a test seam — nothing was widened for a test) and
+      the component now DELEGATES, so there is one implementation rather than two.
 - [x] **8b. FEATURE-LIST contradictions.** ✅ DONE — X.5, X.6, X.9, X.12, X.14, X.15, X.16 all closed
       (4 CHECKs + 1 filtered unique index + 2 entity-layer guards), 19/19 refusal assertions in
       `test-harnesses/server/constraints.ts`. X.10 (ComputedAmount >= 0 forbids a credit) deliberately
@@ -147,6 +150,15 @@ workspace edit pane on this before adding any more hand-built fields.
 | Usage metering | Out of v1 by decision. |
 
 ## Log
+
+- **08:55** — **Item 8 done.** 32 tier-1 assertions, replacing a stub that passed vacuously. Worth
+  recording HOW it went: I wrote the extracted module from what I assumed the component did, and the
+  tests then disagreed with the shipped code — `Fill` returns `now|done|next` (the only three classes
+  with CSS) and `Tone` returns `''` for the unrecognised, not `'info'`. **The implementation won**:
+  changing rendering to match expectations I had just invented would have been backwards, and my
+  `past`/`cut` would have rendered unstyled bars. The tests now pin the real behaviour and explain
+  why it is that way. Run from the WORKTREE root — the app-root `npm test` cannot resolve turbo tasks
+  from inside a dev-linked member.
 
 - **08:10** — **Item 4 done.** Custom `ContractTerm` + `ContractLine` forms at priority 2. The term
   form is the one that matters: the generated version lists 21 columns in schema order, so
