@@ -1,9 +1,9 @@
 ---
-'@mj-biz-apps/contracts-entities': minor
-'@mj-biz-apps/contracts-actions': minor
-'@mj-biz-apps/contracts-server': minor
-'@mj-biz-apps/contracts-core-entities-server': minor
-'@mj-biz-apps/contracts-ng': minor
+'@mj-biz-apps/contracts-entities': patch
+'@mj-biz-apps/contracts-actions': patch
+'@mj-biz-apps/contracts-server': patch
+'@mj-biz-apps/contracts-core-entities-server': patch
+'@mj-biz-apps/contracts-ng': patch
 ---
 
 First working vertical slice of BizApps Contracts: schema, generated entities, GraphQL
@@ -24,5 +24,6 @@ build or every write dies with `Unknown type "Create…Input"`.
 **UI** — an Explorer section with a nav rail and page header: roster, workspace
 (edit + section tabs), contract entry on the shared workspace card, and a billing worklist.
 
-Pre-1.0 and unpublished, so `minor` rather than `major` despite the schema edits: the
-baseline is still being edited in place per the repo's pre-production practice.
+`patch` deliberately, despite the schema edits: nothing here has been published, the
+baseline is still edited in place per the repo's pre-production practice, and version
+numbers should not start climbing before there is anything to be compatible with.
