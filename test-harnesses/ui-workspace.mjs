@@ -202,6 +202,47 @@ try {
         }
     }
 
+    console.log('\n10b. MJ 4-layer forms — a saved row opens its OWN registered form');
+    // Restores what ui-form-editing.mjs proved before the workspaces merged. The narrow but
+    // important part: the presenter mounts a REAL form for our entity, populated with the record we
+    // asked for, and cancelling leaves it alone. A panel that simply appears would pass a
+    // presence-only check while being empty or showing the wrong record.
+    await page.getByRole('tab', { name: /^Coverage/ }).click();
+    await page.waitForTimeout(1200);
+    const formBtn = page.locator('.pane').last().getByRole('button', { name: /form/i }).first();
+    check('10b.1 a SAVED coverage line offers its own form', (await formBtn.count()) > 0);
+    if (await formBtn.count()) {
+        await formBtn.click();
+        await page.waitForTimeout(6000);
+
+        // The slide-in is MJ's, so assert on what it must CONTAIN rather than on our own markup.
+        const panel = page.locator('mj-form-panel, .mj-form-panel, [class*="slide-in"]').first();
+        const opened = (await panel.count()) > 0;
+        check('10b.2 a slide-in opened', opened);
+        if (opened) {
+            // Populated with the RIGHT record: the price this run typed into that line. Read the
+            // INPUT VALUES, not innerText — a field's value is an attribute and never appears in
+            // the rendered text, so an innerText check here passes or fails for reasons unrelated
+            // to whether the form loaded the record.
+            const values = [];
+            for (const input of await panel.locator('input').all()) {
+                values.push(await input.inputValue().catch(() => ''));
+            }
+            check('10b.3 it is populated with the record asked for', values.some((v) => v.includes('4200')), `values: ${values.filter(Boolean).slice(0, 8).join(', ')}`);
+
+            const cancel = page.getByRole('button', { name: /cancel|close/i }).last();
+            if (await cancel.count()) {
+                await cancel.click();
+                await page.waitForTimeout(2500);
+            }
+            check('10b.4 cancelling closes it', (await page.locator('mj-form-panel, .mj-form-panel, [class*="slide-in"]').count()) === 0);
+            // And leaves the record alone — the pane still shows what it did before.
+            await page.waitForTimeout(1000);
+            const priceField = page.locator('.pane').last().locator('.fld', { hasText: 'Contracted unit price' }).locator('input').first();
+            check('10b.5 and leaves the record alone', (await priceField.inputValue()) === '4200', `pane price is now "${await priceField.inputValue()}"`);
+        }
+    }
+
     console.log('\n11. History — the append-only audit trail');
     await page.getByRole('tab', { name: /^History/ }).click();
     await page.waitForTimeout(2500);

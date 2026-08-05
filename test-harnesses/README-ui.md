@@ -25,17 +25,24 @@ six contracts to clean up, for coverage that overlaps almost completely.
 | `ui-history` | the append-only audit trail renders | §11.1 |
 | `ui-navigation` | rail navigation, search finds one contract | §1 (sections), §13 (search) |
 
-## The one thing that did NOT survive, and is not pretended otherwise
+## The last one, which briefly had no home
 
-`ui-form-editing.mjs` proved that **MJ's form presenter mounts a REAL form** for a term — populated
-with the record asked for, and leaving it alone on cancel. The consolidated workspace edits terms,
-coverage, schedules and commitments with **hand-built field sets inline**, so there is no slide-in
-to assert and that coverage is genuinely GONE rather than relocated.
+| `ui-form-editing` | MJ's presenter mounts a REAL form, populated with the right record, left alone on cancel | §10b.1–10b.5 |
 
-That is a gap, not a decision. Presenting those rows through the 4-layer architecture
-(`MJFormPresenterService` over the priority-2 custom forms, which Term and Line already have) is
-outstanding work — tracked, and the harness should be restored with it rather than rewritten from
-scratch. The retired file is in git history at the commit that removed it.
+This one was genuinely GONE for about an hour, and was recorded as a gap rather than glossed over:
+the consolidated workspace first edited every row with hand-built field sets inline, so there was no
+slide-in to assert. Wiring `MJFormPresenterService` into the panes closed it the same day, and the
+coverage came back stronger than it left.
+
+The inline fields did not go away, and that is deliberate: a form needs a RECORD to open, and a row
+being composed does not have one yet. So the draft is how a contract is assembled and the form is
+how a saved record is edited — the Form button appears only once the row exists, which is what makes
+the distinction visible rather than a rule to remember.
+
+One authoring note worth keeping: §10b.3 reads the form's INPUT VALUES rather than its innerText. A
+field's value is an attribute and never appears in rendered text, so an innerText check there passes
+or fails for reasons unrelated to whether the form loaded the record — the same class of mistake as
+a loose locator.
 
 ## Running it
 

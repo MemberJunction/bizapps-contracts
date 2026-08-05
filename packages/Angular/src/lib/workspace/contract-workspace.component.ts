@@ -30,6 +30,7 @@ import { ChangeDetectorRef, Component, EventEmitter, Input, Output, inject, sign
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MJButtonDirective, MJTabNavComponent, type TabConfig } from '@memberjunction/ng-ui-components';
+import { BaseFormsModule, MJFormPresenterService } from '@memberjunction/ng-base-forms';
 import {
     ContractDraft,
     ContractDraftTerm,
@@ -84,7 +85,7 @@ const TERM_STATUSES = ['Pending', 'PendingSignature', 'Active', 'Completed', 'Te
 @Component({
     selector: 'mjc-contract-workspace',
     standalone: true,
-    imports: [CommonModule, FormsModule, MJButtonDirective, MJTabNavComponent],
+    imports: [CommonModule, FormsModule, MJButtonDirective, MJTabNavComponent, BaseFormsModule],
     styles: [
         `
         .ws { display: flex; flex-direction: column; gap: var(--mj-space-4, 16px); }
@@ -288,6 +289,9 @@ const TERM_STATUSES = ['Pending', 'PendingSignature', 'Active', 'Completed', 'Te
                 <button mjButton variant="flat" *ngIf="CanRenew(term)" [disabled]="Op.Busy" (click)="PreviewRenewal(term)">
                   <i class="fa-solid fa-rotate"></i> Renew…
                 </button>
+                <button mjButton variant="flat" *ngIf="term.ID" [title]="'Open this term in its own form'" (click)="OpenForm(TERM_ENTITY, term.ID, 'Term ' + (term.TermNumber || ''))">
+                  <i class="fa-solid fa-up-right-from-square"></i> Form
+                </button>
                 <button mjButton variant="icon" (click)="RemoveTerm(term)"><i class="fa-solid fa-trash"></i></button>
               </span>
             </div>
@@ -375,7 +379,12 @@ const TERM_STATUSES = ['Pending', 'PendingSignature', 'Active', 'Completed', 'Te
               <div class="row" *ngFor="let line of term.Lines; let i = index">
                 <div class="row-head">
                   <span class="row-title">Line {{ i + 1 }} <span class="muted">· {{ line.LineType }}</span></span>
-                  <button mjButton variant="icon" (click)="RemoveLine(term, line)"><i class="fa-solid fa-trash"></i></button>
+                  <span style="display:flex; gap:6px;">
+                    <button mjButton variant="flat" *ngIf="line.ID" [title]="'Open this line in its own form'" (click)="OpenForm(LINE_ENTITY, line.ID, 'Coverage line ' + (i + 1))">
+                      <i class="fa-solid fa-up-right-from-square"></i> Form
+                    </button>
+                    <button mjButton variant="icon" (click)="RemoveLine(term, line)"><i class="fa-solid fa-trash"></i></button>
+                  </span>
                 </div>
                 <div class="grid">
                   <div class="fld">
@@ -421,7 +430,12 @@ const TERM_STATUSES = ['Pending', 'PendingSignature', 'Active', 'Completed', 'Te
               <div class="row" *ngFor="let sched of term.Schedules">
                 <div class="row-head">
                   <span class="row-title">{{ sched.ScheduleType }} <span class="muted" *ngIf="sched.Frequency">· {{ sched.Frequency }}</span></span>
-                  <button mjButton variant="icon" (click)="RemoveSchedule(term, sched)"><i class="fa-solid fa-trash"></i></button>
+                  <span style="display:flex; gap:6px;">
+                    <button mjButton variant="flat" *ngIf="sched.ID" [title]="'Open this schedule in its own form'" (click)="OpenForm(SCHEDULE_ENTITY, sched.ID, 'Billing schedule')">
+                      <i class="fa-solid fa-up-right-from-square"></i> Form
+                    </button>
+                    <button mjButton variant="icon" (click)="RemoveSchedule(term, sched)"><i class="fa-solid fa-trash"></i></button>
+                  </span>
                 </div>
                 <div class="grid">
                   <div class="fld">
@@ -458,7 +472,12 @@ const TERM_STATUSES = ['Pending', 'PendingSignature', 'Active', 'Completed', 'Te
               <div class="row" *ngFor="let commit of term.Commitments">
                 <div class="row-head">
                   <span class="row-title">{{ commit.CommitmentType }} <span class="muted">· {{ commit.Status }}</span></span>
-                  <button mjButton variant="icon" (click)="RemoveCommitment(term, commit)"><i class="fa-solid fa-trash"></i></button>
+                  <span style="display:flex; gap:6px;">
+                    <button mjButton variant="flat" *ngIf="commit.ID" [title]="'Open this commitment in its own form'" (click)="OpenForm(COMMITMENT_ENTITY, commit.ID, 'Commitment')">
+                      <i class="fa-solid fa-up-right-from-square"></i> Form
+                    </button>
+                    <button mjButton variant="icon" (click)="RemoveCommitment(term, commit)"><i class="fa-solid fa-trash"></i></button>
+                  </span>
                 </div>
                 <div class="grid">
                   <div class="fld">
@@ -494,6 +513,20 @@ const TERM_STATUSES = ['Pending', 'PendingSignature', 'Active', 'Completed', 'Te
 })
 export class MJCContractWorkspaceComponent {
     private readonly cdr = inject(ChangeDetectorRef);
+    /**
+     * MJ's 4-layer form architecture.
+     *
+     * A SAVED row opens ITS OWN registered form as a slide-in — the priority-2 custom form for that
+     * entity — rather than another hand-built field set here. One definition of what a term or a
+     * line looks like, reused everywhere, with the generated validation attached to it; and a change
+     * to that definition reaches every surface at once instead of the ones somebody remembered.
+     *
+     * The inline fields in each pane are NOT a competing editor. They exist because a row being
+     * COMPOSED has no record yet — a form needs something to open — so the draft is how a contract
+     * is assembled and the form is how a saved record is edited. The strip says which is which: the
+     * form button appears only once the row exists.
+     */
+    private readonly forms = inject(MJFormPresenterService);
 
     /** The contract being viewed or composed. A draft with no `ID` is one being created. */
     @Input() Draft: ContractDraft = new ContractDraft();
@@ -644,6 +677,36 @@ export class MJCContractWorkspaceComponent {
     public RemoveCommitment(term: ContractDraftTerm, commitment: ContractDraftCommitment): void {
         this.Draft.RemoveCommitment(term, commitment);
         this.Touch();
+    }
+
+    // ── MJ's 4-layer forms ──────────────────────────────────────────────────────────────────────
+
+    public readonly TERM_ENTITY = 'MJ_BizApps_Contracts: Contract Terms';
+    public readonly LINE_ENTITY = 'MJ_BizApps_Contracts: Contract Lines';
+    public readonly SCHEDULE_ENTITY = 'MJ_BizApps_Contracts: Contract Billing Schedules';
+    public readonly COMMITMENT_ENTITY = 'MJ_BizApps_Contracts: Contract Commitments';
+
+    /**
+     * Open a saved row in ITS OWN registered form, as a slide-in.
+     *
+     * `AfterSaved()` resolves with the record when something was written and null when the person
+     * cancelled — so a cancel must NOT reload (that would make the cancel look like it did
+     * something) and a save MUST, or the pane shows stale values beside a form that just changed
+     * them.
+     */
+    public async OpenForm(entityName: string, recordID: string | null, title: string): Promise<void> {
+        if (!recordID) return;
+        const ref = this.forms.Open({
+            EntityName: entityName,
+            RecordId: recordID,
+            Presentation: 'slide-in',
+            EditMode: true,
+            Title: title,
+        });
+        const saved = await ref.AfterSaved();
+        if (!saved) return;
+        this.Message = `${title} saved.`;
+        this.ReloadRequested.emit(this.Draft.ID ?? '');
     }
 
     // ── Lifecycle operations ────────────────────────────────────────────────────────────────────

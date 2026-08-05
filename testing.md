@@ -5,7 +5,7 @@ against the **matrix**, not against the tests that happen to exist — an empty 
 every written test is green.
 
 > **Last full sweep:** 2026-08-05 (afternoon), branch `mjdev/contracts-night`, instance `contracts-dev`.
-> **Totals: 52 tier-1 + 101 tier-2 (tsx) + 37 integration + 57 tier-5 = 247 assertions, all passing.**
+> **Totals: 52 tier-1 + 101 tier-2 (tsx) + 37 integration + 62 tier-5 = 252 assertions, all passing.**
 > Every number below was observed, not estimated. Where something was not run, it says so.
 >
 > **The suite moved to MJ's integration tier this afternoon** (`mj test` / `test-harnesses/integration.mjs`),
@@ -193,7 +193,7 @@ The ones that would change tests if answered differently:
 
 | # | Gap | Why it is open |
 |---|---|---|
-| **G1** | **Workspace rows are not presented through MJ's 4-layer forms.** The panes edit terms, coverage, schedules and commitments with hand-built field sets inline. | A named non-optional standard, explicitly asked for, and NOT done. It also cost the coverage `ui-form-editing.mjs` held — that the presenter mounts a real form, populated with the right record, and leaves it alone on cancel. Tracked; the harness should be restored WITH the work rather than rewritten. |
+| ~~G1~~ | ~~Workspace rows not presented through MJ's 4-layer forms~~ | **CLOSED same day.** Every saved row in every pane now opens ITS OWN registered form as a slide-in through `MJFormPresenterService`. The inline fields remain for rows being COMPOSED — a form needs a record to open, so the draft assembles and the form edits. Coverage restored and extended: §10b.1–10b.5, which assert the presenter mounts a real form, POPULATED with the right record (read from input values, not innerText), and that cancelling closes it and leaves the record alone. |
 | **G2** | Amendment and co-term operations (plan C4) | `RenewTerm` is 1 of the 4 operations C4 calls for. `ContractAmendment` now has its rules in BaseEntity and a workspace pane, but no operation applies one to a live term. |
 | **G3** | Milestone marking | `Milestone` is a valid LineType and ScheduleType and nothing marks one reached, so BE6 asserts it bills in NO period. Correct today, and the reason C3 step 2 is incomplete. |
 | **G4** | Commitment consumption tracking | `ConsumedAmount` is recorded and never advanced by anything. The shortfall maths is right; the input to it is manual. |
