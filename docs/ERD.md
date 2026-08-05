@@ -462,6 +462,13 @@ of them are the reason several columns exist at all:
 | `Contracts.AmendTerm` | Co-terming (plan §5.4): a `ContractAmendment` plus a `ContractLine` whose `EndDate` is the **TERM's**, so a mid-term product renews with everything else instead of acquiring its own clock. |
 | `Contracts.GenerateBillingEvent` | Claims a `Scheduled` event, assembles what is owed for the period, and stamps `OrderID` / `ComputedAmount` / `GeneratedAt` together — which is what `CK_ContractBillingEvent_GeneratedHasOrder` and `_GeneratedHasTimestamp` exist to guarantee. |
 
+**Three Explorer nav items** reach all of this: `ContractsSectionResource`,
+`ContractsBillingSectionResource` and `ContractsSetupSectionResource`, each registered via
+`@RegisterClass(BaseResourceComponent, …)` against a `DefaultNavItems` entry in
+`metadata/applications/.contracts-application.json`. Billing is a peer of Contracts rather than a
+page beneath it because the cross-contract questions — what will bill next month, who is behind on
+what they committed to — are not answered by opening one agreement at a time.
+
 **`ContractSequence` and `IX_ContractBillingEvent_Due` only make sense read against this table.** The
 sequence exists because `ContractNumber` is allocated by a read-modify-write that must not interleave;
 the index exists because the scheduled driver's only query is

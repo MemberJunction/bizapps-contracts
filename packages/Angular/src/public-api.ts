@@ -59,7 +59,12 @@
 import '@mj-biz-apps/contracts-entities';
 import './lib/generated/generated-forms.module';
 import { GeneratedFormsModule } from './lib/generated/generated-forms.module';
-import { MJCContractsSectionComponent } from './lib/sections/contracts-section.component';
+import {
+    MJCContractsSectionComponent,
+    ContractsSectionResource,
+    ContractsBillingSectionResource,
+    ContractsSetupSectionResource,
+} from './lib/sections/contracts-section.component';
 import { MJCContractFormComponent } from './lib/forms/contract.form.component';
 import { MJCContractTermFormComponent } from './lib/forms/contract-term.form.component';
 import { MJCContractLineFormComponent } from './lib/forms/contract-line.form.component';
@@ -77,9 +82,17 @@ export { mjBizAppsContractsContractTermFormComponent } from './lib/generated/Ent
 export { mjBizAppsContractsContractTypeFormComponent } from './lib/generated/Entities/mjBizAppsContractsContractType/mjbizappscontractscontracttype.form.component';
 
 
-/* The Explorer tab. Its @RegisterClass key must match the DriverClass in
- * metadata/applications/.contracts-application.json — that pairing is the entire wiring. */
-export { MJCContractsSectionComponent } from './lib/sections/contracts-section.component';
+/* THE THREE EXPLORER TABS. Each @RegisterClass key must match a DriverClass in
+ * metadata/applications/.contracts-application.json — that pairing is the entire wiring, and both
+ * halves are required: metadata without a registered class renders a dead tab, a registered class
+ * without metadata never appears. MJCContractsSectionComponent is the shared implementation the
+ * three mount; it is exported for reuse but is NOT itself a nav item. */
+export {
+    MJCContractsSectionComponent,
+    ContractsSectionResource,
+    ContractsBillingSectionResource,
+    ContractsSetupSectionResource,
+} from './lib/sections/contracts-section.component';
 /* Custom Contract form — overrides the generated one at priority 2. */
 export { MJCContractFormComponent } from './lib/forms/contract.form.component';
 export { MJCContractTermFormComponent } from './lib/forms/contract-term.form.component';
@@ -93,6 +106,11 @@ export function LoadMjBizappsContractsClient(): void {
     // can drop the module import and the registrations never fire.
     void GeneratedFormsModule;
     void MJCContractsSectionComponent;
+    // One anchor PER registered resource: a production build can drop an import whose class is
+    // never referenced, and a dropped registration is a nav tab that mounts nothing.
+    void ContractsSectionResource;
+    void ContractsBillingSectionResource;
+    void ContractsSetupSectionResource;
     void MJCContractFormComponent;
     void MJCContractTermFormComponent;
     void MJCContractLineFormComponent;

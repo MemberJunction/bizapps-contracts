@@ -50,7 +50,14 @@ const page = await browser.newPage({ viewport: { width: 1700, height: 1200 } });
 page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
 page.on('pageerror', (e) => errors.push(String(e)));
 
-/** The inner strip is the LAST one on the page; the first is the section switcher. */
+/**
+ * The workspace's inner tab strip.
+ *
+ * `.last()` rather than `.first()` because it was once the second `.mj-tab-nav` on the page — the
+ * first being a section switcher drawn in the page header. That switcher is gone (sections are real
+ * MJ nav items now), but `.last()` stays correct either way and survives another strip appearing
+ * above it.
+ */
 const innerTabs = () => page.locator('.mj-tab-nav').last();
 
 async function tabState(label) {
@@ -79,11 +86,47 @@ try {
     await page.getByText(/The agreement envelope/i).first().click();
     await page.waitForTimeout(7000);
 
-    console.log('\n1. Sections');
-    const sectionStrip = (await page.locator('.mj-tab-nav').first().innerText()).replace(/\n/g, '|');
+    console.log('\n1. Sections — MJ\'s OWN top nav, not a strip we draw');
+    // These come from the Application's DefaultNavItems, each pointing at a registered resource
+    // class. An earlier version drew them with mj-tab-nav inside the page header, which looked
+    // identical and was not navigation: no deep links, no resource state, and ONE entry in
+    // Explorer's own nav however many tabs the picture showed. Asserting on real top-level controls
+    // is what tells the two apart.
+    // role=LINK, not button: MJ renders application nav items as .nav-item links. Probed rather than
+    // assumed — the first version of this check looked for buttons, found none, and would have read
+    // as "the nav is missing" when it was there all along.
     for (const s of ['Contracts', 'Billing', 'Setup']) {
-        check(`1.${s} the ${s} section is in the top strip`, sectionStrip.includes(s), sectionStrip);
+        const n = await page.getByRole('link', { name: new RegExp(`^${s}$`) }).count();
+        check(`1.${s} the ${s} section is a real top-nav item`, n >= 1, `${n} found`);
     }
+
+    console.log('\n1b. EVERY nav destination renders something');
+    // THE ASSERTION THAT WOULD HAVE CAUGHT IT. When the rail moved to a declared nav model, its page
+    // ids drifted from the ones the template actually checked — so most rail items led to a blank
+    // pane, and the suite never noticed because it only ever visited Workspace and All contracts.
+    // A section tab and a rail item are both promises that something is there; this checks all of
+    // them, in all three sections, rather than the two the happy path happens to use.
+    const RAILS = {
+        Contracts: ['Dashboard', 'All contracts', 'Workspace', 'Renewals due', 'Amendments'],
+        Billing: ['Billing worklist', 'Schedules', 'Commitments'],
+        Setup: ['Contract types'],
+    };
+    for (const [section, items] of Object.entries(RAILS)) {
+        await page.getByRole('link', { name: new RegExp(`^${section}$`) }).first().click();
+        await page.waitForTimeout(3000);
+        for (const item of items) {
+            await page.locator('mj-left-nav').getByRole('button', { name: new RegExp(item, 'i') }).first().click();
+            await page.waitForTimeout(2200);
+            const body = (await page.locator('mj-left-nav-content').innerText()).trim();
+            // Not "did it not crash" — did it put anything on the screen at all.
+            check(`1b.${section}/${item} renders content`, body.length > 40, `${body.length} chars rendered`);
+        }
+    }
+    // Back to Contracts › Workspace for the rest of the run.
+    await page.getByRole('link', { name: /^Contracts$/ }).first().click();
+    await page.waitForTimeout(2500);
+    await page.locator('mj-left-nav').getByRole('button', { name: /workspace/i }).first().click();
+    await page.waitForTimeout(2500);
 
     console.log('\n2. A new contract opens IN the workspace');
     await page.getByRole('button', { name: /new contract/i }).first().click();

@@ -24,7 +24,7 @@
  * @module @mj-biz-apps/contracts-ng
  */
 
-import { ChangeDetectorRef, Component, OnInit, inject } from '@angular/core';
+import { ChangeDetectorRef, Component, Input, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RegisterClass } from '@memberjunction/global';
@@ -33,11 +33,11 @@ import { BaseFormsModule, MJFormPresenterService } from '@memberjunction/ng-base
 import type { FormNavigationEvent } from '@memberjunction/ng-base-forms';
 import {
     MJLeftNavComponent, MJLeftNavContentComponent, MJPageLayoutComponent, MJPageHeaderComponent,
-    MJPageBodyComponent, MJButtonDirective, MJTabNavComponent,
-    type MJLeftNavSection, type MJLeftNavItem, type TabConfig,
+    MJPageBodyComponent, MJButtonDirective,
+    type MJLeftNavSection, type MJLeftNavItem,
 } from '@memberjunction/ng-ui-components';
 // The IA as data, and the one surface that views, edits and creates a contract.
-import { BuildLeftNavSections, CONTRACTS_SECTIONS, DefaultPageFor, SubPagesFor } from '../nav/contracts-nav.model';
+import { BuildLeftNavSections, DefaultPageFor, SubPagesFor } from '../nav/contracts-nav.model';
 import { MJCContractWorkspaceComponent, type WorkspaceLookups } from '../workspace/contract-workspace.component';
 import { ContractDraft, type ContractDraftPayload } from '@mj-biz-apps/contracts-entities';
 import { RunView, Metadata, CompositeKey, type RunViewParams } from '@memberjunction/core';
@@ -118,7 +118,10 @@ interface LogRow {
 
 
 
-@RegisterClass(BaseResourceComponent, 'ContractsSectionResource')
+// NOT registered as a resource itself — it is the shared IMPLEMENTATION the three registered
+// classes at the bottom of this file mount, each pinning its own section. Registering it here as
+// well would mean two classes claiming 'ContractsSectionResource', and the class factory returns
+// one of them.
 @Component({
     selector: 'mjc-contracts-section',
     standalone: true,
@@ -126,7 +129,7 @@ interface LogRow {
         CommonModule, FormsModule, BaseFormsModule, MJButtonDirective,
         MJPageLayoutComponent, MJPageHeaderComponent, MJPageBodyComponent,
         MJLeftNavComponent, MJLeftNavContentComponent,
-        MJTabNavComponent, MJCContractWorkspaceComponent,
+        MJCContractWorkspaceComponent,
     ],
     styles: [
         `
@@ -268,10 +271,12 @@ interface LogRow {
         <mj-page-header Title="Contracts" Icon="fa-solid fa-file-signature"
                         Subtitle="Agreements, the terms that run them, and the billing they produce">
             <div actions>
-                <!-- TOP NAV CROSSES SECTIONS, the rail moves within one — MJ's rule, and the reason
-                     Billing is a peer of Contracts rather than a page beneath it: "what failed and
-                     why" is a different job from "what did we agree". -->
-                <mj-tab-nav [Tabs]="SectionTabs" [ActiveKey]="Section" (TabChange)="SelectSection($event)"></mj-tab-nav>
+                <!-- NO SECTION SWITCHER HERE. An earlier version drew one with mj-tab-nav inside this
+                     header, which LOOKED like a top nav bar and was not one: MJ's top nav comes from
+                     the Application's DefaultNavItems, each pointing at a registered resource class.
+                     A strip drawn in a page header gets no deep links, no resource state and no place
+                     in the app switcher — it is a picture of navigation. The three real nav items are
+                     registered at the bottom of this file. -->
                 <button mjButton="primary" (click)="NewContract()"><i class="fa-solid fa-plus"></i> New contract</button>
                 <button mjButton (click)="Refresh()"><i class="fa-solid fa-rotate"></i> Refresh</button>
             </div>
@@ -283,7 +288,7 @@ interface LogRow {
             <mj-left-nav-content>
 
             <!-- ============ 1. CONTRACTS ============ -->
-            <div class="wrap" *ngIf="Page === 'contracts'">
+            <div class="wrap" *ngIf="Page === 'list'">
                 <div class="sechead">
                     <h2>All contracts</h2>
                     <p>Every agreement this organization has committed to — what was promised, for how long, and what it is
@@ -373,7 +378,7 @@ interface LogRow {
             </div>
 
 
-            <div class="wrap" *ngIf="Page === 'billing'">
+            <div class="wrap" *ngIf="Page === 'worklist'">
                 <div class="sechead">
                     <h2>Billing worklist</h2>
                     <p>What the scheduled job is about to do, and what it could not do. A failed event is never retried
@@ -414,6 +419,104 @@ interface LogRow {
                 </div>
             </div>
 
+
+            <!-- ============ DASHBOARD — is anything about to lapse? ============ -->
+            <div class="wrap" *ngIf="Page === 'dashboard'">
+                <div class="sechead">
+                    <h2>Dashboard</h2>
+                    <p>The four questions worth asking every morning: what is committed, what is about to renew,
+                       what is queued to bill, and what has failed and is waiting on a person.</p>
+                </div>
+                <div class="kpis">
+                    <div class="kpi"><div class="l">Active contracted value</div><div class="v">{{ TotalCommitted | currency: 'USD' : 'symbol' : '1.0-0' }}</div><div class="f">across {{ ActiveCount }} active contracts</div></div>
+                    <div class="kpi"><div class="l">Renewing next 90 days</div><div class="v">{{ RenewingCount }}</div><div class="f">terms reaching their end date</div></div>
+                    <div class="kpi"><div class="l">Billing scheduled</div><div class="v warn">{{ Counts.Scheduled }}</div><div class="f">events awaiting generation</div></div>
+                    <div class="kpi"><div class="l">Failed billing</div><div class="v err">{{ Counts.Failed }}</div><div class="f">never auto-retried — a person decides</div></div>
+                </div>
+                <div class="card">
+                    <div class="ch">Terms reaching their end date <span class="r">{{ Renewing.length }}</span></div>
+                    <div class="empty" *ngIf="!Renewing.length" style="padding:24px; text-align:center; color:var(--mj-text-secondary);">
+                        Nothing lapses in the next 90 days.
+                    </div>
+                    <div class="picks" *ngIf="Renewing.length">
+                        <button class="pick" *ngFor="let t of Renewing" (click)="OpenByTerm(t)">
+                            <span class="pn">{{ ContractNumberOf(t.ContractID) }} · term {{ t.TermNumber }}</span>
+                            <span class="pd">ends {{ t.EndDate | date: 'mediumDate' }} · {{ t.Status }}</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ============ RENEWALS DUE ============ -->
+            <div class="wrap" *ngIf="Page === 'renewals'">
+                <div class="sechead">
+                    <h2>Renewals due</h2>
+                    <p>Terms whose end date falls inside the next 90 days. A renewal starts a NEW term; a change
+                       that does not restart the term is an amendment, which lives on the next page.</p>
+                </div>
+                <div class="card">
+                    <div class="ch">Coming up <span class="r">{{ Renewing.length }}</span></div>
+                    <div class="empty" *ngIf="!Renewing.length" style="padding:24px; text-align:center; color:var(--mj-text-secondary);">
+                        Nothing to renew in the next 90 days.
+                    </div>
+                    <div class="picks" *ngIf="Renewing.length">
+                        <button class="pick" *ngFor="let t of Renewing" (click)="OpenByTerm(t)">
+                            <span class="pn">{{ ContractNumberOf(t.ContractID) }} · term {{ t.TermNumber }}</span>
+                            <span class="pd">ends {{ t.EndDate | date: 'mediumDate' }} · open it to preview the renewal</span>
+                        </button>
+                    </div>
+                    <div class="note info">
+                        Renewal is previewed before it is written — the escalation actually applied, and whether
+                        the term's ceiling clamped it, come back from the operation rather than being computed here.
+                    </div>
+                </div>
+            </div>
+
+            <!-- ============ AMENDMENTS (cross-contract) ============ -->
+            <div class="wrap" *ngIf="Page === 'amendments'">
+                <div class="sechead">
+                    <h2>Amendments</h2>
+                    <p>Mid-term changes across every contract. An amendment changes a term that is RUNNING;
+                       conflating that with a renewal is the most common contract-model mistake there is.</p>
+                </div>
+                <div class="card">
+                    <mj-explorer-entity-data-grid [Params]="P.allAmendments" [Height]="440" [ShowToolbar]="true" [ToolbarConfig]="Toolbar" (Navigate)="OnNavigate($event)"></mj-explorer-entity-data-grid>
+                    <div class="note info">
+                        Raise one from a running term in the workspace — <strong>Add product…</strong> co-terms the
+                        new coverage to the term's end date, so it renews with everything else.
+                    </div>
+                </div>
+            </div>
+
+            <!-- ============ BILLING · SCHEDULES (cross-contract) ============ -->
+            <div class="wrap" *ngIf="Page === 'schedules'">
+                <div class="sechead">
+                    <h2>Billing schedules</h2>
+                    <p>What bills, and when, across every contract. A schedule that has already produced bills is
+                       frozen — changing its cadence would make the billing history unexplainable.</p>
+                </div>
+                <div class="card">
+                    <mj-explorer-entity-data-grid [Params]="P.allSchedules" [Height]="440" [ShowToolbar]="true" [ToolbarConfig]="Toolbar" (Navigate)="OnNavigate($event)"></mj-explorer-entity-data-grid>
+                </div>
+            </div>
+
+            <!-- ============ BILLING · COMMITMENTS (cross-contract) ============ -->
+            <div class="wrap" *ngIf="Page === 'commitments'">
+                <div class="sechead">
+                    <h2>Commitments</h2>
+                    <p>Consumed versus committed, across every contract. The shortfall is what the billing engine
+                       charges at period end — and only under a <code>BillShortfall</code> policy.</p>
+                </div>
+                <div class="card">
+                    <mj-explorer-entity-data-grid [Params]="P.allCommitments" [Height]="440" [ShowToolbar]="true" [ToolbarConfig]="Toolbar" (Navigate)="OnNavigate($event)"></mj-explorer-entity-data-grid>
+                    <div class="note gap">
+                        <strong>Consumption is not yet advanced automatically</strong> — <code>ConsumedAmount</code> is
+                        recorded and nothing writes it, so the shortfall maths is right and its input is manual.
+                        Tracked as P-7 in <code>plans/ERD-planned.md</code>.
+                    </div>
+                </div>
+            </div>
+
             </mj-left-nav-content>
         </mj-page-body>
     </mj-page-layout>
@@ -427,8 +530,23 @@ export class MJCContractsSectionComponent extends BaseResourceComponent implemen
     // like, reused everywhere, with the generated validation attached to it.
     private readonly forms = inject(MJFormPresenterService);
 
-    /** Which top-level section is showing. The rail and the pages both hang off this. */
-    public Section = 'contracts';
+    /**
+     * Which top-level section this instance IS.
+     *
+     * An @Input rather than internal state because each section is a SEPARATE MJ nav item backed by
+     * its own registered resource class (see the three classes at the bottom of this file). Explorer
+     * mounts one of them per tab; the tab bar is MJ's, not ours to draw.
+     */
+    private _section = 'contracts';
+    @Input()
+    public set Section(value: string) {
+        this._section = value;
+        this.Page = DefaultPageFor(value);
+    }
+    public get Section(): string {
+        return this._section;
+    }
+
     public Page = 'contracts';
 
     /**
@@ -507,6 +625,12 @@ export class MJCContractsSectionComponent extends BaseResourceComponent implemen
         contracts: { EntityName: E_CONTRACTS, OrderBy: 'ContractNumber' },
         types: { EntityName: E_TYPES, OrderBy: 'Name' },
         allEvents: { EntityName: E_EVENTS, OrderBy: 'ScheduledDate' },
+        // CROSS-CONTRACT views. "What will bill next month" and "who is behind on what they
+        // committed to" are not answered by opening one agreement at a time, which is why Billing is
+        // its own section rather than a pane inside the workspace.
+        allSchedules: { EntityName: E_SCHEDULES, OrderBy: '__mj_CreatedAt DESC' },
+        allCommitments: { EntityName: E_COMMITMENTS, OrderBy: '__mj_CreatedAt DESC' },
+        allAmendments: { EntityName: E_AMENDMENTS, OrderBy: 'EffectiveDate DESC' },
         terms: { EntityName: E_TERMS },
         lines: { EntityName: E_LINES },
         schedules: { EntityName: E_SCHEDULES },
@@ -526,24 +650,12 @@ export class MJCContractsSectionComponent extends BaseResourceComponent implemen
     public override async GetResourceDisplayName(_d: ResourceData): Promise<string> { return 'Contracts'; }
     public override async GetResourceIconClass(_d: ResourceData): Promise<string> { return 'fa-solid fa-file-signature'; }
 
-    /** The three top-level sections, shaped for MJ's tab component. */
-    public get SectionTabs(): TabConfig[] {
-        return CONTRACTS_SECTIONS.map((s) => ({ key: s.Id, label: s.Label, icon: s.Icon }));
-    }
-
-    /** The rail for whichever section is active — declared once, in the nav model. */
+    /** The rail for this section — declared once, in the nav model. */
     public get NavSections(): MJLeftNavSection[] {
         return BuildLeftNavSections(SubPagesFor(this.Section), {
             BillingFailed: this.Counts.Failed || undefined,
             RenewalsDue: this.RenewingCount || undefined,
         });
-    }
-
-    public SelectSection(id: string): void {
-        if (!CONTRACTS_SECTIONS.some((s) => s.Id === id)) return;
-        this.Section = id;
-        this.Page = DefaultPageFor(id);
-        this.cdr.detectChanges();
     }
 
     public get Tabs(): { k: string; l: string; n: number | null }[] {
@@ -567,6 +679,24 @@ export class MJCContractsSectionComponent extends BaseResourceComponent implemen
     public get Failed(): EventRow[] { return this.Events.filter((e) => e.Status === 'Failed'); }
     public get ActiveCount(): number { return this.Contracts.filter((c) => c.Status === 'Active').length; }
     public get TotalCommitted(): number { return this.Terms.filter((t) => t.Status === 'Active').reduce((s, t) => s + (t.CommittedAmount ?? 0), 0); }
+    /** Terms whose end date falls inside the next 90 days — what Dashboard and Renewals both list. */
+    public get Renewing(): TermRow[] {
+        const now = Date.now(), horizon = now + 90 * 864e5;
+        return this.Terms
+            .filter((t) => t.EndDate && new Date(t.EndDate).getTime() >= now && new Date(t.EndDate).getTime() <= horizon)
+            .sort((a, b) => new Date(a.EndDate!).getTime() - new Date(b.EndDate!).getTime());
+    }
+
+    public ContractNumberOf(contractID: string): string {
+        return this.Contracts.find((c) => c.ID === contractID)?.ContractNumber ?? '—';
+    }
+
+    /** Open the contract a term belongs to, from a worklist row. */
+    public async OpenByTerm(term: TermRow): Promise<void> {
+        const row = this.Contracts.find((c) => c.ID === term.ContractID);
+        if (row) await this.OpenContract(row);
+    }
+
     public get RenewingCount(): number {
         const now = Date.now(), horizon = now + 90 * 864e5;
         return this.Terms.filter((t) => t.EndDate && new Date(t.EndDate).getTime() >= now && new Date(t.EndDate).getTime() <= horizon).length;
@@ -1201,4 +1331,68 @@ export class MJCContractsSectionComponent extends BaseResourceComponent implemen
         }
         this.cdr.detectChanges();
     }
+}
+
+/* ────────────────────────────────────────────────────────────────────────────────────────────────
+ * THE THREE NAV ITEMS
+ *
+ * Each is registered under the driver class the Application's `DefaultNavItems` reference
+ * (`metadata/applications/.contracts-application.json`), which is what makes them plug into MJ
+ * Explorer with no host-side wiring: Explorer reads the nav metadata, asks the class factory for the
+ * driver class, and mounts it as a top-level tab. BOTH HALVES ARE REQUIRED — metadata without a
+ * registered class renders a dead tab, and a registered class without metadata never appears.
+ *
+ * This is what MJ's "top nav ACROSS sections, left nav WITHIN one" actually means in code. An
+ * earlier version of this file drew a tab strip in the page header instead, which looked like a top
+ * nav bar and behaved like nothing: no deep links, no resource state, no place in the app switcher,
+ * and one entry in Explorer's own navigation however many tabs the picture showed.
+ *
+ * They are deliberately thin. Each pins its section and delegates everything else to the shared
+ * component above, so a change to a rail or a page lands once rather than three times.
+ * ──────────────────────────────────────────────────────────────────────────────────────────────── */
+
+/** Contracts — the agreement: find one, open one, write one, amend one. */
+@RegisterClass(BaseResourceComponent, 'ContractsSectionResource')
+@Component({
+    selector: 'mjc-contracts-resource',
+    standalone: true,
+    imports: [MJCContractsSectionComponent],
+    template: `<mjc-contracts-section Section="contracts"></mjc-contracts-section>`,
+})
+export class ContractsSectionResource extends BaseResourceComponent {
+    public override async GetResourceDisplayName(_d: ResourceData): Promise<string> { return 'Contracts'; }
+    public override async GetResourceIconClass(_d: ResourceData): Promise<string> { return 'fa-solid fa-file-signature'; }
+}
+
+/**
+ * Billing — the money the agreement produces.
+ *
+ * A PEER of Contracts rather than a page beneath it, because "what failed and why" is a different
+ * job, done by different people at different times, from "what did we agree". Filing one under the
+ * other makes the smaller one invisible — which is exactly what orders decided when it split
+ * Receivables out of Orders.
+ */
+@RegisterClass(BaseResourceComponent, 'ContractsBillingSectionResource')
+@Component({
+    selector: 'mjc-billing-resource',
+    standalone: true,
+    imports: [MJCContractsSectionComponent],
+    template: `<mjc-contracts-section Section="billing"></mjc-contracts-section>`,
+})
+export class ContractsBillingSectionResource extends BaseResourceComponent {
+    public override async GetResourceDisplayName(_d: ResourceData): Promise<string> { return 'Billing'; }
+    public override async GetResourceIconClass(_d: ResourceData): Promise<string> { return 'fa-solid fa-conveyor-belt'; }
+}
+
+/** Setup — the configuration every contract inherits. */
+@RegisterClass(BaseResourceComponent, 'ContractsSetupSectionResource')
+@Component({
+    selector: 'mjc-setup-resource',
+    standalone: true,
+    imports: [MJCContractsSectionComponent],
+    template: `<mjc-contracts-section Section="setup"></mjc-contracts-section>`,
+})
+export class ContractsSetupSectionResource extends BaseResourceComponent {
+    public override async GetResourceDisplayName(_d: ResourceData): Promise<string> { return 'Setup'; }
+    public override async GetResourceIconClass(_d: ResourceData): Promise<string> { return 'fa-solid fa-sliders'; }
 }
