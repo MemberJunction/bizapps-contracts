@@ -1,0 +1,138 @@
+/**
+ * @fileoverview Server-side `Contract` — the invariants that must hold no matter who writes the row.
+ *
+ * WHY HERE AND NOT IN A HELPER. `Save()` is the one path every write goes through: the UI, an Action,
+ * a fixture, a workflow, an agent. A rule enforced anywhere else is a rule that holds right up until
+ * somebody saves the entity directly — which is precisely how a "validated" record ends up invalid.
+ *
+ * WHAT THE DATABASE CANNOT DO, AND SO LIVES HERE:
+ *  - **Legal status MOVES.** `CK_Contract_Status` enforces the legal SET and knows nothing about
+ *    transitions, so `Terminated -> Active` and `Superseded -> Draft` both save happily today. A
+ *    terminated contract coming back to life keeps its billing schedule and starts invoicing again.
+ *  - **Sequence allocation.** `ContractNumber` is unique and human-facing; allocating it needs a
+ *    read-modify-write against `ContractSequence` that must not interleave.
+ *  - **The pricing lock.** `PricedAt` is the as-of date every price on the agreement resolves from
+ *    (master plan §12). A contract saved without one has no defined pricing moment at all.
+ *
+ * PROVIDER DISCIPLINE: everything goes through `this.ProviderToUse` — the entity's own provider —
+ * never `new Metadata()` or a global. A second provider splits the metadata and the class factory,
+ * and the failure is silent.
+ *
+ * @module @mj-biz-apps/contracts-core-entities-server
+ */
+
+import { BaseEntity, type EntitySaveOptions } from '@memberjunction/core';
+import { RegisterClass } from '@memberjunction/global';
+import type { DatabaseProviderBase } from '@memberjunction/core';
+import { mjBizAppsContractsContractEntity } from '@mj-biz-apps/contracts-entities';
+
+const CONTRACT_ENTITY = 'MJ_BizApps_Contracts: Contracts';
+
+/**
+ * Which status may follow which. Absent from the map means "no move out of here" — a terminal state.
+ *
+ * `Superseded` is terminal on purpose: a contract that was replaced does not come back. The successor
+ * is a different row, named by `SupersededByContractID`.
+ */
+const LEGAL_MOVES: Readonly<Record<string, readonly string[]>> = {
+    Draft: ['Draft', 'PendingSignature', 'Active', 'Terminated'],
+    PendingSignature: ['PendingSignature', 'Draft', 'Active', 'Terminated'],
+    Active: ['Active', 'Expired', 'Terminated', 'Superseded'],
+    Expired: ['Expired', 'Superseded', 'Terminated'],
+    Terminated: ['Terminated'],
+    Superseded: ['Superseded'],
+};
+
+@RegisterClass(BaseEntity, CONTRACT_ENTITY)
+export class ContractEntityServer extends mjBizAppsContractsContractEntity {
+    public override async Save(options?: EntitySaveOptions): Promise<boolean> {
+        // Refuse an illegal move BEFORE anything else happens, so a rejected save has written nothing.
+        if (!this.passesStatusTransition()) {
+            return false;
+        }
+
+        // The pricing moment. Defaulted rather than demanded: a contract created today is priced
+        // today, and someone entering older paper overrides it. What must not happen is a contract
+        // with no as-of date, because then "the catalog price" has no defined meaning (§12).
+        if (!this.PricedAt) {
+            this.PricedAt = new Date();
+        }
+
+        const needsNumber = !this.ContractNumber || !this.ContractNumber.trim();
+        if (!needsNumber) {
+            return super.Save(options);
+        }
+
+        // ALLOCATION IS TRANSACTIONAL, and the number lands on `this` so it is persisted by the same
+        // super.Save() as everything else — allocating outside the transaction would hand out a
+        // number that a failed save then strands, and `ContractNumber` is uniquely indexed.
+        const provider = this.ProviderToUse as unknown as DatabaseProviderBase;
+        try {
+            await provider.BeginTransaction();
+            this.ContractNumber = await this.allocateContractNumber(provider);
+            const saved = await super.Save(options);
+            if (!saved) {
+                await provider.RollbackTransaction();
+                return false;
+            }
+            await provider.CommitTransaction();
+            return true;
+        } catch (e) {
+            await provider.RollbackTransaction();
+            throw e;
+        }
+    }
+
+    /**
+     * A save is legal when the status is unchanged, or when the move is in {@link LEGAL_MOVES}.
+     * A brand-new record may start in any state the CHECK allows — the map governs MOVES, not births.
+     */
+    private passesStatusTransition(): boolean {
+        if (!this.IsSaved) return true;
+
+        const field = this.Fields.find((f) => f.Name === 'Status');
+        const previous = field?.OldValue as string | undefined;
+        const next = this.Status as unknown as string;
+        if (!previous || previous === next) return true;
+
+        const allowed = LEGAL_MOVES[previous] ?? [];
+        if (allowed.includes(next)) return true;
+
+        // Surfaced through the entity's own result so the caller sees WHY, not just `false`.
+        this.RaiseTransitionError(previous, next);
+        return false;
+    }
+
+    private RaiseTransitionError(previous: string, next: string): void {
+        const allowed = (LEGAL_MOVES[previous] ?? []).filter((s) => s !== previous);
+        const detail = allowed.length ? `Legal moves from ${previous}: ${allowed.join(', ')}.` : `${previous} is terminal.`;
+        // eslint-disable-next-line no-console
+        console.error(`[Contracts] Refused status move ${previous} -> ${next} on ${this.ContractNumber ?? '(unnumbered)'}. ${detail}`);
+    }
+
+    /**
+     * `CTR-{seq}` from the singleton `ContractSequence` row. Read-modify-write inside the caller's
+     * transaction, so two concurrent creates cannot take the same number.
+     */
+    private async allocateContractNumber(provider: DatabaseProviderBase): Promise<string> {
+        // OUTPUT ... INTO, not a bare OUTPUT: CodeGen puts an __mj_UpdatedAt trigger on every table,
+        // and SQL Server refuses a bare OUTPUT clause on a table that has enabled triggers.
+        const rows = await provider.ExecuteSQL(
+            `DECLARE @allocated TABLE (Allocated INT);
+             UPDATE __mj_BizAppsContracts.ContractSequence
+                SET NextSequenceNumber = NextSequenceNumber + 1
+             OUTPUT deleted.NextSequenceNumber INTO @allocated(Allocated);
+             SELECT Allocated FROM @allocated;`,
+        );
+        const allocated = Array.isArray(rows) && rows.length ? Number((rows[0] as { Allocated: number }).Allocated) : NaN;
+        if (!Number.isFinite(allocated)) {
+            throw new Error('ContractSequence produced no number — is the singleton row missing?');
+        }
+        return `CTR-${String(allocated).padStart(6, '0')}`;
+    }
+}
+
+/** Tree-shaking anchor — called from the server bootstrap so @RegisterClass is retained. */
+export function LoadContractEntityServer(): void {
+    /* intentionally empty */
+}

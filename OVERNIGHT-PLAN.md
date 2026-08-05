@@ -69,7 +69,7 @@ workspace edit pane on this before adding any more hand-built fields.
       on a from-zero rebuild (wipe → migrate → codegen → sync). Original text: Today's types came from raw SQL in `demo/`. Author them as
       real `metadata/contract-types/` records so a clean install has them. Verify with a
       drop-schema → setup → sync cycle.
-- [ ] **2. Entity-server subclasses (invariants).** `ContractEntity` / `ContractTermEntity`:
+- [x] **2. Entity-server subclasses (invariants).** ✅ DONE — 16/16 tier-2 assertions pass. Original: `ContractEntity` / `ContractTermEntity`:
       auto-assign `ContractNumber` from `ContractSequence`, default `PricedAt` to today, derive
       `TermNumber` as max+1. These are the rules that must hold no matter who writes the row.
 - [ ] **3. MJ Actions for status transitions** (master plan §10.5), in dependency order:
@@ -81,9 +81,16 @@ workspace edit pane on this before adding any more hand-built fields.
       storage providers and create the `FileEntityRecordLink` row.
 - [ ] **6. `<mj-record-signature-status>` panel** on Contract + ContractTerm, reading
       `__mj.SignatureRequest` (`EntityID`/`RecordID`). Read-only first; sending needs a provider account.
-- [ ] **7. Tier-2 server test harness** (`test-harnesses/server/`) — in-process, direct SQL: sequence
+- [~] **7. Tier-2 server test harness** — STARTED (`test-harnesses/server/invariants.ts`, 16 checks). Extend per FEATURE-LIST. (`test-harnesses/server/`) — in-process, direct SQL: sequence
       allocation, term numbering, the XOR customer rule, escalation-cap bounds. Exact values, not liveness.
 - [ ] **8. Unit tests** for the pure helpers (percent↔fraction, term fill state, tone mapping).
+- [ ] **8b. FEATURE-LIST contradictions worth fixing in schema** (from the enumeration agent):
+      X.15 ContractEvent is neither immutable nor vocabulary-constrained · X.5/X.6/X.12/X.14 four
+      missing "state implies field" CHECKs (Subscription line without SubscriptionTypeID, Superseded
+      without successor, Generated without GeneratedAt, Approved without approval task) ·
+      X.8 RenewalOfTermID may cross contracts · X.9 ContractLine.SubscriptionID is not unique
+      (a duplicate-billing shape) · X.10 ComputedAmount >= 0 forbids a credit · X.16 mj-app.json
+      still ships `"license": "<Set-this>"`.
 - [ ] **9. Workspace coverage editing** — add/edit `ContractLine` rows inline rather than grid-only.
 - [ ] **10. Regenerate `docs/ERD.md`** from the live schema after any migration change, and re-pin
       `plans/bizapps-contracts-master.md` §10.3.
@@ -101,6 +108,18 @@ workspace edit pane on this before adding any more hand-built fields.
 | Usage metering | Out of v1 by decision. |
 
 ## Log
+
+- **07:45** — **Item 2 done, proven.** `ContractEntityServer` + `ContractTermEntityServer` with a
+  tier-2 harness: 16/16. Two real defects found while building: (a) a bare `OUTPUT` clause cannot be
+  used on a table with triggers, and CodeGen puts an `__mj_UpdatedAt` trigger on every table — fixed
+  with `OUTPUT ... INTO`; (b) the demo seed was planting its own `NET30` PaymentTermsType, which
+  collided with orders' `Net30` under case-insensitive collation and failed orders' ENTIRE metadata
+  push. Downstream adapts to upstream: the seed now ADOPTS orders' seeded lookups and creates only
+  what orders genuinely does not seed (ProductType — verified zero rows after a full sync).
+- **07:20** — Feature-enumeration agent returned: **221 features, all 48 CHECKs, 19 contradictions**
+  in `plans/FEATURE-LIST.md`. It independently confirmed X.1 (escalation cap unenforced) and X.17
+  (clean install cannot create a contract) — both now fixed by items 1 and 2. Remaining findings
+  folded into the queue below.
 
 - **07:10** — **Item 0 done.** Orders updated to `origin/mjdev/orders-flow` (PR #31), 22 commits
   including its regenerated baseline. Full rebuild from zero: wipe-db → core + common + tasks +

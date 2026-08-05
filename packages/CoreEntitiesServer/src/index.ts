@@ -26,6 +26,18 @@
  *       }
  *   }
  */
+import { LoadContractEntityServer } from './ContractEntityServer.js';
+import { LoadContractTermEntityServer } from './ContractTermEntityServer.js';
+
+export { ContractEntityServer, LoadContractEntityServer } from './ContractEntityServer.js';
+export { ContractTermEntityServer, LoadContractTermEntityServer } from './ContractTermEntityServer.js';
+
+/**
+ * Called by the server bootstrap. The imports above are what fire @RegisterClass; these calls are
+ * anti-tree-shake anchors — without a live reference a production build can drop the import and the
+ * subclasses silently never register, so every invariant in them stops existing with no error.
+ */
 export function LoadMjBizappsContractsEntitiesServer(): void {
-    // No-op: importing this module registers the server-side subclasses above.
+    LoadContractEntityServer();
+    LoadContractTermEntityServer();
 }
