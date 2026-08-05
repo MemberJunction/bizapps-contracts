@@ -314,7 +314,11 @@ CREATE TABLE __mj_BizAppsContracts.ContractBillingEvent (
     FailureReason NVARCHAR(MAX) NULL,
     Notes NVARCHAR(MAX) NULL,
     CONSTRAINT PK_ContractBillingEvent PRIMARY KEY (ID),
-    CONSTRAINT CK_ContractBillingEvent_Status CHECK (Status IN ('Scheduled','Generated','Skipped','Failed')),
+    -- 'Cancelled' is distinct from 'Skipped': Skipped is one occurrence that did not bill, Cancelled
+    -- is an occurrence killed because the agreement ended under it. Termination needs the second
+    -- meaning — without it, cancelling a terminated contract's future events is indistinguishable
+    -- from an operator skipping a single run.
+    CONSTRAINT CK_ContractBillingEvent_Status CHECK (Status IN ('Scheduled','Generated','Skipped','Cancelled','Failed')),
     -- A Generated event MUST name the order it produced. This is the invariant that
     -- makes the status transition a real idempotency guard rather than a label: the
     -- scheduled driver re-running over a Generated row must be unable to bill again,

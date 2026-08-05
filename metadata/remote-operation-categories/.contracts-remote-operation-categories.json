@@ -1,0 +1,26 @@
+[
+  {
+    "_comments": [
+      "The Contracts API surface has ONE category, deliberately. Orders has several because its surface",
+      "is genuinely large (lifecycle, pricing, payments, subscriptions); contracts has three operations",
+      "that all do the same kind of thing — move an agreement through its life. Splitting three rows",
+      "across three categories would be filing for its own sake.",
+      "",
+      "Fixed UUID rather than a generated one: the operation rows reference this by @lookup, and a",
+      "stable ID means a re-push against a rebuilt database resolves to the same category instead of",
+      "creating a duplicate."
+    ],
+    "fields": {
+      "Name": "Contract Lifecycle",
+      "Description": "Move an agreement through its life: activate a term and give it a billing schedule, renew it into its next period with the agreed escalation, or end it early and stop the billing that would otherwise continue. Every one of these writes several tables at once, which is why they are operations rather than form saves.",
+      "ParentID": null
+    },
+    "primaryKey": {
+      "ID": "0A16D90A-7B15-4103-ABA0-3814618B00A8"
+    },
+    "sync": {
+      "lastModified": "2026-08-05T07:33:44.772Z",
+      "checksum": "992991384d10e3e68f9f5765331a84fe8207a2533680c053d0dd99bdcf85837a"
+    }
+  }
+]

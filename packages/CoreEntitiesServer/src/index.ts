@@ -28,9 +28,23 @@
  */
 import { LoadContractEntityServer } from './ContractEntityServer.js';
 import { LoadContractTermEntityServer } from './ContractTermEntityServer.js';
+import { LoadActivateTermOperation } from './ActivateTermOperation.js';
+import { LoadRenewTermOperation } from './RenewTermOperation.js';
+import { LoadTerminateContractOperation } from './TerminateContractOperation.js';
 
 export { ContractEntityServer, LoadContractEntityServer } from './ContractEntityServer.js';
 export { ContractTermEntityServer, LoadContractTermEntityServer } from './ContractTermEntityServer.js';
+
+// Remote operations — the write API the UI calls. State changes live here rather than in Actions:
+// orders settled that split for the family (Actions are for agent/workflow-invocable work; the
+// operations that MUTATE are the callable API), and consistency across the apps is worth more than
+// this app's original plan text, which said Actions. Recorded in OVERNIGHT-PLAN.md.
+export { ActivateTermOperation, LoadActivateTermOperation } from './ActivateTermOperation.js';
+export type { ActivateTermInput, ActivateTermOutput } from './ActivateTermOperation.js';
+export { RenewTermOperation, LoadRenewTermOperation } from './RenewTermOperation.js';
+export type { RenewTermInput, RenewTermOutput, RenewedLine } from './RenewTermOperation.js';
+export { TerminateContractOperation, LoadTerminateContractOperation } from './TerminateContractOperation.js';
+export type { TerminateContractInput, TerminateContractOutput } from './TerminateContractOperation.js';
 
 /**
  * Called by the server bootstrap. The imports above are what fire @RegisterClass; these calls are
@@ -40,4 +54,7 @@ export { ContractTermEntityServer, LoadContractTermEntityServer } from './Contra
 export function LoadMjBizappsContractsEntitiesServer(): void {
     LoadContractEntityServer();
     LoadContractTermEntityServer();
+    LoadActivateTermOperation();
+    LoadRenewTermOperation();
+    LoadTerminateContractOperation();
 }

@@ -14,6 +14,25 @@ except for cherry-picked review fixes. **Never push.** Marcelo pushes when he wa
 6. **PR feedback outranks the queue.** Fix on this branch, verify, then cherry-pick onto
    `mjdev/contracts-dev` so Marcelo's push carries it.
 
+## 🔁 AFTER EVERY COMPACTION — do this BEFORE writing any code (Marcelo, 08:0x)
+
+A compaction drops the *reasoning*, not the *requirements*. Re-read, in this order:
+
+1. **This file** — the Direction block below, the queue, the Blocked table, the Log.
+2. **The live task list** (`TaskList`) — it carries intent across the compact; work it in ID order.
+3. **`~/MJDev/AGENTS.md` + `.mjdev-docs/`** — harness rules (never push, dual-layer validation,
+   honesty, heavy slots, per-slug locks).
+4. **`mj/CLAUDE.md`** — MJ's own rules outrank the mjdev docs for anything MemberJunction:
+   no `any`, no `.Get()/.Set()`, derive field types from the entity, `EntityByName`, `ProviderToUse`.
+5. **`plans/bizapps-contracts-master.md`** + **`plans/FEATURE-LIST.md`** — what we said we'd build.
+6. **Marcelo's design requirements** (restated in Direction below) **and Amith's UI requirements** —
+   the 4-layer form architecture, MJ's grid, MJ tokens on every control including dropdowns,
+   custom priority-2 forms, headers/subheaders with quick-filter buttons.
+
+**Do not resume mid-file from memory.** Re-open the file being edited and re-check field names
+against the live schema — the last compaction cost a round of wrong column names
+(`LineNumber`/`DiscountPercent`/`TerminationDate` do not exist).
+
 ## Direction (Marcelo, 06:45 — supersedes anything below that conflicts)
 
 - **Demo is EVENING**, not morning. ~9h until he wakes; more runway after. Target: **the full chain**.

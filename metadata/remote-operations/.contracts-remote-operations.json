@@ -1,0 +1,104 @@
+[
+  {
+    "_comments": [
+      "The Contracts write API, declared as metadata. CodeGen reads these rows and emits one typed",
+      "BaseRemotableOperation subclass per row into the browser-safe Entities package, so the client",
+      "imports the CONTRACT without pulling in the server engine.",
+      "",
+      "WHY THESE ARE OPERATIONS AND NOT ACTIONS. The app's master plan (§10.5) originally specified MJ",
+      "Actions for status transitions. Orders settled the split for the family the other way — Actions",
+      "are for agent/workflow-invocable work, while the operations that MUTATE are the API the UI",
+      "calls — and consistency across the bizapps is worth more than this app's original plan text.",
+      "Flagged for Amith on PR #2 rather than changed silently.",
+      "",
+      "Every row is GenerationType=Manual: CodeGen emits a typed SHELL and the hand-authored server",
+      "subclass in packages/CoreEntitiesServer supplies InternalExecute and registers under the key.",
+      "The server subclass registers LAST (it extends the generated base), so it wins ClassFactory",
+      "dispatch. AI generation is deliberately not used — these bodies decide what bills and what",
+      "stops billing, which is exactly where being subtly wrong produces a plausible wrong invoice.",
+      "",
+      "RequiredScope is 'contracts:write' on all three because all three write. Reads of contract data",
+      "go through RunView and the entity layer, which have their own permissions — there is no",
+      "read-only operation here to grant separately."
+    ],
+    "fields": {
+      "Name": "Activate Term",
+      "OperationKey": "Contracts.ActivateTerm",
+      "CategoryID": "@lookup:MJ: Remote Operation Categories.Name=Contract Lifecycle",
+      "Description": "Bring a contract term to life: move it to Active and create the billing schedule plus the billing events its cadence implies, in one transaction. Activation is not a status flip — a term marked Active with no schedule bills nothing, and nobody notices until a quarter closes light. Refuses a term that covers nothing, and refuses to activate twice.",
+      "InputTypeName": "ActivateTermInput",
+      "InputTypeDefinition": "@file:types/contracts-activate-term.input.ts",
+      "InputTypeIsArray": false,
+      "OutputTypeName": "ActivateTermOutput",
+      "OutputTypeDefinition": "@file:types/contracts-activate-term.output.ts",
+      "OutputTypeIsArray": false,
+      "ExecutionMode": "Sync",
+      "RequiredScope": "contracts:write",
+      "RequiresSystemUser": false,
+      "GenerationType": "Manual",
+      "CodeApprovalStatus": "Approved",
+      "Status": "Active"
+    },
+    "primaryKey": {
+      "ID": "E1DB66DD-3CBE-4F6C-8A03-F3119E4448C6"
+    },
+    "sync": {
+      "lastModified": "2026-08-05T07:33:44.821Z",
+      "checksum": "6603f942077a7c9011049c9e2f864abcd435fa5aefaf72b4cd9d51b81192f0c3"
+    }
+  },
+  {
+    "fields": {
+      "Name": "Renew Term",
+      "OperationKey": "Contracts.RenewTerm",
+      "CategoryID": "@lookup:MJ: Remote Operation Categories.Name=Contract Lifecycle",
+      "Description": "Carry an agreement into its next period: create the successor term pointed back at its predecessor, carry the coverage forward with prices escalated by the agreed percentage, and close the prior term as Completed rather than deleting it. The requested escalation is CLAMPED to the term's negotiated ceiling rather than rejected. PreviewOnly runs the identical computation and writes nothing, so a human can approve the actual numbers before they exist.",
+      "InputTypeName": "RenewTermInput",
+      "InputTypeDefinition": "@file:types/contracts-renew-term.input.ts",
+      "InputTypeIsArray": false,
+      "OutputTypeName": "RenewTermOutput",
+      "OutputTypeDefinition": "@file:types/contracts-renew-term.output.ts",
+      "OutputTypeIsArray": false,
+      "ExecutionMode": "Sync",
+      "RequiredScope": "contracts:write",
+      "RequiresSystemUser": false,
+      "GenerationType": "Manual",
+      "CodeApprovalStatus": "Approved",
+      "Status": "Active"
+    },
+    "primaryKey": {
+      "ID": "1A249135-9F11-4DDB-8C56-B43B41A6F025"
+    },
+    "sync": {
+      "lastModified": "2026-08-05T07:33:44.862Z",
+      "checksum": "85fc0b0bf834b7a905d4677512c57435f5f736d3476c1d3032aa823dabb7e213"
+    }
+  },
+  {
+    "fields": {
+      "Name": "Terminate Contract",
+      "OperationKey": "Contracts.TerminateContract",
+      "CategoryID": "@lookup:MJ: Remote Operation Categories.Name=Contract Lifecycle",
+      "Description": "End an agreement and STOP IT BILLING. Moves the contract and every live term to Terminated, and cancels the scheduled billing events dated after the effective date while leaving the ones on or before it standing — periods already covered are still owed. Events already Generated or Invoiced are never touched: un-billing money that has left the building is an accounting act, not a contract one. PreviewOnly reports the exact cancelled/retained split without writing.",
+      "InputTypeName": "TerminateContractInput",
+      "InputTypeDefinition": "@file:types/contracts-terminate-contract.input.ts",
+      "InputTypeIsArray": false,
+      "OutputTypeName": "TerminateContractOutput",
+      "OutputTypeDefinition": "@file:types/contracts-terminate-contract.output.ts",
+      "OutputTypeIsArray": false,
+      "ExecutionMode": "Sync",
+      "RequiredScope": "contracts:write",
+      "RequiresSystemUser": false,
+      "GenerationType": "Manual",
+      "CodeApprovalStatus": "Approved",
+      "Status": "Active"
+    },
+    "primaryKey": {
+      "ID": "D4D79305-A16E-4FFB-BA64-ED010664A551"
+    },
+    "sync": {
+      "lastModified": "2026-08-05T07:33:44.842Z",
+      "checksum": "cab79cb86709d9a8822fe4518c9e95a694b9b34de8814f261b1dcab1fad5afda"
+    }
+  }
+]

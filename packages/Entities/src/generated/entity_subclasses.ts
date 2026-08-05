@@ -106,13 +106,14 @@ export const mjBizAppsContractsContractBillingEventSchema = z.object({
         * * Field Name: ScheduledDate
         * * Display Name: Scheduled Date
         * * SQL Data Type: date`),
-    Status: z.union([z.literal('Failed'), z.literal('Generated'), z.literal('Scheduled'), z.literal('Skipped')]).describe(`
+    Status: z.union([z.literal('Cancelled'), z.literal('Failed'), z.literal('Generated'), z.literal('Scheduled'), z.literal('Skipped')]).describe(`
         * * Field Name: Status
         * * Display Name: Status
         * * SQL Data Type: nvarchar(20)
         * * Default Value: Scheduled
     * * Value List Type: List
     * * Possible Values 
+    *   * Cancelled
     *   * Failed
     *   * Generated
     *   * Scheduled
@@ -1146,15 +1147,16 @@ export class mjBizAppsContractsContractBillingEventEntity extends BaseEntity<mjB
     * * Default Value: Scheduled
     * * Value List Type: List
     * * Possible Values 
+    *   * Cancelled
     *   * Failed
     *   * Generated
     *   * Scheduled
     *   * Skipped
     */
-    get Status(): 'Failed' | 'Generated' | 'Scheduled' | 'Skipped' {
+    get Status(): 'Cancelled' | 'Failed' | 'Generated' | 'Scheduled' | 'Skipped' {
         return this.Get('Status');
     }
-    set Status(value: 'Failed' | 'Generated' | 'Scheduled' | 'Skipped') {
+    set Status(value: 'Cancelled' | 'Failed' | 'Generated' | 'Scheduled' | 'Skipped') {
         this.Set('Status', value);
     }
 
