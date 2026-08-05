@@ -101,7 +101,53 @@ close it" case rather than an invalid request.
 
 ---
 
-## 7. CodeGen scoping observation (not a question — a report)
+## 7. Activating a term now promotes the CONTRACT to Active
+
+**What I did:** `ActivateTerm` moves the contract from `Draft`/`PendingSignature` to `Active` in the
+same transaction as the term.
+
+**Why:** without it, activating a term left the contract reading `Draft` in the roster while it was
+actively billing. That is the same class of lie as a `Terminated` contract whose schedule still runs,
+and just as invisible. Only those two statuses are promoted — `Expired`, `Terminated` and
+`Superseded` are deliberate states that activating a term must not quietly undo.
+
+**Question:** is `Active` the right trigger, or does a contract only become Active on *signature*
+(`ExecutedDate`), with activation of a term being a separate operational step? If the latter,
+`PendingSignature -> Active` here is wrong and should be removed.
+
+---
+
+## 8. Coverage at creation, and what a null price means
+
+**What I did:** the create page now enters `ContractLine` rows, because without them
+`ActivateTerm` refuses the term and every contract created in the app was a dead end.
+
+**The decision inside it:** leaving unit price EMPTY means *resolve from the catalog* — deliberately
+distinct from a price of zero. Those lines are excluded from the coverage total with a note saying
+so, rather than silently counted as free.
+
+**Question:** confirm that null-means-catalog is the intended semantic for `ContractedUnitPrice`
+(the column is nullable, which is what suggested it). If null should instead mean "not yet priced"
+and block activation, that is a different rule and I have built the permissive one.
+
+---
+
+## 9. The demo fixture was violating our own escalation cap (fixed — FYI)
+
+Not a question, but worth seeing: the seeded demo escalated term 2 by **6.67% under a 5% cap**. It
+rendered on the timeline as "+6.67% (cap 5%)". It got in because the seed writes raw SQL and bypasses
+the entity layer, where the cap lives — and that row could never have been edited in the UI, because
+the first save would have been correctly refused.
+
+The fixture now escalates 5% then 4%, with committed amounts that are the arithmetic result
+(432,000 → 453,600 → 471,744) so the numbers can be checked on screen.
+
+**The general point:** any seed that writes raw SQL can plant data our invariants forbid. Worth
+deciding whether seeds should go through the entity layer.
+
+---
+
+## 10. CodeGen scoping observation (not a question — a report)
 
 Adding `{ type: 'RemoteOperations', ... }` to `mj.config.cjs` emits **every** app's remote operations
 into *our* `packages/Entities/src/generated/remote_operations.ts` — orders', the AI skills', ours. So
@@ -113,7 +159,7 @@ Not blocking, and not something I changed. Flagging it because it looks like the
 
 ---
 
-## 8. Still blocked, not guessed
+## 11. Still blocked, not guessed
 
 These are the ones where guessing would be expensive to unwind, so nothing was built:
 
