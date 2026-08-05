@@ -34,6 +34,8 @@ import '@mj-biz-apps/orders-entities';
 import '@mj-biz-apps/contracts-entities';
 import '@mj-biz-apps/contracts-core-entities-server';
 import type {
+    mjBizAppsContractsContractBillingEventEntity,
+    mjBizAppsContractsContractBillingScheduleEntity,
     mjBizAppsContractsContractEntity,
     mjBizAppsContractsContractTermEntity,
     mjBizAppsContractsContractLineEntity,
@@ -44,6 +46,8 @@ const E_CONTRACT = 'MJ_BizApps_Contracts: Contracts';
 const E_TERM = 'MJ_BizApps_Contracts: Contract Terms';
 const E_LINE = 'MJ_BizApps_Contracts: Contract Lines';
 const E_LOG = 'MJ_BizApps_Contracts: Contract Events';
+const E_SCHEDULE_ENT = 'MJ_BizApps_Contracts: Contract Billing Schedules';
+const E_BILLING_EVT = 'MJ_BizApps_Contracts: Contract Billing Events';
 
 const TAG = 'tier2-constraints';
 
@@ -283,6 +287,87 @@ async function main(): Promise<void> {
     check('X.2c a NEGATIVE default escalation is actually refused, not just constrained on paper',
         (negativeDefault.recordset as { refused: number }[])[0]?.refused === 1);
 
+    console.log('\nX.7 / X.11 — the pricing moment, and an event matching its schedule');
+
+    // X.7 IS A RAW-SQL BYPASS PROOF, and it has to be. Going through the entity layer cannot reach
+    // the bad state at all: `ContractEntityServer.Save()` defaults `PricedAt` when it is null, so
+    // setting it to null and saving simply re-fills it — the first version of this test asserted a
+    // refusal and got a successful save for exactly that reason.
+    //
+    // That is the app behaving correctly, and it is also why the CHECK matters: the constraint is a
+    // backstop for the paths that DO NOT go through the entity layer — a migration, a fixture, a
+    // support script. Proving it therefore means going underneath the entity layer deliberately.
+    // Each statement is its own request with the error caught in JAVASCRIPT rather than in a T-SQL
+    // TRY/CATCH. A constraint violation inside a multi-statement batch did not behave predictably
+    // here — the error escaped the batch — and "did this specific UPDATE fail?" is a question the
+    // driver answers unambiguously one statement at a time.
+    const attempt = async (sql: string): Promise<boolean> => {
+        try {
+            await pool.request().query(sql);
+            return false; // it succeeded, i.e. NOT refused
+        } catch {
+            return true; // refused
+        }
+    };
+
+    const probeDesc = `${TAG}: pricing moment`;
+    await pool.request().query(`
+        INSERT INTO __mj_BizAppsContracts.Contract
+            (ContractNumber, ContractTypeID, CompanyID, CustomerOrganizationID, Status, Description, PricedAt)
+        VALUES (CONCAT('${TAG}-', LEFT(CAST(NEWID() AS NVARCHAR(36)), 8)), '${typeID}', '${companyID}', '${orgID}',
+                'Active', '${probeDesc}', GETDATE());`);
+
+    check('X.7a the DATABASE refuses a null PricedAt on an Active contract',
+        await attempt(`UPDATE __mj_BizAppsContracts.Contract SET PricedAt = NULL WHERE Description = '${probeDesc}'`));
+
+    // The path the NARROW constraint missed entirely: leave Active, then null it.
+    await pool.request().query(`UPDATE __mj_BizAppsContracts.Contract SET Status = 'Terminated' WHERE Description = '${probeDesc}'`);
+    check('X.7b and on a TERMINATED one — the path the narrow constraint missed',
+        await attempt(`UPDATE __mj_BizAppsContracts.Contract SET PricedAt = NULL WHERE Description = '${probeDesc}'`));
+
+    // Draft stays exempt, because a contract being typed has not been priced yet.
+    await pool.request().query(`UPDATE __mj_BizAppsContracts.Contract SET Status = 'Draft' WHERE Description = '${probeDesc}'`);
+    check('X.7c a DRAFT may still have no pricing moment — the exemption is deliberate',
+        (await attempt(`UPDATE __mj_BizAppsContracts.Contract SET PricedAt = NULL WHERE Description = '${probeDesc}'`)) === false);
+
+    await pool.request().query(`DELETE FROM __mj_BizAppsContracts.Contract WHERE Description = '${probeDesc}'`);
+
+    // X.11: an event may not name a schedule belonging to another term. Built with two live terms on
+    // contract B so both a matching and a crossed pairing are available.
+    const evTermA = await mkTerm(cB.ID, 2050);
+    const evTermB = await mkTerm(cB.ID, 2051);
+    const mkSchedule = async (termID: string) => {
+        const sc = await md.GetEntityObject<mjBizAppsContractsContractBillingScheduleEntity>(E_SCHEDULE_ENT, user);
+        sc.NewRecord();
+        sc.ContractTermID = termID;
+        sc.ScheduleType = 'Cadence';
+        sc.Frequency = 'Annual';
+        sc.AnchorDate = new Date('2050-01-01');
+        sc.IsActive = true;
+        await sc.Save();
+        return sc;
+    };
+    const schedA = await mkSchedule(evTermA.ID);
+
+    const matched = await md.GetEntityObject<mjBizAppsContractsContractBillingEventEntity>(E_BILLING_EVT, user);
+    matched.NewRecord();
+    matched.ContractBillingScheduleID = schedA.ID;
+    matched.ContractTermID = evTermA.ID;
+    matched.ScheduledDate = new Date('2050-01-01');
+    matched.Status = 'Scheduled';
+    check('X.11a an event whose schedule belongs to its OWN term saves', await matched.Save(), matched.LatestResult?.CompleteMessage ?? '');
+
+    const crossed = await md.GetEntityObject<mjBizAppsContractsContractBillingEventEntity>(E_BILLING_EVT, user);
+    crossed.NewRecord();
+    crossed.ContractBillingScheduleID = schedA.ID; // term A's schedule…
+    crossed.ContractTermID = evTermB.ID;           // …on term B's event
+    crossed.ScheduledDate = new Date('2051-01-01');
+    crossed.Status = 'Scheduled';
+    const crossedSaved = await crossed.Save();
+    check('X.11b an event naming ANOTHER term\'s schedule is REFUSED', crossedSaved === false, crossedSaved ? 'it saved' : '');
+    check('X.11c and the refusal explains why the crossing matters',
+        /different term/i.test(crossed.LatestResult?.CompleteMessage ?? ''), crossed.LatestResult?.CompleteMessage ?? '');
+
     console.log('\nENGINE — contract-type defaults on a NEW term');
 
     // The Standard type carries a 5% ceiling and 30 days notice. A term created without them should
@@ -341,6 +426,8 @@ async function main(): Promise<void> {
         INSERT INTO @ids SELECT ID FROM __mj_BizAppsContracts.Contract WHERE Description LIKE '${TAG}%';
         DECLARE @terms TABLE (ID UNIQUEIDENTIFIER);
         INSERT INTO @terms SELECT t.ID FROM __mj_BizAppsContracts.ContractTerm t JOIN @ids i ON i.ID = t.ContractID;
+        DELETE be FROM __mj_BizAppsContracts.ContractBillingEvent be JOIN @terms t ON t.ID = be.ContractTermID;
+        DELETE bs FROM __mj_BizAppsContracts.ContractBillingSchedule bs JOIN @terms t ON t.ID = bs.ContractTermID;
         DELETE l FROM __mj_BizAppsContracts.ContractLine l JOIN @terms t ON t.ID = l.ContractTermID;
         DELETE e FROM __mj_BizAppsContracts.ContractEvent e JOIN @ids i ON i.ID = e.ContractID;
         -- Status AND the successor must be cleared together: CK_Contract_SupersededHasSuccessor

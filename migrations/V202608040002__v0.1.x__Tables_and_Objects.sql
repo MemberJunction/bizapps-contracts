@@ -166,7 +166,18 @@ CREATE TABLE __mj_BizAppsContracts.Contract (
     -- which is the ordinary case for an annual term, not an anomaly. The constraint rejected exactly
     -- the data a correct contract produces. Caught by seeding realistic demo data, 2026-08-04.
     -- An Active contract has been priced. Draft may not have been yet.
-    CONSTRAINT CK_Contract_PricedWhenActive CHECK (Status <> 'Active' OR PricedAt IS NOT NULL),
+    -- EVERY state past Draft needs the pricing moment, not just Active (X.7). The narrow version
+    -- let a contract reach Expired, Terminated or Superseded with a null PricedAt — including by
+    -- leaving Active and THEN nulling it, which is the path that made the original constraint
+    -- decorative. Renewal pricing reads `Contract.PricedAt` as the as-of for the one catalog lookup
+    -- a line ever gets, and superseded/expired contracts are exactly the ones a renewal or a
+    -- replacement reads back, so a null there is not a historical curiosity — it is a price that
+    -- cannot be resolved.
+    --
+    -- Draft is deliberately still exempt: a contract being typed has not been priced yet, and
+    -- demanding the date up front would mean guessing it. `ContractEntityServer.Save()` defaults it
+    -- on the way in, so in practice the only rows without one are drafts nobody has saved.
+    CONSTRAINT CK_Contract_PricedWhenActive CHECK (Status = 'Draft' OR PricedAt IS NOT NULL),
     CONSTRAINT CK_Contract_CancellationWindow CHECK (CancellationWindowDays IS NULL OR CancellationWindowDays >= 0)
 );
 GO
