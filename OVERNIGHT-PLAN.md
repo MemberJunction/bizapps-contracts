@@ -166,6 +166,21 @@ workspace edit pane on this before adding any more hand-built fields.
 
 ## Log
 
+- **11:15** — **X.7 and X.11 closed; thirteen of eighteen contradictions now done.** X.7's constraint
+  covered only `Active`, so a contract could reach a terminal state with no pricing moment — the path
+  being "leave Active, THEN null it", which is what made the original decorative. X.11 let a billing
+  event name ANOTHER term's schedule, which matters because the two columns are read by different
+  things: the job bills against the event's term, termination cancels through it, the Billing tab
+  lists through the schedule. A crossed row bills one agreement while being cancelled with another.
+  **X.7 had to be tested through RAW SQL** — the first version went through the entity layer and got a
+  successful save, because `ContractEntityServer` defaults `PricedAt`. That is the app being correct,
+  and precisely why the CHECK matters: it backstops the paths that do NOT go through the entity layer.
+  Posted addendum 2 to PR #2, led by the BEHAVIOUR CHANGE (new terms now inherit their type's ceiling)
+  rather than by the constraint list, since that is the part that shows up in a demo.
+  **The five remaining contradictions all need a person** and are logged as such: X.3/X.4 are
+  master-plan prose contradicting the shipped schema (rewriting a plan's intent is not mine),
+  X.13/X.18 need domain rulings, X.10 is the credit-scope question.
+
 - **10:45** — **X.2 closed, and the FEATURE-LIST made honest.** X.2 (`ContractType`'s two default
   columns had no bounds, while every sibling column did) was still open — and my OWN `ContractsEngine`
   work made it load-bearing, because those defaults now flow into every new term, so a negative one
