@@ -337,8 +337,11 @@ interface LogRow {
                     <button mjButton="primary" (click)="NewContract()"><i class="fa-solid fa-plus"></i> New contract</button>
                 </div>
 
-                <div class="card" *ngIf="Matches.length && !OpenContracts.length">
-                    <div class="ch">Open one</div>
+                <div class="card" *ngIf="!OpenContracts.length">
+                    <div class="ch">Open a contract <span class="r">{{ Matches.length }} of {{ Contracts.length }}</span></div>
+                    <div class="note info" *ngIf="!Matches.length">
+                        No contract matches that search. Clear it, or start a new contract.
+                    </div>
                     <div class="picks">
                         <button class="pick" *ngFor="let c of Matches" (click)="OpenContract(c)">
                             <span class="pn">{{ c.ContractNumber }}</span>
@@ -798,9 +801,11 @@ export class MJCContractsSectionComponent extends BaseResourceComponent implemen
 
     public OnNav(item: MJLeftNavItem): void {
         this.Page = item.id;
-        // Opening the workspace with nothing in it is a dead end, so seed a new contract — which is
-        // exactly what "create" used to be, before the two surfaces merged.
-        if (item.id === 'workspace' && !this.OpenContracts.length) this.NewContract();
+        // DELIBERATELY does NOT seed a new contract. An earlier version did — reasoning that an
+        // empty workspace is a dead end — and that made opening an EXISTING contract impossible:
+        // the picker only shows when nothing is open, so auto-creating a draft hid it every time.
+        // The empty state offers both the picker and a New contract button, which is the choice the
+        // person actually has.
         this.cdr.detectChanges();
     }
 
@@ -812,7 +817,10 @@ export class MJCContractsSectionComponent extends BaseResourceComponent implemen
      */
     public get Matches(): ContractRow[] {
         const q = this.Query.trim().toLowerCase();
-        if (!q && !this.StatusFilter) return [];
+        // NO FILTER MEANS BROWSE, not "nothing". This used to return [] until somebody typed, which
+        // was right when it sat beside a populated workspace and wrong now that it IS the empty
+        // state: "Open a contract" showing nothing until you guess a search term is a dead end.
+        if (!q && !this.StatusFilter) return this.Contracts.slice(0, 25);
         return this.Contracts.filter((c) => {
             const okStatus = !this.StatusFilter || c.Status === this.StatusFilter;
             const okText = !q
