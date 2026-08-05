@@ -95,7 +95,13 @@ try {
 
     await statusFilter.selectOption('Active');
     await page.waitForTimeout(2000);
-    check('A.8 filtering to Active finds the demo contract', (await page.locator('.pick').count()) === 1);
+    // Assert the demo contract is AMONG the matches, not that it is the only one. "Exactly one
+    // Active contract" is true of a pristine demo and false of any real system — and it was already
+    // false here the moment a test-created contract was left behind, which is a brittleness worth
+    // removing rather than a leftover worth only deleting.
+    const activeText = await page.locator('.picker').innerText().catch(() => '');
+    check('A.8 filtering to Active includes the demo contract', /CTR-001842/.test(activeText), activeText.slice(0, 150).replace(/\n/g, ' / '));
+    check('A.8a and every match shown really is Active', !/Draft|Terminated|Expired/.test(activeText), activeText.slice(0, 150).replace(/\n/g, ' / '));
 
     const clear = page.getByRole('button', { name: /^clear$/i }).first();
     check('A.9 a Clear control appears once a search is active', (await clear.count()) > 0);

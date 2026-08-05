@@ -259,7 +259,7 @@ interface Draft {
         .tl-row:last-child { border-bottom: none; }
         .tl-w { font-size: 12px; color: var(--mj-text-secondary, #475569); }
         .tl-bar { height: 26px; border-radius: var(--mj-radius-sm, 4px); background: var(--mj-color-neutral-100, #f1f5f9); overflow: hidden; display: flex; }
-        .tl-fill { display: flex; align-items: center; padding: 0 9px; font-size: 12px; font-weight: 600; color: #fff; }
+        .tl-fill { display: flex; align-items: center; padding: 0 9px; font-size: 12px; font-weight: 600; color: var(--mj-text-inverse, #fff); }
         .tl-fill.done { background: var(--mj-color-neutral-400, #94a3b8); }
         .tl-fill.now { background: var(--mj-brand-primary, #0076b6); }
         .tl-fill.next { background: var(--mj-color-neutral-300, #cbd5e1); color: var(--mj-text-secondary, #475569); }

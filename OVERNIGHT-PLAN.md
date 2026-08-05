@@ -166,6 +166,18 @@ workspace edit pane on this before adding any more hand-built fields.
 
 ## Log
 
+- **10:20** — **Design-token audit + a brittleness fix.** Checked the "MJ tokens for every control"
+  standard properly rather than assuming: 96 of 97 hex values in the section were already correct
+  `var(--mj-x, #fallback)` fallbacks; one bare `#fff` was not, now `var(--mj-text-inverse, #fff)`.
+  The forms and panels audited clean. On dropdowns the family answer turned out to be documented in
+  orders' own CSS — *"MJ styles `.mj-input, .mj-textarea` but ships no select rule"* — so orders
+  defines `.mj-select` itself and accounting uses `.mj-input`. A native `<select>` with a
+  token-styled class IS the convention; there is no MJ dropdown component being bypassed.
+  Also removed a brittle assertion: "filtering to Active finds exactly one contract" is true of a
+  pristine demo and false of any real system — and was already false the moment a test-created
+  contract was left behind. It now asserts the demo contract is AMONG the matches and that every
+  match really is Active, which is both robust and a stronger claim.
+
 - **10:05** — **BaseEngine standard applied** (it was the one named standard with no implementation
   here — orders and accounting both have an engine, contracts had none). `ContractsEngine` caches
   `ContractType`, the app's only genuinely high-read/low-write entity; contracts/terms/lines are the
