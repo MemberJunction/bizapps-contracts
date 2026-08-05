@@ -167,6 +167,18 @@ workspace edit pane on this before adding any more hand-built fields.
 
 ## Log
 
+- **12:35 — closed a gap I created by writing docs.** The walkthrough tells Andrew to click through
+  termination during a live session with Marcelo, and that path had **never been driven in a browser**
+  — it was proven at tier 2 only. Publishing a click path I had not walked is exactly the kind of
+  thing that fails in front of an audience, so `ui-terminate.mjs` now drives it: 14/14, covering the
+  parts that carry meaning (the control is DISABLED until a reason is given, the preview reports the
+  cancelled/retained split and writes nothing, confirm terminates, the history records the reason).
+  Also fixed `restore-demo-after-loop.sql`, which **could not have undone a termination**: it reset
+  the statuses but left the billing events Cancelled, producing a demo that looks healthy while its
+  schedule is dead. Round-tripped to prove it: after restore the contract is Active, terms are
+  Completed/Completed/Active, the cancelled event is Scheduled again, audit back to four entries.
+  217 assertions across three tiers.
+
 - **12:20 — FIRST REAL PR FEEDBACK, and it changed what is useful.** Amith (AN-BC): *"too many
   parallel reviewers to be efficient… @SoundPostAndrew please review this with Marcelo as you guys
   start your day, work through the workflows for how contracts work as your domain expertise on this
