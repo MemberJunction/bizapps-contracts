@@ -91,8 +91,10 @@ workspace edit pane on this before adding any more hand-built fields.
 - [x] **2. Entity-server subclasses (invariants).** ✅ DONE — 16/16 tier-2 assertions pass. Original: `ContractEntity` / `ContractTermEntity`:
       auto-assign `ContractNumber` from `ContractSequence`, default `PricedAt` to today, derive
       `TermNumber` as max+1. These are the rules that must hold no matter who writes the row.
-- [ ] **3. MJ Actions for status transitions** (master plan §10.5), in dependency order:
-      `Contracts.ActivateTerm` → `Contracts.RenewTerm` → `Contracts.TerminateContract`.
+- [x] **3. Status transitions.** ✅ DONE — `ActivateTerm` / `RenewTerm` / `TerminateContract`, 38/38
+      tier-2 assertions. **Built as REMOTE OPERATIONS, not Actions** — orders settled the family
+      convention (Actions = agent/workflow-invocable; operations that MUTATE = the API the UI calls),
+      which overrides master plan §10.5. Raised for Amith on PR #2 rather than changed silently.
       `SendForSignature` / `RecordExecution` / `RecordRejection` come after the signature panel.
 - [ ] **4. Custom forms** for `ContractTerm` and `ContractLine`, same priority-2 override pattern as
       the Contract form — group by what a person reads, not schema order.

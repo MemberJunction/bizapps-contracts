@@ -18,3 +18,8 @@
  * hand-written helpers in src/ (NOT src/generated/ — CodeGen owns that).
  */
 export * from './generated/entity_subclasses';
+// Typed Remote Operation clients — the browser-safe CONTRACT for the write API (typed input, typed
+// output, the operation key), with the server engine that implements it left on the server. This is
+// what lets the UI call `new ContractsRenewTermOperation().Execute(input)` instead of reaching for
+// the stringly-typed `RouteOperation` seam.
+export * from './generated/remote_operations';

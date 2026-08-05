@@ -38,6 +38,15 @@ import {
 } from '@memberjunction/ng-ui-components';
 import { RunView, Metadata, CompositeKey, type RunViewParams } from '@memberjunction/core';
 import type { ResourceData } from '@memberjunction/core-entities';
+// The app's OWN typed Remote Operation clients — generated from metadata/remote-operations/ into the
+// browser-safe Entities package. The UI calls these; it does not reimplement what they decide.
+import {
+    ContractsActivateTermOperation,
+    ContractsRenewTermOperation,
+    ContractsTerminateContractOperation,
+    type RenewTermOutput,
+    type TerminateContractOutput,
+} from '@mj-biz-apps/contracts-entities';
 import type { AfterRowClickEventArgs } from '@memberjunction/ng-entity-viewer';
 import type { mjBizAppsContractsContractEntity, mjBizAppsContractsContractTermEntity } from '@mj-biz-apps/contracts-entities';
 // Accounting's session-tab framework — marked TRANSFER-BACKLOG (destined for MJ base); Marcelo
@@ -157,7 +166,24 @@ interface Draft {
         legend.lg { font-size: 11.5px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--mj-text-muted, #64748b); padding: 0 0 9px; }
         fieldset.pl { border: none; margin: 0 0 22px; padding: 0; min-width: 0; }
 
-        .tl-row { display: grid; grid-template-columns: 104px 1fr; gap: 14px; padding: 11px 0; border-bottom: 1px solid var(--mj-border-subtle, #f1f5f9); }
+        /* The third column is the lifecycle action slot. Sized auto rather than fixed so a row with
+           no available action collapses it instead of leaving a hole in the timeline. */
+        .tl-row { display: grid; grid-template-columns: 104px 1fr auto; gap: 14px; padding: 11px 0; border-bottom: 1px solid var(--mj-border-subtle, #f1f5f9); }
+        .tl-act { display: flex; align-items: center; gap: 8px; }
+
+        /* Preview surfaces — deliberately not modals. A renewal is something you read next to the
+           timeline it changes, and a dialog would hide exactly the context that makes the numbers
+           mean something. */
+        .pv { margin: 14px 16px; border: 1px solid var(--mj-border-default, #e2e8f0); border-radius: var(--mj-radius-md, 6px); background: var(--mj-bg-elevated, #fff); overflow: hidden; }
+        .pv-h { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 14px; background: var(--mj-color-neutral-50, #f8fafc); border-bottom: 1px solid var(--mj-border-subtle, #f1f5f9); }
+        .pv-s { margin-top: 2px; font-size: 12px; color: var(--mj-text-secondary, #475569); }
+        .pv-t { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+        .pv-t th, .pv-t td { padding: 8px 14px; border-bottom: 1px solid var(--mj-border-subtle, #f1f5f9); text-align: left; }
+        .pv-t th { font-weight: 600; color: var(--mj-text-secondary, #475569); }
+        .pv-t .r { text-align: right; font-variant-numeric: tabular-nums; }
+        .pv-l { margin: 0; padding: 12px 14px 12px 32px; font-size: 12.5px; line-height: 1.7; color: var(--mj-text-secondary, #475569); }
+        .pv-f { display: flex; justify-content: flex-end; gap: 8px; padding: 12px 14px; background: var(--mj-color-neutral-50, #f8fafc); border-top: 1px solid var(--mj-border-subtle, #f1f5f9); }
+        .tm { display: flex; align-items: flex-end; gap: 12px; padding: 12px 0 0; margin-top: 12px; border-top: 1px solid var(--mj-border-subtle, #f1f5f9); }
         .tl-row:last-child { border-bottom: none; }
         .tl-w { font-size: 12px; color: var(--mj-text-secondary, #475569); }
         .tl-bar { height: 26px; border-radius: var(--mj-radius-sm, 4px); background: var(--mj-color-neutral-100, #f1f5f9); overflow: hidden; display: flex; }
@@ -338,6 +364,43 @@ interface Draft {
                                     <label class="fld"><span>Cancellation window (days)</span><input class="in" type="number" [(ngModel)]="Edit.CancellationWindowDays" (ngModelChange)="Touch()" /></label>
                                     <div class="fld"><span>Terms</span><div class="ro">{{ TermsOf(c.ID).length }} · {{ CommittedOf(c.ID) | currency: 'USD' : 'symbol' : '1.0-0' }} committed</div></div>
                                 </div>
+
+                                <!-- Ending an agreement is not a status dropdown. It stops future billing,
+                                     which is the part that actually matters, so it gets a deliberate control
+                                     with a required reason and a preview of exactly what will be cancelled. -->
+                                <div class="tm" *ngIf="CanTerminate(c)">
+                                    <label class="fld"><span>Termination reason</span>
+                                        <input class="in" [(ngModel)]="Op.Reason" placeholder="Why is this ending?" />
+                                    </label>
+                                    <label class="fld"><span>Effective date</span>
+                                        <input class="in" type="date" [(ngModel)]="Op.EffectiveDate" />
+                                    </label>
+                                    <button mjButton="danger" [disabled]="Op.Busy || !Op.Reason.trim()"
+                                            (click)="PreviewTermination(c)">
+                                        <i class="fa-solid fa-ban"></i> Terminate…
+                                    </button>
+                                </div>
+
+                                <div class="pv" *ngIf="Op.Termination as t">
+                                    <div class="pv-h">
+                                        <strong>Terminating {{ c.ContractNumber }}</strong>
+                                        <span class="badge warn">effective {{ t.EffectiveDate | date: 'mediumDate' }}</span>
+                                    </div>
+                                    <ul class="pv-l">
+                                        <li><strong>{{ t.TermsTerminated }}</strong> live term(s) will be terminated.</li>
+                                        <li><strong>{{ t.BillingEventsCancelled }}</strong> future billing event(s) will be cancelled.</li>
+                                        <li *ngIf="t.BillingEventsRetained">
+                                            <strong>{{ t.BillingEventsRetained }}</strong> event(s) on or before that date
+                                            <em>stay</em> — those periods were covered and are still owed.
+                                        </li>
+                                    </ul>
+                                    <div class="pv-f">
+                                        <button mjButton [disabled]="Op.Busy" (click)="CancelPreview()">Cancel</button>
+                                        <button mjButton="danger" [disabled]="Op.Busy" (click)="ConfirmTermination(c)">
+                                            {{ Op.Busy ? 'Terminating…' : 'Terminate this contract' }}
+                                        </button>
+                                    </div>
+                                </div>
                             </fieldset>
                         </div>
 
@@ -357,6 +420,52 @@ interface Draft {
                                             <span *ngIf="t.ExecutedDate">executed {{ t.ExecutedDate | date: 'mediumDate' }}</span>
                                         </div>
                                     </div>
+                                    <div class="tl-act">
+                                        <button mjButton *ngIf="CanActivate(t)" [disabled]="Op.Busy"
+                                                (click)="Activate(t)" title="Move the term to Active and create its billing schedule">
+                                            <i class="fa-solid fa-play"></i> Activate
+                                        </button>
+                                        <button mjButton *ngIf="CanRenew(t)" [disabled]="Op.Busy"
+                                                (click)="PreviewRenewal(t)" title="See the escalated numbers before committing">
+                                            <i class="fa-solid fa-rotate"></i> Renew…
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Renewal preview. The numbers here come from the SAME operation that will
+                                 create the term — the confirm button re-runs it without PreviewOnly, so
+                                 what a person approves is what gets written. -->
+                            <div class="pv" *ngIf="Op.Renewal as r">
+                                <div class="pv-h">
+                                    <div>
+                                        <strong>Renewal preview — term {{ r.NewTermNumber }}</strong>
+                                        <div class="pv-s">{{ r.StartDate | date: 'mediumDate' }} – {{ r.EndDate | date: 'mediumDate' }}</div>
+                                    </div>
+                                    <span class="badge" [class.warn]="r.EscalationWasClamped">
+                                        +{{ (r.AppliedEscalationPercent || 0) * 100 | number: '1.0-2' }}%
+                                        <ng-container *ngIf="r.EscalationWasClamped"> — capped</ng-container>
+                                    </span>
+                                </div>
+                                <div class="note gap" *ngIf="r.EscalationWasClamped">
+                                    The requested increase exceeded this term's negotiated ceiling, so the
+                                    <strong>ceiling</strong> was applied — not the request, and not a refusal.
+                                </div>
+                                <table class="pv-t">
+                                    <thead><tr><th>Line</th><th class="r">Current</th><th class="r">Renewed</th></tr></thead>
+                                    <tbody>
+                                        <tr *ngFor="let l of r.Lines">
+                                            <td>{{ l.Description }}</td>
+                                            <td class="r">{{ l.PreviousUnitPrice == null ? '—' : (l.PreviousUnitPrice | currency: 'USD') }}</td>
+                                            <td class="r"><strong>{{ l.NewUnitPrice == null ? '—' : (l.NewUnitPrice | currency: 'USD') }}</strong></td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                                <div class="pv-f">
+                                    <button mjButton [disabled]="Op.Busy" (click)="CancelPreview()">Cancel</button>
+                                    <button mjButton="primary" [disabled]="Op.Busy" (click)="ConfirmRenewal()">
+                                        {{ Op.Busy ? 'Renewing…' : 'Create this term' }}
+                                    </button>
                                 </div>
                             </div>
                             <div class="empty" *ngIf="!TermsOf(c.ID).length">No terms on this contract yet.</div>
@@ -874,6 +983,143 @@ export class MJCContractsSectionComponent extends BaseResourceComponent implemen
         this.Load(row);
         this.Page = 'workspace';
         this.cdr.detectChanges();
+    }
+
+    // ---- lifecycle operations ---------------------------------------------------------------------
+    //
+    // Every one of these drives the app's OWN typed client (`Contracts*Operation` from the browser-safe
+    // Entities package), which is the same contract the server implements. The UI holds no copy of the
+    // rules: the escalation ceiling, the date arithmetic and the cancelled/retained split all come back
+    // from the operation. A preview here is the real computation with the write suppressed, so the
+    // numbers a person approves are the numbers that get written — not a second implementation that
+    // agrees today and drifts later.
+
+    public Op: {
+        Busy: boolean;
+        TermID: string | null;
+        Reason: string;
+        EffectiveDate: string;
+        Renewal: RenewTermOutput | null;
+        Termination: TerminateContractOutput | null;
+    } = { Busy: false, TermID: null, Reason: '', EffectiveDate: '', Renewal: null, Termination: null };
+
+    /** Only a term that has not started can be activated. */
+    public CanActivate(t: TermRow): boolean {
+        return t.Status === 'Pending' || t.Status === 'PendingSignature';
+    }
+
+    /** Only a running term can be renewed — and only once, which the operation itself enforces. */
+    public CanRenew(t: TermRow): boolean {
+        return t.Status === 'Active';
+    }
+
+    public CanTerminate(c: ContractRow): boolean {
+        return c.Status !== 'Terminated' && c.Status !== 'Superseded';
+    }
+
+    public CancelPreview(): void {
+        this.Op.Renewal = null;
+        this.Op.Termination = null;
+        this.Op.TermID = null;
+        this.cdr.detectChanges();
+    }
+
+    public async Activate(t: TermRow): Promise<void> {
+        await this.run(async () => {
+            const res = await new ContractsActivateTermOperation().Execute({ ContractTermID: t.ID });
+            const out = res.Output;
+            if (!res.Success || !out?.Success) {
+                this.Error = out?.Message ?? res.ErrorMessage ?? 'Activation failed.';
+                return;
+            }
+            this.Message = out.Message ?? 'Term activated.';
+            await this.Refresh();
+        });
+    }
+
+    public async PreviewRenewal(t: TermRow): Promise<void> {
+        await this.run(async () => {
+            const res = await new ContractsRenewTermOperation().Execute({ ContractTermID: t.ID, PreviewOnly: true });
+            const out = res.Output;
+            if (!res.Success || !out?.Success) {
+                this.Error = out?.Message ?? res.ErrorMessage ?? 'Could not compute the renewal.';
+                return;
+            }
+            this.Op.TermID = t.ID;
+            this.Op.Renewal = out;
+        });
+    }
+
+    public async ConfirmRenewal(): Promise<void> {
+        const termID = this.Op.TermID;
+        if (!termID) return;
+        await this.run(async () => {
+            const res = await new ContractsRenewTermOperation().Execute({ ContractTermID: termID });
+            const out = res.Output;
+            if (!res.Success || !out?.Success) {
+                this.Error = out?.Message ?? res.ErrorMessage ?? 'Renewal failed.';
+                return;
+            }
+            this.Message = out.Message ?? 'Renewed.';
+            this.CancelPreview();
+            await this.Refresh();
+        });
+    }
+
+    public async PreviewTermination(c: ContractRow): Promise<void> {
+        await this.run(async () => {
+            const res = await new ContractsTerminateContractOperation().Execute({
+                ContractID: c.ID,
+                Reason: this.Op.Reason.trim(),
+                EffectiveDate: this.Op.EffectiveDate || undefined,
+                PreviewOnly: true,
+            });
+            const out = res.Output;
+            if (!res.Success || !out?.Success) {
+                this.Error = out?.Message ?? res.ErrorMessage ?? 'Could not compute the termination.';
+                return;
+            }
+            this.Op.Termination = out;
+        });
+    }
+
+    public async ConfirmTermination(c: ContractRow): Promise<void> {
+        await this.run(async () => {
+            const res = await new ContractsTerminateContractOperation().Execute({
+                ContractID: c.ID,
+                Reason: this.Op.Reason.trim(),
+                EffectiveDate: this.Op.EffectiveDate || undefined,
+            });
+            const out = res.Output;
+            if (!res.Success || !out?.Success) {
+                this.Error = out?.Message ?? res.ErrorMessage ?? 'Termination failed.';
+                return;
+            }
+            this.Message = out.Message ?? 'Contract terminated.';
+            this.Op.Reason = '';
+            this.CancelPreview();
+            await this.Refresh();
+        });
+    }
+
+    /**
+     * One busy/error envelope for all of them. A thrown error is reported rather than swallowed —
+     * an operation that fails silently in the UI is the same bug class as one that fails silently
+     * on the server.
+     */
+    private async run(work: () => Promise<void>): Promise<void> {
+        this.Op.Busy = true;
+        this.Error = '';
+        this.Message = '';
+        this.cdr.detectChanges();
+        try {
+            await work();
+        } catch (e) {
+            this.Error = e instanceof Error ? e.message : String(e);
+        } finally {
+            this.Op.Busy = false;
+            this.cdr.detectChanges();
+        }
     }
 
     public Touch(): void { this.BufferDirty = true; this.Message = ''; }
