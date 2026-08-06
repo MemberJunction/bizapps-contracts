@@ -47,6 +47,7 @@ import { ContractDraft, type ContractDraftPayload } from '@mj-biz-apps/contracts
 import { WorkspaceCardComponent, WorkspaceTabStore } from '@mj-biz-apps/accounting-ng';
 import { RunView, Metadata, CompositeKey, type RunViewParams } from '@memberjunction/core';
 import type { ResourceData } from '@memberjunction/core-entities';
+import { UserInfoEngine } from '@memberjunction/core-entities';
 // The pure presentation helpers. They live in their own module because they are ordinary functions
 // of their arguments — and having one implementation means a change to how a status reads happens
 // once, not once here and once wherever else it was copied.
@@ -431,13 +432,17 @@ interface LogRow {
                          nine of them. -->
                 </div>
 
-                <!-- THE RESULTS SHOW WHENEVER THERE IS A SEARCH, not only on an empty workspace.
-                     This was *ngIf="!Drafts.Count", so the moment a contract was open the search box
-                     stayed on screen with its results hidden — you typed and nothing happened, which
-                     reads as a broken control rather than a deliberate one. The workspace holds
-                     several agreements at once, so finding another one WHILE reading this one is the
-                     normal case; a hit opens in its own tab beside it. -->
-                <div class="card" *ngIf="!Drafts.Count || Query || StatusFilter">
+                <!-- SEARCH IS THE ACCESS POINT. There is deliberately no standing roster here.
+                     A full list of every contract is what "All contracts" is for, and repeating it
+                     inside the workspace made the workspace a second, worse browser: the same rows,
+                     capped at 25, with no columns to sort or scan by. Two lists of the same thing
+                     drift, and the reader has to learn which one is authoritative.
+
+                     So: type to find, click to open. Results appear only when there IS a search, and
+                     they appear whether or not something is already open — finding a second
+                     agreement while reading the first is the normal case, and a hit opens in its own
+                     document tab beside it. -->
+                <div class="card" *ngIf="Query || StatusFilter">
                     <div class="ch">
                         {{ Drafts.Count ? 'Open another contract' : 'Open a contract' }}
                         <span class="r">{{ Matches.length }} of {{ Contracts.length }}</span>
@@ -451,6 +456,33 @@ interface LogRow {
                             <span class="pd">{{ c.Description || '—' }}</span>
                         </button>
                     </div>
+                </div>
+
+                <!-- THE EMPTY STATE. A search box on a blank page is a dead end for anyone who does
+                     not already know what to type, so the nothing-open-nothing-typed state offers the
+                     handful of contracts this person actually touched. Recents, not a roster: short,
+                     personal, and it does not pretend to be the browse surface. -->
+                <div class="card" *ngIf="!Drafts.Count && !Query && !StatusFilter">
+                    <div class="ch">Recently opened <span class="r">{{ Recents.length }}</span></div>
+                    <div class="note info" *ngIf="!Recents.length">
+                        Search above to open a contract — by number, description or external reference.
+                        Or start a new one from the button in the header.
+                    </div>
+                    <div class="picks" *ngIf="Recents.length">
+                        <button class="pick" *ngFor="let c of Recents" (click)="OpenContract(c)">
+                            <span class="pn">{{ c.ContractNumber }}</span>
+                            <span class="pd">{{ c.Description || '—' }}</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- A FAILED OPEN HAS TO SAY SO. It used to set this.Error and return, and nothing in
+                     the template rendered this.Error — so clicking a contract that could not be
+                     loaded did NOTHING AT ALL, which is indistinguishable from a dead control. The
+                     commonest cause is a stale list (the row was deleted by someone else since this
+                     page loaded), so the message says that and the list refreshes itself. -->
+                <div class="note err" *ngIf="OpenError">
+                    <div>{{ OpenError }}</div>
                 </div>
 
                 <!-- THE STANDARD WORKSPACE CARD. Several agreements stay open at once, which is how
@@ -729,6 +761,59 @@ export class MJCContractsSectionComponent extends BaseResourceComponent implemen
     public Message = '';
     public Error = '';
 
+    /**
+     * Why the last attempt to open a contract failed, shown on the workspace page.
+     *
+     * Separate from `Error`, which nothing renders and which would blank the whole pane if it did.
+     * A row that will not open is a local problem with one row, not a broken page.
+     */
+    public OpenError = '';
+
+    /**
+     * The contracts this person opened most recently, newest first.
+     *
+     * PERSISTED THROUGH UserInfoEngine, NOT localStorage — per-user and server-side, so the list
+     * follows them to another machine. localStorage would tie it to one browser profile and quietly
+     * lose it on a cache clear.
+     *
+     * Stored as IDs and resolved against the loaded roster on read, so a renamed or renumbered
+     * contract shows its current identity and a DELETED one simply drops out instead of offering a
+     * row that cannot open.
+     */
+    private recentIDs: string[] = [];
+    private static readonly RECENTS_KEY = 'mj.contracts.recentContracts.v1';
+    private static readonly RECENTS_MAX = 8;
+
+    public get Recents(): ContractRow[] {
+        return this.recentIDs
+            .map((id) => this.Contracts.find((c) => c.ID === id))
+            .filter((c): c is ContractRow => !!c)
+            .slice(0, MJCContractsSectionComponent.RECENTS_MAX);
+    }
+
+    private loadRecents(): void {
+        const raw = UserInfoEngine.Instance.GetSetting(MJCContractsSectionComponent.RECENTS_KEY);
+        if (!raw) return;
+        try {
+            const parsed: unknown = JSON.parse(raw);
+            // A stored setting is data from outside this code path, so it is validated rather than
+            // trusted: a malformed value must degrade to "no recents", never throw on page load.
+            this.recentIDs = Array.isArray(parsed) ? parsed.filter((v): v is string => typeof v === 'string') : [];
+        } catch {
+            this.recentIDs = [];
+        }
+    }
+
+    private rememberRecent(contractID: string): void {
+        this.recentIDs = [contractID, ...this.recentIDs.filter((id) => id !== contractID)]
+            .slice(0, MJCContractsSectionComponent.RECENTS_MAX);
+        // Debounced and fire-and-forget: opening a contract must not wait on a preference write.
+        UserInfoEngine.Instance.SetSettingDebounced(
+            MJCContractsSectionComponent.RECENTS_KEY,
+            JSON.stringify(this.recentIDs),
+        );
+    }
+
     public Contracts: ContractRow[] = [];
     public Schedules: ScheduleRow[] = [];
     public Commitments: CommitmentRow[] = [];
@@ -808,6 +893,9 @@ export class MJCContractsSectionComponent extends BaseResourceComponent implemen
 
 
     public async ngOnInit(): Promise<void> {
+        // Recents come from a synchronous cache the user bootstrap already populated, so this costs
+        // nothing and does not need to be awaited alongside the roster.
+        this.loadRecents();
         await this.load();
     }
 
@@ -1144,7 +1232,21 @@ export class MJCContractsSectionComponent extends BaseResourceComponent implemen
         }
 
         const draft = await this.loadDraft(row.ID);
-        if (!draft) return;
+        if (!draft) {
+            // SAY SOMETHING. This used to be a bare `return`, so a row that could not load did
+            // nothing at all when clicked — indistinguishable from a dead control, and the most
+            // likely cause is the least obvious one: the contract was deleted by someone else since
+            // this page loaded. So name that cause, and re-read the roster so the stale row goes
+            // away instead of sitting there inviting a second click.
+            this.OpenError =
+                `${row.ContractNumber} could not be opened. It may have been deleted since this page ` +
+                `loaded — the list has been refreshed.`;
+            await this.load();
+            this.cdr.detectChanges();
+            return;
+        }
+        this.OpenError = '';
+        this.rememberRecent(row.ID);
         this.ApplyTypeCeiling(draft);
         this.docSeed += 1;
         this.Drafts.Open({

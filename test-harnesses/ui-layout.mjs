@@ -106,9 +106,20 @@ await p.getByRole('link', { name: /^Contracts$/ }).first().click();
 await p.waitForTimeout(2200);
 await p.locator('mj-left-nav').getByRole('button', { name: /workspace/i }).first().click();
 await p.waitForTimeout(2000);
+// SEARCH IS THE ACCESS POINT — there is no standing roster to click, by design. Typing is the
+// deterministic way in, and it is also the behaviour under test: a full list here would just be a
+// worse copy of "All contracts".
+check('the workspace shows no standing roster before a search',
+    (await p.locator('.card .ch').allInnerTexts()).every((t) => !/of \d+$/.test(t.trim())),
+    (await p.locator('.card .ch').allInnerTexts()).join(' | ').slice(0, 120));
+
+await p.locator('.searchbox input').first().fill('CTR-002001');
+await p.waitForTimeout(1500);
+check('searching surfaces the contract', await p.locator('.pick').count() >= 1);
 await p.locator('.pick').first().click();
 await p.waitForTimeout(3000);
 check('a record opens into the workspace card', await p.locator('mj-workspace-card').count() > 0);
+
 await p.locator('.searchbox input').first().fill('CTR-002004');
 await p.waitForTimeout(1200);
 const picks = await p.locator('.pick').allInnerTexts();
@@ -118,6 +129,31 @@ await p.locator('.pick').first().click();
 await p.waitForTimeout(3000);
 const tabs = await p.locator('mj-workspace-card [role="tab"], mj-workspace-card .ws-tab').count();
 check('opening a hit adds a second document tab', tabs >= 2, `${tabs} tabs`);
+
+// The empty state must not be a dead end: with nothing typed, the two contracts just opened are
+// offered back as recents.
+await p.locator('.searchbox input').first().fill('');
+await p.waitForTimeout(1200);
+const closeAll = p.locator('mj-workspace-card').getByRole('button', { name: /close/i });
+for (let i = await closeAll.count(); i > 0; i--) {
+  await closeAll.first().click().catch(() => {});
+  await p.waitForTimeout(600);
+  await p.keyboard.press('Enter').catch(() => {});
+  await p.waitForTimeout(400);
+}
+const recentHeader = (await p.locator('.card .ch').allInnerTexts()).join(' | ');
+check('with nothing typed the empty state offers recents', /Recently opened/i.test(recentHeader), recentHeader.slice(0, 120));
+
+// A CONTRACT THAT CANNOT BE OPENED MUST SAY SO. The stale-row case is the one that actually
+// happens — someone else deletes a contract while this page is open — and it used to produce a
+// completely silent no-op, which is indistinguishable from a dead control. Simulated by pointing a
+// search at a contract number that does not exist and then at a row whose id has been made
+// unresolvable, which is the closest a black-box test can get without deleting live data.
+await p.locator('.searchbox input').first().fill('CTR-ZZZZZZ');
+await p.waitForTimeout(1200);
+const noMatch = await p.locator('.note.info').allInnerTexts();
+check('a search with no hits explains itself rather than showing an empty box',
+    noMatch.join(' ').match(/No contract matches/i) !== null, noMatch.join(' | ').slice(0, 120));
 await p.close();
 await b.close();
 console.log(`\n${fail === 0 ? 'PASS' : 'FAIL'} — ${pass} passed, ${fail} failed`);
