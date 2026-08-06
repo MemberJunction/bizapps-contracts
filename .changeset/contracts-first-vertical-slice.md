@@ -9,10 +9,15 @@
 First working vertical slice of BizApps Contracts: schema, generated entities, GraphQL
 resolvers and an Explorer UI that creates a contract, lists it and opens it for editing.
 
-**Schema** — the baseline gains `Contract.SupersededByContractID` and `PricedAt`,
-`ContractTerm.ExecutedDate` / `MaxEscalationPercent` / `RenewalNoticeDays`,
-`ContractLine.SubscriptionTypeID`, `PendingSignature` on both status lists, and
-`ContractType` defaults for the cap and notice. Documents move to MJ's polymorphic
+**Schema** — the baseline gains `Contract.SupersededByContractID`, `PricedAt` and
+`RenewalNoticeDays`, `ContractLine.SubscriptionTypeID`, `PendingSignature` on both status
+lists, and `ContractType` defaults for the escalation cap and the notice period.
+
+> Reconciled with "Four schema corrections" in this same release. That entry removes
+> `ContractTerm.ExecutedDate` and `MaxEscalationPercent` and moves `RenewalNoticeDays` up to
+> `Contract`, all of which this entry originally announced as term-level additions. Neither
+> entry has shipped, so this paragraph is stated as the NET result — a changelog that
+> introduces columns a later line in the same release deletes tells the reader nothing true. Documents move to MJ's polymorphic
 `__mj.FileEntityRecordLink` rather than `DocumentFileID` columns. The
 `ExecutedDate >= EffectiveDate` CHECK is removed — agreements are routinely signed before
 they take effect.

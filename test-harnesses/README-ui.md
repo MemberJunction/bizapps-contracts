@@ -1,6 +1,32 @@
 # Browser harnesses — what covers what
 
-`ui-workspace.mjs` is the browser suite. **57 assertions**, one run, driving the real Explorer.
+Three files, each answering a different question. Counts are from the run on 2026-08-06.
+
+| File | Question it answers | Assertions |
+|---|---|---|
+| `ui-workspace.mjs` | Does the app DO the things? Create, save, activate, renew, amend, terminate — driven through the real Explorer. | 96 |
+| `ui-layout.mjs` | Does it LOOK right, at any window size? Every page in every section at three viewports, plus the workspace access model. | 179 |
+| `erd-schema-diff.ts` | Does `docs/ERD.md` still describe the schema that exists? Diagram blocks diffed against `sys.columns`, plus the header's five counts. | 45 |
+
+`ui-layout.mjs` exists because a suite that renders ONE window size cannot see a layout that depends
+on the window size — which is precisely the bug that produced pages with content stacked into a
+column on the right. `erd-schema-diff.ts` exists because every prior "check the ERD" pass was a
+throwaway script, run once and lost, which is why the drift kept coming back.
+
+Run them the same way (`erd-schema-diff.ts` needs no browser, only the instance `.env`):
+
+```sh
+URL=$(mjdev explorer-url contracts-dev | grep -oE 'http://localhost:[0-9]+/#token=[A-Za-z0-9._-]+')
+node test-harnesses/ui-workspace.mjs "$URL"
+node test-harnesses/ui-layout.mjs "$URL"
+npx tsx test-harnesses/erd-schema-diff.ts
+```
+
+`ui-workspace.mjs` WRITES — see the cleanup note below. The other two are read-only.
+
+---
+
+## The consolidation that produced `ui-workspace.mjs`
 
 ## Why there is one and not seven
 
