@@ -424,7 +424,11 @@ interface LogRow {
                         <option *ngFor="let s of StatusOptions" [value]="s">{{ s }}</option>
                     </select>
                     <button mjButton (click)="ClearSearch()" *ngIf="Query || StatusFilter">Clear</button>
-                    <button mjButton="primary" (click)="NewContract()"><i class="fa-solid fa-plus"></i> New contract</button>
+                    <!-- NO "New contract" HERE. The page header carries the primary action for every
+                         page in the app, and this one duplicated it a few hundred pixels away — two
+                         buttons, same label, same effect, and the reader has to work out whether they
+                         differ. One creation control per page, and it lives in the same place on all
+                         nine of them. -->
                 </div>
 
                 <!-- THE RESULTS SHOW WHENEVER THERE IS A SEARCH, not only on an empty workspace.
@@ -813,10 +817,19 @@ export class MJCContractsSectionComponent extends BaseResourceComponent implemen
     /**
      * The primary action for the page currently showing.
      *
-     * NULL IS A REAL ANSWER, and two pages use it. Billing events are created by the engine when a
-     * term activates — a "New billing event" button would invite someone to hand-write a bill the
-     * schedule did not ask for. Renewals due is a worklist whose rows ARE the action. A primary
-     * button that does the wrong thing is worse than no primary button.
+     * EVERY PAGE HAS ONE, and the two worklists were the interesting cases.
+     *
+     * Billing worklist gets **New schedule**, NOT "New billing event". Events are created by the
+     * engine when a term activates; a button offering to hand-write one invites a bill the schedule
+     * never asked for, and duplicate billing is the kind of defect a customer finds before we do.
+     * The schedule is the thing a person legitimately creates to make events exist, so that is the
+     * creation verb for a page about events. ("Run due billing" would be the page's true *action*
+     * rather than a creation, and it is deliberately not here: it produces real orders, and the
+     * orders bridge is still the unavailable default, so the button would fail every time.)
+     *
+     * Renewals due gets **New contract** — the create verb of the section it belongs to, matching
+     * Dashboard, All contracts and Workspace. Renewing is per-row and stays on the rows, because a
+     * renewal needs the term it continues; a global "New term" would have nothing to attach to.
      *
      * The three that need a parent term (schedule, commitment, amendment) open MJ's own new-record
      * form rather than a bespoke dialog: the form carries the term picker and the generated
@@ -837,7 +850,11 @@ export class MJCContractsSectionComponent extends BaseResourceComponent implemen
                 return { Label: 'New commitment', Icon: 'fa-solid fa-plus', Kind: 'commitment' };
             case 'types':
                 return { Label: 'New contract type', Icon: 'fa-solid fa-plus', Kind: 'type' };
-            // 'worklist' — the engine creates billing events. 'renewals' — the rows are the action.
+            case 'worklist':
+                // A schedule, not an event — see the note above.
+                return { Label: 'New schedule', Icon: 'fa-solid fa-calendar-plus', Kind: 'schedule' };
+            case 'renewals':
+                return { Label: 'New contract', Icon: 'fa-solid fa-plus', Kind: 'contract' };
             default:
                 return null;
         }

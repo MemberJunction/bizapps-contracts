@@ -55,6 +55,45 @@ describe('BuildContractTabs — the three states', () => {
         }
     });
 
+    it('keeps Amendments greyed on a SAVED contract whose terms are not running', () => {
+        // The gate used to be "saved", which was wrong in the direction that hides itself: a saved
+        // contract with only Pending terms showed Amendments as available, and the pane then offered
+        // nothing that could work, because both CanAmend and Contracts.AmendTerm require an ACTIVE
+        // term. Saving a contract does not make a term run.
+        const draft = validHeader();
+        draft.ID = 'contract-1';
+        const term = draft.AddTerm();
+        term.ID = 'term-1';
+        term.Status = 'Pending';
+
+        expect(tab(draft, 'amendments').State).toBe('not-yet');
+        expect(tab(draft, 'amendments').Reason).toContain('Active');
+        // …while the other two after-the-fact panes only ever needed the record.
+        expect(tab(draft, 'documents').State).toBe('available');
+        expect(tab(draft, 'history').State).toBe('available');
+    });
+
+    it('lights up Amendments once a term is actually running', () => {
+        const draft = validHeader();
+        draft.ID = 'contract-1';
+        const term = draft.AddTerm();
+        term.ID = 'term-1';
+        term.Status = 'Active';
+
+        expect(tab(draft, 'amendments').State).toBe('available');
+    });
+
+    it('does not count an UNSAVED active term as amendable', () => {
+        // An amendment targets a term by id; a term that has never been written has none, so a draft
+        // that merely says "Active" is not something AmendTerm could act on.
+        const draft = validHeader();
+        draft.ID = 'contract-1';
+        const term = draft.AddTerm();
+        term.Status = 'Active';   // no ID
+
+        expect(tab(draft, 'amendments').State).toBe('not-yet');
+    });
+
     it('keeps the Contract pane reachable always — it is where a contract becomes valid', () => {
         // Blocking it could leave a contract with no way to fix whatever is wrong with it.
         expect(tab(new ContractDraft(), 'contract').State).not.toBe('not-yet');
@@ -73,11 +112,12 @@ describe('BuildContractTabs — the three states', () => {
         expect(tab(draft, 'history').State).toBe('not-yet');
     });
 
-    it('lights up the after-the-fact panes once the draft carries an id', () => {
+    it('lights up the record-dependent panes once the draft carries an id', () => {
         const draft = validHeader();
         draft.ID = 'contract-1';
 
-        for (const key of ['amendments', 'documents', 'history'] as const) {
+        // Amendments is deliberately NOT in this list — it needs a running term, not just a record.
+        for (const key of ['documents', 'history'] as const) {
             expect(tab(draft, key).State).toBe('available');
         }
     });
@@ -154,9 +194,15 @@ describe('ToTabConfigs', () => {
     });
 
     it('leaves reachable tabs enabled', () => {
+        // The fully-reachable state needs a SAVED contract AND a RUNNING term — the fixture used to
+        // stop at a Pending one and still assert every tab was enabled, which passed only because
+        // Amendments was mis-gated on "saved". Corrected because the spec changed, not to get green:
+        // a Pending term genuinely cannot be amended.
         const draft = validHeader();
         draft.ID = 'contract-1';
         const term = draft.AddTerm();
+        term.ID = 'term-1';
+        term.Status = 'Active';
         term.StartDate = '2030-01-01';
         term.EndDate = '2030-12-31';
 

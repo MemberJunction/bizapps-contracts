@@ -106,14 +106,17 @@ try {
     // pane, and the suite never noticed because it only ever visited Workspace and All contracts.
     // A section tab and a rail item are both promises that something is there; this checks all of
     // them, in all three sections, rather than the two the happy path happens to use.
-    // null = this page deliberately has no primary action.
+    // EVERY page carries exactly one primary action, in the header. The two worklists used to carry
+    // none, which read as a missing control rather than a considered one; Billing worklist offers
+    // "New schedule" (never "New billing event" — the engine creates those) and Renewals due offers
+    // its section's create verb.
     const EXPECTED_PRIMARY = {
         'Contracts/Dashboard': 'New contract',
         'Contracts/All contracts': 'New contract',
         'Contracts/Workspace': 'New contract',
-        'Contracts/Renewals due': null,
+        'Contracts/Renewals due': 'New contract',
         'Contracts/Amendments': 'New amendment',
-        'Billing/Billing worklist': null,
+        'Billing/Billing worklist': 'New schedule',
         'Billing/Schedules': 'New schedule',
         'Billing/Commitments': 'New commitment',
         'Setup/Contract types': 'New contract type',
@@ -180,6 +183,10 @@ try {
         check(`4.${label} is muted before the contract is saved`, state?.Disabled === true, JSON.stringify(state));
         check(`4.${label} says why`, (state?.Reason ?? '').includes('once the contract is saved'), state?.Reason ?? 'no tooltip');
     }
+    // Amendments carries the STRICTER precondition, and the tooltip has to say so: saving a contract
+    // does not make a term run, and the pane cannot do anything until one does.
+    check('4.Amendments names the running-term precondition, not just the save',
+        ((await tabState('Amendments'))?.Reason ?? '').includes('Active'), (await tabState('Amendments'))?.Reason ?? '');
 
     console.log('\n5. The issue list names the missing fields');
     const issuesBefore = await page.locator('.issues').innerText();
@@ -252,10 +259,16 @@ try {
     check('7.3 the header reports it saved', (await page.locator('.ws-sub').first().innerText()).includes('Saved'));
     check('7.4 the coverage count survived the round trip', (await tabState('Coverage'))?.Text.includes('1'), (await tabState('Coverage'))?.Text);
 
-    console.log('\n8. Every pane unlocks after the save');
-    for (const label of ['Coverage', 'Billing', 'Commitments', 'Amendments', 'Documents', 'History']) {
+    console.log('\n8. What the save unlocks — and the one thing it does not');
+    for (const label of ['Coverage', 'Billing', 'Commitments', 'Documents', 'History']) {
         check(`8.${label} is reachable`, (await tabState(label))?.Disabled === false);
     }
+    // AMENDMENTS IS NOT IN THAT LIST, and that is the point. Its precondition is a RUNNING term, not
+    // a saved record — the terms here are still Pending. This assertion used to say the opposite and
+    // passed against a gate that was simply wrong: both CanAmend and Contracts.AmendTerm require an
+    // Active term, so the pane was reachable while being unable to do anything.
+    check('8.Amendments stays greyed — the term is saved but not running',
+        (await tabState('Amendments'))?.Disabled === true, JSON.stringify(await tabState('Amendments')));
 
     console.log('\n9. The document tab re-points at the saved contract');
     // If it still said "New contract", closing and reopening it would resurrect an id-less draft and
@@ -288,6 +301,11 @@ try {
         const renew = pane.getByRole('button', { name: /renew/i }).first();
         check('10.3 an active term offers Renew instead', (await renew.count()) > 0);
         check('10.4 and no longer offers Activate', (await pane.getByRole('button', { name: /activate/i }).count()) === 0);
+        // The other half of the section-8 assertion: activation is what unlocks Amendments, and
+        // nothing before it does. Checking both ends is what makes the gate a real rule rather than
+        // a state that happened to be right once.
+        check('10.5 activating the term unlocks the Amendments pane',
+            (await tabState('Amendments'))?.Disabled === false, JSON.stringify(await tabState('Amendments')));
 
         if (await renew.count()) {
             await renew.click();

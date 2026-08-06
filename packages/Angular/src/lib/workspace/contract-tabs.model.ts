@@ -75,6 +75,13 @@ export function BuildContractTabs(draft: ContractDraft): ContractTabDef[] {
     const errored = new Set(draft.SectionsWithErrors);
     const saved = draft.IsSaved;
     const hasTerm = draft.Terms.length > 0;
+    // AN AMENDMENT NEEDS A RUNNING TERM, NOT MERELY A SAVED CONTRACT. This gate used to be `saved`,
+    // which was wrong in the direction that is hardest to notice: too PERMISSIVE. A saved contract
+    // whose terms are all Pending showed Amendments as available, and the pane then offered nothing
+    // that could work — `CanAmend` requires an Active term and `Contracts.AmendTerm` refuses one that
+    // is not running. An enabled control that cannot act is worse than a disabled one, because the
+    // disabled one at least says why.
+    const hasRunningTerm = draft.Terms.some((t) => !!t.ID && t.Status === 'Active');
 
     /** A tab that is reachable: red when its section has an error, plain otherwise. */
     const live = (Key: ContractTabKey, Label: string, Count: number | null): ContractTabDef => {
@@ -117,15 +124,25 @@ export function BuildContractTabs(draft: ContractDraft): ContractTabDef[] {
         // happened to. On an unsaved draft they are visible-but-unreachable rather than hidden, so
         // the strip shows the whole shape of a contract from the first moment.
         //
-        // These are the ONLY three that stay greyed on a new contract, because a new contract is
-        // seeded with a term (see MJCContractsSectionComponent.NewContract). Coverage, billing and
-        // commitments are things a person sets WHILE creating an agreement, so gating them behind a
-        // separate step was a form getting in the way of the work. What remains is not a choice: an
-        // amendment changes a term that already exists, a file attaches to a saved RecordID, and
-        // there is no history until something has happened.
-        saved
+        // These three stay greyed on a new contract, because a new contract is seeded with a term
+        // (see MJCContractsSectionComponent.NewContract). Coverage, billing and commitments are
+        // things a person sets WHILE creating an agreement, so gating them behind a separate step was
+        // a form getting in the way of the work. What remains is not a choice: an amendment changes a
+        // term that is RUNNING, a file attaches to a saved RecordID, and there is no history until
+        // something has happened.
+        //
+        // The three preconditions are genuinely DIFFERENT and are not interchangeable — saving a
+        // contract does not make a term run, which is precisely the distinction the amendment gate
+        // used to lose.
+        hasRunningTerm
             ? live('amendments', 'Amendments', null)
-            : blocked('amendments', 'Amendments', 'Available once the contract is saved — an amendment changes a term that already exists.'),
+            : blocked(
+                  'amendments',
+                  'Amendments',
+                  saved
+                      ? 'Available once a term is Active — an amendment changes a term that is RUNNING. Activate a term first.'
+                      : 'Available once the contract is saved and a term is Active — an amendment changes a term that is already running.',
+              ),
 
         saved
             ? live('documents', 'Documents', null)

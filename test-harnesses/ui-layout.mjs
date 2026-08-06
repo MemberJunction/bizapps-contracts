@@ -65,6 +65,22 @@ for (const [w,h] of SIZES) {
           paneW: Math.round(pane.width),
         };
       });
+      // EXACTLY ONE creation control per page, and it lives in the header.
+      //
+      // Counted OUTSIDE mj-workspace-card deliberately: the card's document strip has its own "+"
+      // new-tab affordance, which is chrome that comes with the card rather than a page-level
+      // button, so excluding it keeps this assertion about the thing it is actually policing —
+      // a second "New X" a few hundred pixels from the first one, where the reader has to work out
+      // whether the two differ.
+      const news = await p.evaluate(() => {
+        const all = [...document.querySelectorAll('button, a[role=button]')];
+        return all
+          .filter((b) => !b.closest('mj-workspace-card'))
+          .map((b) => (b.textContent || '').trim())
+          .filter((t) => /^New\s/i.test(t));
+      });
+      check(`${section}/${item} @${w} has exactly one "New …" control`, news.length === 1, news.join(' | ') || 'none');
+
       const key = `${section}/${item}`;
       check(`${key} @${w} uses the interior scroller`, m.hasInterior);
       check(`${key} @${w} fills to the bottom`, m.bottomGap === 0, `gap ${m.bottomGap}px`);
