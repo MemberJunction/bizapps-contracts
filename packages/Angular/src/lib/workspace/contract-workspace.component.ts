@@ -64,8 +64,18 @@ export interface WorkspaceLookup {
 }
 
 /** Every picker list the panes need, supplied once by the shell. */
+/**
+ * A contract type, plus the escalation ceiling every term of that type is judged against.
+ *
+ * Carried on the lookup because the ceiling moved onto the TYPE on 2026-08-05, so the ONLY way the
+ * workspace can flag an over-cap escalation as it is typed is to know the selected type's ceiling.
+ */
+export interface WorkspaceTypeLookup extends WorkspaceLookup {
+    DefaultMaxEscalationPercent?: number | null;
+}
+
 export interface WorkspaceLookups {
-    Types: WorkspaceLookup[];
+    Types: WorkspaceTypeLookup[];
     Companies: WorkspaceLookup[];
     Organizations: WorkspaceLookup[];
     People: WorkspaceLookup[];
@@ -180,7 +190,7 @@ const TERM_STATUSES = ['Pending', 'PendingSignature', 'Active', 'Completed', 'Te
         <div class="grid">
           <div class="fld" [class.bad]="HasFieldIssue('ContractTypeID')">
             <label>Contract type</label>
-            <select [(ngModel)]="Draft.ContractTypeID" (ngModelChange)="Touch()">
+            <select [(ngModel)]="Draft.ContractTypeID" (ngModelChange)="TypeChanged()">
               <option value="">Choose…</option>
               <option *ngFor="let t of Lookups.Types" [value]="t.ID">{{ t.Name }}</option>
             </select>
@@ -222,6 +232,10 @@ const TERM_STATUSES = ['Pending', 'PendingSignature', 'Active', 'Completed', 'Te
           <div class="fld">
             <label>Executed date</label>
             <input type="date" [(ngModel)]="Draft.ExecutedDate" (ngModelChange)="Touch()" />
+          </div>
+          <div class="fld">
+            <label>Renewal notice (days)</label>
+            <input type="number" [(ngModel)]="Draft.RenewalNoticeDays" (ngModelChange)="Touch()" />
           </div>
           <div class="fld">
             <label>Owner</label>
@@ -363,8 +377,6 @@ const TERM_STATUSES = ['Pending', 'PendingSignature', 'Active', 'Completed', 'Te
               </div>
               <div class="fld"><label>Committed amount</label><input type="number" [(ngModel)]="term.CommittedAmount" (ngModelChange)="Touch()" /></div>
               <div class="fld"><label>Escalation % (fraction)</label><input type="number" step="0.0001" [(ngModel)]="term.EscalationPercent" (ngModelChange)="Touch()" /></div>
-              <div class="fld"><label>Ceiling % (fraction)</label><input type="number" step="0.0001" [(ngModel)]="term.MaxEscalationPercent" (ngModelChange)="Touch()" /></div>
-              <div class="fld"><label>Renewal notice (days)</label><input type="number" [(ngModel)]="term.RenewalNoticeDays" (ngModelChange)="Touch()" /></div>
               <div class="fld">
                 <label>Payment terms</label>
                 <select [(ngModel)]="term.PaymentTermsTypeID" (ngModelChange)="Touch()">
@@ -635,6 +647,19 @@ export class MJCContractWorkspaceComponent {
      * strip would disagree. `ResolveActiveTab` moves them somewhere reachable — preferring wherever
      * the work actually is.
      */
+    /**
+     * The contract type changed, so the escalation ceiling the draft validates against changed too.
+     *
+     * Without this, switching from a type with no ceiling to one that caps at 3% would leave a 5%
+     * escalation showing green until the server refused it — the client hint judging the number
+     * against the ceiling of a type the contract no longer has.
+     */
+    public TypeChanged(): void {
+        const type = this.Lookups.Types.find((t) => t.ID === this.Draft.ContractTypeID);
+        this.Draft.TypeCeilingPercent = type?.DefaultMaxEscalationPercent ?? null;
+        this.Touch();
+    }
+
     public Touch(): void {
         const resolved = ResolveActiveTab(this.Tabs, this.ActiveTab());
         if (resolved !== this.ActiveTab()) this.ActiveTab.set(resolved);

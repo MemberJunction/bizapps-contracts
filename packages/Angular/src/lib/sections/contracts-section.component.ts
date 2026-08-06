@@ -33,7 +33,7 @@ import { BaseFormsModule, MJFormPresenterService } from '@memberjunction/ng-base
 import type { FormNavigationEvent } from '@memberjunction/ng-base-forms';
 import {
     MJLeftNavComponent, MJLeftNavContentComponent, MJPageLayoutComponent, MJPageHeaderComponent,
-    MJPageBodyComponent, MJButtonDirective,
+    MJPageBodyComponent, MJPageBodyInteriorComponent, MJButtonDirective,
     type MJLeftNavSection, type MJLeftNavItem,
 } from '@memberjunction/ng-ui-components';
 // The IA as data, and the one surface that views, edits and creates a contract.
@@ -100,7 +100,8 @@ const E_CURRENCIES = 'MJ_BizApps_Accounting: Currencies';
 interface ContractRow {
     ID: string; ContractNumber: string; Status: string; Description: string | null;
     EffectiveDate: string | null; ExecutedDate: string | null; PricedAt: string | null;
-    AutoRenew: boolean; CancellationWindowDays: number | null; ExternalReferenceID: string | null;
+    AutoRenew: boolean; CancellationWindowDays: number | null; RenewalNoticeDays: number | null;
+    ExternalReferenceID: string | null;
 }
 /* The cross-contract worklist rows. Deliberately flat and read-only: these views exist to FIND a
    contract, and every one of them opens the real workspace on click. */
@@ -111,14 +112,15 @@ interface AmendmentRow { ID: string; ContractTermID: string; AmendmentNumber: nu
 interface TermRow {
     ID: string; ContractID: string; TermNumber: number; Status: string;
     StartDate: string | null; EndDate: string | null; CommittedAmount: number | null;
-    EscalationPercent: number | null; MaxEscalationPercent: number | null; RenewalNoticeDays: number | null;
-    BillingFrequency: string | null; ExecutedDate: string | null;
+    EscalationPercent: number | null; BillingFrequency: string | null;
 }
 interface EventRow {
     ID: string; ContractTermID: string; ScheduledDate: string | null; Status: string;
     ComputedAmount: number | null; FailureReason: string | null;
 }
 interface Lookup { ID: string; Name: string }
+/** A contract type, plus the escalation ceiling every term of that type is judged against. */
+interface TypeRow extends Lookup { DefaultMaxEscalationPercent: number | null }
 
 /** One entry in a contract's audit trail. The vocabulary is closed and the rows cannot be edited. */
 interface LogRow {
@@ -138,13 +140,29 @@ interface LogRow {
     standalone: true,
     imports: [
         CommonModule, FormsModule, BaseFormsModule, MJButtonDirective,
-        MJPageLayoutComponent, MJPageHeaderComponent, MJPageBodyComponent,
+        MJPageLayoutComponent, MJPageHeaderComponent, MJPageBodyComponent, MJPageBodyInteriorComponent,
         MJLeftNavComponent, MJLeftNavContentComponent,
         MJCContractWorkspaceComponent, WorkspaceCardComponent,
     ],
     styles: [
         `
         .wrap { padding: var(--mj-space-5, 20px) var(--mj-space-6, 24px) var(--mj-space-10, 40px); }
+
+        /* THE WORKSPACE PAGE FILLS THE PANE; EVERY OTHER PAGE IS ORDINARY DOCUMENT FLOW.
+           A list or a dashboard is a column of cards that should size to their content and let the
+           interior scroll. The workspace is the opposite: it is one card that should reach the
+           bottom of the window, because it holds a tab strip and a pane that scrolls INSIDE it.
+
+           This used to happen by accident. mj-left-nav-content forces its direct children to
+           display:flex + height:100%, so while the page divs sat directly inside it the card
+           inherited a height for free — and every other page inherited clipping it did not want.
+           Now the interior owns the scrolling and this ONE page opts into filling, which is the
+           right way round: the exception is declared, not imposed on everything.
+
+           min-height rather than height so the card can still grow past the fold (a contract with
+           many terms) and let the interior scroll, instead of being trapped at exactly one screen. */
+        .wrap.fill { min-height: 100%; display: flex; flex-direction: column; }
+        .wrap.fill > mj-workspace-card { flex: 1 1 auto; min-height: 0; }
         /* The cross-contract worklists. App-authored rather than a raw entity grid, because the
            point of these screens is to resolve a foreign key into something a person recognises —
            and every row opens the real workspace. */
@@ -330,6 +348,24 @@ interface LogRow {
             <mj-left-nav [Sections]="NavSections" [ActiveId]="Page" MobileTitle="Contracts" (ItemClicked)="OnNav($event)"></mj-left-nav>
 
             <mj-left-nav-content>
+            <!-- THE SCROLLER, AND WHY IT IS NOT OPTIONAL.
+                 mj-left-nav-content forces EVERY direct child to
+                 display:flex + flex-direction:column + height:100% + overflow:hidden through an
+                 ::ng-deep rule, so page content dropped straight into it stops being block flow and
+                 becomes a fixed-height flex column that CLIPS instead of scrolling — and its layout
+                 becomes a function of the window height, which is how a tall card ends up somewhere
+                 nobody put it.
+
+                 mj-page-body-interior is the sanctioned container and is named in that rule's
+                 :not() list precisely so it keeps its own behaviour: display:block, flex:1 1 auto,
+                 overflow-y:auto. It fills to the bottom of the pane and scrolls what does not fit,
+                 so the layout no longer depends on the viewport at all. ONE of them wraps all nine
+                 pages, so every page in all three sections flows and scrolls identically. This is
+                 MJ's own chrome pattern (left-nav-content, then page-body-interior, then content) —
+                 see testing-explorer.component.ts.
+
+                 Padding off: .wrap already declares the page gutter. -->
+            <mj-page-body-interior [Padding]="false">
 
             <!-- ============ 1. CONTRACTS ============ -->
             <div class="wrap" *ngIf="Page === 'list'">
@@ -376,7 +412,7 @@ interface LogRow {
                  The OUTER strip is open documents — several contracts side by side, a new one being
                  simply a card with no id. The INNER tabs are panes of one contract, each carrying one
                  of three states so the strip teaches the sequence as well as showing it. -->
-            <div class="wrap" *ngIf="Page === 'workspace'">
+            <div class="wrap fill" *ngIf="Page === 'workspace'">
                 <div class="searchbar">
                     <span class="searchbox">
                         <i class="fa-solid fa-magnifying-glass"></i>
@@ -391,8 +427,17 @@ interface LogRow {
                     <button mjButton="primary" (click)="NewContract()"><i class="fa-solid fa-plus"></i> New contract</button>
                 </div>
 
-                <div class="card" *ngIf="!Drafts.Count">
-                    <div class="ch">Open a contract <span class="r">{{ Matches.length }} of {{ Contracts.length }}</span></div>
+                <!-- THE RESULTS SHOW WHENEVER THERE IS A SEARCH, not only on an empty workspace.
+                     This was *ngIf="!Drafts.Count", so the moment a contract was open the search box
+                     stayed on screen with its results hidden — you typed and nothing happened, which
+                     reads as a broken control rather than a deliberate one. The workspace holds
+                     several agreements at once, so finding another one WHILE reading this one is the
+                     normal case; a hit opens in its own tab beside it. -->
+                <div class="card" *ngIf="!Drafts.Count || Query || StatusFilter">
+                    <div class="ch">
+                        {{ Drafts.Count ? 'Open another contract' : 'Open a contract' }}
+                        <span class="r">{{ Matches.length }} of {{ Contracts.length }}</span>
+                    </div>
                     <div class="note info" *ngIf="!Matches.length">
                         No contract matches that search. Clear it, or start a new contract.
                     </div>
@@ -625,6 +670,7 @@ interface LogRow {
                 </div>
             </div>
 
+            </mj-page-body-interior>
             </mj-left-nav-content>
         </mj-page-body>
     </mj-page-layout>
@@ -686,7 +732,7 @@ export class MJCContractsSectionComponent extends BaseResourceComponent implemen
     public Terms: TermRow[] = [];
     public Events: EventRow[] = [];
     public Log: LogRow[] = [];
-    public Types: Lookup[] = [];
+    public Types: TypeRow[] = [];
     public Companies: Lookup[] = [];
     public Orgs: Lookup[] = [];
     public People: Lookup[] = [];
@@ -994,12 +1040,46 @@ export class MJCContractsSectionComponent extends BaseResourceComponent implemen
      * Note what does NOT happen here: no navigation to a different page, no separate create mode,
      * no different component. That is the consolidation working.
      */
+    /**
+     * Give a draft the escalation ceiling its contract type prescribes.
+     *
+     * ADVISORY ONLY — the entity layer reads the ceiling from the type itself and refuses a term
+     * that exceeds it, and that is the copy that counts. This one exists so an over-cap escalation
+     * turns red as it is typed rather than on submit. Re-called whenever the TYPE changes, because a
+     * hint left over from the previous type would judge the number against the wrong ceiling.
+     */
+    public ApplyTypeCeiling(draft: ContractDraft | null | undefined): void {
+        if (!draft) return;
+        draft.TypeCeilingPercent = this.Types.find((t) => t.ID === draft.ContractTypeID)?.DefaultMaxEscalationPercent ?? null;
+    }
+
     public NewContract(): void {
         const draft = new ContractDraft();
         draft.Status = 'Draft';
+        // A NEW CONTRACT STARTS WITH A TERM.
+        //
+        // Coverage, billing and commitments all hang off a term, so a contract with none had six of
+        // its eight panes greyed out on creation — technically correct and useless, because those
+        // are exactly the things a person sets WHILE creating a contract. Nobody records an
+        // agreement and then decides separately whether it has a period.
+        //
+        // Seeding one takes the greyed count from six to three, and the three that remain
+        // (Amendments, Documents, History) genuinely cannot exist before the record does: an
+        // amendment changes a term that already exists, a file attaches through
+        // FileEntityRecordLink to a saved RecordID, and there is no history until something has
+        // happened. Those are facts about the data, not choices about the form.
+        const term = draft.AddTerm();
+        const today = new Date();
+        const start = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()));
+        const end = new Date(start);
+        end.setUTCFullYear(end.getUTCFullYear() + 1);
+        end.setUTCDate(end.getUTCDate() - 1);
+        term.StartDate = start.toISOString().slice(0, 10);
+        term.EndDate = end.toISOString().slice(0, 10);
         // Seed the single-company case so the commonest contract needs one fewer choice. A
         // multi-company tenant sees a picker with a value already selected, which is still correct.
         if (this.Companies.length === 1) draft.CompanyID = this.Companies[0].ID;
+        this.ApplyTypeCeiling(draft);
         this.docSeed += 1;
         this.Drafts.Open({
             Id: `new-${this.docSeed}`,
@@ -1048,6 +1128,7 @@ export class MJCContractsSectionComponent extends BaseResourceComponent implemen
 
         const draft = await this.loadDraft(row.ID);
         if (!draft) return;
+        this.ApplyTypeCeiling(draft);
         this.docSeed += 1;
         this.Drafts.Open({
             Id: `open-${this.docSeed}`,
@@ -1167,6 +1248,7 @@ export class MJCContractsSectionComponent extends BaseResourceComponent implemen
             PricedAt: iso(header['PricedAt']),
             AutoRenew: !!header['AutoRenew'],
             CancellationWindowDays: (header['CancellationWindowDays'] as number) ?? null,
+            RenewalNoticeDays: (header['RenewalNoticeDays'] as number) ?? null,
             TerminationPolicy: (header['TerminationPolicy'] as string) ?? null,
             ExternalReferenceID: (header['ExternalReferenceID'] as string) ?? null,
             Terms: termRows.map((t) => {
@@ -1180,13 +1262,10 @@ export class MJCContractsSectionComponent extends BaseResourceComponent implemen
                     CommittedAmount: (t['CommittedAmount'] as number) ?? null,
                     EscalationPercent: (t['EscalationPercent'] as number) ?? null,
                     EscalationBasis: (t['EscalationBasis'] as string) ?? null,
-                    MaxEscalationPercent: (t['MaxEscalationPercent'] as number) ?? null,
-                    RenewalNoticeDays: (t['RenewalNoticeDays'] as number) ?? null,
                     RenewalProbability: (t['RenewalProbability'] as number) ?? null,
                     PaymentTermsTypeID: (t['PaymentTermsTypeID'] as string) ?? null,
                     CurrencyID: (t['CurrencyID'] as string) ?? null,
                     EarlyTerminationDate: iso(t['EarlyTerminationDate']),
-                    ExecutedDate: iso(t['ExecutedDate']),
                     Notes: (t['Notes'] as string) ?? null,
                     Lines: byTerm(lines?.Results as Record<string, unknown>[] | undefined, termID).map((l) => ({
                         ID: String(l['ID']),
@@ -1585,10 +1664,10 @@ export class MJCContractsSectionComponent extends BaseResourceComponent implemen
         const rv = new RunView();
         const [contracts, terms, events, types, companies, orgs, people, users, payterms, currencies, products, subtypes, log,
                schedules, commitments, amendments] = await rv.RunViews([
-            { EntityName: E_CONTRACTS, Fields: ['ID', 'ContractNumber', 'Status', 'Description', 'EffectiveDate', 'ExecutedDate', 'PricedAt', 'AutoRenew', 'CancellationWindowDays', 'ExternalReferenceID'], OrderBy: 'ContractNumber', ResultType: 'simple' },
-            { EntityName: E_TERMS, Fields: ['ID', 'ContractID', 'TermNumber', 'Status', 'StartDate', 'EndDate', 'CommittedAmount', 'EscalationPercent', 'MaxEscalationPercent', 'RenewalNoticeDays', 'BillingFrequency', 'ExecutedDate'], OrderBy: 'TermNumber', ResultType: 'simple' },
+            { EntityName: E_CONTRACTS, Fields: ['ID', 'ContractNumber', 'Status', 'Description', 'EffectiveDate', 'ExecutedDate', 'PricedAt', 'AutoRenew', 'CancellationWindowDays', 'RenewalNoticeDays', 'ExternalReferenceID'], OrderBy: 'ContractNumber', ResultType: 'simple' },
+            { EntityName: E_TERMS, Fields: ['ID', 'ContractID', 'TermNumber', 'Status', 'StartDate', 'EndDate', 'CommittedAmount', 'EscalationPercent', 'BillingFrequency'], OrderBy: 'TermNumber', ResultType: 'simple' },
             { EntityName: E_EVENTS, Fields: ['ID', 'ContractTermID', 'ScheduledDate', 'Status', 'ComputedAmount', 'FailureReason'], OrderBy: 'ScheduledDate', ResultType: 'simple' },
-            { EntityName: E_TYPES, Fields: ['ID', 'Name'], OrderBy: 'Name', ResultType: 'simple' },
+            { EntityName: E_TYPES, Fields: ['ID', 'Name', 'DefaultMaxEscalationPercent'], OrderBy: 'Name', ResultType: 'simple' },
             { EntityName: E_COMPANIES, Fields: ['ID', 'Name'], OrderBy: 'Name', ResultType: 'simple' },
             { EntityName: E_ORGS, Fields: ['ID', 'Name'], OrderBy: 'Name', ResultType: 'simple' },
             { EntityName: E_PEOPLE, Fields: ['ID', 'Name'], OrderBy: 'Name', ResultType: 'simple' },
@@ -1610,7 +1689,7 @@ export class MJCContractsSectionComponent extends BaseResourceComponent implemen
         this.Contracts = contracts?.Success ? (contracts.Results as ContractRow[]) : [];
         this.Terms = terms?.Success ? (terms.Results as TermRow[]) : [];
         this.Events = events?.Success ? (events.Results as EventRow[]) : [];
-        this.Types = types?.Success ? (types.Results as Lookup[]) : [];
+        this.Types = types?.Success ? (types.Results as TypeRow[]) : [];
         this.Companies = companies?.Success ? (companies.Results as Lookup[]) : [];
         this.Orgs = orgs?.Success ? (orgs.Results as Lookup[]) : [];
         this.People = people?.Success ? (people.Results as Lookup[]) : [];

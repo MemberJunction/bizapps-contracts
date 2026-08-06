@@ -3,7 +3,7 @@
  *
  * WHY THIS ONE MATTERS MOST. A term is where the money actually lives, and the generated form lists
  * twenty-one columns in schema order under a single "Details" panel. In that layout
- * `EscalationPercent` and `MaxEscalationPercent` are adjacent but unexplained, so nothing tells the
+ * `EscalationPercent` is unexplained on a generated form, so nothing tells the
  * reader that the second is a NEGOTIATED CEILING on the first — the single most disputed clause in a
  * B2B renewal, and the one the entity layer will refuse a save over. `BillingAnchorMonth` and
  * `BillingAnchorDay` sit apart from `BillingFrequency` they belong to. `RenewalOfTermID` looks like
@@ -83,7 +83,6 @@ import type { mjBizAppsContractsContractTermEntity } from '@mj-biz-apps/contract
                 <mj-form-field [Record]="record" [ShowLabel]="true" FieldName="Status" Type="textbox" [EditMode]="EditMode" [FormContext]="formContext"></mj-form-field>
                 <mj-form-field [Record]="record" [ShowLabel]="true" FieldName="StartDate" Type="textbox" [EditMode]="EditMode" [FormContext]="formContext"></mj-form-field>
                 <mj-form-field [Record]="record" [ShowLabel]="true" FieldName="EndDate" Type="textbox" [EditMode]="EditMode" [FormContext]="formContext"></mj-form-field>
-                <mj-form-field [Record]="record" [ShowLabel]="true" FieldName="ExecutedDate" Type="textbox" [EditMode]="EditMode" [FormContext]="formContext"></mj-form-field>
             </mj-collapsible-panel>
 
             <!-- WHAT WAS COMMITTED -->
@@ -121,9 +120,7 @@ import type { mjBizAppsContractsContractTermEntity } from '@mj-biz-apps/contract
                     0.05 is 5%. Raising the cap is a negotiation, not a correction.
                 </div>
                 <mj-form-field [Record]="record" [ShowLabel]="true" FieldName="EscalationPercent" Type="numerictextbox" [EditMode]="EditMode" [FormContext]="formContext"></mj-form-field>
-                <mj-form-field [Record]="record" [ShowLabel]="true" FieldName="MaxEscalationPercent" Type="numerictextbox" [EditMode]="EditMode" [FormContext]="formContext"></mj-form-field>
                 <mj-form-field [Record]="record" [ShowLabel]="true" FieldName="EscalationBasis" Type="textbox" [EditMode]="EditMode" [FormContext]="formContext"></mj-form-field>
-                <mj-form-field [Record]="record" [ShowLabel]="true" FieldName="RenewalNoticeDays" Type="numerictextbox" [EditMode]="EditMode" [FormContext]="formContext"></mj-form-field>
                 <mj-form-field [Record]="record" [ShowLabel]="true" FieldName="RenewalProbability" Type="numerictextbox" [EditMode]="EditMode" [FormContext]="formContext"></mj-form-field>
                 <div class="hint">
                     <strong>Renewal of</strong> is the link that makes continuity navigable — it points at the term this

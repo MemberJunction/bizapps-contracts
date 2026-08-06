@@ -88,6 +88,7 @@ async function addTerm(
     term.StartDate = new Date(start);
     term.EndDate = new Date(end);
     term.Status = 'Pending';
+    term.CommittedAmount = 0;
     term.BillingFrequency = frequency;
     return term;
 }

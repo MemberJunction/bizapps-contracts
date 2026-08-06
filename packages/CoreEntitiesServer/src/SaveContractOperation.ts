@@ -152,6 +152,7 @@ export class SaveContractOperation extends BaseRemotableOperation<SaveContractIn
         contract.Description = payload.Description ?? null;
         contract.EffectiveDate = SaveContractOperation.toDate(payload.EffectiveDate);
         contract.ExecutedDate = SaveContractOperation.toDate(payload.ExecutedDate);
+        contract.RenewalNoticeDays = payload.RenewalNoticeDays ?? null;
         contract.AutoRenew = !!payload.AutoRenew;
         contract.CancellationWindowDays = payload.CancellationWindowDays ?? null;
         contract.TerminationPolicy = payload.TerminationPolicy ?? null;
@@ -207,13 +208,10 @@ export class SaveContractOperation extends BaseRemotableOperation<SaveContractIn
         term.CommittedAmount = payload.CommittedAmount ?? null;
         term.EscalationPercent = payload.EscalationPercent ?? null;
         term.EscalationBasis = (payload.EscalationBasis ?? null) as typeof term.EscalationBasis;
-        term.MaxEscalationPercent = payload.MaxEscalationPercent ?? null;
-        term.RenewalNoticeDays = payload.RenewalNoticeDays ?? null;
         term.RenewalProbability = payload.RenewalProbability ?? null;
         term.PaymentTermsTypeID = payload.PaymentTermsTypeID ?? null;
         term.CurrencyID = payload.CurrencyID ?? null;
         term.EarlyTerminationDate = SaveContractOperation.toDate(payload.EarlyTerminationDate);
-        term.ExecutedDate = SaveContractOperation.toDate(payload.ExecutedDate);
         term.Notes = payload.Notes ?? null;
     }
 
@@ -292,6 +290,7 @@ export class SaveContractOperation extends BaseRemotableOperation<SaveContractIn
             Description: contract.Description,
             EffectiveDate: SaveContractOperation.toISO(contract.EffectiveDate),
             ExecutedDate: SaveContractOperation.toISO(contract.ExecutedDate),
+            RenewalNoticeDays: contract.RenewalNoticeDays,
             PricedAt: SaveContractOperation.toISO(contract.PricedAt),
             AutoRenew: contract.AutoRenew,
             CancellationWindowDays: contract.CancellationWindowDays,
@@ -346,13 +345,10 @@ export class SaveContractOperation extends BaseRemotableOperation<SaveContractIn
             CommittedAmount: term.CommittedAmount,
             EscalationPercent: term.EscalationPercent,
             EscalationBasis: term.EscalationBasis,
-            MaxEscalationPercent: term.MaxEscalationPercent,
-            RenewalNoticeDays: term.RenewalNoticeDays,
             RenewalProbability: term.RenewalProbability,
             PaymentTermsTypeID: term.PaymentTermsTypeID,
             CurrencyID: term.CurrencyID,
             EarlyTerminationDate: SaveContractOperation.toISO(term.EarlyTerminationDate),
-            ExecutedDate: SaveContractOperation.toISO(term.ExecutedDate),
             Notes: term.Notes,
             Lines: lines,
             Schedules: schedules,

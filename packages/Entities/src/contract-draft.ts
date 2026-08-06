@@ -122,13 +122,10 @@ export interface ContractDraftTermPayload {
     CommittedAmount?: number | null;
     EscalationPercent?: number | null;
     EscalationBasis?: string | null;
-    MaxEscalationPercent?: number | null;
-    RenewalNoticeDays?: number | null;
     RenewalProbability?: number | null;
     PaymentTermsTypeID?: string | null;
     CurrencyID?: string | null;
     EarlyTerminationDate?: string | null;
-    ExecutedDate?: string | null;
     Notes?: string | null;
     Lines: ContractDraftLinePayload[];
     Schedules: ContractDraftSchedulePayload[];
@@ -152,6 +149,7 @@ export interface ContractDraftPayload {
     PricedAt?: string | null;
     AutoRenew?: boolean;
     CancellationWindowDays?: number | null;
+    RenewalNoticeDays?: number | null;
     TerminationPolicy?: string | null;
     ExternalReferenceID?: string | null;
     Terms: ContractDraftTermPayload[];
@@ -267,13 +265,10 @@ export class ContractDraftTerm {
     public CommittedAmount: number | null = null;
     public EscalationPercent: number | null = null;
     public EscalationBasis: string | null = null;
-    public MaxEscalationPercent: number | null = null;
-    public RenewalNoticeDays: number | null = null;
     public RenewalProbability: number | null = null;
     public PaymentTermsTypeID: string | null = null;
     public CurrencyID: string | null = null;
     public EarlyTerminationDate: string | null = null;
-    public ExecutedDate: string | null = null;
     public Notes: string | null = null;
 
     public Lines: ContractDraftLine[] = [];
@@ -297,13 +292,10 @@ export class ContractDraftTerm {
             CommittedAmount: this.CommittedAmount,
             EscalationPercent: this.EscalationPercent,
             EscalationBasis: this.EscalationBasis,
-            MaxEscalationPercent: this.MaxEscalationPercent,
-            RenewalNoticeDays: this.RenewalNoticeDays,
             RenewalProbability: this.RenewalProbability,
             PaymentTermsTypeID: this.PaymentTermsTypeID,
             CurrencyID: this.CurrencyID,
             EarlyTerminationDate: this.EarlyTerminationDate,
-            ExecutedDate: this.ExecutedDate,
             Notes: this.Notes,
             Lines: this.Lines.map((l) => l.ToPayload()),
             Schedules: this.Schedules.map((s) => s.ToPayload()),
@@ -338,6 +330,18 @@ export class ContractDraft {
     public PricedAt: string | null = null;
     public AutoRenew = false;
     public CancellationWindowDays: number | null = null;
+    public RenewalNoticeDays: number | null = null;
+
+    /**
+     * The escalation ceiling from this contract's TYPE, for validation feedback only.
+     *
+     * ADVISORY, NOT AUTHORITATIVE, and deliberately not sent to the server. The ceiling lives on
+     * `ContractType.DefaultMaxEscalationPercent`; the entity layer reads it there and refuses a term
+     * that exceeds it, and that is the copy that counts. This one exists so the number can turn red
+     * as it is typed rather than on submit — a UI affordance, filled in by whoever loads the draft.
+     * Null simply means "we do not know the ceiling here", and the check is skipped.
+     */
+    public TypeCeilingPercent: number | null = null;
     public TerminationPolicy: string | null = null;
     public ExternalReferenceID: string | null = null;
 
@@ -528,18 +532,26 @@ export class ContractDraft {
         }
         if (!term.BillingFrequency) at('terms', 'BillingFrequency', 'Choose how often this term bills.');
 
-        // The escalation ceiling. The server enforces this too, and that is the copy that counts —
-        // this one exists so the number turns red as it is typed rather than on submit.
+        // The escalation ceiling, from the contract's TYPE. The server enforces this too, reading the
+        // type itself, and that is the copy that counts — this one exists so the number turns red as
+        // it is typed rather than on submit. Skipped when the ceiling is not known here.
         if (
             term.EscalationPercent !== null &&
-            term.MaxEscalationPercent !== null &&
-            term.EscalationPercent > term.MaxEscalationPercent
+            this.TypeCeilingPercent !== null &&
+            term.EscalationPercent > this.TypeCeilingPercent
         ) {
             at(
                 'terms',
                 'EscalationPercent',
-                `An escalation of ${(term.EscalationPercent * 100).toFixed(2)}% exceeds this term's ceiling of ${(term.MaxEscalationPercent * 100).toFixed(2)}%.`,
+                `An escalation of ${(term.EscalationPercent * 100).toFixed(2)}% exceeds the ceiling of ` +
+                    `${(this.TypeCeilingPercent * 100).toFixed(2)}% set by this contract's type.`,
             );
+        }
+
+        // A term states what was committed for its period — the column is NOT NULL, so a draft
+        // without it cannot save, and saying so here beats a database error at submit.
+        if (term.CommittedAmount === null || term.CommittedAmount === undefined) {
+            at('terms', 'CommittedAmount', 'State the amount committed for this term. Zero is a valid answer; blank is not.');
         }
 
         if (term.Status === 'Active' && term.Lines.length === 0) {
@@ -629,6 +641,7 @@ export class ContractDraft {
         draft.Description = payload.Description ?? null;
         draft.EffectiveDate = payload.EffectiveDate ?? null;
         draft.ExecutedDate = payload.ExecutedDate ?? null;
+        draft.RenewalNoticeDays = payload.RenewalNoticeDays ?? null;
         draft.PricedAt = payload.PricedAt ?? null;
         draft.AutoRenew = payload.AutoRenew ?? false;
         draft.CancellationWindowDays = payload.CancellationWindowDays ?? null;
@@ -645,13 +658,10 @@ export class ContractDraft {
             term.CommittedAmount = termPayload.CommittedAmount ?? null;
             term.EscalationPercent = termPayload.EscalationPercent ?? null;
             term.EscalationBasis = termPayload.EscalationBasis ?? null;
-            term.MaxEscalationPercent = termPayload.MaxEscalationPercent ?? null;
-            term.RenewalNoticeDays = termPayload.RenewalNoticeDays ?? null;
             term.RenewalProbability = termPayload.RenewalProbability ?? null;
             term.PaymentTermsTypeID = termPayload.PaymentTermsTypeID ?? null;
             term.CurrencyID = termPayload.CurrencyID ?? null;
             term.EarlyTerminationDate = termPayload.EarlyTerminationDate ?? null;
-            term.ExecutedDate = termPayload.ExecutedDate ?? null;
             term.Notes = termPayload.Notes ?? null;
 
             for (const linePayload of termPayload.Lines ?? []) {

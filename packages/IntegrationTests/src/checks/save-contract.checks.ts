@@ -79,6 +79,7 @@ function addTerm(draft: ContractDraft, start: string, end: string) {
     term.EndDate = end;
     term.Status = 'Pending';
     term.BillingFrequency = 'Annual';
+    term.CommittedAmount = 0;   // NOT NULL as of 2026-08-05 — zero says "no minimum", blank says nothing
     return term;
 }
 
@@ -319,6 +320,10 @@ export const SaveContractChecks: NamedCheck[] = [
                 Assert(fields.includes('ContractTypeID'), 'no issue named ContractTypeID');
                 Assert(fields.includes('EndDate'), 'no issue named EndDate');
                 Assert(fields.includes('SubscriptionTypeID'), 'no issue named SubscriptionTypeID');
+                // CommittedAmount became NOT NULL on 2026-08-05, so a blank one is a draft-level
+                // refusal rather than a database error at submit — assert it here, where the rest of
+                // the field-level reporting is proven.
+                Assert(fields.includes('CommittedAmount'), 'a term with no committed amount was not reported');
 
                 // And positioned, so the UI can point at the right row rather than the right tab.
                 const lineIssue = result.Issues.find((i) => i.Field === 'SubscriptionTypeID');

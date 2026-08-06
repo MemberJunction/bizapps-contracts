@@ -144,8 +144,9 @@ async function main(): Promise<void> {
     term.EndDate = new Date('2027-12-31');
     term.Status = 'Pending';
     term.BillingFrequency = 'Quarterly';
+    // 3% sits under the Standard type's 5% ceiling — as of 2026-08-05 the cap lives on the TYPE, so
+    // there is no per-term ceiling to set here any more.
     term.EscalationPercent = 0.03;
-    term.MaxEscalationPercent = 0.05;
     term.CommittedAmount = 4000;
     if (!(await term.Save())) {
         console.error(`BOOTSTRAP: could not create the term — ${term.LatestResult?.CompleteMessage}`);
@@ -380,6 +381,7 @@ async function main(): Promise<void> {
         t.EndDate = new Date(end);
         t.Status = 'Pending';
         t.BillingFrequency = freq as typeof t.BillingFrequency;
+        t.CommittedAmount = 0;
         await t.Save();
         const l = await md.GetEntityObject<mjBizAppsContractsContractLineEntity>(E_LINE, user);
         l.NewRecord();

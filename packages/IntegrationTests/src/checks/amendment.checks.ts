@@ -74,6 +74,7 @@ async function liveTerm(ctx: IntegrationCheckContext, label: string): Promise<Co
     term.StartDate = new Date('2030-01-01');
     term.EndDate = new Date('2030-12-31');
     term.Status = 'Pending';
+    term.CommittedAmount = 0;
     term.BillingFrequency = 'Annual';
     const line = await term.CreateLine(fx.User);
     line.ProductID = fx.ProductIDs[0];
@@ -202,6 +203,7 @@ export const AmendmentChecks: NamedCheck[] = [
                 term.StartDate = new Date('2030-01-01');
                 term.EndDate = new Date('2030-12-31');
                 term.Status = 'Pending';
+                term.CommittedAmount = 0;
                 term.BillingFrequency = 'Annual';
                 const line = await term.CreateLine(fx.User);
                 line.ProductID = fx.ProductIDs[0];

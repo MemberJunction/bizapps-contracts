@@ -77,7 +77,7 @@ async function main(): Promise<void> {
     // Fixtures the contract needs. Read, never created — this harness must not invent companies.
     const [types, companies, orgs] = await rv.RunViews(
         [
-            { EntityName: 'MJ_BizApps_Contracts: Contract Types', Fields: ['ID', 'Code'], ResultType: 'simple' },
+            { EntityName: 'MJ_BizApps_Contracts: Contract Types', Fields: ['ID', 'Code', 'DefaultMaxEscalationPercent'], ResultType: 'simple' },
             { EntityName: 'MJ: Companies', Fields: ['ID'], MaxRows: 1, ResultType: 'simple' },
             { EntityName: 'MJ_BizApps_Common: Organizations', Fields: ['ID'], MaxRows: 1, ResultType: 'simple' },
         ],
@@ -174,6 +174,7 @@ async function main(): Promise<void> {
     moverTerm.EndDate = new Date('2029-12-31');
     moverTerm.Status = 'Pending';
     moverTerm.BillingFrequency = 'Annual';
+    moverTerm.CommittedAmount = 0;
     if (await moverTerm.Save()) createdTerms.push(moverTerm.ID);
 
     mover.Status = 'Active';
@@ -194,6 +195,7 @@ async function main(): Promise<void> {
         t.EndDate = new Date(end);
         t.Status = 'Pending';
         t.BillingFrequency = 'Annual';
+        t.CommittedAmount = 0;   // NOT NULL as of 2026-08-05
         return t;
     };
 
@@ -207,28 +209,28 @@ async function main(): Promise<void> {
     if (t2saved) createdTerms.push(t2.ID);
     check('C.2 the second term numbers itself 2', t2saved && t2.TermNumber === 2, `got ${t2.TermNumber}`);
 
-    console.log('\nD. ContractTerm — the escalation cap (impossible as a CHECK)');
+    // The cap comes from the contract's TYPE as of 2026-08-05 — the per-term column is gone — so
+    // these terms set only an escalation, and the Standard type's 5% is what they are judged against.
+    console.log('\nD. ContractTerm — the escalation cap (impossible as a CHECK: it spans two tables)');
 
     const over = await mkTerm(c2.ID, '2029-01-01', '2029-12-31');
     over.EscalationPercent = 0.08;
-    over.MaxEscalationPercent = 0.05;
     const overSaved = await over.Save();
-    check('D.1 escalation 8% under a 5% cap is REFUSED', overSaved === false);
+    check('D.1 escalation 8% under the type\'s 5% ceiling is REFUSED', overSaved === false);
     const capMsg = over.LatestResult?.CompleteMessage ?? '';
     check('D.1a the refusal names both numbers', /8\.00%/.test(capMsg) && /5\.00%/.test(capMsg), `got "${capMsg}"`);
     if (overSaved) createdTerms.push(over.ID);
 
     const under = await mkTerm(c2.ID, '2030-01-01', '2030-12-31');
     under.EscalationPercent = 0.04;
-    under.MaxEscalationPercent = 0.05;
     const underSaved = await under.Save();
     if (underSaved) createdTerms.push(under.ID);
-    check('D.2 escalation 4% under a 5% cap is allowed', underSaved, under.LatestResult?.CompleteMessage ?? '');
+    check('D.2 escalation 4% under the type\'s 5% ceiling is allowed', underSaved, under.LatestResult?.CompleteMessage ?? '');
 
-    // D.3 needs a GENUINELY uncapped term, and since 2026-08-05 that means a contract whose TYPE
-    // sets no default ceiling. A new term now inherits `ContractType.DefaultMaxEscalationPercent`,
-    // so on a Standard contract (5%) there is no such thing as an uncapped new term — which is the
-    // intended behaviour and the reason this test moved rather than being relaxed.
+    // D.3 needs a GENUINELY uncapped term, which now means a contract whose TYPE sets no ceiling —
+    // there is no per-term cap to leave blank any more. On a Standard contract (5%) there is no such
+    // thing as an uncapped term, which is the intended behaviour and the reason this test moved
+    // rather than being relaxed.
     //
     // SOW carries a null default, so it is the honest way to prove the rule. Asserting the default
     // is null first, so that if the seed ever gives SOW a ceiling this fails as a stale fixture
@@ -253,13 +255,18 @@ async function main(): Promise<void> {
         uncapped.EndDate = new Date('2031-12-31');
         uncapped.Status = 'Pending';
         uncapped.BillingFrequency = 'Annual';
+        uncapped.CommittedAmount = 0;
         uncapped.EscalationPercent = 0.20;
         const uncappedSaved = await uncapped.Save();
         if (uncappedSaved) createdTerms.push(uncapped.ID);
         check('D.3b a null cap really does mean uncapped — 20% is allowed', uncappedSaved, uncapped.LatestResult?.CompleteMessage ?? '');
-        check('D.3c and the term genuinely has no ceiling, rather than one that happens to exceed 20%',
-            uncapped.MaxEscalationPercent === null || uncapped.MaxEscalationPercent === undefined,
-            `got ${uncapped.MaxEscalationPercent}`);
+        // The complement of D.3a, asserted against the DB rather than the fixture list: the ceiling
+        // this term was judged against really is absent, so D.3b passed for the right reason rather
+        // than because 20% happened to fall under some ceiling nobody looked at.
+        const sowCap = (types?.Results as { ID: string; Code: string; DefaultMaxEscalationPercent: number | null }[] | undefined)
+            ?.find((t) => t.ID === sowTypeID)?.DefaultMaxEscalationPercent;
+        check('D.3c and it is genuinely uncapped, rather than capped above 20%',
+            sowCap === null || sowCap === undefined, `SOW ceiling is ${sowCap}`);
     }
 
     // The complement: on a Standard contract (5% default) a new term is NOT uncapped, which is the

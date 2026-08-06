@@ -108,6 +108,7 @@ import type { mjBizAppsContractsContractEntity } from '@mj-biz-apps/contracts-en
                 <mj-form-field [Record]="record" [ShowLabel]="true" FieldName="PricedAt" Type="textbox" [EditMode]="EditMode" [FormContext]="formContext"></mj-form-field>
                 <mj-form-field [Record]="record" [ShowLabel]="true" FieldName="EffectiveDate" Type="textbox" [EditMode]="EditMode" [FormContext]="formContext"></mj-form-field>
                 <mj-form-field [Record]="record" [ShowLabel]="true" FieldName="ExecutedDate" Type="textbox" [EditMode]="EditMode" [FormContext]="formContext"></mj-form-field>
+                <mj-form-field [Record]="record" [ShowLabel]="true" FieldName="RenewalNoticeDays" Type="numerictextbox" [EditMode]="EditMode" [FormContext]="formContext"></mj-form-field>
             </mj-collapsible-panel>
 
             <!-- WHAT HAPPENS AT THE END -->

@@ -35,6 +35,7 @@ import { RegisterClass } from '@memberjunction/global';
 import type { DatabaseProviderBase } from '@memberjunction/core';
 import { mjBizAppsContractsContractEntity } from '@mj-biz-apps/contracts-entities';
 import { ChildCollection } from './ChildCollection.js';
+import { ContractsEngine, LoadContractsEngine } from './ContractsEngine.js';
 import { ContractTermEntityServer } from './ContractTermEntityServer.js';
 import { ContractLineEntityServer } from './ContractLineEntityServer.js';
 import { ContractBillingScheduleEntityServer } from './ContractBillingScheduleEntityServer.js';
@@ -256,6 +257,35 @@ export class ContractEntityServer extends mjBizAppsContractsContractEntity {
     }
 
     /**
+     * Fill a NEW contract's unset renewal-notice period from its contract type.
+     *
+     * This is what "configuration as data" means in practice: `ContractType` carries
+     * `DefaultRenewalNoticeDays` precisely so the engine READS it rather than branching on a type's
+     * name, and a contract created without one should get what its type prescribes instead of
+     * silently obliging nobody to give notice before a renewal price change.
+     *
+     * The field moved here from `ContractTerm` on 2026-08-05, and the move made this method SIMPLER
+     * rather than harder: the contract knows its own `ContractTypeID`, so where the term had to read
+     * its contract to find the type, this reads nothing at all. The type comes from the engine cache,
+     * which the contract's own rules have already loaded.
+     *
+     * NEW RECORDS ONLY, and only when the caller left it unset — retrofitting a default onto an
+     * existing contract would CHANGE AN AGREEMENT. A contract negotiated with no notice requirement
+     * has none; that is a fact about the paper, not a gap in the data.
+     */
+    private async applyContractTypeDefaults(): Promise<void> {
+        if (this.IsSaved || !this.ContractTypeID) return;
+        if (this.RenewalNoticeDays !== null && this.RenewalNoticeDays !== undefined) return;
+
+        // The engine's cache has to actually be loaded before it is read. Skipping this returns null
+        // from a cold cache and silently defaults nothing, which looks identical to "this type sets
+        // no notice period" and would be undetectable from the outside. `Config(false)` is a no-op
+        // once loaded, so the cost is paid once per process.
+        await LoadContractsEngine(this.ProviderToUse as unknown as IMetadataProvider, this.ContextCurrentUser);
+        this.RenewalNoticeDays = ContractsEngine.Instance.DefaultRenewalNoticeDaysFor(this.ContractTypeID);
+    }
+
+    /**
      * An Active contract must have at least one term.
      *
      * The header carries the parties and the paper; the TERM carries the dates, the money and the
@@ -371,6 +401,8 @@ export class ContractEntityServer extends mjBizAppsContractsContractEntity {
         if (!this.PricedAt) {
             this.PricedAt = new Date();
         }
+
+        await this.applyContractTypeDefaults();
 
         const needsNumber = !this.ContractNumber || !this.ContractNumber.trim();
         if (!needsNumber && !this.terms.HasPendingWrites) {

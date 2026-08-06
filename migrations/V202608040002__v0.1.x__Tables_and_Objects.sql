@@ -140,6 +140,15 @@ CREATE TABLE __mj_BizAppsContracts.Contract (
     PricedAt DATE NULL,
     AutoRenew BIT NOT NULL DEFAULT 0,
     CancellationWindowDays INT NULL,
+    -- MOVED UP FROM ContractTerm (2026-08-05). Written notice before a renewal price change is a
+    -- provision of the AGREEMENT, not of a period: it is negotiated once and does not change term by
+    -- term, and holding it per-term meant every renewal copied it forward and every reader had to
+    -- check whether some term had quietly diverged. The type still supplies the default
+    -- (ContractType.DefaultRenewalNoticeDays); it now lands here.
+    --
+    -- NOT the same thing as CancellationWindowDays above, though many agreements set them equal —
+    -- conflating them silently is how a notice obligation gets missed.
+    RenewalNoticeDays INT NULL,
     TerminationPolicy NVARCHAR(MAX) NULL,
     ExternalReferenceID NVARCHAR(255) NULL,
     CONSTRAINT PK_Contract PRIMARY KEY (ID),
@@ -178,7 +187,8 @@ CREATE TABLE __mj_BizAppsContracts.Contract (
     -- demanding the date up front would mean guessing it. `ContractEntityServer.Save()` defaults it
     -- on the way in, so in practice the only rows without one are drafts nobody has saved.
     CONSTRAINT CK_Contract_PricedWhenActive CHECK (Status = 'Draft' OR PricedAt IS NOT NULL),
-    CONSTRAINT CK_Contract_CancellationWindow CHECK (CancellationWindowDays IS NULL OR CancellationWindowDays >= 0)
+    CONSTRAINT CK_Contract_CancellationWindow CHECK (CancellationWindowDays IS NULL OR CancellationWindowDays >= 0),
+    CONSTRAINT CK_Contract_RenewalNoticeDays CHECK (RenewalNoticeDays IS NULL OR RenewalNoticeDays >= 0)
 );
 GO
 
@@ -201,11 +211,13 @@ CREATE TABLE __mj_BizAppsContracts.ContractTerm (
     EndDate DATE NOT NULL,
     Status NVARCHAR(20) NOT NULL DEFAULT 'Pending',
     RenewalOfTermID UNIQUEIDENTIFIER NULL,
-    CommittedAmount DECIMAL(19,4) NULL,
+    -- NOT NULL as of 2026-08-05. A term states what was committed for its period; a term that does
+    -- not is a period nobody agreed a number for, and every consumer had to decide what a null meant
+    -- (the roster summed it as zero, the renewal escalated from it, the commitment measured against
+    -- it). Zero is a legitimate committed amount and says so explicitly; null said nothing.
+    CommittedAmount DECIMAL(19,4) NOT NULL,
     EscalationPercent DECIMAL(7,4) NULL,
     EscalationBasis NVARCHAR(20) NULL,
-    MaxEscalationPercent DECIMAL(7,4) NULL,
-    RenewalNoticeDays INT NULL,
     BillingFrequency NVARCHAR(20) NOT NULL,
     BillingAnchorMonth TINYINT NULL,
     BillingAnchorDay TINYINT NULL,
@@ -213,15 +225,14 @@ CREATE TABLE __mj_BizAppsContracts.ContractTerm (
     CurrencyID UNIQUEIDENTIFIER NULL,
     EarlyTerminationDate DATE NULL,
     RenewalProbability DECIMAL(5,4) NULL,
-    -- A TERM is separately executed whenever the renewal produces new paper. Only the contract
-    -- recorded execution, which silently assumed the evergreen pattern (one signed document, many
-    -- periods) and could not express the re-papered-each-period pattern at all — professional
-    -- services, public-sector re-bid, or any renegotiation that produces new paper per term.
-    -- NULLable: an auto-renewing term legitimately has no execution of its own.
+    -- REMOVED 2026-08-05: ContractTerm.ExecutedDate.
     --
-    -- The DOCUMENT itself is NOT a column here. See the file-linking note in the header: contracts,
-    -- terms and amendments all attach documents through __mj.FileEntityRecordLink.
-    ExecutedDate DATE NULL,
+    -- It was added to express the re-papered pattern (new signed paper per period) alongside the
+    -- evergreen one, and the contract's own ExecutedDate now carries execution. Recorded here rather
+    -- than deleted silently because the re-papering case is real — professional services,
+    -- public-sector re-bid — and if it comes back, it comes back knowingly. The signed DOCUMENT was
+    -- never a column either way: contracts, terms and amendments all attach paper through
+    -- __mj.FileEntityRecordLink, so a per-term document survives this removal.
     Notes NVARCHAR(MAX) NULL,
     CONSTRAINT PK_ContractTerm PRIMARY KEY (ID),
     CONSTRAINT CK_ContractTerm_Status CHECK (Status IN ('Pending','PendingSignature','Active','Completed','Terminated')),
@@ -232,9 +243,7 @@ CREATE TABLE __mj_BizAppsContracts.ContractTerm (
     CONSTRAINT CK_ContractTerm_AnchorMonth CHECK (BillingAnchorMonth IS NULL OR BillingAnchorMonth BETWEEN 1 AND 12),
     CONSTRAINT CK_ContractTerm_AnchorDay CHECK (BillingAnchorDay IS NULL OR BillingAnchorDay BETWEEN 1 AND 31),
     CONSTRAINT CK_ContractTerm_RenewalProbability CHECK (RenewalProbability IS NULL OR (RenewalProbability >= 0 AND RenewalProbability <= 1)),
-    CONSTRAINT CK_ContractTerm_CommittedAmount CHECK (CommittedAmount IS NULL OR CommittedAmount >= 0),
-    CONSTRAINT CK_ContractTerm_MaxEscalationPercent CHECK (MaxEscalationPercent IS NULL OR MaxEscalationPercent >= 0),
-    CONSTRAINT CK_ContractTerm_RenewalNoticeDays CHECK (RenewalNoticeDays IS NULL OR RenewalNoticeDays >= 0),
+    CONSTRAINT CK_ContractTerm_CommittedAmount CHECK (CommittedAmount >= 0),
     CONSTRAINT CK_ContractTerm_RenewalNotSelf CHECK (RenewalOfTermID IS NULL OR RenewalOfTermID <> ID)
 );
 GO

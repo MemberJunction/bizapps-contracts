@@ -166,11 +166,14 @@ try {
     check('2.1 the workspace header shows an unsaved contract', (await page.locator('.ws-num').first().innerText()).includes('New contract'));
     check('2.2 the status line says it is not yet saved', (await page.locator('.ws-sub').first().innerText()).includes('Not yet saved'));
 
-    console.log('\n3 & 4. The muted panes, and their reasons');
-    for (const [label, fragment] of [['Coverage', 'Add a term first'], ['Billing', 'Add a term first'], ['Commitments', 'Add a term first']]) {
+    console.log('\n3 & 4. What is reachable on a new contract, and what is not');
+    // A NEW CONTRACT IS SEEDED WITH A TERM, so coverage, billing and commitments are reachable
+    // immediately — they are things a person sets WHILE writing an agreement, and gating them behind
+    // a separate step was a form getting in the way of the work. This block used to assert the
+    // opposite and is updated because the BEHAVIOUR changed deliberately, not to make it pass.
+    for (const label of ['Coverage', 'Billing', 'Commitments']) {
         const state = await tabState(label);
-        check(`3.${label} is muted before a term exists`, state?.Disabled === true, JSON.stringify(state));
-        check(`3.${label} says why`, (state?.Reason ?? '').includes(fragment), state?.Reason ?? 'no tooltip');
+        check(`3.${label} is reachable on a new contract — it is seeded with a term`, state?.Disabled === false, JSON.stringify(state));
     }
     for (const label of ['Amendments', 'Documents', 'History']) {
         const state = await tabState(label);
@@ -190,9 +193,23 @@ try {
     await pickFirst('Customer organization');
     await page.locator('.fld', { hasText: 'Description' }).locator('textarea').first().fill(STAMP);
     await page.waitForTimeout(800);
-    check('5.4 the issue list clears once the required fields are filled', (await page.locator('.issues').count()) === 0);
+    // The seeded term still owes a committed amount — NOT NULL since 2026-08-05 — so the draft is
+    // legitimately still incomplete here. Assert the ONE remaining issue by name rather than
+    // asserting an empty list, which would have to be relaxed rather than corrected.
+    const afterContract = (await page.locator('.issues').count()) ? await page.locator('.issues').innerText() : '';
+    check('5.4 the contract-level issues clear, leaving only the term amount',
+        !/contract type/i.test(afterContract) && /committed/i.test(afterContract), afterContract.slice(0, 160));
 
-    console.log('\n6. Adding a term unlocks exactly the term-dependent panes');
+    await page.getByRole('tab', { name: /^Terms/ }).click();
+    await page.waitForTimeout(600);
+    await page.locator('.fld', { hasText: 'Committed amount' }).locator('input').first().fill('50000');
+    await page.waitForTimeout(800);
+    // The AMOUNT issue specifically — coverage is added in section 7, so the list is not empty yet
+    // and asserting that it is would have to be relaxed later rather than corrected.
+    const afterAmount = (await page.locator('.issues').count()) ? await page.locator('.issues').innerText() : '';
+    check('5.5 stating the committed amount clears that issue', !/committed/i.test(afterAmount), afterAmount.slice(0, 160));
+
+    console.log('\n6. A second term, and the panes that still need a saved record');
     await page.getByRole('tab', { name: /^Terms/ }).click();
     await page.waitForTimeout(500);
     await page.getByRole('button', { name: /add term/i }).click();
@@ -204,7 +221,16 @@ try {
         // The two preconditions are INDEPENDENT: a term does not make a history exist.
         check(`6.${label} stays muted — it needs a saved record, not a term`, (await tabState(label))?.Disabled === true);
     }
-    check('6.count the Terms tab shows 1', (await tabState('Terms'))?.Text.includes('1'), (await tabState('Terms'))?.Text);
+    // TWO, not one: the contract was born with a term and this added a second.
+    check('6.count the Terms tab shows 2', (await tabState('Terms'))?.Text.includes('2'), (await tabState('Terms'))?.Text);
+
+    // …and then remove it again, which covers the delete path AND leaves the rest of this run on a
+    // single-term contract. That matters: everything from section 10 down drives the lifecycle from
+    // "the" term's pane, so a stray second term silently changes which term gets activated.
+    await page.locator('.pane').last().locator('.rows > .row').last()
+        .locator('.row-head button').last().click();
+    await page.waitForTimeout(1000);
+    check('6.remove the Terms tab is back to 1', (await tabState('Terms'))?.Text.includes('1'), (await tabState('Terms'))?.Text);
 
     console.log('\n7. One save writes the whole agreement');
     await page.getByRole('tab', { name: /^Coverage/ }).click();

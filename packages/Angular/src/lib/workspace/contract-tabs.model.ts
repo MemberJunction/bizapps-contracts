@@ -116,6 +116,13 @@ export function BuildContractTabs(draft: ContractDraft): ContractTabDef[] {
         // The three below describe things that HAPPENED, so they need a record for them to have
         // happened to. On an unsaved draft they are visible-but-unreachable rather than hidden, so
         // the strip shows the whole shape of a contract from the first moment.
+        //
+        // These are the ONLY three that stay greyed on a new contract, because a new contract is
+        // seeded with a term (see MJCContractsSectionComponent.NewContract). Coverage, billing and
+        // commitments are things a person sets WHILE creating an agreement, so gating them behind a
+        // separate step was a form getting in the way of the work. What remains is not a choice: an
+        // amendment changes a term that already exists, a file attaches to a saved RecordID, and
+        // there is no history until something has happened.
         saved
             ? live('amendments', 'Amendments', null)
             : blocked('amendments', 'Amendments', 'Available once the contract is saved — an amendment changes a term that already exists.'),

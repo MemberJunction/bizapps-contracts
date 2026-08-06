@@ -540,7 +540,7 @@ export const mjBizAppsContractsContractTermSchema = z.object({
         * * SQL Data Type: uniqueidentifier
         * * Related Entity/Foreign Key: MJ_BizApps_Contracts: Contract Terms (vwContractTerms.ID)
         * * Description: Self-FK chaining back to the term this one renewed, making the renewal history navigable without a separate lineage table.`),
-    CommittedAmount: z.number().nullable().describe(`
+    CommittedAmount: z.number().describe(`
         * * Field Name: CommittedAmount
         * * Display Name: Committed Amount
         * * SQL Data Type: decimal(19, 4)`),
@@ -558,14 +558,6 @@ export const mjBizAppsContractsContractTermSchema = z.object({
     *   * Index
     *   * ListPrice
     *   * PriorTerm`),
-    MaxEscalationPercent: z.number().nullable().describe(`
-        * * Field Name: MaxEscalationPercent
-        * * Display Name: Max Escalation Percent
-        * * SQL Data Type: decimal(7, 4)`),
-    RenewalNoticeDays: z.number().nullable().describe(`
-        * * Field Name: RenewalNoticeDays
-        * * Display Name: Renewal Notice Days
-        * * SQL Data Type: int`),
     BillingFrequency: z.union([z.literal('Annual'), z.literal('Custom'), z.literal('Milestone'), z.literal('Monthly'), z.literal('Quarterly'), z.literal('SemiAnnual')]).describe(`
         * * Field Name: BillingFrequency
         * * Display Name: Billing Frequency
@@ -606,10 +598,6 @@ export const mjBizAppsContractsContractTermSchema = z.object({
         * * Display Name: Renewal Probability
         * * SQL Data Type: decimal(5, 4)
         * * Description: 0..1 likelihood this term renews. Exists because a renewal forecast in bizapps-sales reads it.`),
-    ExecutedDate: z.date().nullable().describe(`
-        * * Field Name: ExecutedDate
-        * * Display Name: Executed Date
-        * * SQL Data Type: date`),
     Notes: z.string().nullable().describe(`
         * * Field Name: Notes
         * * Display Name: Notes
@@ -840,6 +828,10 @@ export const mjBizAppsContractsContractSchema = z.object({
     CancellationWindowDays: z.number().nullable().describe(`
         * * Field Name: CancellationWindowDays
         * * Display Name: Cancellation Window Days
+        * * SQL Data Type: int`),
+    RenewalNoticeDays: z.number().nullable().describe(`
+        * * Field Name: RenewalNoticeDays
+        * * Display Name: Renewal Notice Days
         * * SQL Data Type: int`),
     TerminationPolicy: z.string().nullable().describe(`
         * * Field Name: TerminationPolicy
@@ -2231,10 +2223,10 @@ export class mjBizAppsContractsContractTermEntity extends BaseEntity<mjBizAppsCo
     * * Display Name: Committed Amount
     * * SQL Data Type: decimal(19, 4)
     */
-    get CommittedAmount(): number | null {
+    get CommittedAmount(): number {
         return this.Get('CommittedAmount');
     }
-    set CommittedAmount(value: number | null) {
+    set CommittedAmount(value: number) {
         this.Set('CommittedAmount', value);
     }
 
@@ -2266,30 +2258,6 @@ export class mjBizAppsContractsContractTermEntity extends BaseEntity<mjBizAppsCo
     }
     set EscalationBasis(value: 'Index' | 'ListPrice' | 'PriorTerm' | null) {
         this.Set('EscalationBasis', value);
-    }
-
-    /**
-    * * Field Name: MaxEscalationPercent
-    * * Display Name: Max Escalation Percent
-    * * SQL Data Type: decimal(7, 4)
-    */
-    get MaxEscalationPercent(): number | null {
-        return this.Get('MaxEscalationPercent');
-    }
-    set MaxEscalationPercent(value: number | null) {
-        this.Set('MaxEscalationPercent', value);
-    }
-
-    /**
-    * * Field Name: RenewalNoticeDays
-    * * Display Name: Renewal Notice Days
-    * * SQL Data Type: int
-    */
-    get RenewalNoticeDays(): number | null {
-        return this.Get('RenewalNoticeDays');
-    }
-    set RenewalNoticeDays(value: number | null) {
-        this.Set('RenewalNoticeDays', value);
     }
 
     /**
@@ -2386,18 +2354,6 @@ export class mjBizAppsContractsContractTermEntity extends BaseEntity<mjBizAppsCo
     }
     set RenewalProbability(value: number | null) {
         this.Set('RenewalProbability', value);
-    }
-
-    /**
-    * * Field Name: ExecutedDate
-    * * Display Name: Executed Date
-    * * SQL Data Type: date
-    */
-    get ExecutedDate(): Date | null {
-        return this.Get('ExecutedDate');
-    }
-    set ExecutedDate(value: Date | null) {
-        this.Set('ExecutedDate', value);
     }
 
     /**
@@ -2984,6 +2940,18 @@ export class mjBizAppsContractsContractEntity extends BaseEntity<mjBizAppsContra
     }
     set CancellationWindowDays(value: number | null) {
         this.Set('CancellationWindowDays', value);
+    }
+
+    /**
+    * * Field Name: RenewalNoticeDays
+    * * Display Name: Renewal Notice Days
+    * * SQL Data Type: int
+    */
+    get RenewalNoticeDays(): number | null {
+        return this.Get('RenewalNoticeDays');
+    }
+    set RenewalNoticeDays(value: number | null) {
+        this.Set('RenewalNoticeDays', value);
     }
 
     /**

@@ -124,6 +124,7 @@ async function main(): Promise<void> {
         t.EndDate = new Date(`${year}-12-31`);
         t.Status = 'Pending';
         t.BillingFrequency = 'Annual';
+        t.CommittedAmount = 0;
         if (!(await t.Save())) { console.error(`BOOTSTRAP: term ${year} — ${t.LatestResult?.CompleteMessage}`); process.exit(2); }
         return t;
     };
@@ -212,6 +213,7 @@ async function main(): Promise<void> {
     sameContract.EndDate = new Date('2041-12-31');
     sameContract.Status = 'Pending';
     sameContract.BillingFrequency = 'Annual';
+    sameContract.CommittedAmount = 0;
     check('X.8a a renewal within the SAME contract is accepted', await sameContract.Save(), sameContract.LatestResult?.CompleteMessage ?? '');
 
     console.log('\nX.15 — the event log is a closed vocabulary AND actually immutable');
@@ -272,10 +274,20 @@ async function main(): Promise<void> {
     check('X.15e CK_ContractEvent_EventType exists', await constraintExists('CK_ContractEvent_EventType'));
     check('X.2a CK_ContractType_MaxEscalationPercent exists', await constraintExists('CK_ContractType_MaxEscalationPercent'));
     check('X.2b CK_ContractType_RenewalNoticeDays exists', await constraintExists('CK_ContractType_RenewalNoticeDays'));
+    // Moved from ContractTerm to Contract on 2026-08-05 — asserted at its new home so the move
+    // cannot silently lose its bound.
+    check('X.2d CK_Contract_RenewalNoticeDays exists (the field\'s new home)', await constraintExists('CK_Contract_RenewalNoticeDays'));
+    // Removed the same day, along with ContractTerm.MaxEscalationPercent itself. Asserting the
+    // ABSENCE keeps a later re-add from quietly restoring a second, divergent ceiling beside the
+    // type's — which is the exact duplication the removal was for.
+    check('X.2e CK_ContractTerm_MaxEscalationPercent is GONE (the ceiling lives on the type)',
+        !(await constraintExists('CK_ContractTerm_MaxEscalationPercent')));
+    check('X.2f CK_ContractTerm_RenewalNoticeDays is GONE (moved up to the contract)',
+        !(await constraintExists('CK_ContractTerm_RenewalNoticeDays')));
 
-    // The bound has to actually BITE, not merely exist. This matters more than the usual
-    // existence check because ContractsEngine now copies these defaults into every new term: a
-    // negative here would flow into terms where the same value typed directly is rejected.
+    // The bound has to actually BITE, not merely exist. This matters more than the usual existence
+    // check because the type's ceiling is now the ONLY ceiling — every term's escalation is judged
+    // against it — so a negative here would be the single value the whole rule rests on.
     const negativeDefault = await req.query(`
         BEGIN TRY
             UPDATE __mj_BizAppsContracts.ContractType SET DefaultMaxEscalationPercent = -0.05 WHERE Code = 'Standard';
@@ -368,54 +380,48 @@ async function main(): Promise<void> {
     check('X.11c and the refusal explains why the crossing matters',
         /different term/i.test(crossed.LatestResult?.CompleteMessage ?? ''), crossed.LatestResult?.CompleteMessage ?? '');
 
-    console.log('\nENGINE — contract-type defaults on a NEW term');
+    console.log('\nENGINE — contract-type defaults on a NEW contract');
 
-    // The Standard type carries a 5% ceiling and 30 days notice. A term created without them should
-    // inherit both; a term that SPECIFIES them must keep its own, because those are what was
-    // negotiated. Exact values, from the seeded metadata.
-    const inherit = await md.GetEntityObject<mjBizAppsContractsContractTermEntity>(E_TERM, user);
+    // The renewal-notice period MOVED from ContractTerm to Contract on 2026-08-05, and the defaulting
+    // moved with it. Written notice before a renewal price change is a provision of the AGREEMENT,
+    // not of a period, so it is negotiated once. The Standard type prescribes 30 days; a contract
+    // created without one should get that, and a contract that STATES one must keep it, because that
+    // is what was negotiated. Exact values, from the seeded metadata.
+    //
+    // The escalation ceiling made the opposite move — off the term and onto the TYPE, with no
+    // per-contract copy at all — so it is no longer defaulted anywhere and is tested where it is now
+    // enforced, in invariants.ts section D.
+    const inherit = await md.GetEntityObject<mjBizAppsContractsContractEntity>(E_CONTRACT, user);
     inherit.NewRecord();
-    inherit.ContractID = cB.ID;
-    inherit.StartDate = new Date('2042-01-01');
-    inherit.EndDate = new Date('2042-12-31');
-    inherit.Status = 'Pending';
-    inherit.BillingFrequency = 'Annual';
+    inherit.ContractTypeID = typeID!;
+    inherit.CompanyID = companyID!;
+    inherit.CustomerOrganizationID = orgID!;
+    inherit.Status = 'Draft';
+    inherit.Description = `${TAG}: inherits its notice period`;
     const inheritSaved = await inherit.Save();
-    check('E.1 a new term inherits its contract type\'s escalation ceiling', inheritSaved && inherit.MaxEscalationPercent === 0.05,
-        `saved=${inheritSaved} cap=${inherit.MaxEscalationPercent} · ${inherit.LatestResult?.CompleteMessage ?? ''}`);
-    check('E.2 and its renewal notice period', inherit.RenewalNoticeDays === 30, `got ${inherit.RenewalNoticeDays}`);
+    check('E.1 a new contract inherits its type\'s renewal-notice period', inheritSaved && inherit.RenewalNoticeDays === 30,
+        `saved=${inheritSaved} notice=${inherit.RenewalNoticeDays} · ${inherit.LatestResult?.CompleteMessage ?? ''}`);
 
-    const explicit = await md.GetEntityObject<mjBizAppsContractsContractTermEntity>(E_TERM, user);
+    const explicit = await md.GetEntityObject<mjBizAppsContractsContractEntity>(E_CONTRACT, user);
     explicit.NewRecord();
-    explicit.ContractID = cB.ID;
-    explicit.StartDate = new Date('2043-01-01');
-    explicit.EndDate = new Date('2043-12-31');
-    explicit.Status = 'Pending';
-    explicit.BillingFrequency = 'Annual';
-    explicit.MaxEscalationPercent = 0.08;
+    explicit.ContractTypeID = typeID!;
+    explicit.CompanyID = companyID!;
+    explicit.CustomerOrganizationID = orgID!;
+    explicit.Status = 'Draft';
+    explicit.Description = `${TAG}: states its own notice period`;
     explicit.RenewalNoticeDays = 120;
     const explicitSaved = await explicit.Save();
-    check('E.3 a term that STATES its own ceiling keeps it — the default never overwrites',
-        explicitSaved && explicit.MaxEscalationPercent === 0.08 && explicit.RenewalNoticeDays === 120,
-        `cap=${explicit.MaxEscalationPercent} notice=${explicit.RenewalNoticeDays}`);
+    check('E.2 a contract that STATES its own notice period keeps it — the default never overwrites',
+        explicitSaved && explicit.RenewalNoticeDays === 120, `notice=${explicit.RenewalNoticeDays}`);
 
-    // The negative case, and the one that would be WRONG: an existing term must never acquire a
-    // ceiling it was not negotiated with. Retrofitting one would change an agreement.
-    const uncapped = await md.GetEntityObject<mjBizAppsContractsContractTermEntity>(E_TERM, user);
-    uncapped.NewRecord();
-    uncapped.ContractID = cB.ID;
-    uncapped.StartDate = new Date('2044-01-01');
-    uncapped.EndDate = new Date('2044-12-31');
-    uncapped.Status = 'Pending';
-    uncapped.BillingFrequency = 'Annual';
-    uncapped.MaxEscalationPercent = 0.08;
-    await uncapped.Save();
-    uncapped.MaxEscalationPercent = null;
-    const clearedSaved = await uncapped.Save();
-    await uncapped.Load(uncapped.ID);
-    check('E.4 clearing an EXISTING term\'s ceiling leaves it cleared — no retrofit on update',
-        clearedSaved && (uncapped.MaxEscalationPercent === null || uncapped.MaxEscalationPercent === undefined),
-        `got ${uncapped.MaxEscalationPercent}`);
+    // The negative case, and the one that would be WRONG: an existing contract must never acquire a
+    // notice period it was not negotiated with. Retrofitting one would change an agreement.
+    explicit.RenewalNoticeDays = null;
+    const clearedSaved = await explicit.Save();
+    await explicit.Load(explicit.ID);
+    check('E.3 clearing an EXISTING contract\'s notice period leaves it cleared — no retrofit on update',
+        clearedSaved && (explicit.RenewalNoticeDays === null || explicit.RenewalNoticeDays === undefined),
+        `got ${explicit.RenewalNoticeDays}`);
 
     console.log('\nTeardown');
     // Raw SQL, deepest-first: the entity layer now REFUSES to delete events, which is the point of

@@ -10,9 +10,10 @@
  * agreed percentage. The old term is `Completed`, not deleted — the chain is the history, and a
  * renewal that overwrote the prior term would destroy the only record of what was previously agreed.
  *
- * THE ESCALATION CEILING IS ENFORCED, NOT ASSUMED. `MaxEscalationPercent` is the negotiated cap.
- * `ContractTermEntityServer.Save()` refuses a term that exceeds it, and this operation clamps to it
- * before saving rather than proposing a rejected number. An uncapped "then-current list price" bump
+ * THE ESCALATION CEILING IS ENFORCED, NOT ASSUMED. The cap is `ContractType.DefaultMaxEscalationPercent`
+ * — as of 2026-08-05 it lives on the type rather than on each term. `ContractTermEntityServer`
+ * refuses a term that exceeds it, and this operation clamps to it before saving rather than
+ * proposing a number that would then be rejected. An uncapped "then-current list price" bump
  * is the single most disputed clause in a B2B renewal — the one we must never get wrong by accident.
  *
  * PREVIEW BEFORE COMMIT. `PreviewOnly` runs the entire computation and returns exactly what would be
@@ -33,6 +34,7 @@ import {
     type UserInfo,
 } from '@memberjunction/core';
 import { RegisterClass } from '@memberjunction/global';
+import { ContractsEngine, LoadContractsEngine } from './ContractsEngine.js';
 import type {
     mjBizAppsContractsContractTermEntity,
     mjBizAppsContractsContractLineEntity,
@@ -40,6 +42,7 @@ import type {
 } from '@mj-biz-apps/contracts-entities';
 
 const E_TERM = 'MJ_BizApps_Contracts: Contract Terms';
+const E_CONTRACT = 'MJ_BizApps_Contracts: Contracts';
 const E_LINE = 'MJ_BizApps_Contracts: Contract Lines';
 const E_LOG = 'MJ_BizApps_Contracts: Contract Events';
 
@@ -131,7 +134,9 @@ export class RenewTermOperation extends BaseRemotableOperation<RenewTermInput, R
         // ---- The computation. Identical on both paths; only the exit differs. -------------------
 
         const requested = input.EscalationPercentOverride ?? prior.EscalationPercent ?? 0;
-        const cap = prior.MaxEscalationPercent;
+        // The ceiling comes from the contract's TYPE. Read here rather than carried on the prior
+        // term, so a preview and the term entity's own rule can never disagree about the number.
+        const cap = await RenewTermOperation.ceilingFor(prior.ContractID, provider, user);
         const clamped = cap !== null && cap !== undefined && requested > cap;
         const applied = clamped ? cap : requested;
 
@@ -197,14 +202,11 @@ export class RenewTermOperation extends BaseRemotableOperation<RenewTermInput, R
             next.BillingAnchorDay = prior.BillingAnchorDay;
             next.EscalationPercent = prior.EscalationPercent;
             next.EscalationBasis = prior.EscalationBasis;
-            next.MaxEscalationPercent = prior.MaxEscalationPercent;
-            next.RenewalNoticeDays = prior.RenewalNoticeDays;
             next.PaymentTermsTypeID = prior.PaymentTermsTypeID;
             next.CurrencyID = prior.CurrencyID;
-            // The committed amount escalates with the prices it commits to.
-            next.CommittedAmount = prior.CommittedAmount === null || prior.CommittedAmount === undefined
-                ? prior.CommittedAmount
-                : round2(prior.CommittedAmount * (1 + applied));
+            // The committed amount escalates with the prices it commits to. No null branch: a term
+            // always states what was committed for its period (CommittedAmount is NOT NULL).
+            next.CommittedAmount = round2(prior.CommittedAmount * (1 + applied));
             // TermNumber is derived by ContractTermEntityServer — never supplied here.
             if (!(await next.Save())) {
                 await db.RollbackTransaction();
@@ -283,6 +285,28 @@ export class RenewTermOperation extends BaseRemotableOperation<RenewTermInput, R
             await db.RollbackTransaction();
             return { Success: false, Preview: false, Message: `Renewal failed and was rolled back: ${e instanceof Error ? e.message : String(e)}` };
         }
+    }
+
+    /**
+     * The escalation ceiling for a contract, from its type. Null when the contract has no type or
+     * the type sets no ceiling — both of which legitimately mean "uncapped".
+     */
+    private static async ceilingFor(
+        contractID: string,
+        provider: IMetadataProvider,
+        user: UserInfo,
+    ): Promise<number | null> {
+        await LoadContractsEngine(provider, user);
+        const rv = new RunView(provider as unknown as IRunViewProvider);
+        const res = await rv.RunView<{ ContractTypeID: string }>(
+            { EntityName: E_CONTRACT, Fields: ['ContractTypeID'], ExtraFilter: `ID='${contractID}'`, ResultType: 'simple' },
+            user,
+        );
+        if (!res?.Success) {
+            throw new Error(`Could not read the contract's type to find the escalation ceiling: ${res?.ErrorMessage ?? 'unknown error'}`);
+        }
+        const typeID = res.Results?.[0]?.ContractTypeID;
+        return typeID ? ContractsEngine.Instance.DefaultMaxEscalationFor(typeID) : null;
     }
 }
 

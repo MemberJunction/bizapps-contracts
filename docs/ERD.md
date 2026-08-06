@@ -10,12 +10,22 @@
 > hand-edit the diagrams.
 >
 > **Schema:** `__mj_BizAppsContracts` · **Entity prefix:** `MJ_BizApps_Contracts: ` · **Keys:** UUID throughout
-> **Re-verified:** 2026-08-05 (afternoon) against the live database · **10 tables · 13 internal
-> relationships · 13 cross-app foreign keys · 55 CHECK constraints · 6 unique indexes** beyond the
+> **Re-verified:** 2026-08-05 (evening) against the live database · **10 tables · 13 internal
+> relationships · 13 cross-app foreign keys · 54 CHECK constraints · 6 unique indexes** beyond the
 > primary keys.
 >
-> **The table shape below is UNCHANGED since the morning** — the afternoon's work added no migration,
-> no table and no column. Every count above was read back out of `sys.tables`, `sys.columns`,
+> **The table shape DID change on 2026-08-05 (evening)** — four columns, no new table:
+> `ContractTerm.CommittedAmount` became **NOT NULL** (a term states what was committed for its
+> period; zero is a legitimate answer and says so, null said nothing);
+> `ContractTerm.MaxEscalationPercent` was **removed**, so the escalation ceiling now lives only on
+> `ContractType.DefaultMaxEscalationPercent`; `RenewalNoticeDays` **moved up** from `ContractTerm` to
+> `Contract`, because notice before a renewal price change is a provision of the AGREEMENT rather
+> than of a period; and `ContractTerm.ExecutedDate` was **removed** (the contract's own execution
+> date carries it; per-term paper still attaches through `__mj.FileEntityRecordLink`). The CHECK
+> count fell 55 → 54 accordingly: two term-level CHECKs went, one contract-level CHECK arrived, and
+> `CK_ContractTerm_CommittedAmount` lost its null branch.
+>
+> Every count above was read back out of `sys.tables`, `sys.columns`,
 > `sys.foreign_keys`, `sys.check_constraints` and `sys.indexes` rather than taken on trust, and each
 > table's column list here matches the live table exactly once the two CodeGen-managed audit columns
 > (`__mj_CreatedAt`, `__mj_UpdatedAt`) are allowed for.
@@ -152,6 +162,7 @@ erDiagram
         date PricedAt "nullable"
         bit AutoRenew
         int CancellationWindowDays "nullable"
+        int RenewalNoticeDays "nullable"
         nvarchar TerminationPolicy "nullable"
         nvarchar ExternalReferenceID "nullable"
     }
@@ -164,11 +175,9 @@ erDiagram
         date EndDate
         nvarchar Status
         uuid RenewalOfTermID FK "self · nullable"
-        decimal CommittedAmount "nullable"
+        decimal CommittedAmount
         decimal EscalationPercent "nullable"
         nvarchar EscalationBasis "nullable"
-        decimal MaxEscalationPercent "nullable"
-        int RenewalNoticeDays "nullable"
         nvarchar BillingFrequency
         tinyint BillingAnchorMonth "nullable"
         tinyint BillingAnchorDay "nullable"
@@ -176,7 +185,6 @@ erDiagram
         uuid CurrencyID FK "__mj_BizAppsAccounting.Currency · nullable"
         date EarlyTerminationDate "nullable"
         decimal RenewalProbability "nullable"
-        date ExecutedDate "nullable"
         nvarchar Notes "nullable"
     }
 
@@ -317,6 +325,7 @@ erDiagram
         date PricedAt "nullable"
         bit AutoRenew
         int CancellationWindowDays "nullable"
+        int RenewalNoticeDays "nullable"
         nvarchar TerminationPolicy "nullable"
         nvarchar ExternalReferenceID "nullable"
     }
@@ -406,11 +415,9 @@ erDiagram
         date EndDate
         nvarchar Status
         uuid RenewalOfTermID FK "self · nullable"
-        decimal CommittedAmount "nullable"
+        decimal CommittedAmount
         decimal EscalationPercent "nullable"
         nvarchar EscalationBasis "nullable"
-        decimal MaxEscalationPercent "nullable"
-        int RenewalNoticeDays "nullable"
         nvarchar BillingFrequency
         tinyint BillingAnchorMonth "nullable"
         tinyint BillingAnchorDay "nullable"
@@ -418,7 +425,6 @@ erDiagram
         uuid CurrencyID FK "acct_Currency · nullable"
         date EarlyTerminationDate "nullable"
         decimal RenewalProbability "nullable"
-        date ExecutedDate "nullable"
         nvarchar Notes "nullable"
     }
 
@@ -535,6 +541,7 @@ erDiagram
         date PricedAt "nullable"
         bit AutoRenew
         int CancellationWindowDays "nullable"
+        int RenewalNoticeDays "nullable"
         nvarchar TerminationPolicy "nullable"
         nvarchar ExternalReferenceID "nullable"
     }
@@ -547,11 +554,9 @@ erDiagram
         date EndDate
         nvarchar Status
         uuid RenewalOfTermID FK "self · nullable"
-        decimal CommittedAmount "nullable"
+        decimal CommittedAmount
         decimal EscalationPercent "nullable"
         nvarchar EscalationBasis "nullable"
-        decimal MaxEscalationPercent "nullable"
-        int RenewalNoticeDays "nullable"
         nvarchar BillingFrequency
         tinyint BillingAnchorMonth "nullable"
         tinyint BillingAnchorDay "nullable"
@@ -559,7 +564,6 @@ erDiagram
         uuid CurrencyID FK "acct_Currency · nullable"
         date EarlyTerminationDate "nullable"
         decimal RenewalProbability "nullable"
-        date ExecutedDate "nullable"
         nvarchar Notes "nullable"
     }
 
@@ -603,11 +607,9 @@ erDiagram
         date EndDate
         nvarchar Status
         uuid RenewalOfTermID FK "self · nullable"
-        decimal CommittedAmount "nullable"
+        decimal CommittedAmount
         decimal EscalationPercent "nullable"
         nvarchar EscalationBasis "nullable"
-        decimal MaxEscalationPercent "nullable"
-        int RenewalNoticeDays "nullable"
         nvarchar BillingFrequency
         tinyint BillingAnchorMonth "nullable"
         tinyint BillingAnchorDay "nullable"
@@ -615,7 +617,6 @@ erDiagram
         uuid CurrencyID FK "acct_Currency · nullable"
         date EarlyTerminationDate "nullable"
         decimal RenewalProbability "nullable"
-        date ExecutedDate "nullable"
         nvarchar Notes "nullable"
     }
 
@@ -707,11 +708,9 @@ erDiagram
         date EndDate
         nvarchar Status
         uuid RenewalOfTermID FK "self · nullable"
-        decimal CommittedAmount "nullable"
+        decimal CommittedAmount
         decimal EscalationPercent "nullable"
         nvarchar EscalationBasis "nullable"
-        decimal MaxEscalationPercent "nullable"
-        int RenewalNoticeDays "nullable"
         nvarchar BillingFrequency
         tinyint BillingAnchorMonth "nullable"
         tinyint BillingAnchorDay "nullable"
@@ -719,7 +718,6 @@ erDiagram
         uuid CurrencyID FK "acct_Currency · nullable"
         date EarlyTerminationDate "nullable"
         decimal RenewalProbability "nullable"
-        date ExecutedDate "nullable"
         nvarchar Notes "nullable"
     }
 
@@ -813,8 +811,9 @@ kinds of rule are therefore unreachable from it:
 
 1. **Two-column comparisons.** CodeGen derives a generated validation method name from a constraint's
    expression, and a constraint naming two columns makes it emit a call to a method it never defines
-   — a build break in generated code that orders already hit. So the escalation cap cannot be a CHECK
-   here even though it is single-row.
+   — a build break in generated code that orders already hit. The escalation cap was the original
+   example; since 2026-08-05 the ceiling lives on `ContractType` rather than on each term, so that
+   particular rule is now cross-ROW as well as cross-column and could never have been a CHECK.
 2. **Cross-row rules.** A CHECK cannot read the row a foreign key points at, so "coverage must sit
    inside its term" and "an amendment targets a RUNNING term" have nowhere to live in the schema.
 3. **Rules about a whole collection.** "An Active contract needs at least one term" is a statement
@@ -832,9 +831,9 @@ replacement: a rule living only in TypeScript is a rule that direct SQL walks st
 | `Contract` | `ContractNumber` allocated from `ContractSequence`; `PricedAt` defaulted | A read-modify-write, not a predicate |
 | `Contract` | An **Active** contract must have at least one term | A statement about a collection |
 | `ContractTerm` | `TermNumber` derived from the contract's existing terms | Requires reading siblings |
-| `ContractTerm` | Escalation may not exceed its cap; a renewal CLAMPS rather than failing | Two-column comparison (see 1 above) |
+| `ContractTerm` | Escalation may not exceed the ceiling set by the contract's TYPE; a renewal CLAMPS rather than failing | Reads another table (see 1 and 2) |
 | `ContractTerm` | A renewal chain may not cross contracts | Compares this row to the row it points at |
-| `ContractTerm` | Unset ceiling/notice inherited from the contract TYPE on a new term | A lookup, and only for new records |
+| `Contract` | An unset renewal-notice period is inherited from the contract TYPE on a new contract | A lookup, and only for new records |
 | `ContractTerm` | An **Active** term must have at least one coverage line | A statement about a collection |
 | `ContractLine` | Coverage must sit inside its term's dates, both ends | Cross-row |
 | `ContractLine` | A **closed** term gains no new coverage | Cross-row |

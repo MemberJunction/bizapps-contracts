@@ -138,6 +138,7 @@ async function scenario(
     term.StartDate = new Date('2030-01-01');
     term.EndDate = new Date('2030-12-31');
     term.Status = 'Pending';
+    term.CommittedAmount = 0;
     term.BillingFrequency = 'Annual';
     await build(term);
 
@@ -202,6 +203,7 @@ async function anchoredTerm(
     term.StartDate = new Date(start);
     term.EndDate = new Date(end);
     term.Status = 'Pending';
+    term.CommittedAmount = 0;
     term.BillingFrequency = frequency;
     if (anchor.Day) term.BillingAnchorDay = anchor.Day;
     if (anchor.Month) term.BillingAnchorMonth = anchor.Month;
@@ -471,6 +473,7 @@ export const BillingChecks: NamedCheck[] = [
                 term.StartDate = new Date('2030-01-01');
                 term.EndDate = new Date('2030-12-31');
                 term.Status = 'Pending';
+                term.CommittedAmount = 0;
                 term.BillingFrequency = 'Monthly';
                 await line(term, 'Subscription');
                 const c = await term.CreateCommitment(fx.User);
