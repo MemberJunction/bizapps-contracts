@@ -106,6 +106,18 @@ try {
     // pane, and the suite never noticed because it only ever visited Workspace and All contracts.
     // A section tab and a rail item are both promises that something is there; this checks all of
     // them, in all three sections, rather than the two the happy path happens to use.
+    // null = this page deliberately has no primary action.
+    const EXPECTED_PRIMARY = {
+        'Contracts/Dashboard': 'New contract',
+        'Contracts/All contracts': 'New contract',
+        'Contracts/Workspace': 'New contract',
+        'Contracts/Renewals due': null,
+        'Contracts/Amendments': 'New amendment',
+        'Billing/Billing worklist': null,
+        'Billing/Schedules': 'New schedule',
+        'Billing/Commitments': 'New commitment',
+        'Setup/Contract types': 'New contract type',
+    };
     const RAILS = {
         Contracts: ['Dashboard', 'All contracts', 'Workspace', 'Renewals due', 'Amendments'],
         Billing: ['Billing worklist', 'Schedules', 'Commitments'],
@@ -128,6 +140,18 @@ try {
             // remembered.
             const uuids = body.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-/gi) || [];
             check(`1b.${section}/${item} shows no raw UUIDs`, uuids.length === 0, `${uuids.length}: ${uuids.slice(0, 2).join(', ')}`);
+
+            // The header's primary action must match the PAGE. The whole point is that it changes —
+            // "New contract" on the Commitments page answers a question nobody asked — and two
+            // pages deliberately have NO primary: billing events are engine-created, and Renewals
+            // due is a worklist whose rows are the action.
+            const actions = (await page.locator('[actions] button').allInnerTexts()).map((t) => t.trim()).filter(Boolean);
+            const expected = EXPECTED_PRIMARY[`${section}/${item}`];
+            if (expected === null) {
+                check(`1b.${section}/${item} offers NO primary action`, actions.length === 0, actions.join(', '));
+            } else {
+                check(`1b.${section}/${item} primary is "${expected}"`, actions.includes(expected), actions.join(', ') || 'none');
+            }
         }
     }
     // Back to Contracts › Workspace for the rest of the run.

@@ -303,11 +303,26 @@ interface LogRow {
                 <!-- NO SECTION SWITCHER HERE. An earlier version drew one with mj-tab-nav inside this
                      header, which LOOKED like a top nav bar and was not one: MJ's top nav comes from
                      the Application's DefaultNavItems, each pointing at a registered resource class.
-                     A strip drawn in a page header gets no deep links, no resource state and no place
-                     in the app switcher — it is a picture of navigation. The three real nav items are
-                     registered at the bottom of this file. -->
-                <button mjButton="primary" (click)="NewContract()"><i class="fa-solid fa-plus"></i> New contract</button>
-                <button mjButton (click)="Refresh()"><i class="fa-solid fa-rotate"></i> Refresh</button>
+                     The three real nav items are registered at the bottom of this file.
+
+                     THE SHAPE IS ORDERS': an icon-only OUTLINE refresh, then a PRIMARY action whose
+                     label changes with the page — because "New contract" on the Commitments page is
+                     an answer to a question nobody asked. Orders varies its primary per SECTION;
+                     nine pages across three sections need it per PAGE. -->
+                <button
+                    type="button"
+                    mjButton variant="outline"
+                    (click)="Refresh()"
+                    aria-label="Refresh this page">
+                    <i class="fa-solid fa-arrow-rotate-right" aria-hidden="true"></i>
+                </button>
+                <button
+                    type="button"
+                    *ngIf="PrimaryAction as action"
+                    mjButton variant="primary"
+                    (click)="StartPrimary()">
+                    <i [class]="action.Icon" aria-hidden="true"></i> {{ action.Label }}
+                </button>
             </div>
         </mj-page-header>
 
@@ -748,6 +763,61 @@ export class MJCContractsSectionComponent extends BaseResourceComponent implemen
 
     public override async GetResourceDisplayName(_d: ResourceData): Promise<string> { return 'Contracts'; }
     public override async GetResourceIconClass(_d: ResourceData): Promise<string> { return 'fa-solid fa-file-signature'; }
+
+    /**
+     * The primary action for the page currently showing.
+     *
+     * NULL IS A REAL ANSWER, and two pages use it. Billing events are created by the engine when a
+     * term activates — a "New billing event" button would invite someone to hand-write a bill the
+     * schedule did not ask for. Renewals due is a worklist whose rows ARE the action. A primary
+     * button that does the wrong thing is worse than no primary button.
+     *
+     * The three that need a parent term (schedule, commitment, amendment) open MJ's own new-record
+     * form rather than a bespoke dialog: the form carries the term picker and the generated
+     * validation, and the entity rules refuse an amendment against a term that is not running
+     * whichever way the record is created.
+     */
+    public get PrimaryAction(): { Label: string; Icon: string; Kind: string } | null {
+        switch (this.Page) {
+            case 'dashboard':
+            case 'list':
+            case 'workspace':
+                return { Label: 'New contract', Icon: 'fa-solid fa-plus', Kind: 'contract' };
+            case 'amendments':
+                return { Label: 'New amendment', Icon: 'fa-solid fa-file-pen', Kind: 'amendment' };
+            case 'schedules':
+                return { Label: 'New schedule', Icon: 'fa-solid fa-calendar-plus', Kind: 'schedule' };
+            case 'commitments':
+                return { Label: 'New commitment', Icon: 'fa-solid fa-plus', Kind: 'commitment' };
+            case 'types':
+                return { Label: 'New contract type', Icon: 'fa-solid fa-plus', Kind: 'type' };
+            // 'worklist' — the engine creates billing events. 'renewals' — the rows are the action.
+            default:
+                return null;
+        }
+    }
+
+    public StartPrimary(): void {
+        const action = this.PrimaryAction;
+        if (!action) return;
+        switch (action.Kind) {
+            case 'contract':
+                this.NewContract();
+                return;
+            case 'amendment':
+                this.nav.OpenNewEntityRecord(E_AMENDMENTS);
+                return;
+            case 'schedule':
+                this.nav.OpenNewEntityRecord(E_SCHEDULES);
+                return;
+            case 'commitment':
+                this.nav.OpenNewEntityRecord(E_COMMITMENTS);
+                return;
+            case 'type':
+                this.nav.OpenNewEntityRecord(E_TYPES);
+                return;
+        }
+    }
 
     /** The rail for this section — declared once, in the nav model. */
     public get NavSections(): MJLeftNavSection[] {
