@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Contracts — BizApps Contracts</title>
+<link rel="stylesheet" href="mockup.css" />
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+</head>
+<body>
+
+<header class="mj-app-header">
+  <div class="logo"><span class="logo-mark">MJ</span> MemberJunction</div>
+  <div class="breadcrumbs"><span>Contracts</span><span class="sep">/</span><span class="current">All contracts</span></div>
+  <div class="right"><i class="fa-regular fa-bell"></i><i class="fa-solid fa-gear"></i><span class="avatar">MT</span></div>
+</header>
+
+<div class="mj-shell">
+
+  <nav class="mj-rail">
+    <div class="group">Contracts</div>
+    <a class="item active" href="contracts-list.html"><i class="fa-solid fa-file-signature"></i> Contracts <span class="count">248</span></a>
+    <a class="item" href="contract-create.html"><i class="fa-solid fa-plus"></i> New contract</a>
+    <a class="item" href="billing-worklist.html"><i class="fa-solid fa-conveyor-belt"></i> Billing worklist <span class="count">31</span></a>
+    <a class="item" href="#"><i class="fa-solid fa-rotate"></i> Renewals</a>
+    <a class="item" href="#"><i class="fa-solid fa-file-pen"></i> Amendments <span class="count">4</span></a>
+    <div class="group">Setup</div>
+    <a class="item" href="#"><i class="fa-solid fa-sliders"></i> Contract types</a>
+    <div class="group">Related</div>
+    <a class="item" href="#"><i class="fa-solid fa-cart-shopping"></i> Orders</a>
+    <a class="item" href="#"><i class="fa-solid fa-book"></i> Accounting</a>
+  </nav>
+
+  <main class="mj-page-body-interior">
+
+    <div class="mj-page-header">
+      <div>
+        <h1>Contracts</h1>
+        <p class="sub">Every agreement this organization has committed to — what was promised, for how long,
+          and what it is billing. Contracts normally arrive from a closed deal; the ones typed in by hand are marked.</p>
+      </div>
+      <div class="actions">
+        <button class="mj-btn"><i class="fa-solid fa-filter"></i> Saved views</button>
+        <button class="mj-btn"><i class="fa-solid fa-file-export"></i> Export</button>
+        <a class="mj-btn primary" href="contract-create.html"><i class="fa-solid fa-plus"></i> New contract</a>
+      </div>
+    </div>
+
+    <div class="kpi-row">
+      <div class="kpi">
+        <div class="label">Active contracted value</div>
+        <div class="value">$14.8M</div>
+        <div class="foot">across 186 active contracts</div>
+      </div>
+      <div class="kpi">
+        <div class="label">Renewing this quarter</div>
+        <div class="value">$2.31M</div>
+        <div class="foot">34 terms · 9 with no renewal deal yet</div>
+      </div>
+      <div class="kpi">
+        <div class="label">Billing due (next 7 days)</div>
+        <div class="value warn">27</div>
+        <div class="foot">events scheduled to generate orders</div>
+      </div>
+      <div class="kpi">
+        <div class="label">Failed billing events</div>
+        <div class="value err">4</div>
+        <div class="foot"><a href="billing-worklist.html">needs a human — never auto-retried</a></div>
+      </div>
+    </div>
+
+    <p class="annot" style="margin-top:-4px;margin-bottom:16px;">
+      <b>Where these numbers come from.</b> Active contracted value sums <code>ContractTerm.CommittedAmount</code> for
+      <code>Status='Active'</code> terms. "Renewing this quarter" is terms whose <code>EndDate</code> falls in the quarter;
+      <em>"with no renewal deal yet"</em> is the reverse lookup from sales (<code>Deal.RenewsContractID</code>) and therefore
+      <strong>cannot be computed until <code>bizapps-sales</code> exists</strong> — shown here to make the dependency visible,
+      not because it works.
+    </p>
+
+    <div class="card" style="margin-bottom:14px;">
+      <div class="card-body">
+        <div class="searchbar">
+          <div class="search-field">
+            <i class="fa-solid fa-magnifying-glass"></i>
+            <input class="mj-input" placeholder="Contract number, customer, product, external reference…" value="northwind" />
+          </div>
+          <select class="mj-input" style="width:150px"><option>Status: Active</option><option>All statuses</option><option>Draft</option><option>Pending signature</option><option>Expired</option><option>Terminated</option></select>
+          <select class="mj-input" style="width:150px"><option>All types</option><option>MSA</option><option>SOW</option><option>Standard</option><option>Membership</option></select>
+          <select class="mj-input" style="width:160px"><option>All companies</option><option>Blue Cypress</option><option>Aptify</option></select>
+          <select class="mj-input" style="width:170px"><option>Renewing: any time</option><option>This quarter</option><option>Next 90 days</option></select>
+          <button class="mj-btn"><i class="fa-solid fa-sliders"></i> More</button>
+        </div>
+        <div class="searchbar" style="margin-top:10px;">
+          <span class="sec" style="font-size:12px;">Filters:</span>
+          <span class="chip">customer contains “northwind” <i class="fa-solid fa-xmark"></i></span>
+          <span class="chip">status Active <i class="fa-solid fa-xmark"></i></span>
+          <span class="sec" style="font-size:12px;margin-left:auto;">3 of 248 contracts</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head">
+        <i class="fa-solid fa-list"></i> All contracts
+        <div class="actions"><button class="mj-btn sm"><i class="fa-solid fa-bookmark"></i> Save this view</button></div>
+      </div>
+      <div class="card-body flush">
+        <table class="grid">
+          <thead>
+            <tr>
+              <th>Contract</th>
+              <th>Customer</th>
+              <th>Type</th>
+              <th>Current term</th>
+              <th>Billing</th>
+              <th class="num">Committed</th>
+              <th>Status</th>
+              <th>Source</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="mono"><a href="contract-workspace.html">CTR-001842</a></td>
+              <td class="strong">Northwind Association</td>
+              <td class="sec">MSA</td>
+              <td>Term 3 · <span class="sec">Jan 1 – Dec 31, 2026</span></td>
+              <td class="sec">Quarterly</td>
+              <td class="num strong">$486,000</td>
+              <td><span class="mj-stat-badge success"><i class="fa-solid fa-check"></i> Active</span></td>
+              <td class="sec">Deal</td>
+              <td class="sec"><i class="fa-solid fa-chevron-right"></i></td>
+            </tr>
+            <tr>
+              <td class="mono"><a href="contract-workspace.html">CTR-001839</a></td>
+              <td class="strong">Cascade Medical Society</td>
+              <td class="sec">Standard</td>
+              <td>Term 1 · <span class="sec">Mar 1, 2026 – Feb 28, 2027</span></td>
+              <td class="sec">Annual</td>
+              <td class="num strong">$96,000</td>
+              <td><span class="mj-stat-badge success"><i class="fa-solid fa-check"></i> Active</span></td>
+              <td class="sec">Deal</td>
+              <td class="sec"><i class="fa-solid fa-chevron-right"></i></td>
+            </tr>
+            <tr>
+              <td class="mono"><a href="contract-workspace.html">CTR-001836</a></td>
+              <td class="strong">Harbor Point Institute</td>
+              <td class="sec">SOW <span class="muted">· under CTR-001812</span></td>
+              <td>Term 1 · <span class="sec">Feb 1 – Aug 31, 2026</span></td>
+              <td class="sec">Milestone</td>
+              <td class="num strong">$180,000</td>
+              <td><span class="mj-stat-badge success"><i class="fa-solid fa-check"></i> Active</span></td>
+              <td class="sec">Deal</td>
+              <td class="sec"><i class="fa-solid fa-chevron-right"></i></td>
+            </tr>
+            <tr>
+              <td class="mono"><a href="contract-workspace.html">CTR-001851</a></td>
+              <td class="strong">Meridian Trade Group</td>
+              <td class="sec">Standard</td>
+              <td>Term 1 · <span class="sec">starts May 1, 2026</span></td>
+              <td class="sec">Monthly</td>
+              <td class="num strong">$54,000</td>
+              <td><span class="mj-stat-badge warning"><i class="fa-solid fa-pen-nib"></i> Pending signature</span></td>
+              <td class="sec">Manual</td>
+              <td class="sec"><i class="fa-solid fa-chevron-right"></i></td>
+            </tr>
+            <tr>
+              <td class="mono"><a href="contract-workspace.html">CTR-001744</a></td>
+              <td class="strong">Lakeshore Credit Union</td>
+              <td class="sec">Membership</td>
+              <td>Term 5 · <span class="sec">ends Sep 30, 2026</span></td>
+              <td class="sec">Annual</td>
+              <td class="num strong">$28,500</td>
+              <td><span class="mj-stat-badge success"><i class="fa-solid fa-check"></i> Active</span></td>
+              <td class="sec">Auto-renew</td>
+              <td class="sec"><i class="fa-solid fa-chevron-right"></i></td>
+            </tr>
+            <tr>
+              <td class="mono"><a href="contract-workspace.html">CTR-001698</a></td>
+              <td class="strong">Vantage Publishers</td>
+              <td class="sec">Pilot</td>
+              <td>Term 1 · <span class="sec">ended Jan 31, 2026</span></td>
+              <td class="sec">One-time</td>
+              <td class="num strong">$12,000</td>
+              <td><span class="mj-stat-badge"><i class="fa-solid fa-hourglass-end"></i> Expired</span></td>
+              <td class="sec">Deal</td>
+              <td class="sec"><i class="fa-solid fa-chevron-right"></i></td>
+            </tr>
+            <tr>
+              <td class="mono"><a href="contract-workspace.html">CTR-001655</a></td>
+              <td class="strong">Fairmont Chamber</td>
+              <td class="sec">Standard</td>
+              <td>Term 2 · <span class="sec">terminated Apr 12, 2026</span></td>
+              <td class="sec">Quarterly</td>
+              <td class="num strong">$72,000</td>
+              <td><span class="mj-stat-badge error"><i class="fa-solid fa-ban"></i> Terminated</span></td>
+              <td class="sec">Deal</td>
+              <td class="sec"><i class="fa-solid fa-chevron-right"></i></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="note gap" style="margin-top:16px;">
+      <i class="fa-solid fa-circle-half-stroke"></i>
+      <div>
+        <strong>The "Source" column is a design proposal, not a schema field.</strong> There is no column recording whether a
+        contract came from a deal, an auto-renewal, or a person typing it in. It can be derived — a deal-sourced
+        contract is one sales points at, an auto-renewed term has <code>RenewalOfTermID</code> set with no deal — but the
+        manual case is exactly the one with no marker at all. If this column is worth having, it wants either a
+        <code>Contract.OriginType</code> or a first <code>ContractEvent</code> whose <code>EventType</code> is the origin.
+      </div>
+    </div>
+
+  </main>
+</div>
+</body>
+</html>

@@ -1,0 +1,33 @@
+{
+  "mjdevManaged": "MJDEV-MANAGED: mjdev owns parts of this file — the \"packages/dev-apps/*\" workspaces glob, any dev-linked open-app dependencies (e.g. \"@mj-biz-apps/*\"), and the Angular \"overrides\" pin set. Do not hand-edit those; the tool wires and reverts them. They are left visible in git status, but the git-tree guard blocks committing them. See .mjdev-docs/MANAGED-FILES.md; revert with `mjdev git:stage-clean <slug> package.json`.",
+  "name": "@mj-biz-apps/contracts-server",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Server bootstrap package - loaded by MJAPI at startup via the manifest's startupExport. TODO(template): rename.",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc && tsc-alias -f",
+    "test": "echo \"No tests configured yet\""
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/MemberJunction/bizapps-contracts"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "@mj-biz-apps/contracts-actions": "^0.1.0",
+    "@mj-biz-apps/contracts-core-entities-server": "^0.1.0",
+    "@mj-biz-apps/contracts-entities": "^0.1.0",
+    "class-validator": "^0.14.3"
+  },
+  "peerDependencies": {
+    "@memberjunction/core": "^5.44.0",
+    "@memberjunction/global": "^5.44.0",
+    "@memberjunction/server": "^5.44.0",
+    "@memberjunction/sqlserver-dataprovider": "^5.44.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3"
+  }
+}

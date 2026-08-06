@@ -38,8 +38,7 @@
 > There is no schema, no migration, no package code. **This README is the specification we are
 > building to, not a description of what exists.** Every table, operation and behaviour below is a
 > commitment, not a claim. The design is settled — see
-> [`sales-deal-management/plans/02-bizapps-contracts.md`](https://github.com/BlueCypress/new-products/blob/main/sales-deal-management/plans/02-bizapps-contracts.md)
-> and its [parent plan](https://github.com/BlueCypress/new-products/blob/main/sales-deal-management/plan.md)
+> [`plans/bizapps-contracts-master.md`](plans/bizapps-contracts-master.md)
 > (decisions **L-10…L-12**, **L-15**, **L-18**) — and the build sequence is in
 > [Build Sequence](#build-sequence) below. Sections describing unbuilt behaviour say so.
 
@@ -624,8 +623,7 @@ The model above was derived from the problem. The only reason to open CDP during
 
 | Document | Description |
 |---|---|
-| [Contracts sub-plan](https://github.com/BlueCypress/new-products/blob/main/sales-deal-management/plans/02-bizapps-contracts.md) | The buildable spec this README summarizes |
-| [Parent plan](https://github.com/BlueCypress/new-products/blob/main/sales-deal-management/plan.md) | Strategy, architecture, the three-app split, decision log L-1…L-21 |
+| [Master plan](plans/bizapps-contracts-master.md) | **The app's source of truth** — data model, the billing-event engine, the orders seams, build sequence |
 | [BizApps Orders](https://github.com/MemberJunction/bizapps-orders) | The catalog, pricing engine and receivable this app produces into |
 | [BizApps Sales](https://github.com/MemberJunction/bizapps-sales) | The pipeline that calls `Contracts.CreateFromDeal` |
 | [BizApps Tasks](https://github.com/MemberJunction/bizapps-tasks) | The approval substrate |

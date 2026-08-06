@@ -1,0 +1,38 @@
+{
+  "mjdevManaged": "MJDEV-MANAGED: mjdev owns parts of this file \u2014 the \"packages/dev-apps/*\" workspaces glob, any dev-linked open-app dependencies (e.g. \"@mj-biz-apps/*\"), and the Angular \"overrides\" pin set. Do not hand-edit those; the tool wires and reverts them. They are left visible in git status, but the git-tree guard blocks committing them. See .mjdev-docs/MANAGED-FILES.md; revert with `mjdev git:stage-clean <slug> package.json`.",
+  "name": "@mj-biz-apps/contracts-ng",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Client bootstrap package - Angular components loaded by MJExplorer via the generated open-app bootstrap import. TODO(template): rename.",
+  "main": "dist/public-api.js",
+  "types": "dist/public-api.d.ts",
+  "scripts": {
+    "build": "ngc",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/MemberJunction/bizapps-contracts"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "@mj-biz-apps/contracts-entities": "^0.1.0"
+  },
+  "peerDependencies": {
+    "@angular/common": ">=21.0.0 <22.0.0",
+    "@angular/core": ">=21.0.0 <22.0.0",
+    "@angular/forms": ">=21.0.0 <22.0.0",
+    "@memberjunction/global": "^5.44.0",
+    "@memberjunction/ng-base-forms": "^5.44.0",
+    "@memberjunction/ng-entity-viewer": "^5.44.0",
+    "@memberjunction/ng-link-directives": "^5.44.0",
+    "@memberjunction/ng-ui-components": "^5.50.0",
+    "@mj-biz-apps/accounting-ng": "*"
+  },
+  "devDependencies": {
+    "@angular/compiler": "21.1.3",
+    "@angular/compiler-cli": "21.1.3",
+    "typescript": "^5.9.3"
+  }
+}
