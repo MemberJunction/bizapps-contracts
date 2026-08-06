@@ -14,19 +14,34 @@ development.
 - Use `${flyway:defaultSchema}` for THIS schema; literal `__mj` for MJ core rows.
 - Do **not** add `__mj_CreatedAt` / `__mj_UpdatedAt` columns or FK indexes — CodeGen does.
 
-## Why the baseline is two files
+## Why the baseline is ONE file
 
-`B…__Schema_and_Types.sql` commits the schema, the `__mj.SchemaInfo` registration and any
-user-defined table types. `V…__Tables_and_Objects.sql` carries everything else.
+`B…__Baseline.sql` carries everything: the schema, the `__mj.SchemaInfo` registration, all ten
+tables and their constraints, and the CodeGen output. Applying it to an empty database produces an
+**installed app**, not bare tables — `mj sync push` then seeds the reference vocabulary.
 
-Migrations run as **one transaction per file**. A trigger declaring a variable of a
-user-defined table type cannot be compiled inside the transaction that created the type —
-SQL Server needs a schema lock the creating transaction still holds, and it dies with
-`Msg 1205 … deadlocked with another process` on a single-connection run. That reads as server
-instability rather than an ordering bug. Merging the two files back re-creates it.
+It used to be two files (`…__Schema_and_Types` + `…__Tables_and_Objects`), split following
+bizapps-orders so a user-defined table type would be COMMITTED before any trigger declaring a
+variable of it was compiled. **That hazard is real but this app does not have it — it declares no
+table types.** Carrying a second file for a problem we do not have cost a reader one more hop and
+bought nothing.
 
-This app declares no table types *yet*; the split exists so the first rollup trigger does not
-require restructuring an already-applied baseline.
+**If this app ever adds a table type, split it back out**, and read this first:
+
+> A trigger declaring a variable of a user-defined table type cannot be compiled inside the
+> transaction that created the type — SQL Server needs a schema lock the creating transaction still
+> holds, and it dies with `Msg 1205 … deadlocked with another process` on a single-connection run.
+> It surfaces at an innocent-looking CodeGen `__mj_CreatedAt` backfill hundreds of batches later and
+> reads as server instability rather than an ordering bug.
+
+Two things make that hazard survivable now, and both are recent:
+
+1. **Migrations run one transaction per FILE.** `@memberjunction/open-app-engine` did not set
+   `TransactionMode`, so skyway-core's `per-run` default wrapped an app's whole migration set in ONE
+   transaction — which silently defeated the split for every open app. Fixed in
+   `packages/OpenApp/Engine/src/install/migration-runner.ts`; see `MJ-UPSTREAM.md`.
+2. **The split only helps across files.** Putting a `CREATE TYPE` and a trigger that uses it in the
+   SAME file re-creates the deadlock even under `per-migration`.
 
 ## Standing pre-production practice
 
