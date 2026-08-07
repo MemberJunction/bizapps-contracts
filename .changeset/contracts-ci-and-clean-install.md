@@ -35,7 +35,12 @@ the lockfile. Reproduced both ways in a clean clone before and after.
 
 **CI (`ci.yml`), adapted from bizapps-orders.** Builds with `--continue`, runs the unit tests,
 writes a summary table, and fails deliberately at the END so a build break cannot collapse the job
-onto itself and hide the tally. `contracts-ng` will not compile on a runner — that red is expected
+onto itself and hide the tally. **The tests running past a failed build is now stated rather than
+inherited** — it worked only because the build step swallows its own exit code inside an `if/else`,
+so any future edit that let that step exit non-zero would have skipped the tests silently, and a
+skipped test step reports identically to a failed one. `install` also has its own id, guard and
+summary row: it is the one failure that makes every row beneath it meaningless, and unlabelled it
+read as the known unpublished-peer red. `contracts-ng` will not compile on a runner — that red is expected
 and clears itself with nothing to revert — but it takes **two** publishes, not one:
 
 - `@mj-biz-apps/accounting-ng` is unpublished: `TS2307`, plus two `TS7006` downstream of it.

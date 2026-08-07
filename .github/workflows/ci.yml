@@ -72,7 +72,13 @@ jobs:
         with:
           node-version: '24'
           cache: npm
-      - run: npm ci
+      # `id` + `outcome`, because everything below asks whether THIS step got far enough to make the
+      # next one meaningful. Without it a failed install skips the build and the test steps silently,
+      # and the summary blames the build for a failure that happened before it — which is exactly
+      # what happened here on 2026-08-07.
+      - name: Install dependencies
+        id: install
+        run: npm ci
 
       # BUILD BEFORE TESTING, AND KEEP GOING PAST WHAT CANNOT COMPILE.
       #
@@ -91,6 +97,7 @@ jobs:
       # because vitest compiles the TypeScript itself and the specs import no accounting code.
       - name: Build app packages
         id: build
+        if: always() && steps.install.outcome == 'success'
         run: |
           if npm run build:packages -- --continue; then
             echo 'ok=true' >> "$GITHUB_OUTPUT"
@@ -109,8 +116,21 @@ jobs:
       # `npm run test:unit` fans out through turbo to both packages that have tests (contracts-ng's
       # 55 logic tests and IntegrationTests' 7 parity tests), rather than naming one directory and
       # silently missing any suite added later.
+      # RUNS EVEN WHEN THE BUILD FAILED — and now says so in the workflow rather than relying on it.
+      #
+      # The build step swallows its own non-zero exit inside an `if/else`, so it has always been
+      # possible for the tests to run after a failed compile, and they do: vitest transpiles the
+      # TypeScript itself, and the specs import no accounting code. But that survival was an
+      # accident of how the step is written — any future edit that lets the build step exit non-zero
+      # (a `set -e`, a failed `>> $GITHUB_OUTPUT`, a `continue-on-error` removal) would silently
+      # skip the tests, and a skipped test step reports identically to a failed one.
+      #
+      # `always()` states the intent directly. The `install` guard is the other half: with no
+      # `node_modules` there is nothing to test, so a failed install skips this honestly instead of
+      # producing a second, misleading error on top of the first.
       - name: Unit tests
         id: unit
+        if: always() && steps.install.outcome == 'success'
         run: |
           set -o pipefail
           if npm run test:unit 2>&1 | tee /tmp/vitest.log; then
@@ -130,8 +150,20 @@ jobs:
             echo
             echo '| gate | result |'
             echo '| --- | --- |'
+            # INSTALL GETS ITS OWN ROW because it is the one failure that makes every row below it
+            # meaningless. When `npm ci` died, this table said "Build ❌" and "Unit tests ⚠️ did not
+            # run" — both technically true, and together they read as the known unpublished-peer
+            # failure. Nothing had installed. A row that names the real first failure is the
+            # difference between a check people read and one they pattern-match.
+            if [ '${{ steps.install.outcome }}' = 'success' ]; then
+              echo '| Install (`npm ci`) | ✅ passed |'
+            else
+              echo '| Install (`npm ci`) | ❌ FAILED — nothing below ran |'
+            fi
             if [ "${{ steps.build.outputs.ok }}" = 'true' ]; then
               echo '| Build (`build:packages`) | ✅ passed |'
+            elif [ '${{ steps.install.outcome }}' != 'success' ]; then
+              echo '| Build (`build:packages`) | ⏭ skipped — install failed |'
             else
               echo '| Build (`build:packages`) | ❌ failed — see the Build step |'
             fi
@@ -154,11 +186,17 @@ jobs:
             else
               echo '| Unit tests | ⚠️ did not run |'
             fi
-            if [ "${{ steps.build.outputs.ok }}" != 'true' ]; then
+            # SCOPED to a build that actually ran. Printed unconditionally it would explain away an
+            # install failure as the known-expected one, which is how a genuinely different break
+            # hides behind a familiar red X.
+            if [ '${{ steps.install.outcome }}' = 'success' ] && [ "${{ steps.build.outputs.ok }}" != 'true' ]; then
               echo
-              echo '> The build failure is expected while `@mj-biz-apps/accounting-ng` is'
-              echo '> unpublished. Tests downstream of a package that did not compile cannot run —'
-              echo '> a lower test count here is that, not a regression. See `.github/workflows/ci.yml`.'
+              echo '> The build failure is expected, and it takes TWO publishes to clear, not one:'
+              echo '> `@mj-biz-apps/accounting-ng` is unpublished (`TS2307`, plus two `TS7006`'
+              echo '> downstream of it), and MJ`s published `ng-ui-components` has no'
+              echo '> `TabConfig.disabled` / `disabledReason` (three `TS2339`). The unit tests below'
+              echo '> still ran — vitest transpiles its own TypeScript — so a lower count here would'
+              echo '> be a regression, not a consequence. See `.github/workflows/ci.yml`.'
             fi
           } >> "$GITHUB_STEP_SUMMARY"
 
@@ -167,7 +205,7 @@ jobs:
       # is honest about what this is — a reminder in review — rather than a red X on documentation
       # PRs that legitimately have no version impact.
       - name: Changeset present?
-        if: github.event_name == 'pull_request'
+        if: always() && github.event_name == 'pull_request'
         run: |
           if [ -z "$(find .changeset -name '*.md' ! -name 'README.md' -print -quit)" ]; then
             echo "::warning title=No changeset::This PR carries no changeset. One is required for any change to migrations/ or a published package — run 'npx changeset'."
@@ -181,6 +219,9 @@ jobs:
       # THE GATE, and it is last on purpose. Failing earlier would skip every step above that is not
       # marked `always()` — including the changeset reminder — and, more importantly, would collapse
       # the job onto the build error again. Everything before this reports; this decides.
-      - name: Fail if the build broke or tests failed
-        if: always() && (steps.build.outputs.ok != 'true' || steps.unit.outputs.ok != 'true')
+      # `install` is listed explicitly even though a failed install already leaves `build.outputs.ok`
+      # empty and would fail this anyway — stating it means the gate reads as the three things it
+      # actually decides on, rather than relying on a side effect of a skipped step.
+      - name: Fail if install, build or tests failed
+        if: always() && (steps.install.outcome != 'success' || steps.build.outputs.ok != 'true' || steps.unit.outputs.ok != 'true')
         run: exit 1
