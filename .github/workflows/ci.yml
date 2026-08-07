@@ -8,13 +8,16 @@ name: CI
 #
 # The division of labour is explicit:
 #
-#   HERE          the pure logic — 55 tests, no environment, under a second: the contract draft's
-#                 validation (which sections and fields an incomplete agreement reports) and the
-#                 workspace tab state machine (needs-attention / available / not-yet, and the
-#                 preconditions behind each). Small, but it is the part that has no other gate.
+#   HERE          69 tests, no environment, seconds: the contract draft's validation (which sections
+#                 and fields an incomplete agreement reports), the workspace tab state machine
+#                 (needs-attention / available / not-yet and the precondition behind each), and the
+#                 REGISTRY PARITY floor — which bundles exist and how many checks each holds, so a
+#                 suite that silently shrinks fails here rather than passing with less in it.
 #
 #   BEFORE MERGE  everything that touches a database or a browser, run locally:
 #
+#                     npm run verify                                   # the lot, in order, with the
+#                                                                      # integration tally CHECKED
 #                     node test-harnesses/integration.mjs              # 48, each rolled back
 #                     npx tsx test-harnesses/server/{invariants,lifecycle,constraints}.ts   # 103
 #                     npx tsx test-harnesses/erd-schema-diff.ts        # 45, ERD vs sys.columns
@@ -78,17 +81,21 @@ jobs:
             echo "::error title=Build failed::One or more @mj-biz-apps/contracts-* packages did not compile. Unit tests below ran against whatever did build."
           fi
 
-      # NO ANTI-VACUITY FLOOR YET. Orders has `registry-parity.test.ts`, which asserts exact
-      # per-bundle check counts so a bundle cannot silently drop out of the integration suite.
-      # Contracts has no equivalent, so a check that stops being registered here would go unnoticed.
-      # Worth adding; until it exists, this gate proves the 55 logic tests and nothing about the 48.
+      # INCLUDES THE ANTI-VACUITY FLOOR. `registry-parity.test.ts` asserts the integration registry's
+      # exact shape — which bundles exist, how many checks each holds, that every id is unique and
+      # namespaced — so a bundle silently dropping out of the suite fails HERE, on a runner, without
+      # a database. That is the one part of the integration tier CI can honestly police, and it is
+      # the part that catches a suite quietly shrinking. Its twin, `scripts/assert-check-count.mjs`,
+      # guards the other half locally: that a real RUN executed that many.
       #
-      # Run from packages/Angular: the vitest config lives there, not at the root.
+      # `npm run test:unit` fans out through turbo to both packages that have tests (contracts-ng's
+      # 55 logic tests and IntegrationTests' 7 parity tests), rather than naming one directory and
+      # silently missing any suite added later.
       - name: Unit tests
         id: unit
         run: |
           set -o pipefail
-          if (cd packages/Angular && npx vitest run) 2>&1 | tee /tmp/vitest.log; then
+          if npm run test:unit 2>&1 | tee /tmp/vitest.log; then
             echo 'ok=true' >> "$GITHUB_OUTPUT"
           else
             echo 'ok=false' >> "$GITHUB_OUTPUT"
@@ -151,7 +158,7 @@ jobs:
       - name: State plainly what this gate does not cover
         if: always()
         run: |
-          echo "::notice title=Integration checks are not run here::471 of this repo's 526 assertions need a database or a browser and cannot run here. Run the harnesses listed at the top of .github/workflows/ci.yml before merging."
+          echo "::notice title=Integration checks are not run here::464 of this repo's 533 assertions need a database or a browser and cannot run here. Run 'npm run verify' before merging, then the two browser suites — see the top of .github/workflows/ci.yml."
 
       # THE GATE, and it is last on purpose. Failing earlier would skip every step above that is not
       # marked `always()` — including the changeset reminder — and, more importantly, would collapse
