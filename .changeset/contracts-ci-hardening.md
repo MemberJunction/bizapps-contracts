@@ -22,9 +22,13 @@ run: `test:unit` (turbo, both suites), `test:integration`, `test:server`, `test:
 `test:coverage-gate`, and `verify` — the pre-merge gate that runs everything a local machine can, in
 order, with the integration tally checked rather than trusted.
 
-**`pg-migrations.yml`**, adapted from orders: every T-SQL migration must have a PG counterpart that
-applies to a fresh Postgres. It will be RED until `migrations-pg/` exists — that gap is real and was
-previously invisible.
+**`pg-migrations.yml`**, adapted from accounting: every T-SQL migration must have a PG counterpart
+that applies to a fresh Postgres. It gates **partial** adoption rather than non-adoption — with no
+`migrations-pg/*.sql` it reports a notice, and the first PG file committed makes parity a hard gate
+for every migration in the repo, baseline included. Left unconditional it was red on its first run
+here and is red on every run in accounting, where `migrations-pg/` has held only a README since the
+workflow landed; a check nothing can turn green stops being read. The gap is recorded where it can
+be acted on instead: `migrations-pg/README.md`, and `plans/BACKLOG.md`.
 
 **Three more things a clean clone exposed**, all pre-existing: `turbo.json` declared no `test` task
 (so `test:unit` reached nothing), `tsx` was never declared (it resolved only through the dev-linked

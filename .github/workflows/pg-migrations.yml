@@ -76,9 +76,30 @@ jobs:
           echo "::notice::No migrations to validate. Skipping PG apply step."
           exit 0
 
+      # PARITY IS A GATE ON PARTIAL ADOPTION, NOT ON NON-ADOPTION.
+      #
+      # This workflow came from bizapps-accounting, where `migrations-pg/` holds a README and
+      # nothing else — so its parity job has failed on EVERY run since it was added, `next`
+      # included. Copied here unchanged it did the same thing on its first run: contracts has one
+      # T-SQL baseline, no PG tree, and the check reported it as an error on a PR that had nothing
+      # to do with PostgreSQL.
+      #
+      # A check that cannot pass teaches people to ignore a red X — the same reasoning `ci.yml`
+      # spells out for the unpublished-peer build failure, except there the red is temporary and
+      # clears itself. Here it never clears, because "we have not started on PG" is not a defect.
+      #
+      # So the gate now fires on the state that IS a defect: SOME migrations converted and others
+      # not, which is how a PG database silently drifts from SQL Server. Add one file to
+      # `migrations-pg/` and every T-SQL migration must have a counterpart from that moment on.
+      # Until then this reports, in the open, that PG parity is unadopted.
+      - name: PG parity not adopted yet
+        if: steps.detect.outputs.tsql_count != '0' && steps.detect.outputs.pg_count == '0'
+        run: |
+          echo "::notice title=PG parity not adopted::${{ steps.detect.outputs.tsql_count }} T-SQL migration(s) and no migrations-pg/ tree — this app is SQL Server only today. The parity check below becomes a hard gate the moment the first PG counterpart lands, so a partial conversion cannot pass. To adopt: npx mj sql-convert <file> --from tsql --to postgres --output migrations-pg/<file>.pg.sql --schema __mj_BizAppsContracts"
+
       # ─── Ensure every T-SQL migration has a PG counterpart ─────────
       - name: Verify PG counterparts exist for every T-SQL migration
-        if: steps.detect.outputs.tsql_count != '0'
+        if: steps.detect.outputs.tsql_count != '0' && steps.detect.outputs.pg_count != '0'
         run: |
           missing=0
           for f in migrations/*.sql; do
