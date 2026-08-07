@@ -1,0 +1,161 @@
+name: CI
+
+# UNIT TESTS ONLY, DELIBERATELY.
+#
+# The 48 integration checks need a SQL Server, sibling apps installed into the same workspace, an MJ
+# core migration and a metadata push. That is a local development environment, not a CI runner.
+# Adapted from bizapps-orders' CI, which reached the same conclusion the hard way.
+#
+# The division of labour is explicit:
+#
+#   HERE          the pure logic — 55 tests, no environment, under a second: the contract draft's
+#                 validation (which sections and fields an incomplete agreement reports) and the
+#                 workspace tab state machine (needs-attention / available / not-yet, and the
+#                 preconditions behind each). Small, but it is the part that has no other gate.
+#
+#   BEFORE MERGE  everything that touches a database or a browser, run locally:
+#
+#                     node test-harnesses/integration.mjs              # 48, each rolled back
+#                     npx tsx test-harnesses/server/{invariants,lifecycle,constraints}.ts   # 103
+#                     npx tsx test-harnesses/erd-schema-diff.ts        # 45, ERD vs sys.columns
+#                     node test-harnesses/ui-workspace.mjs "$URL"      # 96, real Chrome
+#                     node test-harnesses/ui-layout.mjs "$URL"         # 179, every page x 3 sizes
+#
+# 526 assertions in total, of which CI can honestly run 55. The browser suites found three defects
+# that a passing back-end suite did not: a contract that could not be opened, a tab gated on the
+# wrong precondition, and a page whose layout depended on the window height. None of those is
+# reachable from a hosted runner, and a red X everyone learns to ignore is worse than a documented
+# manual step.
+#
+# UNLIKE ORDERS, there is no RUN_MUTATION_TESTS flag here — contracts' checks are not declared
+# `RequiresMutation`, and this repo's runner does not read that variable. Do not copy that step in
+# from orders without first making it true.
+
+on:
+  pull_request:
+  push:
+    branches: [next]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  unit:
+    name: unit tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+
+      # BUILD BEFORE TESTING, AND KEEP GOING PAST WHAT CANNOT COMPILE.
+      #
+      # `@mj-biz-apps/contracts-ng` does not compile on a runner: it peer-depends on
+      # `@mj-biz-apps/accounting-ng`, which is UNPUBLISHED — it exists locally only because the mjdev
+      # dev-link puts accounting in the same npm workspace. The peer is marked optional so `npm ci`
+      # resolves, but the compile still cannot find it.
+      #
+      # A plain `build:packages` would abort on that package and the tests would never run, which is
+      # the worst shape a check can have: a red X that reads like a known failure but is really the
+      # tests not executing. So the build continues, the tests run and report, and the job is failed
+      # deliberately at the end. Nothing is downgraded to a warning — the check stays RED, and it
+      # goes green by itself the day accounting publishes, with nothing to remember to revert.
+      #
+      # Expected today: 5 of 6 packages build. The unit tests live in contracts-ng and run anyway,
+      # because vitest compiles the TypeScript itself and the specs import no accounting code.
+      - name: Build app packages
+        id: build
+        run: |
+          if npm run build:packages -- --continue; then
+            echo 'ok=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'ok=false' >> "$GITHUB_OUTPUT"
+            echo "::error title=Build failed::One or more @mj-biz-apps/contracts-* packages did not compile. Unit tests below ran against whatever did build."
+          fi
+
+      # NO ANTI-VACUITY FLOOR YET. Orders has `registry-parity.test.ts`, which asserts exact
+      # per-bundle check counts so a bundle cannot silently drop out of the integration suite.
+      # Contracts has no equivalent, so a check that stops being registered here would go unnoticed.
+      # Worth adding; until it exists, this gate proves the 55 logic tests and nothing about the 48.
+      #
+      # Run from packages/Angular: the vitest config lives there, not at the root.
+      - name: Unit tests
+        id: unit
+        run: |
+          set -o pipefail
+          if (cd packages/Angular && npx vitest run) 2>&1 | tee /tmp/vitest.log; then
+            echo 'ok=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'ok=false' >> "$GITHUB_OUTPUT"
+          fi
+
+      # The run's landing page, so the tally is readable without expanding a log. When the build has
+      # broken, the collapsed view of a failing job shows only the LAST failing step, which would
+      # otherwise bury the thing you actually came to read.
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo '## Contracts CI'
+            echo
+            echo '| gate | result |'
+            echo '| --- | --- |'
+            if [ "${{ steps.build.outputs.ok }}" = 'true' ]; then
+              echo '| Build (`build:packages`) | ✅ passed |'
+            else
+              echo '| Build (`build:packages`) | ❌ failed — see the Build step |'
+            fi
+            if [ -f /tmp/vitest.log ]; then
+              # Strip the colour escapes first — vitest colourises on an Actions runner, and the codes
+              # sit BEFORE the leading whitespace, so an anchored grep silently matches nothing and the
+              # tally quietly degrades to "see log". Verified against a real run's output.
+              CLEAN=$(perl -pe 's/\e\[[0-9;]*m//g' /tmp/vitest.log)
+              # `|| true` because the step runs under `bash -e`: a grep that matches nothing would
+              # otherwise abort the step mid-summary rather than fall through to "see log".
+              FILES=$(printf '%s\n' "$CLEAN" | grep -E '^[[:space:]]*Test Files[[:space:]]' | tail -1 | sed -E 's/^[[:space:]]*Test Files[[:space:]]+//') || true
+              TESTS=$(printf '%s\n' "$CLEAN" | grep -E '^[[:space:]]*Tests[[:space:]]' | tail -1 | sed -E 's/^[[:space:]]*Tests[[:space:]]+//') || true
+              if [ "${{ steps.unit.outputs.ok }}" = 'true' ]; then
+                echo "| Unit tests | ✅ ${TESTS:-see log} |"
+              else
+                echo "| Unit tests | ❌ ${TESTS:-see log} |"
+              fi
+              echo
+              echo "Test files: ${FILES:-see log}"
+            else
+              echo '| Unit tests | ⚠️ did not run |'
+            fi
+            if [ "${{ steps.build.outputs.ok }}" != 'true' ]; then
+              echo
+              echo '> The build failure is expected while `@mj-biz-apps/accounting-ng` is'
+              echo '> unpublished. Tests downstream of a package that did not compile cannot run —'
+              echo '> a lower test count here is that, not a regression. See `.github/workflows/ci.yml`.'
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      # Advisory, not a gate. `migrations/_README.md` requires a changeset on any PR touching a
+      # migration, and that rule sat unenforced through several schema changes. A warning annotation
+      # is honest about what this is — a reminder in review — rather than a red X on documentation
+      # PRs that legitimately have no version impact.
+      - name: Changeset present?
+        if: github.event_name == 'pull_request'
+        run: |
+          if [ -z "$(find .changeset -name '*.md' ! -name 'README.md' -print -quit)" ]; then
+            echo "::warning title=No changeset::This PR carries no changeset. One is required for any change to migrations/ or a published package — run 'npx changeset'."
+          fi
+
+      - name: State plainly what this gate does not cover
+        if: always()
+        run: |
+          echo "::notice title=Integration checks are not run here::471 of this repo's 526 assertions need a database or a browser and cannot run here. Run the harnesses listed at the top of .github/workflows/ci.yml before merging."
+
+      # THE GATE, and it is last on purpose. Failing earlier would skip every step above that is not
+      # marked `always()` — including the changeset reminder — and, more importantly, would collapse
+      # the job onto the build error again. Everything before this reports; this decides.
+      - name: Fail if the build broke or tests failed
+        if: always() && (steps.build.outputs.ok != 'true' || steps.unit.outputs.ok != 'true')
+        run: exit 1
