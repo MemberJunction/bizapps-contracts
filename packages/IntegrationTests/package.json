@@ -11,14 +11,17 @@
     "./checks/*": "./dist/checks/*.js"
   },
   "scripts": {
-    "build": "tsc && tsc-alias -f"
+    "build": "tsc && tsc-alias -f",
+    "test": "vitest run"
   },
   "author": "MemberJunction.com",
   "license": "ISC",
   "devDependencies": {
-    "typescript": "^5.9.3",
+    "@types/node": "^22.10.2",
     "tsc-alias": "^1.8.10",
-    "@types/node": "^22.10.2"
+    "typescript": "^5.9.3",
+    "vite": "^7.1.5",
+    "vitest": "^4.0.18"
   },
   "dependencies": {
     "@mj-biz-apps/contracts-entities": "0.1.0",
@@ -28,5 +31,9 @@
     "@memberjunction/core": "^5.44.0",
     "@memberjunction/global": "^5.44.0",
     "@memberjunction/testing-integration": "^5.44.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/MemberJunction/bizapps-contracts"
   }
 }

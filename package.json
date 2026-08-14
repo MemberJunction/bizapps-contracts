@@ -21,7 +21,13 @@
     "version": "changeset version",
     "commitpush": "node ci/commit_push.mjs",
     "mergemain": "node ci/merge_main.mjs",
-    "mergemain:update-lock": "node ci/merge_main_and_update_lock.mjs"
+    "mergemain:update-lock": "node ci/merge_main_and_update_lock.mjs",
+    "test:unit": "turbo --log-order=stream test --filter=\"@mj-biz-apps/contracts-*\"",
+    "test:integration": "node test-harnesses/integration.mjs",
+    "test:server": "tsx test-harnesses/server/invariants.ts && tsx test-harnesses/server/lifecycle.ts && tsx test-harnesses/server/constraints.ts",
+    "test:erd": "tsx test-harnesses/erd-schema-diff.ts",
+    "test:coverage-gate": "node scripts/assert-check-count.mjs",
+    "verify": "npm run test:unit && npm run build:packages && npm run test:erd && npm run test:integration 2>&1 | tee /tmp/contracts-integration.log && node scripts/assert-check-count.mjs /tmp/contracts-integration.log && npm run test:server"
   },
   "repository": {
     "type": "git",
@@ -35,23 +41,24 @@
     "@angular/core": "21.1.3",
     "@angular/forms": "21.1.3",
     "@changesets/cli": "^2.29.8",
-    "@memberjunction/cli": "5.44.0",
-    "@memberjunction/core": "5.44.0",
-    "@memberjunction/global": "5.44.0",
-    "@memberjunction/ng-base-forms": "5.44.0",
-    "@memberjunction/ng-entity-viewer": "5.44.0",
-    "@memberjunction/ng-link-directives": "5.44.0",
-    "@memberjunction/server": "5.44.0",
+    "@memberjunction/cli": "5.51.0",
+    "@memberjunction/core": "5.51.0",
+    "@memberjunction/global": "5.51.0",
+    "@memberjunction/ng-base-forms": "5.51.0",
+    "@memberjunction/ng-entity-viewer": "5.51.0",
+    "@memberjunction/ng-link-directives": "5.51.0",
+    "@memberjunction/server": "5.51.0",
     "@types/node": "^22.10.0",
     "simple-git": "^3.31.1",
     "tsc-alias": "^1.8.16",
+    "tsx": "^4.19.2",
     "turbo": "^2.7.3",
     "typescript": "^5.9.3",
     "zod": "^3.25.76"
   },
   "overrides": {
-    "@memberjunction/core": "5.44.0",
-    "@memberjunction/global": "5.44.0"
+    "@memberjunction/core": "5.51.0",
+    "@memberjunction/global": "5.51.0"
   },
   "engines": {
     "node": ">=18.0.0",
