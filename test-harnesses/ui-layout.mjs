@@ -113,18 +113,30 @@ check('the workspace shows no standing roster before a search',
     (await p.locator('.card .ch').allInnerTexts()).every((t) => !/of \d+$/.test(t.trim())),
     (await p.locator('.card .ch').allInnerTexts()).join(' | ').slice(0, 120));
 
-await p.locator('.searchbox input').first().fill('CTR-002001');
+// DISCOVER the contract numbers rather than hardcoding them. This used to name CTR-002001 and
+// CTR-002004 from one particular seed file, which quietly made the layout suite depend on WHICH
+// demo dataset had been applied — so replacing the seed broke a suite that tests layout. Searching
+// the common prefix and reading back what the app returns tests the same behaviour and survives any
+// dataset with at least two contracts in it.
+await p.locator('.searchbox input').first().fill('CTR-');
+await p.waitForTimeout(1500);
+const allPicks = await p.locator('.pick').allInnerTexts();
+check('searching surfaces contracts', allPicks.length >= 2, `${allPicks.length} found — this suite needs at least two`);
+const numbers = allPicks.map((t) => (t.match(/CTR-\d+/) ?? [])[0]).filter(Boolean);
+const [firstNo, secondNo] = [numbers[0], numbers.find((n) => n !== numbers[0])];
+
+await p.locator('.searchbox input').first().fill(firstNo);
 await p.waitForTimeout(1500);
 check('searching surfaces the contract', await p.locator('.pick').count() >= 1);
 await p.locator('.pick').first().click();
 await p.waitForTimeout(3000);
 check('a record opens into the workspace card', await p.locator('mj-workspace-card').count() > 0);
 
-await p.locator('.searchbox input').first().fill('CTR-002004');
+await p.locator('.searchbox input').first().fill(secondNo);
 await p.waitForTimeout(1200);
 const picks = await p.locator('.pick').allInnerTexts();
 check('search returns results while a contract is open', picks.length >= 1, `${picks.length} results`);
-check('and it is the one searched for', picks.join(' ').includes('CTR-002004'), picks.join(' | ').slice(0,120));
+check('and it is the one searched for', picks.join(' ').includes(secondNo), picks.join(' | ').slice(0,120));
 await p.locator('.pick').first().click();
 await p.waitForTimeout(3000);
 const tabs = await p.locator('mj-workspace-card [role="tab"], mj-workspace-card .ws-tab').count();
