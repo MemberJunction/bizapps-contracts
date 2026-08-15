@@ -630,8 +630,13 @@ export class MJCContractWorkspaceComponent {
      *
      * Checked against the real strip rather than cast: a cast would compile and then quietly set
      * the active tab to a key that matches no pane, leaving the workspace blank. An unknown key is
-     * not ours, and the current tab stays put. The component already refuses to emit for a disabled
-     * tab, so this is the second of two guards.
+     * not ours, and the current tab stays put.
+     *
+     * THIS IS THE ONLY GUARD, not the second of two. It used to say the component refuses to emit
+     * for a disabled tab; that was never true — MJ's `mj-tab-nav` has no disabled state, renders
+     * every tab as a clickable button, and emits for all of them (see `ToTabConfigs`). So the
+     * `State === 'not-yet'` rejection below is the whole of the protection: a user CAN click a
+     * blocked tab, and this is what makes the click do nothing.
      */
     public SelectTab(key: string): void {
         const match = this.Tabs.find((t) => t.Key === key);
