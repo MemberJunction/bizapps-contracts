@@ -920,8 +920,8 @@ IF NOT EXISTS (
       SELECT 1 FROM [${mjSchema}].[Application] WHERE [ID] = '2ecbf684-1b0b-46a2-8095-32a486b7e038'
    )
    BEGIN
-      INSERT INTO [${mjSchema}].[Application] (ID, Name, Description, SchemaAutoAddNewEntities, Path, AutoUpdatePath)
-                       VALUES ('2ecbf684-1b0b-46a2-8095-32a486b7e038', '${flyway:defaultSchema}', 'Generated for schema', '${flyway:defaultSchema}', 'mjbizappscontracts', 1)
+      INSERT INTO [${mjSchema}].[Application] (ID, Name, Description, SchemaAutoAddNewEntities, Path, AutoUpdatePath, DefaultForNewUser)
+                       VALUES ('2ecbf684-1b0b-46a2-8095-32a486b7e038', '${flyway:defaultSchema}', 'Generated for schema', '${flyway:defaultSchema}', 'mjbizappscontracts', 1, 0)
    END;
 
 /* Adding role UI to application ${flyway:defaultSchema} */
