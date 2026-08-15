@@ -23,12 +23,12 @@
     "@angular/common": ">=21.0.0 <22.0.0",
     "@angular/core": ">=21.0.0 <22.0.0",
     "@angular/forms": ">=21.0.0 <22.0.0",
-    "@memberjunction/global": "^5.44.0",
-    "@memberjunction/ng-base-forms": "^5.44.0",
-    "@memberjunction/ng-entity-viewer": "^5.44.0",
-    "@memberjunction/ng-link-directives": "^5.44.0",
-    "@memberjunction/ng-ui-components": "^5.50.0",
-    "@mj-biz-apps/accounting-ng": "*"
+    "@memberjunction/global": "^6.1.0-edge.2",
+    "@memberjunction/ng-base-forms": "^6.1.0-edge.2",
+    "@memberjunction/ng-entity-viewer": "^6.1.0-edge.2",
+    "@memberjunction/ng-link-directives": "^6.1.0-edge.2",
+    "@memberjunction/ng-ui-components": "^6.1.0-edge.2",
+    "@mj-biz-apps/accounting-ng": ">=0.1.0"
   },
   "devDependencies": {
     "@angular/compiler": "21.1.3",

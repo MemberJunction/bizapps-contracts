@@ -25,8 +25,8 @@
     "@mj-biz-apps/contracts-core-entities-server": "0.1.0"
   },
   "peerDependencies": {
-    "@memberjunction/core": "^5.44.0",
-    "@memberjunction/global": "^5.44.0",
-    "@memberjunction/testing-integration": "^5.44.0"
+    "@memberjunction/core": "^6.1.0-edge.2",
+    "@memberjunction/global": "^6.1.0-edge.2",
+    "@memberjunction/testing-integration": "^6.1.0-edge.2"
   }
 }
