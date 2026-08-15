@@ -14,6 +14,10 @@
     "build": "tsc && tsc-alias -f"
   },
   "author": "MemberJunction.com",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/MemberJunction/bizapps-contracts"
+  },
   "license": "BUSL-1.1",
   "devDependencies": {
     "typescript": "^5.9.3",
