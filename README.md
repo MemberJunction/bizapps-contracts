@@ -649,11 +649,10 @@ The model above was derived from the problem. The only reason to open CDP during
 
 ## License
 
-ISC, consistent with the BizApps line. *(Family-wide licensing is under review; if the BizApps apps
-move to BUSL-1.1, this app follows the family.)*
+Business Source License 1.1 — see [LICENSE](./LICENSE) for details.
 
 ---
 
 <p align="center">
-  Built on <a href="https://github.com/MemberJunction/MJ">MemberJunction</a> — the open-source metadata-driven application platform.
+  Built on <a href="https://github.com/MemberJunction/MJ">MemberJunction</a> — the metadata-driven application platform.
 </p>

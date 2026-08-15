@@ -14,7 +14,7 @@
     "build": "tsc && tsc-alias -f"
   },
   "author": "MemberJunction.com",
-  "license": "ISC",
+  "license": "BUSL-1.1",
   "devDependencies": {
     "typescript": "^5.9.3",
     "tsc-alias": "^1.8.10",
