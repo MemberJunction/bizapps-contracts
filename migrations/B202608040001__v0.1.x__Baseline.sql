@@ -6631,7 +6631,7 @@ GO
             1,
             0,
             0,
-            'B75D0AA7-CE6B-4016-93D7-46963829348C',
+            'FC529BC8-FF09-44A9-B454-26EAFDAC791B',
             'ID',
             0,
             0,
@@ -7198,7 +7198,7 @@ GO
             1,
             0,
             0,
-            '568562E1-B52B-4EDD-968F-3F7C6A072826',
+            'B35DD5C3-9A6B-42D1-9049-297EE45ED2D5',
             'ID',
             0,
             0,
@@ -7639,7 +7639,7 @@ GO
             1,
             0,
             0,
-            '71C6C278-AE4E-4403-9D6B-CC2B5D66CD0D',
+            '93A09D1A-0859-4F69-BD5F-3B3E6C7A9A88',
             'ID',
             0,
             0,
@@ -7702,7 +7702,7 @@ GO
             1,
             0,
             0,
-            'C3DC9D6D-6023-41DA-95C9-64EFF8D7E594',
+            'E9B55146-3351-440C-AD47-FD4DE05BDA05',
             'ID',
             0,
             0,
@@ -9466,7 +9466,7 @@ GO
             1,
             0,
             0,
-            '6715E631-D59E-45FF-8421-F813B720C214',
+            'F6B29704-686E-47BF-B01C-61F7B99BDFFD',
             'ID',
             0,
             0,
@@ -9529,7 +9529,7 @@ GO
             1,
             0,
             0,
-            '3D32E9E8-6BDB-4FED-B8A2-9AD27714B0FB',
+            'D3329BE1-541B-4918-B1CB-3D7A0454EBA7',
             'ID',
             0,
             0,
@@ -10720,7 +10720,7 @@ UPDATE [${mjSchema}].[EntityField] SET ValueListType='List' WHERE ID='E2F5A984-4
    )
    BEGIN
       INSERT INTO [${mjSchema}].[EntityRelationship] ([ID], [EntityID], [RelatedEntityID], [RelatedEntityJoinField], [Type], [BundleInAPI], [DisplayInForm], [Sequence], [__mj_CreatedAt], [__mj_UpdatedAt])
-                    VALUES ('f3690364-b894-4839-bf16-3d60f68c3d40', '568562E1-B52B-4EDD-968F-3F7C6A072826', '5B88DAFC-A8C4-4554-B1C9-BE4F015140A9', 'ProductID', 'One To Many', 1, 1, 11, GETUTCDATE(), GETUTCDATE())
+                    VALUES ('f3690364-b894-4839-bf16-3d60f68c3d40', 'B35DD5C3-9A6B-42D1-9049-297EE45ED2D5', '5B88DAFC-A8C4-4554-B1C9-BE4F015140A9', 'ProductID', 'One To Many', 1, 1, 11, GETUTCDATE(), GETUTCDATE())
    END;
 
 
@@ -10730,7 +10730,7 @@ UPDATE [${mjSchema}].[EntityField] SET ValueListType='List' WHERE ID='E2F5A984-4
    )
    BEGIN
       INSERT INTO [${mjSchema}].[EntityRelationship] ([ID], [EntityID], [RelatedEntityID], [RelatedEntityJoinField], [Type], [BundleInAPI], [DisplayInForm], [Sequence], [__mj_CreatedAt], [__mj_UpdatedAt])
-                    VALUES ('07f91182-8eab-47ef-b03c-7846c0c5c452', 'B75D0AA7-CE6B-4016-93D7-46963829348C', '57F99C92-591B-4F35-82D9-83F6B330D8F1', 'OrderID', 'One To Many', 1, 1, 10, GETUTCDATE(), GETUTCDATE())
+                    VALUES ('07f91182-8eab-47ef-b03c-7846c0c5c452', 'FC529BC8-FF09-44A9-B454-26EAFDAC791B', '57F99C92-591B-4F35-82D9-83F6B330D8F1', 'OrderID', 'One To Many', 1, 1, 10, GETUTCDATE(), GETUTCDATE())
    END;
                     
 /* Create Entity Relationship: MJ: Companies -> MJ_BizApps_Contracts: Contracts (One To Many via CompanyID) */
@@ -10766,7 +10766,7 @@ UPDATE [${mjSchema}].[EntityField] SET ValueListType='List' WHERE ID='E2F5A984-4
    )
    BEGIN
       INSERT INTO [${mjSchema}].[EntityRelationship] ([ID], [EntityID], [RelatedEntityID], [RelatedEntityJoinField], [Type], [BundleInAPI], [DisplayInForm], [Sequence], [__mj_CreatedAt], [__mj_UpdatedAt])
-                    VALUES ('9260f1eb-5124-44d9-8267-b275833131e0', 'C3DC9D6D-6023-41DA-95C9-64EFF8D7E594', '5B88DAFC-A8C4-4554-B1C9-BE4F015140A9', 'SubscriptionID', 'One To Many', 1, 1, 7, GETUTCDATE(), GETUTCDATE())
+                    VALUES ('9260f1eb-5124-44d9-8267-b275833131e0', 'E9B55146-3351-440C-AD47-FD4DE05BDA05', '5B88DAFC-A8C4-4554-B1C9-BE4F015140A9', 'SubscriptionID', 'One To Many', 1, 1, 7, GETUTCDATE(), GETUTCDATE())
    END;
 
 
@@ -10794,7 +10794,7 @@ UPDATE [${mjSchema}].[EntityField] SET ValueListType='List' WHERE ID='E2F5A984-4
    )
    BEGIN
       INSERT INTO [${mjSchema}].[EntityRelationship] ([ID], [EntityID], [RelatedEntityID], [RelatedEntityJoinField], [Type], [BundleInAPI], [DisplayInForm], [Sequence], [__mj_CreatedAt], [__mj_UpdatedAt])
-                    VALUES ('04e1f75e-66e5-4b18-8753-d94681fb4913', '3D32E9E8-6BDB-4FED-B8A2-9AD27714B0FB', '317F4FD7-0CDD-4B17-973E-D55944D03DEE', 'CurrencyID', 'One To Many', 1, 1, 7, GETUTCDATE(), GETUTCDATE())
+                    VALUES ('04e1f75e-66e5-4b18-8753-d94681fb4913', 'D3329BE1-541B-4918-B1CB-3D7A0454EBA7', '317F4FD7-0CDD-4B17-973E-D55944D03DEE', 'CurrencyID', 'One To Many', 1, 1, 7, GETUTCDATE(), GETUTCDATE())
    END;
                     
 /* Create Entity Relationship: MJ_BizApps_Orders: Subscription Types -> MJ_BizApps_Contracts: Contract Lines (One To Many via SubscriptionTypeID) */
@@ -10803,7 +10803,7 @@ UPDATE [${mjSchema}].[EntityField] SET ValueListType='List' WHERE ID='E2F5A984-4
    )
    BEGIN
       INSERT INTO [${mjSchema}].[EntityRelationship] ([ID], [EntityID], [RelatedEntityID], [RelatedEntityJoinField], [Type], [BundleInAPI], [DisplayInForm], [Sequence], [__mj_CreatedAt], [__mj_UpdatedAt])
-                    VALUES ('82d999f0-c3e2-41b7-bf6f-f9bcdc84f726', '71C6C278-AE4E-4403-9D6B-CC2B5D66CD0D', '5B88DAFC-A8C4-4554-B1C9-BE4F015140A9', 'SubscriptionTypeID', 'One To Many', 1, 1, 4, GETUTCDATE(), GETUTCDATE())
+                    VALUES ('82d999f0-c3e2-41b7-bf6f-f9bcdc84f726', '93A09D1A-0859-4F69-BD5F-3B3E6C7A9A88', '5B88DAFC-A8C4-4554-B1C9-BE4F015140A9', 'SubscriptionTypeID', 'One To Many', 1, 1, 4, GETUTCDATE(), GETUTCDATE())
    END;
                     
 /* Create Entity Relationship: MJ_BizApps_Contracts: Contract Terms -> MJ_BizApps_Contracts: Contract Lines (One To Many via ContractTermID) */
@@ -10904,7 +10904,7 @@ UPDATE [${mjSchema}].[EntityField] SET ValueListType='List' WHERE ID='E2F5A984-4
    )
    BEGIN
       INSERT INTO [${mjSchema}].[EntityRelationship] ([ID], [EntityID], [RelatedEntityID], [RelatedEntityJoinField], [Type], [BundleInAPI], [DisplayInForm], [Sequence], [__mj_CreatedAt], [__mj_UpdatedAt])
-                    VALUES ('6611b139-b7d6-4465-a473-f997eb80113b', '6715E631-D59E-45FF-8421-F813B720C214', '317F4FD7-0CDD-4B17-973E-D55944D03DEE', 'PaymentTermsTypeID', 'One To Many', 1, 1, 3, GETUTCDATE(), GETUTCDATE())
+                    VALUES ('6611b139-b7d6-4465-a473-f997eb80113b', 'F6B29704-686E-47BF-B01C-61F7B99BDFFD', '317F4FD7-0CDD-4B17-973E-D55944D03DEE', 'PaymentTermsTypeID', 'One To Many', 1, 1, 3, GETUTCDATE(), GETUTCDATE())
    END;
 
 /* SQL text to sync schema info from database schemas */
