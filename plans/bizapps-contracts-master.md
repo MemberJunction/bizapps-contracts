@@ -137,6 +137,11 @@ Every item below is settled (D-14 carries a confirmation flag — see O-3). §5 
 | D-16 | **Both texts are stored, and read as a pair.** `ContractTemplateProvision.ProvisionText` holds the standard clause; `ContractTemplateModification.ModificationText` holds what this contract says instead. Supersedes D-4, which rested on the transcript &mdash; **Amith overruled it**. Corollary he stated with it: *all contract text ends up in provisions*; the template holds no prose of its own | Amith, 08-18 |
 | D-17 | **Forms use the left-nav rail.** `Entity.Configuration.UI.Form.Layout = "left-nav"` with `RelatedRolePolicy: "smart"` and a `PrimaryRelatedBudget`, matching what orders sets on every entity. Supersedes &sect;6.4's `Layout: 'auto'` &mdash; at six sections on the Contract form the rail is the point, and family consistency settles it anyway | Marcelo, 08-18 |
 | D-18 | **Reference data is cached in an engine, not re-queried per form.** A `BaseEngine` subclass caches contract types, template types, templates and **provisions** &mdash; without it the provision picker issues a `RunView` every time a row is added. See &sect;6.6 | Marcelo, 08-18 |
+| D-19 | **No `Status` column; lifecycle is derived.** Four of its five values were projections of the dates and the two self-FKs, and the fifth (`Draft`) was the finance task wearing a status. The layered base view exposes `State`, `IsAwaitingDocument` and `IsChangeOrder`. ERD &sect;4.5 / R-18 | Marcelo, 08-18 |
+| D-20 | **`AutoRenew` is a plain true/false bit.** No "not stated" third value; the day counts stay nullable | Marcelo, 08-18 |
+| D-21 | **The watchlist ships with fixed default filters and no saved views.** Users drive the filters in-session; persisting custom watchlists is phase 2 or never. The screen is the **stock MJ grid** plus minor chrome, using MJ's own tokens | Marcelo, 08-18 |
+| D-22 | **Modifications get a custom form as well as the inline panel — one shared editor component, two hosts.** MJ cannot embed a child entity's form inside a parent, so the same component renders inline in the contract's panel (joining the parent's single save) and as the body of the modification's own custom form (reached via *Open*). No duplicated logic, and the single transaction survives | Marcelo, 08-18 |
+| D-23 | **Grids and pickers select the BASE VIEWS, never raw tables**, so foreign keys display names rather than IDs. MJ's generated base views already expose the joined name columns | Marcelo, 08-18 |
 
 The full reversal log — sixteen items, each with owner and date — is **§9 of the ERD**.
 
@@ -279,6 +284,17 @@ no pricing, no IS-A extensions:
   round trip, and save failures parse the serialised `ValidationResult` (orders' `ReadableSaveError`).
 - Show `ProvisionText` (D-13) inline/expandable in the picker and rows, so finance reads the standard
   clause while recording that it was modified.
+
+**The modifications editor is ONE component with TWO hosts (D-22).** MJ has no way to embed a child
+entity's form inside a parent form, so rather than choose between the panel and a form we build a single
+`modification-editor` component and render it in both places: inline inside the contract's panel, where it
+binds to `Record.Modifications` and joins the parent's one `record.Save()`; and as the body of the
+modification's **own custom form**, reached from the row's *Open* action for standalone editing. The
+component takes the contract as an input, so in the form host the contract is fixed rather than editable.
+
+**Grids and pickers read base views, not tables (D-23).** Every grid and lookup selects the generated base
+view so FK columns render as names — `ContractType`, `CustomerOrganization`, `ContractTemplate` — instead of
+UUIDs. This is free; the views already carry the joined name columns.
 
 **On the ContractTemplate form:** a Provisions editor panel bound to `Record.Provisions` — same
 pattern, `Sequence` handled by the collection, drag-to-reorder optional later. Seeding (§7 item 4)
@@ -494,6 +510,12 @@ Organization (and Person) forms, not a new screen: inclusion metadata + the agre
 form contribution proves insufficient.
 
 ### 12 · Renewal and expiry watchlist
+
+Kept as a screen (ruled 2026-08-18), but deliberately thin: the **stock MJ grid** over the layered base
+view, plus four default filter pills (next 120 days · notice window open · auto-renewing · all active) and
+an advanced filter for everything else. **No saved views** — users drive filters in-session; persisting
+custom watchlists is phase 2 or never (D-21). Uses MJ's own design tokens throughout, and the grid selects
+the base view so customers and types show as names (D-23).
 
 The layered base view (orders' `vwOrderHeaders` two-migration split): `vwContractsGenerated` inner +
 hand-written `vwContracts` outer adding `IsAwaitingDocument` (`RequiresExecutedDocument` AND no

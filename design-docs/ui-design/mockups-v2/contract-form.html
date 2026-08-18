@@ -124,8 +124,9 @@
             <div class="field"><label>Contract Template</label>
               <div class="ctl ctl--link"><svg class="icon" style="width:13px;height:13px;color:var(--mj-text-muted)"><use href="#i-search"/></svg><span class="grow">Master Agreement &mdash; June 2026</span><span class="caret">&or;</span></div>
               <div class="ctl__hint">searchable record lookup &mdash; cached (D-18)</div></div>
-            <div class="field"><label>Status</label>
-              <div class="ctl"><span class="grow">Active</span><span class="caret">&or;</span></div></div>
+            <div class="field"><label>State</label>
+              <div class="val val--ro">Active</div>
+              <div class="ctl__hint">derived in the layered base view &mdash; not stored, not editable</div></div>
             <div class="field"><label>Customer Organisation</label>
               <div class="ctl ctl--link"><svg class="icon" style="width:13px;height:13px;color:var(--mj-text-muted)"><use href="#i-search"/></svg><span class="grow">American Geophysical Union</span><span class="caret">&or;</span></div></div>
             <div class="field"><label>Primary Contact</label>
@@ -135,10 +136,7 @@
             <div class="field"><label>Description</label><div class="val">2-year Learning Hub subscription, 40 seats.</div></div>
             <div class="field"><label>Notes</label><div class="val">Renewal call booked for Oct 2027.</div></div>
           </div>
-          <div class="flag"><b>Open question &mdash; does Status belong here at all?</b> Four of its five values
-            are derivable (Expired from EndDate, Terminated from TerminatedDate, Superseded from
-            SupersededByContractID, Active from the absence of those). Only <i>Draft</i> is a stored fact, and
-            that may be the finance task rather than a status. Drawn as a dropdown here pending your ruling.</div>
+          <div class="flag"><b>Ruled 2026-08-18 &mdash; Status is gone.</b> Four of its five values were projections; the fifth was the finance task wearing a status. Lifecycle is now <code>State</code>, derived in the layered base view along with <code>IsAwaitingDocument</code> and <code>IsChangeOrder</code>. The field below is shown read-only because it is computed, not stored (D-19).</div>
         </div>
       </div>
     </section>
@@ -163,7 +161,7 @@
           <div class="fields">
             <div class="field"><label>Auto-renews</label>
               <div class="ctl"><span class="grow">Yes</span><span class="caret">&or;</span></div>
-              <div class="ctl__hint">Yes / No / not stated</div></div>
+              <div class="ctl__hint">Yes / No</div></div>
             <div class="field"><label>Renewal notice we owe</label><div class="val">60 days</div></div>
             <div class="field"><label>Notice to cancel</label><div class="val">90 days</div></div>
             <div class="field"><label>Annual increase</label><div class="val">10.0%</div></div>
@@ -171,9 +169,7 @@
           <p class="muted" style="margin:var(--mj-space-3) 0 0; font-size:var(--mj-text-xs)">
             These record what the signed paper says. The subscription in Orders holds the operational setting
             and may legitimately differ &mdash; a mismatch is a finding, not a bug (ERD &sect;4.3).</p>
-          <div class="flag"><b>Open question &mdash; should Auto-renews be nullable?</b> A <code>NOT NULL DEFAULT 0</code>
-            bit asserts &ldquo;does not auto-renew&rdquo; for every contract nobody has read yet &mdash; the same trap the
-            modified flag avoids. Drawn with a third option, <i>not stated</i>, which needs a nullable bit.</div>
+          <div class="flag"><b>Ruled 2026-08-18 &mdash; true or false only.</b> No &ldquo;not stated&rdquo; third value; <code>AutoRenew</code> stays a plain <code>NOT NULL</code> bit. The day counts remain nullable (D-20).</div>
         </div>
       </div>
     </section>
