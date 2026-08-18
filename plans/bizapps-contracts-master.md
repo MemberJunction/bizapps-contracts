@@ -326,7 +326,7 @@ to SharePoint later is configuration, not redesign. Details and the honest cavea
 
 ## 7. The work
 
-Thirteen pieces. The first four are the critical path; **the target is as soon as we can get there**,
+Fourteen pieces. The first four are the critical path; **the target is as soon as we can get there**,
 with correct active-contract data in place before go-live. Every piece names what "done" means; the
 copy-from pointers are orders `next` and MJ `next` file paths verified 2026-08-18.
 
@@ -486,6 +486,17 @@ violated its own cap proved why (PR2-Q9). New integration bundles replace CC/SC/
 `contracts-numbering` (CTR sequence under concurrency), `contracts-provisions` (seed completeness incl.
 text, sequence renumbering), `contracts-watchlist` (derived columns). Update `testing.md`'s matrix to
 the v2 schema — it still lists seven retired harnesses and three plans/ files that no longer exist.
+
+### 14 · Rewrite the README
+
+The README is 658 lines still specifying the v1 billing engine — it opens with *"this README is the
+specification we are building to"*, and its own documentation table describes this plan as covering
+*"the billing-event engine, the orders seams"*. The repo's front door should describe the
+record-keeping app. **Last on the list deliberately**: a README should describe what shipped, so it is
+written once against the real schema and screens rather than twice. (`docs/ERD.md` is regenerated from
+`sys.tables` at the same moment — its banner already says so.)
+
+**Done when:** nothing in the README or `docs/` asserts a capability the rebuild removed.
 
 ### The v1 question docs, absorbed
 
