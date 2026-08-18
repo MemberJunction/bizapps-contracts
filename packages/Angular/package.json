@@ -15,7 +15,7 @@
     "type": "git",
     "url": "https://github.com/MemberJunction/bizapps-contracts"
   },
-  "license": "MIT",
+  "license": "BUSL-1.1",
   "dependencies": {
     "@mj-biz-apps/contracts-entities": "^0.1.0"
   },

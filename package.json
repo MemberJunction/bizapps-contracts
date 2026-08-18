@@ -2,7 +2,7 @@
   "name": "mj-bizapps-contracts",
   "version": "1.0.0",
   "private": true,
-  "license": "MIT",
+  "license": "BUSL-1.1",
   "description": "Template repository for MemberJunction Open Apps - clone, rename, fill in. See README.md and docs/.",
   "workspaces": [
     "packages/*"
