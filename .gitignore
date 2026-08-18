@@ -154,7 +154,10 @@ packages/MJAPI/.env-remote
 .mjrc.ts
 .mjrc.mjs
 .mjrc.cjs
-.npmrc
+# .npmrc is deliberately NOT ignored (2026-08-14, MJ6+pnpm conversion): it carries this
+# repo's pnpm settings, including the auto-install-peers=false divergence the unpublished
+# @mj-biz-apps/accounting-ng peer requires. bizapps-accounting and bizapps-orders both track
+# theirs; ignoring it here would let CI install with pnpm defaults and diverge from local.
 .config/mjrc
 .config/mjrc.json
 .config/mjrc.yaml
