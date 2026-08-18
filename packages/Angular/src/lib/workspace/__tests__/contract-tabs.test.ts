@@ -186,10 +186,30 @@ describe('ToTabConfigs', () => {
         expect(coverage?.badgeVariant).toBe('error');
     });
 
-    it('always ships a reason with a disabled tab', () => {
+    // These two used to assert on TabConfig.disabled / .disabledReason. MJ 6's TabConfig has no such
+    // fields and mj-tab-nav ignores them, so ToTabConfigs no longer emits them (2026-08-14) — and an
+    // assertion filtering on a property nothing sets passes while testing nothing. The invariants
+    // themselves are unchanged and still worth guarding, so they now assert at the layer that
+    // actually carries them: ContractTabDef.State / .Reason. Restore the TabConfig-level versions
+    // when MJ's disabled state lands (plans/BACKLOG.md B-2).
+    it('always ships a reason with an unreachable tab', () => {
+        const tabs = BuildContractTabs(new ContractDraft());
+        const blocked = tabs.filter((t) => t.State === 'not-yet');
+
+        expect(blocked.length).toBeGreaterThan(0); // a bare draft must block something, or this proves nothing
+        for (const t of blocked) {
+            expect(t.Reason).toBeTruthy();
+        }
+    });
+
+    it('emits only the keys MJ TabConfig actually supports', () => {
+        // The regression this file exists to catch: we shipped `disabled`/`disabledReason` for weeks
+        // against a component that silently dropped them. Type erasure hid it; this does not.
         const configs = ToTabConfigs(BuildContractTabs(new ContractDraft()));
-        for (const config of configs.filter((c) => c.disabled)) {
-            expect(config.disabledReason).toBeTruthy();
+        const allowed = ['key', 'label', 'icon', 'badge', 'badgeVariant'];
+
+        for (const config of configs) {
+            expect(Object.keys(config).sort()).toEqual(Object.keys(config).filter((k) => allowed.includes(k)).sort());
         }
     });
 
@@ -206,8 +226,8 @@ describe('ToTabConfigs', () => {
         term.StartDate = '2030-01-01';
         term.EndDate = '2030-12-31';
 
-        const configs = ToTabConfigs(BuildContractTabs(draft));
-        expect(configs.every((c) => !c.disabled)).toBe(true);
+        const tabs = BuildContractTabs(draft);
+        expect(tabs.every((t) => t.State !== 'not-yet')).toBe(true);
     });
 });
 

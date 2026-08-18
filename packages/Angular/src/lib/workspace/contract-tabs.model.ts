@@ -162,8 +162,18 @@ export function BuildContractTabs(draft: ContractDraft): ContractTabDef[] {
  * the same slot the count uses reads as attention-needed on sight, and severity is carried by
  * colour rather than by a second element competing with the number.
  *
- * `disabledReason` is always supplied for a disabled tab. A disabled control with no explanation is
- * the commonest failure in a wizard: the user can see they cannot proceed and not why.
+ * NO DISABLED STATE IS EMITTED — deliberately, since 2026-08-14 (MJ 6 conversion). MJ's `TabConfig`
+ * is `key | label | icon | badge | badgeVariant`; it has no `disabled`/`disabledReason`, and
+ * `mj-tab-nav` renders every tab as a plain clickable button. We used to set both fields anyway.
+ * That was never doing anything — the component ignored them — so a `not-yet` tab has ALWAYS
+ * rendered enabled and unexplained at runtime; only the type erasure hid it from us.
+ *
+ * The gating itself is NOT gone. `ContractTabDef.State` / `.Reason` still carry it (see
+ * {@link BuildContractTabs}), and {@link ResolveActiveTab} still refuses to land on an unreachable
+ * tab. What is missing is only the VISUAL affordance. Restoring it is two lines here once MJ's
+ * `mj-tab-nav` gains the disabled state (commit `2acd4dc7cb`, unmerged) — tracked in
+ * `plans/BACKLOG.md` B-2. Contracts is moving to custom forms + the MJ record system, so the UI
+ * treatment gets revisited there rather than being rebuilt against this component.
  */
 export function ToTabConfigs(tabs: ContractTabDef[]): TabConfig[] {
     return tabs.map((tab) => ({
@@ -171,8 +181,6 @@ export function ToTabConfigs(tabs: ContractTabDef[]): TabConfig[] {
         label: tab.Label,
         badge: tab.Count ?? (tab.State === 'needs-attention' ? '!' : null),
         badgeVariant: tab.State === 'needs-attention' ? ('error' as const) : ('default' as const),
-        disabled: tab.State === 'not-yet',
-        disabledReason: tab.Reason,
     }));
 }
 
