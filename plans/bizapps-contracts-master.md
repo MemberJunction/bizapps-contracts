@@ -139,7 +139,7 @@ The full reversal log — thirteen items, each with owner and date — is **§9 
 
 ## 6. The work
 
-Thirteen pieces. The first four are the critical path; **the target is as soon as we can get there**, with
+Fourteen pieces. The first four are the critical path; **the target is as soon as we can get there**, with
 correct active-contract data in place before go-live.
 
 | # | Piece | Notes |
@@ -157,6 +157,7 @@ correct active-contract data in place before go-live.
 | 11 | Customer view | Every agreement and document for an organisation |
 | 12 | Renewal and expiry watchlist | Driven by `EndDate` and the notice fields |
 | 13 | Migration of active contracts, test coverage and demo data | Gated on O-1 |
+| 14 | **Rewrite the README** | 658 lines still specifying the v1 billing engine — *"this README is the specification we are building to"* — and its own documentation table describes this plan as covering *"the billing-event engine, the orders seams"*. The repo's front door should describe the record-keeping app. Last on the list because it should be written against what actually shipped |
 
 ### Document handling is assembly, not construction
 
