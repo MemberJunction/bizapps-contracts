@@ -1,0 +1,116 @@
+<!doctype html><meta charset="utf-8"><title>Modifications editor — the D-15 centrepiece</title>
+<link rel="stylesheet" href="tokens.css">
+<style>
+  .picker{background:var(--mj-bg-surface); border:1px solid var(--mj-brand-primary);
+    border-radius:var(--mj-radius-md); box-shadow:0 8px 24px rgba(0,0,0,.10); overflow:hidden}
+  .picker__search{display:flex; align-items:center; gap:var(--mj-space-2);
+    padding:var(--mj-space-3); border-bottom:1px solid var(--mj-border-default)}
+  .picker__search input{flex:1; border:1px solid var(--mj-border-default); border-radius:var(--mj-radius-sm);
+    padding:6px 9px; font:inherit}
+  .picker__scope{padding:var(--mj-space-2) var(--mj-space-3); background:var(--mj-color-brand-50);
+    color:var(--mj-color-brand-900); font-size:var(--mj-text-xs); border-bottom:1px solid var(--mj-color-brand-100)}
+  .prov{display:flex; gap:var(--mj-space-3); padding:var(--mj-space-3);
+    border-bottom:1px solid var(--mj-color-neutral-100); cursor:pointer}
+  .prov:hover{background:var(--mj-color-neutral-50)}
+  .prov--sel{background:var(--mj-color-brand-50)}
+  .prov__num{flex:none; width:4.5rem}
+  .prov__body{flex:1; min-width:0}
+  .prov__title{font-weight:700}
+  .prov__text{margin-top:4px; font-size:var(--mj-text-xs); color:var(--mj-text-secondary);
+    background:var(--mj-color-neutral-50); border-left:2px solid var(--mj-color-neutral-300);
+    padding:var(--mj-space-2) var(--mj-space-3); border-radius:0 var(--mj-radius-sm) var(--mj-radius-sm) 0}
+  .prov__toggle{font-size:var(--mj-text-xs); color:var(--mj-brand-primary); font-weight:600; margin-top:4px}
+  .row-form{display:grid; grid-template-columns:1fr 1fr; gap:var(--mj-space-3); margin-top:var(--mj-space-3)}
+  .dirty{border-left:3px solid var(--mj-status-warning)}
+</style>
+<svg style="display:none">
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-warn" viewBox="0 0 24 24"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17h.01"/></symbol>
+</svg>
+
+<div class="mock-note">
+  <b>Mockup 2 &middot; The modifications editor, zoomed.</b> The one genuinely bespoke component (D-15),
+  shown mid-edit with one unsaved row. The picker is <b>filtered to the contract's own template's
+  provisions</b> &mdash; that filter is what replaces the dropped <code>ContractTemplateID</code> column
+  (ERD R-16), so it is a correctness feature, not a convenience. <code>ProvisionText</code> (D-13) is
+  expandable inline so finance reads the standard clause while recording that it was modified.
+</div>
+
+<div class="shell" style="max-width:880px">
+  <div class="panel">
+    <div class="panel__head">
+      <svg class="icon icon--brand"><use href="#i-warn"/></svg>
+      <h2>Modifications to the Master Agreement</h2><span class="count">3 &middot; 1 unsaved</span>
+      <span class="spacer"></span>
+      <button class="btn btn--flat btn--sm"><svg class="icon" style="width:13px;height:13px"><use href="#i-plus"/></svg> Add modification</button>
+    </div>
+    <div class="panel__body" style="padding:0">
+      <table class="grid">
+        <thead><tr><th style="width:7rem">Provision</th><th>Clause</th><th style="width:13rem">Notes</th><th style="width:3rem"></th></tr></thead>
+        <tbody>
+          <tr><td class="mono">3.5(b)</td>
+              <td><strong>Limitation of Liability</strong>
+                  <div class="prov__toggle">show standard text &or;</div></td>
+              <td class="muted">Negotiated by Joanna</td>
+              <td><button class="btn btn--danger btn--sm">&times;</button></td></tr>
+          <tr><td class="mono">11.2</td>
+              <td><strong>Governing Law &amp; Venue</strong>
+                  <div class="prov__text">11.2 &mdash; Any dispute arising under this Agreement shall be
+                  brought exclusively in the state or federal courts located in New Orleans, Louisiana, and
+                  each party consents to the jurisdiction and venue of such courts.</div>
+                  <div class="prov__toggle">hide standard text &and;</div></td>
+              <td class="muted">&mdash;</td>
+              <td><button class="btn btn--danger btn--sm">&times;</button></td></tr>
+        </tbody>
+      </table>
+
+      <div class="dirty" style="padding:var(--mj-space-4); background:var(--mj-color-warning-50)">
+        <div style="display:flex; align-items:center; gap:var(--mj-space-2); margin-bottom:var(--mj-space-3)">
+          <span class="chip chip--warn">unsaved</span>
+          <span class="muted" style="font-size:var(--mj-text-xs)">saved with the form, never on its own</span>
+        </div>
+        <div class="picker">
+          <div class="picker__search">
+            <svg class="icon" style="color:var(--mj-text-muted)"><use href="#i-search"/></svg>
+            <input value="keys" placeholder="Search provisions&hellip;">
+          </div>
+          <div class="picker__scope">
+            Showing provisions of <b>Master Agreement &mdash; June 2026</b> only &mdash; the version this contract incorporates.
+          </div>
+          <div class="prov prov--sel">
+            <div class="prov__num mono">7.4</div>
+            <div class="prov__body">
+              <div class="prov__title">Customer-Provided Model Keys</div>
+              <div class="prov__text">7.4 &mdash; Where the Services incorporate third-party artificial
+              intelligence models, Customer shall provide and maintain its own API credentials for such
+              models, and Company shall not be responsible for usage charges incurred thereunder.</div>
+              <div class="prov__toggle">hide standard text &and;</div>
+            </div>
+          </div>
+          <div class="prov">
+            <div class="prov__num mono">7.5</div>
+            <div class="prov__body">
+              <div class="prov__title">Model Output Disclaimer</div>
+              <div class="prov__toggle">show standard text &or;</div>
+            </div>
+          </div>
+        </div>
+        <div class="row-form">
+          <div class="field"><label>Provision</label><div class="val"><b class="mono">7.4</b> &mdash; Customer-Provided Model Keys</div></div>
+          <div class="field"><label>Notes (optional)</label><div class="val">Standard for AI products</div></div>
+        </div>
+        <div style="display:flex; gap:var(--mj-space-2); margin-top:var(--mj-space-3)">
+          <button class="btn btn--sm">Cancel</button>
+          <button class="btn btn--primary btn--sm">Add to list</button>
+        </div>
+      </div>
+
+      <p class="muted" style="margin:0; padding:var(--mj-space-3) var(--mj-space-4); font-size:var(--mj-text-xs); border-top:1px solid var(--mj-color-neutral-100)">
+        <b>No wording field, by design.</b> We record <i>which</i> provision changed, not the negotiated
+        text &mdash; the text lives in the executed PDF, one click away (D-4). Joanna, asked directly:
+        <i>&ldquo;Even if it's just referencing what clause in the MA was modified? Yes. Yes.&rdquo;</i>
+      </p>
+    </div>
+  </div>
+</div>
