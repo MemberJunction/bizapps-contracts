@@ -46,1723 +46,6 @@ export interface AISkillImportMarkdownOutput {
     warnings: string[];
 }
 
-/**
- * Input for `Contracts.ActivateTerm`.
- *
- * Activation is the moment a term stops being a promise and starts being a thing that bills, so the
- * only input beyond the term itself is the escape hatch for a schedule somebody built by hand.
- *
- * NO import statements — definitions are emitted verbatim.
- */
-export interface ActivateTermInput {
-    ContractTermID: string;
-    /** Skip schedule creation when the caller has already built one deliberately. */
-    SkipSchedule?: boolean;
-}
-
-/**
- * Output for `Contracts.ActivateTerm`.
- *
- * `ScheduledDates` is returned so the caller can show exactly what will bill and when, rather than
- * reporting "activated" and leaving a human to go looking for the schedule to confirm it exists.
- *
- * NO import statements — definitions are emitted verbatim.
- */
-export interface ActivateTermOutput {
-    Success: boolean;
-    Message?: string;
-    ContractTermID?: string;
-    BillingScheduleID?: string;
-    /** ISO dates (YYYY-MM-DD) of every billing event created, in order. */
-    ScheduledDates?: string[];
-}
-
-/**
- * Input for `Contracts.AmendTerm`.
- *
- * An amendment changes a term that is RUNNING; a renewal starts a new one. Conflating the two is the
- * single most common contract-model mistake — a customer who adds fifty seats in month four has not
- * started a new agreement, and forcing that through a renewal would restart their term, re-date
- * their renewal notice and re-baseline their escalation.
- *
- * THE CHANGE COMES IN ON THIS INPUT, not off the amendment row. `ContractAmendment` records THAT a
- * term changed, when, of what kind, and who approved it — it has no columns saying which line
- * changed or to what value. So `AddProduct` and `Coterm` are applied from what is supplied here, and
- * the other kinds are refused rather than guessed at.
- *
- * NO import statements — definitions are emitted verbatim.
- */
-export interface AmendTermInput {
-    ContractTermID: string;
-    /** `AddProduct` or `Coterm`. Other kinds are refused with the reason. */
-    AmendmentType: string;
-    /** What changed and why. Recorded on the amendment and on the lifecycle event. */
-    Description: string;
-    /** ISO date (YYYY-MM-DD). Defaults to today. The co-term stub starts here. */
-    EffectiveDate?: string;
-    /** The product being added mid-term. */
-    ProductID?: string;
-    Quantity?: number;
-    ContractedUnitPrice?: number | null;
-    /** Required when the added line is a Subscription — orders cannot materialise one without it. */
-    SubscriptionTypeID?: string | null;
-    LineType?: string;
-    /** The approval task, where one was required. */
-    ApprovalTaskID?: string | null;
-    /** Compute and report, write nothing. */
-    PreviewOnly?: boolean;
-}
-
-/**
- * Output for `Contracts.AmendTerm`.
- *
- * The stub window is the whole point of the return value. Adding a product mid-term creates a line
- * whose EndDate is the TERM's end date, so the new product lands on the SAME renewal date as
- * everything else the customer already has — and `StubDays` is what the next billing event prorates.
- * A standalone subscription would instead run a year from the amendment date and hand the customer
- * a second renewal date to remember.
- *
- * NO import statements — definitions are emitted verbatim.
- */
-export interface AmendTermOutput {
-    Success: boolean;
-    Message?: string;
-    Preview: boolean;
-    ContractTermID?: string;
-    AmendmentID?: string;
-    AmendmentNumber?: number;
-    /** The co-term stub that would be, or was, created. */
-    LineID?: string;
-    /** ISO date (YYYY-MM-DD) — the amendment date. */
-    StubStart?: string;
-    /** ISO date (YYYY-MM-DD) — the TERM's end date, which is the point. */
-    StubEnd?: string;
-    /** Days of the term the stub covers; what the proration is of. */
-    StubDays?: number;
-}
-
-/**
- * Input for `Contracts.RenewTerm`.
- *
- * `PreviewOnly` is the important one: renewal is where a human wants to see the escalated numbers
- * before agreeing to them, and the preview runs the identical computation rather than a second copy
- * of the rules that would eventually disagree with the real thing.
- *
- * NO import statements — definitions are emitted verbatim.
- */
-export interface RenewTermInput {
-    /** The term being renewed — becomes the new term's RenewalOfTermID. */
-    ContractTermID: string;
-    /** Compute and return, write nothing. */
-    PreviewOnly?: boolean;
-    /** Override the term's own escalation for this renewal. Still clamped to the negotiated cap. */
-    EscalationPercentOverride?: number;
-    /** Length of the new term. Defaults to the length of the term being renewed. */
-    TermMonths?: number;
-}
-
-/**
- * Output for `Contracts.RenewTerm`.
- *
- * `EscalationWasClamped` is surfaced rather than hidden: when a requested increase exceeds the
- * negotiated ceiling the operation applies the ceiling instead of failing, and the caller must be
- * able to say so out loud rather than silently showing a smaller number than was asked for.
- *
- * NO import statements — definitions are emitted verbatim.
- */
-export interface RenewedLine {
-    Description: string;
-    PreviousUnitPrice: number | null;
-    NewUnitPrice: number | null;
-}
-
-export interface RenewTermOutput {
-    Success: boolean;
-    Message?: string;
-    Preview: boolean;
-    /** Undefined on a preview — nothing was created. */
-    NewContractTermID?: string;
-    NewTermNumber?: number;
-    /** ISO date (YYYY-MM-DD). */
-    StartDate?: string;
-    /** ISO date (YYYY-MM-DD). */
-    EndDate?: string;
-    /** The percentage actually applied, after clamping. A fraction: 0.05 = 5%. */
-    AppliedEscalationPercent?: number;
-    /** True when the requested escalation was reduced to the term's negotiated ceiling. */
-    EscalationWasClamped?: boolean;
-    Lines?: RenewedLine[];
-}
-
-/**
- * Input for `Contracts.SaveContract`.
- *
- * ONE PAYLOAD FOR THE WHOLE AGREEMENT — contract, terms, coverage, billing plans and commitments.
- * A browser cannot compose that through `BaseEntity`: the class it holds is the generated entity,
- * and the child collections live on the server subclass. So the client builds a `ContractDraft`,
- * calls `ToInput()`, and the server rehydrates it into the real tree and saves it once.
- *
- * REMOVALS ARE NAMED, never inferred from absence. A client that loaded a contract lazily holds
- * only some of its terms; inferring deletion from what is missing would silently delete the rest.
- *
- * NO import statements — definitions are emitted verbatim.
- */
-export interface SaveContractInput {
-    Contract: {
-        /** Null on a new contract. Set to update an existing one. */
-        ID?: string | null;
-        /** Never honoured on a NEW contract — allocated from the sequence inside the transaction. */
-        ContractNumber?: string | null;
-        ContractTypeID: string;
-        CompanyID: string;
-        CustomerOrganizationID?: string | null;
-        CustomerPersonID?: string | null;
-        PrimaryContactPersonID?: string | null;
-        OwnerUserID?: string | null;
-        ParentContractID?: string | null;
-        Status: string;
-        Description?: string | null;
-        EffectiveDate?: string | null;
-        ExecutedDate?: string | null;
-        PricedAt?: string | null;
-        AutoRenew?: boolean;
-        CancellationWindowDays?: number | null;
-        TerminationPolicy?: string | null;
-        ExternalReferenceID?: string | null;
-        Terms: {
-            ID?: string | null;
-            StartDate: string;
-            EndDate: string;
-            Status: string;
-            BillingFrequency: string;
-            CommittedAmount?: number | null;
-            EscalationPercent?: number | null;
-            EscalationBasis?: string | null;
-            MaxEscalationPercent?: number | null;
-            RenewalNoticeDays?: number | null;
-            RenewalProbability?: number | null;
-            PaymentTermsTypeID?: string | null;
-            CurrencyID?: string | null;
-            EarlyTerminationDate?: string | null;
-            ExecutedDate?: string | null;
-            Notes?: string | null;
-            Lines: {
-                ID?: string | null;
-                ProductID: string;
-                LineType: string;
-                Quantity: number;
-                ContractedUnitPrice?: number | null;
-                DiscountPct?: number | null;
-                StartDate?: string | null;
-                EndDate?: string | null;
-                SubscriptionTypeID?: string | null;
-                Description?: string | null;
-            }[];
-            Schedules: {
-                ID?: string | null;
-                ScheduleType: string;
-                Frequency?: string | null;
-                AnchorDate?: string | null;
-                IsActive?: boolean;
-                Notes?: string | null;
-            }[];
-            Commitments: {
-                ID?: string | null;
-                CommitmentType: string;
-                CommittedAmount: number;
-                ConsumedAmount?: number;
-                PeriodStart?: string | null;
-                PeriodEnd?: string | null;
-                TrueUpPolicy?: string;
-                Status?: string;
-            }[];
-        }[];
-        RemovedTermIDs: string[];
-        RemovedLineIDs: string[];
-        RemovedScheduleIDs: string[];
-        RemovedCommitmentIDs: string[];
-    };
-}
-
-/**
- * Output for `Contracts.SaveContract`.
- *
- * On success the WHOLE saved agreement comes back, re-read from the database, so the client sees
- * what the server DERIVED rather than its own guesses: the allocated contract number, each term's
- * derived number, the defaulted pricing date, and any defaults a contract type supplied.
- *
- * On failure `Issues` carries FIELD-LEVEL reasons in the same shape the client's own validator
- * produces, so one renderer displays both. A save that fails with only a joined string forces the
- * UI to either parse it or show a paragraph where a field marker belongs.
- *
- * NO import statements — definitions are emitted verbatim.
- */
-export interface SaveContractOutput {
-    Success: boolean;
-    Message?: string;
-    Contract?: {
-        ID?: string | null;
-        ContractNumber?: string | null;
-        ContractTypeID: string;
-        CompanyID: string;
-        CustomerOrganizationID?: string | null;
-        CustomerPersonID?: string | null;
-        PrimaryContactPersonID?: string | null;
-        OwnerUserID?: string | null;
-        ParentContractID?: string | null;
-        Status: string;
-        Description?: string | null;
-        EffectiveDate?: string | null;
-        ExecutedDate?: string | null;
-        PricedAt?: string | null;
-        AutoRenew?: boolean;
-        CancellationWindowDays?: number | null;
-        TerminationPolicy?: string | null;
-        ExternalReferenceID?: string | null;
-        Terms: {
-            ID?: string | null;
-            StartDate: string;
-            EndDate: string;
-            Status: string;
-            BillingFrequency: string;
-            CommittedAmount?: number | null;
-            EscalationPercent?: number | null;
-            EscalationBasis?: string | null;
-            MaxEscalationPercent?: number | null;
-            RenewalNoticeDays?: number | null;
-            RenewalProbability?: number | null;
-            PaymentTermsTypeID?: string | null;
-            CurrencyID?: string | null;
-            EarlyTerminationDate?: string | null;
-            ExecutedDate?: string | null;
-            Notes?: string | null;
-            Lines: {
-                ID?: string | null;
-                ProductID: string;
-                LineType: string;
-                Quantity: number;
-                ContractedUnitPrice?: number | null;
-                DiscountPct?: number | null;
-                StartDate?: string | null;
-                EndDate?: string | null;
-                SubscriptionTypeID?: string | null;
-                Description?: string | null;
-            }[];
-            Schedules: {
-                ID?: string | null;
-                ScheduleType: string;
-                Frequency?: string | null;
-                AnchorDate?: string | null;
-                IsActive?: boolean;
-                Notes?: string | null;
-            }[];
-            Commitments: {
-                ID?: string | null;
-                CommitmentType: string;
-                CommittedAmount: number;
-                ConsumedAmount?: number;
-                PeriodStart?: string | null;
-                PeriodEnd?: string | null;
-                TrueUpPolicy?: string;
-                Status?: string;
-            }[];
-        }[];
-        RemovedTermIDs: string[];
-        RemovedLineIDs: string[];
-        RemovedScheduleIDs: string[];
-        RemovedCommitmentIDs: string[];
-    };
-    /** Field-level reasons on failure. Section maps to a workspace pane. */
-    Issues?: { Section: string; Field?: string; Message: string }[];
-}
-
-/**
- * Input for `Contracts.TerminateContract`.
- *
- * `Reason` is required, not optional: a termination with no stated reason is a future argument, and
- * the reason is what the lifecycle event records.
- *
- * NO import statements — definitions are emitted verbatim.
- */
-export interface TerminateContractInput {
-    ContractID: string;
-    /** Why. Recorded on the lifecycle event. */
-    Reason: string;
-    /** ISO date (YYYY-MM-DD). Defaults to today. Billing on or before it stands; after it is cancelled. */
-    EffectiveDate?: string;
-    /** Compute and report, write nothing. */
-    PreviewOnly?: boolean;
-}
-
-/**
- * Output for `Contracts.TerminateContract`.
- *
- * The cancelled/retained split is the whole point of the return value. A contract marked Terminated
- * whose scheduled events still stand will keep invoicing, quietly, because everything downstream
- * reads the schedule rather than the contract's status — so the caller is told exactly how many
- * future events were stopped and how many already-covered ones were deliberately left alone.
- *
- * NO import statements — definitions are emitted verbatim.
- */
-export interface TerminateContractOutput {
-    Success: boolean;
-    Message?: string;
-    Preview: boolean;
-    ContractID?: string;
-    /** ISO date (YYYY-MM-DD). */
-    EffectiveDate?: string;
-    /** Terms moved to Terminated. Zero is legitimate — a contract whose term already completed. */
-    TermsTerminated?: number;
-    /** Future scheduled billing events cancelled. */
-    BillingEventsCancelled?: number;
-    /** Events left standing: on or before the effective date, i.e. periods already covered. */
-    BillingEventsRetained?: number;
-}
-
-/**
- * Input for `Orders.ApplyAccountCredit`.
- *
- * Spending a credit writes a ZERO-amount payment with two offsetting lines: no new
- * cash entered the business, so this only re-attributes money already received.
- * The credit itself is a negative order balance — there is no separate instrument,
- * because a second record holding the same number is a second thing that can
- * disagree with it.
- *
- * NO import statements — definitions are emitted verbatim.
- */
-export interface ApplyAccountCreditInput {
-    /** The order carrying the credit (its Balance is negative). */
-    SourceOrderHeaderID: string;
-    /** The order to spend it on. */
-    TargetOrderHeaderID: string;
-    /** Omit to apply as much as both sides allow. */
-    Amount?: number;
-    Reason?: string;
-    /** Compute and validate without writing — for a confirmation screen. */
-    Preview?: boolean;
-}
-
-/**
- * Output for `Orders.ApplyAccountCredit`.
- *
- * When source and target belong to different companies the intercompany legs are
- * REQUIRED rather than convenient: a single Dr A/R / Cr A/R spanning two legal
- * entities could not be booked at all, since a resolved account must belong to its
- * own company.
- *
- * NO import statements — definitions are emitted verbatim.
- */
-export interface ApplyAccountCreditOutput {
-    Success: boolean;
-    Message?: string;
-    /** What was (or would be) applied. */
-    AppliedAmount?: number;
-    /** The source order's credit still available AFTER this application. */
-    RemainingCredit?: number;
-    /** The target order's balance AFTER this application. */
-    TargetBalanceAfter?: number;
-    PaymentHeaderID?: string;
-    PaymentNumber?: string;
-    /** True when the two orders belong to different companies, so intercompany legs were raised. */
-    CrossCompany?: boolean;
-}
-
-/**
- * Input for `Orders.CancelSubscription`.
- *
- * Policy in, reversal out. The caller supplies a subscription, a date and a reason;
- * the subscription type's cancellation mode, refund mode and grace decide the rest.
- * The mechanic underneath is a negative-quantity order line — correct double-entry
- * and terrible data entry, which is exactly why it is computed from a date and a
- * policy rather than typed.
- *
- * NO import statements — definitions are emitted verbatim.
- */
-export interface CancelSubscriptionInput {
-    SubscriptionID: string;
-    /** When the customer asked. Defaults to today. The RULES decide when coverage actually ends. */
-    RequestDate?: string;
-    /** Free text, stored on the lifecycle event. */
-    Reason?: string;
-    /**
-     * Return the decision WITHOUT writing anything — for a confirmation screen that shows
-     * "you will be refunded $X, coverage ends Y" before the user commits.
-     */
-    Preview?: boolean;
-}
-
-/**
- * Output for `Orders.CancelSubscription`.
- *
- * `Decision` is the wire-safe projection of the engine's decision: dates are ISO
- * strings rather than `Date`, because that is what crosses the transport anyway and
- * a contract that pretends otherwise lies to its client.
- *
- * NO import statements — definitions are emitted verbatim.
- */
-
-/** What the subscription type's rules decided. Present even on a preview. */
-export interface CancellationDecisionResult {
-    /** When coverage ends for revenue purposes. Never before the request, never after the term. */
-    EffectiveDate: string;
-    /** When ACCESS ends — effective date plus grace. Grace extends access, NOT revenue. */
-    AccessThroughDate: string;
-    /** What to give back. 0 under NoRefund, and never more than the term charged. */
-    RefundAmount: number;
-    /** Fraction of the term to reverse; the reversal line's quantity is its negative. */
-    ReversalFraction: number;
-    /** `Canceled` when coverage is cut short, `Completed` when the term simply runs out. */
-    TermStatus: 'Canceled' | 'Completed';
-    /** Which rules produced this, in a sentence — surfaced to the user, so it names the policy. */
-    Explanation: string;
-}
-
-export interface CancelSubscriptionOutput {
-    Success: boolean;
-    Message?: string;
-    Decision?: CancellationDecisionResult;
-    /** The term that was (or would be) cancelled. */
-    SubscriptionTermID?: string;
-    /** The reversal order, when one was needed. Absent when nothing was refunded. */
-    ReversalOrderID?: string;
-    ReversalOrderNumber?: string;
-}
-
-/**
- * Input for `Orders.CapturePayment`.
- *
- * WHY THIS OPERATION EXISTS. A payment is a HEADER plus its ALLOCATION LINES, and the two must be
- * written in one transaction. `PaymentHeaderEntityServer.Lines` is a TRANSIENT collection, not a
- * column, so CodeGen cannot emit it on the client entity and a browser `entity.Save()` has nowhere
- * to put the allocations. That is the same situation `Orders.SaveOrder` was built for, and it needs
- * the same answer: one call, one transaction.
- *
- * A two-step create-then-allocate flow was rejected. Between the steps there would be a captured
- * payment with no allocations in the database — cash recorded against nothing — and any failure in
- * the second step would leave it there permanently.
- *
- * NOTE ON THE FEE: it is deliberately NOT an input. A client-supplied fee is a client-supplied
- * general-ledger amount, and the client has no access to the provider's schedule. The server
- * computes it and returns it.
- *
- * NO import statements — definitions are emitted verbatim.
- */
-export interface OrdersCapturePaymentAllocationInput {
-    OrderHeaderID: string;
-    Amount: number;
-    /** Settle a specific LINE rather than the order as a whole. Optional. */
-    OrderLineID?: string | null;
-}
-
-/** Instrument detail, when the tender needs one. Never the PAN — only tokens and references (D38). */
-export interface OrdersCapturePaymentDetailInput {
-    PaymentProviderID?: string | null;
-    ProviderInstrumentRef?: string | null;
-    SourceCustomerPaymentMethodID?: string | null;
-    ReferenceNumber?: string | null;
-    InstrumentDate?: string | null;
-}
-
-export interface OrdersCapturePaymentInput {
-    /**
-     * The `PaymentIntent` row this payment settles, from `Orders.OpenPaymentIntent`.
-     *
-     * REQUIRED FOR A GATEWAY-COLLECTED PAYMENT and meaningless without one. `PaymentHeaderEntityServer`
-     * reads the gateway's own intent string THROUGH this row on the way to capture; a provider-backed
-     * payment that does not carry it is refused with "there is nothing for the gateway to capture".
-     *
-     * Omitted for a RECORDED payment — a cheque, a wire, cash — where the money moved before any of
-     * this code ran and there is no gateway to ask.
-     */
-    PaymentIntentID?: string | null;
-
-    /**
-     * Gross amount received. Must equal the sum of `Allocations[].Amount` (D68).
-     *
-     * The invariant is checked HERE rather than trusted from the caller: the page enforces it before
-     * emitting, but the operation is the trust boundary, and a mismatch means cash recorded against
-     * nothing or an order credited with money that never arrived.
-     */
-    Amount: number;
-
-    /** Which company received the cash. */
-    ReceivingCompanyID: string;
-
-    /** Who paid. Exactly one of these. */
-    BillToOrganizationID?: string | null;
-    BillToPersonID?: string | null;
-
-    /**
-     * Tender by CODE, not id — the client should not have to resolve a lookup to take money. An
-     * unknown code is refused by name rather than falling back to a default tender, because a
-     * payment silently recorded as the wrong kind is invisible until somebody reconciles.
-     */
-    TenderCode: string;
-
-    /** 'YYYY-MM-DD'. Defaults to today. */
-    PaymentDate?: string;
-
-    /** Cheque number, wire confirmation, free text. */
-    Reference?: string | null;
-    Notes?: string | null;
-
-    /** Where the money lands. Must be non-empty. */
-    Allocations: OrdersCapturePaymentAllocationInput[];
-
-    PaymentDetail?: OrdersCapturePaymentDetailInput | null;
-
-    /** Spend a stored-value balance instead of taking new cash. */
-    SourceOrderHeaderID?: string | null;
-
-    /**
-     * Makes this call safe to retry. A double-clicked Capture, a retry after a timeout, a queue
-     * redelivery — all must take the money ONCE.
-     *
-     * Supply a token the CLIENT generates when the user opens the form, not one derived from the
-     * amount: two people legitimately paying the same amount on the same day must both go through.
-     * A repeat call with the same token returns the ORIGINAL payment and sets `WasRetry`, rather
-     * than taking money again or reporting a spurious failure.
-     *
-     * Optional. Without it a retry takes the payment twice, which is the caller's choice to make.
-     */
-    IdempotencyKey?: string | null;
-
-    /**
-     * Compute and validate WITHOUT writing.
-     *
-     * Runs the REAL capture inside a transaction that always rolls back — not a separate model of
-     * the arithmetic. A preview that reimplements the calculation eventually disagrees with the
-     * capture, and the disagreement surfaces as a balanced journal entry for the wrong amount, which
-     * nothing downstream can catch.
-     */
-    Preview?: boolean;
-}
-
-/**
- * Output for `Orders.CapturePayment`.
- *
- * Mirrors `OrdersSaveOrderOutput`'s shape so a client handles both the same way, and adds
- * `OrderEffects` — what each order looks like AFTER the payment — so a screen can show the result
- * without a second round trip.
- *
- * EVERYTHING HERE IS READ BACK FROM WHAT THE ENGINE COMPUTED, never recomputed. Recomputing is the
- * mistake that produces a screen quietly disagreeing with the ledger, and the disagreement shows up
- * as a balanced journal entry for the wrong amount, which nothing downstream can catch.
- *
- * `JournalEntryPreview` and `BlockerResult` are declared in orders-save-order.input.ts and shared —
- * CodeGen emits every type file into one namespace, so they are referenced rather than redeclared.
- *
- * NO import statements — definitions are emitted verbatim.
- */
-
-/** What one order looks like after the payment landed on it. */
-export interface CapturePaymentOrderEffect {
-    OrderHeaderID: string;
-    OrderNumber: string;
-    /** As the rollup triggers left it, not as the operation calculated it. */
-    AmountPaid: number;
-    Balance: number;
-    PaymentStatus: string;
-    /**
-     * True when this order's balance went NEGATIVE — the customer over-paid and the surplus is now
-     * spendable credit (D68). Not an error: the account-credit screen depends on these existing.
-     */
-    HasCredit: boolean;
-}
-
-export interface OrdersCapturePaymentOutput {
-    Success: boolean;
-    Message?: string;
-
-    PaymentHeaderID?: string | null;
-    PaymentNumber?: string | null;
-    /** Expected 'Captured'. Null on a refusal or a preview that found blockers. */
-    Status?: string | null;
-
-    /** As booked, after the engine has had its say. */
-    Amount?: number;
-    /**
-     * The provider's cut, computed SERVER-SIDE. Never accepted as input — a client-supplied fee is a
-     * client-supplied general-ledger amount, and the client cannot see the provider's schedule.
-     * Zero for tenders with no provider.
-     */
-    ProcessingFeeAmount?: number;
-    /** What actually reached the bank: Amount minus the fee. */
-    NetAmount?: number;
-
-    OrderEffects?: CapturePaymentOrderEffect[];
-
-    /** The entries this produced, so a screen can show what moved. */
-    JournalEntries?: JournalEntryPreview[];
-    EntryCount?: number;
-    AllBalanced?: boolean;
-
-    /** Refusals, in the shape the UI already renders. */
-    Blockers?: BlockerResult[];
-
-    /**
-     * True when nothing was written because this was a preview. The numbers above are what a real
-     * capture WOULD produce — they come from running it and rolling back, not from a second model.
-     */
-    WasPreview?: boolean;
-
-    /**
-     * True when an `IdempotencyKey` matched an existing payment and THIS CALL TOOK NO MONEY. The
-     * fields above describe that original payment, so a retry after a timeout shows the user what
-     * actually happened rather than a spurious failure or a second charge.
-     */
-    WasRetry?: boolean;
-    /** Echoed back so a caller can correlate, and so a retry is legible in a log. */
-    IdempotencyKey?: string | null;
-}
-
-/**
- * Input for `Orders.ConfirmOrder`.
- *
- * The irreversible step. In ONE transaction it saves the draft (if one is
- * supplied), transitions to `Confirmed`, books one journal entry per line,
- * decides and writes subscriptions, issues entitlement grants, and captures the
- * initial payment when the order carries one. Any failure rolls back everything —
- * a confirmed order without its entries is invalid state, not a partial success.
- *
- * Two call shapes:
- *   - `OrderHeaderID` — confirm an already-saved draft.
- *   - `Draft` — save and confirm together, for a caller that never persisted one.
- *
- * Shapes come from the shared block in `orders-save-order.input.ts`.
- * NO import statements — definitions are emitted verbatim.
- */
-export interface OrdersConfirmOrderInput {
-    /** Confirm an existing draft. Mutually exclusive with `Draft`. */
-    OrderHeaderID?: string;
-    /** Save-and-confirm in one call. Mutually exclusive with `OrderHeaderID`. */
-    Draft?: OrderDraftInput;
-    /**
-     * Refuse the confirm unless the gross matches this to the cent. The number the
-     * user was looking at when they pressed the button — so a price that moved
-     * underneath them (a promotion that expired mid-session, a rate that changed)
-     * stops the confirm instead of silently booking a different amount.
-     */
-    ExpectedGrossTotal?: number;
-    /**
-     * Proceed even though a sales rule requires approval, recording the approval
-     * against the acting user. Refused unless they hold the authority.
-     */
-    ApprovalOverrideReason?: string;
-}
-
-/**
- * Output for `Orders.ConfirmOrder`.
- *
- * On failure, `Blockers` carries the REASON — not a bare `false`. A rejected
- * confirm that only logs why is a rejected confirm the user cannot act on.
- *
- * NO import statements — definitions are emitted verbatim.
- */
-export interface OrdersConfirmOrderOutput {
-    Success: boolean;
-    Message?: string;
-    OrderHeaderID?: string;
-    /** Taken from the sequence inside the transaction, so a failed confirm burns no number. */
-    OrderNumber?: string;
-    Status?: string;
-    Totals?: OrderTotalsResult;
-    /** The entries that were actually created, with their IDs. */
-    JournalEntries?: JournalEntryPreview[];
-    /** What happened to the subscription, when a line carried one. */
-    SubscriptionDecisions?: SubscriptionDecisionPreview[];
-    /** Grants issued. */
-    EntitlementGrants?: EntitlementGrantPreview[];
-    /** Set when the order carried an initial-payment intent that captured. */
-    PaymentHeaderID?: string;
-    PaymentNumber?: string;
-    /** Set when a sales rule escalated instead of proceeding. */
-    ApprovalTaskID?: string;
-    /** Why the confirm was refused. Empty on success. */
-    Blockers?: BlockerResult[];
-}
-
-/**
- * Input for `Orders.CreateOrderInState`.
- *
- * WHAT THIS IS FOR. Back-office entry of something that has ALREADY happened — a sale taken at a
- * counter, a shipment that went out before anyone opened the system, a migration from whatever came
- * before. The order needs to land in its final state without a human clicking through Draft →
- * Confirmed → Posted → Fulfilled.
- *
- * WHAT IT IS NOT. A shortcut past booking. It runs the REAL confirm path — the same
- * `Orders.ConfirmOrder` machinery, the same per-line journal entries, the same subscription
- * materialisation and entitlement grants — and only then advances the status. An operation that
- * wrote `Status = 'Fulfilled'` directly would produce an order that looks complete and has no
- * ledger behind it, which is precisely the failure nothing downstream can detect: the order
- * reconciles against itself, and the money simply never existed (D17).
- *
- * NO import statements — definitions are emitted verbatim.
- */
-export interface OrdersCreateOrderInStateInput {
-    /**
-     * The order to create. Same shape `Orders.ConfirmOrder` takes, so there is one draft mapping to
-     * be right rather than two.
-     */
-    Draft: OrderDraftInput;
-
-    /**
-     * Where it should end up: 'Confirmed', 'Posted' or 'Fulfilled'.
-     *
-     * 'Draft' and 'Quoted' are not accepted — that is `Orders.SaveOrder`, and routing them here
-     * would run booking on an order that is not meant to be locked yet. 'Voided' is not accepted
-     * either: voiding is a decision about an existing order, not a state to create one in.
-     */
-    TargetStatus: string;
-
-    /**
-     * The date the thing actually happened, when it is not today. Back-dating is the normal case
-     * here — this operation exists because the event preceded the record.
-     */
-    OrderDate?: string | null;
-
-    /**
-     * Refuse if the order's gross total does not come to this. Same guard `ConfirmOrder` offers, and
-     * worth more here: a migration that silently reprices at today's rates rather than the rate the
-     * customer was charged is a defect that looks like a successful import.
-     */
-    ExpectedGrossTotal?: number | null;
-
-    /**
-     * Advance to Fulfilled even when some fulfillable lines cannot be marked — a migration where the
-     * shipment records are incomplete. Default false, because an order marked Fulfilled with unshipped
-     * lines is a promise the system now claims to have kept.
-     */
-    ForceFulfillment?: boolean;
-
-    /** Recorded on the order, so the row says why it skipped the usual path. */
-    Reason?: string | null;
-}
-
-/**
- * Output for `Orders.CreateOrderInState`.
- *
- * Mirrors `OrdersConfirmOrderOutput` and adds the lifecycle trail, because the whole point of this
- * operation is that it moved through states rather than landing in one — and a caller importing a
- * thousand orders needs to see WHERE one stopped, not just that it did.
- *
- * NO import statements — definitions are emitted verbatim.
- */
-
-/** One step the order actually took. Recorded even when it was a no-op, so the trail is complete. */
-export interface OrderStateTransition {
-    From: string;
-    To: string;
-    /** False when the step was refused or skipped; `Reason` then says why. */
-    Applied: boolean;
-    Reason?: string | null;
-}
-
-export interface OrdersCreateOrderInStateOutput {
-    Success: boolean;
-    Message?: string;
-
-    OrderHeaderID?: string | null;
-    OrderNumber?: string | null;
-    /** Where it actually ended up, which is not always where it was asked to go. */
-    Status?: string | null;
-    /** What the caller asked for, echoed so a partial result is legible without the request. */
-    RequestedStatus?: string | null;
-
-    /** Draft → Confirmed → Posted → Fulfilled, in the order taken. */
-    Transitions?: OrderStateTransition[];
-
-    Totals?: OrderTotalsResult;
-
-    /**
-     * The entries the CONFIRM produced. Present because this operation's entire justification is
-     * that it books properly — an empty list on a successful create is the defect it exists to
-     * prevent, not a formatting detail.
-     */
-    JournalEntries?: JournalEntryPreview[];
-    EntryCount?: number;
-    AllBalanced?: boolean;
-
-    /**
-     * Fulfillable lines still Pending when the target was Fulfilled. Non-zero only with
-     * ForceFulfillment, and worth surfacing: the order now claims to have shipped things it has no
-     * record of shipping.
-     */
-    UnfulfilledLineCount?: number;
-
-    Blockers?: BlockerResult[];
-}
-
-/**
- * Input for `Orders.FulfillOrderLines`.
- *
- * Flipping lines to Fulfilled and advancing the order when the last one is done are ONE decision,
- * so they are one operation. Doing them as two calls leaves a window where every line is shipped
- * and the order still reads Posted — which is what a warehouse sees as "the system lost my work".
- *
- * Fulfilment is a LOGISTICS fact (D15). No journal entry fires on Posted to Fulfilled; revenue was
- * settled at booking and releases on its own schedule. A delay in the warehouse must never restate
- * a closed period.
- *
- * NO import statements — definitions are emitted verbatim.
- */
-export interface OrdersFulfillOrderLinesInput {
-    /**
-     * The lines to mark Fulfilled. Lines from several orders may be sent together — a picker works
-     * a shelf, not an order — and each order advances independently once its own lines are done.
-     */
-    OrderLineIDs: string[];
-    /**
-     * Refuse the whole call if ANY line cannot be fulfilled, rather than doing what is possible and
-     * reporting the rest. Default false: a picker who scans one already-shipped item should not
-     * lose the other nine scans.
-     */
-    AllOrNothing?: boolean;
-    /**
-     * A picker's remark. ACCEPTED BUT NOT YET STORED — OrderHeader has no column for it, and adding
-     * one to hold a free-text note is a schema change nobody has asked for. Kept in the contract so
-     * callers can send it, and so the day there is somewhere honest to put it, nothing changes here.
-     */
-    Notes?: string;
-}
-
-/**
- * Output for `Orders.FulfillOrderLines`.
- *
- * Reports per line AND per order, because they answer different questions: a picker wants to know
- * which scans took, and a supervisor wants to know which orders are now closed.
- *
- * A refusal is a normal outcome, not an error — scanning an already-shipped item is an ordinary
- * mistake — so refusals come back as data with reasons rather than as a thrown failure.
- *
- * NO import statements — definitions are emitted verbatim.
- */
-export interface FulfilledLineResult {
-    OrderLineID: string;
-    /** True when this call moved it from Pending to Fulfilled. */
-    Fulfilled: boolean;
-    /**
-     * Why not, when it was not. One of LineNotFound, OrderNotPosted, DoesNotRequireFulfillment,
-     * IsReversal, IsRollupParent, AlreadyFulfilled — with wording that names the line.
-     */
-    Refusal?: string | null;
-    RefusalReason?: string | null;
-}
-
-export interface AdvancedOrderResult {
-    OrderHeaderID: string;
-    OrderNumber: string;
-    /** The status before this call — Confirmed or Posted. */
-    StatusBefore: string;
-    StatusAfter: string;
-    /** True when this call was what closed it out. */
-    AdvancedToFulfilled: boolean;
-    /** Fulfillable lines still pending on this order. Zero when it advanced. */
-    RemainingLineCount: number;
-}
-
-export interface OrdersFulfillOrderLinesOutput {
-    Success: boolean;
-    Message?: string;
-    Lines: FulfilledLineResult[];
-    /** Every order touched, whether or not it advanced. */
-    Orders: AdvancedOrderResult[];
-    FulfilledCount: number;
-    RefusedCount: number;
-    /** Orders this call moved to Fulfilled. */
-    AdvancedCount: number;
-}
-
-/**
- * Input for `Orders.GetFulfillmentQueue`.
- *
- * The queue is a COMPUTED surface, like the overdue worklist: it is every line that still needs
- * shipping, which changes as lines are flipped rather than as anything is written to the order. A
- * stored flag would need a job to keep it honest, and the day the job failed the warehouse would
- * quietly stop seeing work.
- *
- * A line holds its order open only when its product TYPE requires fulfilment. Subscriptions,
- * downloads and donations never appear here — nothing ships — and neither do reversal lines (goods
- * coming back are tracked on the line they reverse) or a bundle's rollup parent (its children carry
- * the actual goods).
- *
- * NO import statements — definitions are emitted verbatim.
- */
-export interface OrdersGetFulfillmentQueueInput {
-    /** Restrict to orders owned by these companies. Omit for everything in scope. */
-    CompanyIDs?: string[];
-    /** Restrict to one customer. */
-    BillToOrganizationID?: string;
-    BillToPersonID?: string;
-    /**
-     * Only orders confirmed on or before this date — the practical meaning of "oldest first".
-     * Defaults to no bound.
-     */
-    ConfirmedOnOrBefore?: string;
-    /** Restrict to lines shipping to one address, for a warehouse working a single destination. */
-    ShipToAddressID?: string;
-    /**
-     * Include orders whose fulfillable lines are ALL done. Off by default: a queue is work to do,
-     * and a screen full of finished orders is how a real backlog gets missed.
-     */
-    IncludeCompleted?: boolean;
-    /** Cap the result. Defaults to 500. */
-    MaxCount?: number;
-}
-
-/**
- * Output for `Orders.GetFulfillmentQueue`.
- *
- * A worklist, not a report: a picker should be able to work a row without a second round trip, so
- * each line carries what to send, how many, and where — including the ship-to that a LINE may
- * override on the header (D61), because a bundle bought for three colleagues goes to three places.
- *
- * NO import statements — definitions are emitted verbatim.
- */
-export interface FulfillmentQueueLine {
-    OrderLineID: string;
-    LineNumber: number;
-    ProductID: string;
-    ProductName: string;
-    SKU?: string | null;
-    Quantity: number;
-    /** Pending | Fulfilled | Returned. Only Pending lines are work. */
-    FulfillmentStatus: string;
-    /**
-     * Where this LINE goes, which may differ from the order's — a seat bought for a colleague, a
-     * gift shipped elsewhere. Null means it follows the header.
-     */
-    ShipToAddressID?: string | null;
-    ShipToOrganizationID?: string | null;
-    ShipToPersonID?: string | null;
-    ShipToName?: string | null;
-    /** Set when this line came from a bundle, so a picker can see the components belong together. */
-    ParentOrderLineID?: string | null;
-    SourceBundleProductID?: string | null;
-}
-
-export interface FulfillmentQueueOrder {
-    OrderHeaderID: string;
-    OrderNumber: string;
-    OrderDate: string;
-    ConfirmedAt?: string | null;
-    Status: string;
-    CompanyID: string;
-    CompanyName: string;
-    /** Whichever party the order bills — organization wins, else the person. */
-    CustomerName: string;
-    BillToOrganizationID?: string | null;
-    BillToPersonID?: string | null;
-    /**
-     * How many fulfillable lines this order has in total, so a screen can say "1 of 3 remaining"
-     * rather than just "1". Excludes lines that require no fulfilment, reversals, and rollup parents.
-     */
-    FulfillableCount: number;
-    /** The lines still awaiting fulfilment. Never empty unless IncludeCompleted was set. */
-    Lines: FulfillmentQueueLine[];
-}
-
-export interface OrdersGetFulfillmentQueueOutput {
-    Success: boolean;
-    Message?: string;
-    /** Oldest confirmed first — the order a warehouse should work them in. */
-    Orders: FulfillmentQueueOrder[];
-    /** Orders returned. Distinct from the line count, which is what a picker actually works. */
-    OrderCount: number;
-    /** Lines still awaiting fulfilment across every returned order. */
-    AwaitingLineCount: number;
-    /** True when MaxCount capped the result, so a screen can say so rather than imply completeness. */
-    Truncated: boolean;
-}
-
-/**
- * Input for `Orders.GetOverdueWorklist`.
- *
- * Overdue is a COMPUTED surface — `Balance > 0 AND DueDate < now` — never a stored
- * flag, because it changes with the clock rather than with a write. So the worklist
- * has to be assembled server-side; a client cannot filter a column that does not
- * exist, and storing one would mean a nightly job whose only purpose is keeping it
- * honest.
- *
- * NO import statements — definitions are emitted verbatim.
- */
-export interface OrdersGetOverdueWorklistInput {
-    /** Treat this as "today". Defaults to now. */
-    AsOfDate?: string;
-    /** Restrict to orders owned by these companies. Omit for everything in scope. */
-    CompanyIDs?: string[];
-    /** Restrict to one customer. */
-    BillToOrganizationID?: string;
-    BillToPersonID?: string;
-    /** Only rows at least this many days past due. */
-    MinDaysOverdue?: number;
-    /** Only rows carrying at least this much. */
-    MinBalance?: number;
-    /** Restrict to a rep's book. */
-    SalesRepUserID?: string;
-    /** Cap the result. Defaults to 500; the tail of an aging list is not a worklist. */
-    MaxCount?: number;
-}
-
-/**
- * Output for `Orders.GetOverdueWorklist`.
- *
- * A worklist, not a report: each row carries what is needed to decide what to do
- * next without a second round trip — including the credit the customer is already
- * holding, because spending that comes before chasing cash.
- *
- * NO import statements — definitions are emitted verbatim.
- */
-export interface OverdueWorklistRow {
-    OrderHeaderID: string;
-    OrderNumber: string;
-    OrderDate: string;
-    DueDate: string;
-    DaysOverdue: number;
-    CompanyID: string;
-    CompanyName: string;
-    /** Whichever party the order bills — organization wins, else the person. */
-    CustomerName: string;
-    BillToOrganizationID?: string | null;
-    BillToPersonID?: string | null;
-    TotalGross: number;
-    AmountPaid: number;
-    Balance: number;
-    Description?: string | null;
-    SalesRepUserID?: string | null;
-    SalesRepName?: string | null;
-    /** Where the order came from — a self-serve purchase is chased differently. */
-    OriginChannel?: string | null;
-    /**
-     * Credit this customer already holds, as a positive magnitude, summed from their
-     * negative-balance orders. Offering it is almost always the cheapest collection.
-     */
-    AvailableCredit: number;
-    /**
-     * Set when a failed subscription renewal put this into grace. Grace extends
-     * ACCESS, never revenue — the two are different dates.
-     */
-    GraceThroughDate?: string | null;
-    SubscriptionID?: string | null;
-    SubscriptionNumber?: string | null;
-}
-
-export interface OrdersGetOverdueWorklistOutput {
-    Success: boolean;
-    Message?: string;
-    /** Oldest first — the order a person should work them in. */
-    Rows: OverdueWorklistRow[];
-    /** Totals over the returned set, for the header chips. */
-    TotalOverdue: number;
-    RowCount: number;
-    /** True when `MaxCount` clipped the result, so the UI can say so rather than imply completeness. */
-    Truncated: boolean;
-    /** Aging buckets over the returned set. */
-    Buckets: { Current: number; Days1To30: number; Days31To60: number; Days61Plus: number };
-}
-
-/**
- * Input for `Orders.PreviewConfirm`.
- *
- * A dry run of `Orders.ConfirmOrder` that writes NOTHING: it resolves a GL
- * account for every role every line needs, runs the subscription decision,
- * resolves entitlement policy, and evaluates sales rules — then reports what
- * would happen and what would stop it.
- *
- * This exists so a user learns about an unresolvable account BEFORE pressing the
- * button rather than from a red banner after. It must stay in lock-step with
- * ConfirmOrder: an integration check asserts that what this predicts is what
- * confirming actually does, because a preview that can disagree with reality is
- * worse than no preview at all.
- *
- * Shapes come from the shared block in `orders-save-order.input.ts`.
- * NO import statements — definitions are emitted verbatim.
- */
-export interface OrdersPreviewConfirmInput {
-    /** Preview confirming an existing draft. Mutually exclusive with `Draft`. */
-    OrderHeaderID?: string;
-    /** Preview confirming an unsaved draft. Mutually exclusive with `OrderHeaderID`. */
-    Draft?: OrderDraftInput;
-}
-
-/**
- * Output for `Orders.PreviewConfirm` — everything the confirm pre-flight renders.
- *
- * `CanConfirm` is the single question the button reads. It is false when any
- * blocker is present, and a blocker names the rule that failed and where to fix
- * it. Approvals are NOT blockers: a discount over the rep's authority escalates,
- * so it appears in `Approvals` while `CanConfirm` stays true.
- *
- * NO import statements — definitions are emitted verbatim.
- */
-export interface OrdersPreviewConfirmOutput {
-    Success: boolean;
-    Message?: string;
-    /** The button's authority. False iff `Blockers` is non-empty. */
-    CanConfirm: boolean;
-    Totals?: OrderTotalsResult;
-    /** One per line, grouped by company for display. Each carries its own balanced check. */
-    JournalEntries: JournalEntryPreview[];
-    /** Whether each company's entry balances, and the count — the summary chip. */
-    EntryCount: number;
-    CompanyCount: number;
-    AllBalanced: boolean;
-    /** Extend vs create, with the proration note when a partial period scaled a quantity. */
-    SubscriptionDecisions: SubscriptionDecisionPreview[];
-    /** Grants that would issue, with resolved timing / quantity / validity policy. */
-    EntitlementGrants: EntitlementGrantPreview[];
-    /** Sales rules that would escalate. Present does NOT mean blocked. */
-    Approvals: ApprovalRequirementPreview[];
-    /** Lines that will hold the order at Posted because they must ship. */
-    FulfillmentHolds?: Array<{ LineNumber: number; ProductName: string; Quantity: number }>;
-    /** Set when the order carries an initial-payment intent that would capture. */
-    InitialPayment?: {
-        PaymentTypeName: string;
-        Amount: number;
-        ProcessingFeeAmount?: number | null;
-        InstrumentSummary?: string | null;
-    };
-    /** Why the confirm cannot proceed. Empty when `CanConfirm` is true. */
-    Blockers: BlockerResult[];
-}
-
-/**
- * Input for `Orders.PreviewOrder`.
- *
- * Runs the REAL pricing pipeline over an unsaved draft and returns the full
- * decomposition without writing anything. This is what makes continuous preview
- * honest: there is no second implementation of the pricing rules living in the
- * browser beside the engine, which is the thing that eventually disagrees.
- *
- * Shapes come from the shared block in `orders-save-order.input.ts`.
- * NO import statements — definitions are emitted verbatim.
- */
-export interface OrdersPreviewOrderInput {
-    Draft: OrderDraftInput;
-    /**
-     * Include the per-line journal-entry projection. Costs a GL-account resolution
-     * walk per line, so order entry leaves it off while typing and the Accounting
-     * tab turns it on.
-     */
-    IncludeJournalEntries?: boolean;
-}
-
-/**
- * Output for `Orders.PreviewOrder` — the decomposition the order-entry rail renders.
- *
- * `Success: false` here means the draft could not be PRICED (an unknown product, a
- * negative quantity on a non-return). It does not mean the order cannot confirm —
- * that is `Orders.PreviewConfirm`'s question, and it is asked separately because
- * resolving GL accounts and evaluating sales rules costs more than pricing does.
- *
- * NO import statements — definitions are emitted verbatim.
- */
-export interface OrdersPreviewOrderOutput {
-    Success: boolean;
-    Message?: string;
-    Lines: OrderLineResult[];
-    Totals: OrderTotalsResult;
-    Charges: ChargeResult[];
-    /** Applied AND offered-not-applied, because the second is what answers customer questions. */
-    Promotions: PromotionResult[];
-    /** Present only when the caller asked for them. */
-    JournalEntries?: JournalEntryPreview[];
-    /** Pricing-level problems. Confirm-level blockers come from PreviewConfirm. */
-    Blockers?: BlockerResult[];
-}
-
-/**
- * Input for `Orders.PreviewPrice`.
- *
- * Resolves ONE product's price through the real pipeline. The narrow sibling of
- * `Orders.PreviewOrder`: this answers "what does this cost", that answers "what
- * does this order come to". The pricing screen's resolution-walk visualiser and
- * the order line's price badge both read this.
- *
- * NO import statements — definitions are emitted verbatim.
- */
-export interface PreviewPriceInput {
-    ProductID: string;
-    /** Defaults to 1 — the common "what does one cost" question. */
-    Quantity?: number;
-    /** Who is buying. Either may be omitted; both omitted means base pricing. */
-    OrganizationID?: string | null;
-    PersonID?: string | null;
-    /** Defaults to now. Pass a future date to check a seasonal rate before it starts. */
-    AsOf?: string;
-    /** Force a specific list, ignoring the customer's assignment — for "what if" comparisons. */
-    PriceListID?: string | null;
-    FeeType?: string;
-}
-
-/**
- * Output for `Orders.PreviewPrice`.
- *
- * `Components` is the explanation, not decoration — it is what lets a price badge
- * show the walk that produced the number instead of asserting it.
- *
- * NO import statements — definitions are emitted verbatim.
- */
-
-/** One line of the explanation. */
-export interface PreviewComponent {
-    ComponentType: string;
-    Label: string;
-    Amount: number;
-    RunningTotal: number;
-}
-
-export interface PreviewPriceOutput {
-    Success: boolean;
-    Message?: string;
-    UnitPrice?: number;
-    ExtendedAmount?: number;
-    Quantity?: number;
-    /** The list that applied, and how it was arrived at. */
-    PriceListID?: string | null;
-    PriceListName?: string | null;
-    /** Which rule won, for a rule author checking their work. */
-    ProductPriceID?: string | null;
-    /** Which resolver answered — 'default', or a plugin key like `Company:<id>`. */
-    ResolvedBy?: string;
-    Components?: PreviewComponent[];
-}
-
-/**
- * Input for `Orders.RefundPayment`.
- *
- * A refund is a NEW payment, never an edit of the capture — the capture happened,
- * it has an entry, and rewriting it would destroy the trail of money that moved.
- *
- * NO import statements — definitions are emitted verbatim.
- */
-export interface RefundPaymentInput {
-    PaymentHeaderID: string;
-    /** Omit for a full refund of whatever remains refundable. */
-    Amount?: number;
-    Reason?: string;
-    /** Provider's refund id, when the money moved through one. */
-    ProviderRefundID?: string;
-    /** Compute and validate without writing — for a confirmation screen. */
-    Preview?: boolean;
-}
-
-/**
- * Output for `Orders.RefundPayment`.
- *
- * The processing fee is deliberately NOT reversed — the processor kept its cut.
- *
- * NO import statements — definitions are emitted verbatim.
- */
-export interface RefundPaymentOutput {
-    Success: boolean;
-    Message?: string;
-    /** What was (or would be) refunded. */
-    RefundAmount?: number;
-    /** Still refundable AFTER this refund. */
-    RemainingRefundable?: number;
-    RefundPaymentHeaderID?: string;
-    RefundPaymentNumber?: string;
-    /** The reversing journal entry, when one was booked. */
-    JournalEntryID?: string;
-    /**
-     * How the refund un-applied across the orders the original settled — proportional
-     * to how it was applied, because that decision was already made once.
-     */
-    Unapplications?: Array<{
-        OrderHeaderID: string;
-        OrderNumber: string;
-        OriginalAmount: number;
-        UnappliedAmount: number;
-        BalanceAfter: number;
-    }>;
-}
-
-/**
- * ============================================================================
- * WHY THE SHARED SHAPES LIVE IN THIS FILE
- * ============================================================================
- * CodeGen emits each operation's `InputTypeDefinition` / `OutputTypeDefinition`
- * **verbatim** into one `remote_operations.ts`, de-duplicating by exact text and
- * resolving NO imports. So a definition file cannot `import` a sibling — every
- * name it uses must be declared in some definition that also gets emitted.
- *
- * Rather than repeat the order shapes across ten files (byte-identical or the
- * de-dupe fails), the family's shared shapes are declared once, here, in the
- * definition of the operation that is their natural home: `SaveOrder` takes the
- * whole draft, so `OrderDraftInput` and everything under it IS its input.
- * TypeScript hoists interfaces, so the other operations reference these names
- * freely regardless of emission order.
- *
- * NO `import` statements in this file. Ever. They would be emitted verbatim and
- * break the generated module.
- * ============================================================================
- */
-
-/** A line as the client states it. Everything the engine derives is absent by design. */
-export interface OrderLineInput {
-    /** Client-side identity, so a preview result can be matched back to its row. Not persisted. */
-    ClientKey?: string;
-    ProductID: string;
-    Quantity: number;
-    /**
-     * Direct entry, and it WINS over every resolved price. Omit it — do not send 0 — to let the
-     * pricing pipeline resolve one; zero is a deliberate free line, not "unset".
-     */
-    UnitPrice?: number;
-    DiscountPct?: number;
-    /** Explicit service period. Omit it and an event product stamps its own dates. */
-    ServicePeriodStart?: string | null;
-    ServicePeriodEnd?: string | null;
-    /** Ship-to trio. Each side falls back to the header independently. */
-    ShipToAddressID?: string | null;
-    ShipToOrganizationID?: string | null;
-    ShipToPersonID?: string | null;
-    /** Naming a renewal target IS the statement of who the subscriber is. */
-    RenewsSubscriptionID?: string | null;
-    /** Set on a return line; the origin is then the sole authority on price, cap and product. */
-    ReversesOrderLineID?: string | null;
-    Description?: string | null;
-    /** Accounting dimension tags, propagated into this line's journal-entry lines. */
-    Dimensions?: Array<{ DimensionID: string; DimensionValueID: string }>;
-}
-
-/** A charge the caller is asserting or overriding rather than letting the engine compute. Rare. */
-export interface OrderChargeInput {
-    ChargeTypeID: string;
-    Amount: number;
-    /** Required when overriding a computed charge — who and when are stamped server-side. */
-    OverrideReason?: string | null;
-}
-
-/** A manual discount, checked against the acting user's sales authority. */
-export interface ManualDiscountInput {
-    LineClientKey?: string;
-    /** One of these, not both. */
-    Percent?: number;
-    Amount?: number;
-    Reason: string;
-}
-
-/** The header fields a caller states. Rollups are absent — triggers own them. */
-export interface OrderHeaderInput {
-    /** Omit to create; supply to update an existing DRAFT. */
-    OrderHeaderID?: string | null;
-    OrderType?: 'Sale' | 'Return' | 'Cancellation' | 'Amendment' | 'AccountCredit';
-    OrderDate?: string;
-    CompanyID: string;
-    BillToPersonID?: string | null;
-    BillToOrganizationID?: string | null;
-    BillToAddressID?: string | null;
-    ShipToPersonID?: string | null;
-    ShipToOrganizationID?: string | null;
-    ShipToAddressID?: string | null;
-    SalesRepUserID?: string | null;
-    PaymentTermsTypeID?: string | null;
-    DueDate?: string | null;
-    ExternalDocumentNumber?: string | null;
-    Description?: string | null;
-    Notes?: string | null;
-    RequestedDeliveryDate?: string | null;
-    /** Set on a reversing order. */
-    ReversesOrderHeaderID?: string | null;
-    ReversalReason?: string | null;
-    /** Where this order came from, so an LXP purchase is never inferred from a null sales rep. */
-    OriginChannel?: string | null;
-    OriginExternalID?: string | null;
-    /** Initial-payment INTENT. Becomes a real payment only when the order confirms. */
-    InitialPaymentTypeID?: string | null;
-    InitialPaymentAmount?: number;
-    /** Wallet entry to copy an instrument snapshot from. Copied, never shared. */
-    SourceCustomerPaymentMethodID?: string | null;
-}
-
-/** The whole draft as one payload — what `OrderDraft.ToInput()` produces. */
-export interface OrderDraftInput {
-    Header: OrderHeaderInput;
-    Lines: OrderLineInput[];
-    /** Codes to attempt. Losers come back as offered-not-applied rather than silently vanishing. */
-    PromotionCodes?: string[];
-    ManualDiscounts?: ManualDiscountInput[];
-    /** Only for asserting or overriding a charge; ordinary charges are computed. */
-    Charges?: OrderChargeInput[];
-}
-
-/** One step of an explanation. Every derived number carries its provenance. */
-export interface AmountComponent {
-    ComponentType: string;
-    Label: string;
-    Amount: number;
-    RunningTotal?: number;
-    /** Free-form provenance — the rule, list, band or jurisdiction that produced it. */
-    Source?: string | null;
-}
-
-/** A tax layer, kept separate from charges so the shared base is visible. */
-export interface TaxLayerResult {
-    ChargeTypeID: string;
-    Name: string;
-    JurisdictionName?: string | null;
-    Rate: number;
-    /** Every layer on one order shares this. Layers never compound. */
-    BaseAmount: number;
-    Amount: number;
-}
-
-/** Why a line taxed at zero. Four very different situations that all print as $0.00. */
-export type TaxZeroReason = 'Untaxable' | 'NoNexus' | 'Exempt' | 'NoJurisdiction';
-
-/** A priced line, as the engine sees it. */
-export interface OrderLineResult {
-    ClientKey?: string;
-    LineNumber: number;
-    ProductID: string;
-    ProductName: string;
-    /** The product's owning company — this is what anchors the line's ledger. */
-    CompanyID: string;
-    CompanyName: string;
-    Quantity: number;
-    UnitPrice: number;
-    /** Which price rule won, and how it was reached. */
-    PriceSource?: string | null;
-    ProductPriceID?: string | null;
-    UnitPriceWasStated: boolean;
-    DiscountPct: number;
-    DiscountAmount: number;
-    ListAmount: number;
-    LineTotalNet: number;
-    ChargeAmount: number;
-    LineTax: number;
-    LineTotalGross: number;
-    Taxable: boolean;
-    TaxZeroReason?: TaxZeroReason | null;
-    TaxLayers: TaxLayerResult[];
-    ServicePeriodStart?: string | null;
-    ServicePeriodEnd?: string | null;
-    /** Set when the period came from somewhere other than the caller. */
-    ServicePeriodSource?: string | null;
-    RevenueRecognitionType?: string | null;
-    RequiresFulfillment: boolean;
-    Components: AmountComponent[];
-}
-
-/** A promotion outcome — including the ones that did NOT apply. */
-export interface PromotionResult {
-    Code: string;
-    PromotionID?: string | null;
-    Name: string;
-    Scope: 'Line' | 'Order';
-    Kind: 'Percent' | 'Fixed';
-    Value: number;
-    Applied: boolean;
-    Amount: number;
-    /** Present when Applied is false — the only way to answer "why didn't my code work". */
-    NotAppliedReason?: string | null;
-    /** Order-scoped promotions must reach the lines; this is where each share went. */
-    Allocations?: Array<{ ClientKey?: string; LineNumber: number; Amount: number }>;
-}
-
-/** A computed charge. */
-export interface ChargeResult {
-    ChargeTypeID: string;
-    Name: string;
-    Sequence: number;
-    Basis: string;
-    BasisAmount?: number | null;
-    Rate?: number | null;
-    Amount: number;
-    IsTax: boolean;
-    JurisdictionName?: string | null;
-    IsOverridden: boolean;
-    ComputedAmount?: number | null;
-}
-
-/** How the taxable base was assembled — the proof that layers do not compound. */
-export interface TaxableBaseResult {
-    TaxableGoods: number;
-    UntaxableGoods: number;
-    NonTaxCharges: number;
-    Base: number;
-}
-
-/** The full decomposition. This is what the order-entry rail renders. */
-export interface OrderTotalsResult {
-    ListSubtotal: number;
-    DiscountTotal: number;
-    NetTotal: number;
-    ChargeTotal: number;
-    TaxTotal: number;
-    GrossTotal: number;
-    TaxableBase: TaxableBaseResult;
-    /** Per-company subtotals — one journal entry per line, grouped for display. */
-    ByCompany: Array<{
-        CompanyID: string;
-        CompanyName: string;
-        Net: number;
-        Charges: number;
-        Tax: number;
-        Gross: number;
-    }>;
-}
-
-/** A journal entry the order will (or did) produce. Read-only everywhere in Orders. */
-export interface JournalEntryPreview {
-    CompanyID: string;
-    CompanyName: string;
-    /** Which order line caused it. One entry per line, always. */
-    LineNumber?: number | null;
-    /** Set once the entry exists; null while previewing. */
-    JournalEntryID?: string | null;
-    EntryType: string;
-    Balanced: boolean;
-    Lines: Array<{ Side: 'Dr' | 'Cr'; AccountRole: string; AccountName: string; Amount: number }>;
-}
-
-/** What confirming will do to a subscription. */
-export interface SubscriptionDecisionPreview {
-    Action: 'Create' | 'Extend' | 'Renew' | 'None';
-    SubscriptionID?: string | null;
-    SubscriptionNumber?: string | null;
-    HolderName?: string | null;
-    BeneficiaryName?: string | null;
-    BenefitModel?: string | null;
-    CoverageThrough?: string | null;
-    /** Set when a partial first period scaled the line's quantity. */
-    ProrationFactor?: number | null;
-    ProratedLineNumber?: number | null;
-    Notes?: string | null;
-}
-
-/** A grant that will be issued, with the policy that decided its shape. */
-export interface EntitlementGrantPreview {
-    ProductEntitlementID: string;
-    EntitlementName: string;
-    BeneficiaryName?: string | null;
-    /** Resolved down the same chain taxability uses: product → category → ancestors → type. */
-    GrantTiming?: string | null;
-    QuantityMode?: string | null;
-    ValidityMode?: string | null;
-    Quantity?: number | null;
-    ValidFrom?: string | null;
-    ValidTo?: string | null;
-    Notes?: string | null;
-}
-
-/** A sales rule that will escalate rather than refuse. */
-export interface ApprovalRequirementPreview {
-    SalesRuleID: string;
-    RuleName: string;
-    Reason: string;
-    ApproverRoleName?: string | null;
-}
-
-/** Something that makes the operation impossible, in the words of the rule that failed. */
-export interface BlockerResult {
-    Code: string;
-    Message: string;
-    /** Where to go to fix it, when there is somewhere. */
-    ResolutionHint?: string | null;
-    LineNumber?: number | null;
-}
-
-/**
- * Input for `Orders.SaveOrder`.
- *
- * Creates or updates a DRAFT order and its lines in ONE transaction. It never
- * confirms — `Orders.ConfirmOrder` is the separate, deliberate step, because
- * confirming books journal entries and is not undoable.
- */
-export interface OrdersSaveOrderInput {
-    Draft: OrderDraftInput;
-    /**
-     * Return the priced result without writing. Equivalent to `Orders.PreviewOrder`,
-     * offered here so a caller holding a draft has one entry point.
-     */
-    Preview?: boolean;
-}
-
-/**
- * Output for `Orders.SaveOrder`.
- *
- * Carries the priced decomposition back, so a caller that saved does not then
- * have to preview to learn what it saved. Shapes come from the shared block in
- * `orders-save-order.input.ts` — see the note at the top of that file for why.
- *
- * NO import statements — definitions are emitted verbatim.
- */
-export interface OrdersSaveOrderOutput {
-    Success: boolean;
-    Message?: string;
-    /** Absent on a preview. */
-    OrderHeaderID?: string;
-    /** Assigned from the sequence at CONFIRM, not at draft save, so this is usually absent. */
-    OrderNumber?: string | null;
-    Status?: string;
-    /** The priced lines, in the order they were saved, each carrying its ClientKey back. */
-    Lines?: OrderLineResult[];
-    Totals?: OrderTotalsResult;
-    Charges?: ChargeResult[];
-    Promotions?: PromotionResult[];
-    /** Anything that stopped the save, stated in the words of the rule that failed. */
-    Blockers?: BlockerResult[];
-}
-
-/**
- * Input for `Orders.SpawnRenewals`.
- *
- * A renewal is a SCHEDULED CONTINUATION and auto-renew is the consent switch. This
- * finds subscriptions whose LATEST term expires inside their own lead window and
- * places a confirmed renewal order for each that consented.
- *
- * NO import statements — definitions are emitted verbatim.
- */
-export interface SpawnRenewalsInput {
-    /** Treat this as "today". Defaults to now. */
-    AsOfDate?: string;
-    /** Restrict to one subscription — for a targeted retry, or for a test. */
-    SubscriptionID?: string;
-    /** Report what WOULD be placed, without placing anything. */
-    Preview?: boolean;
-    /**
-     * Cap on orders placed in one pass. A safety valve for the first production run, where a
-     * mis-set lead time could otherwise invoice an entire book of business at once.
-     */
-    MaxCount?: number;
-}
-
-/**
- * Output for `Orders.SpawnRenewals`.
- *
- * Every candidate comes back whether or not an order was placed, with the reason it
- * was skipped — an unattended job that silently does nothing is indistinguishable
- * from one that is broken.
- *
- * NO import statements — definitions are emitted verbatim.
- */
-export interface RenewalCandidate {
-    SubscriptionID: string;
-    SubscriptionNumber: string;
-    ProductID: string;
-    /** End of the term that is expiring. */
-    CurrentTermEnd: string;
-    /** Lead days actually applied, after the subscription's override of the type's default. */
-    LeadDays: number;
-    /** Set when the renewal was placed (absent on a preview, or when placing failed). */
-    OrderID?: string;
-    OrderNumber?: string;
-    /** Set when this candidate was skipped, with the reason. */
-    SkippedReason?: string;
-}
-
-export interface SpawnRenewalsOutput {
-    Success: boolean;
-    Message?: string;
-    /** Every subscription considered due, whether or not an order was placed. */
-    Candidates: RenewalCandidate[];
-    Placed: number;
-    Skipped: number;
-}
-
 /** The control action to apply to a running/paused experiment session. */
 export type PredictiveStudioExperimentSessionAction = 'pause' | 'resume' | 'cancel';
 
@@ -2252,6 +535,91 @@ export interface RecordProcessRunNowOutput {
     errorMessage?: string;
 }
 
+/** Input for the task-graph control operations. */
+export interface TaskGraphControlInput {
+    /** Parent task ID identifying the graph. */
+    parentTaskID: string;
+}
+
+/** Output of the task-graph control operations — the graph's status after the action. */
+export interface TaskGraphControlOutput {
+    success: boolean;
+    /** The parent task's status after the action. */
+    status?: string;
+    errorMessage?: string;
+}
+
+/** Output of `TaskGraph.GetStatus`. */
+export interface TaskGraphStatusOutput {
+    success: boolean;
+    /** Rolled-up parent status: In Progress | Complete | Failed | Blocked | Cancelled. */
+    status?: string;
+    /** Percent complete, counting only tasks that actually completed. */
+    percentComplete?: number;
+    /** Per-task snapshot. */
+    tasks?: Array<{
+        taskID: string;
+        name: string;
+        status: string;
+        agentRunID?: string;
+        errorMessage?: string;
+    }>;
+    errorMessage?: string;
+}
+
+/** Input for `TaskGraph.RetryTask`. */
+export interface TaskGraphRetryInput {
+    /** The failed task to retry. */
+    taskID: string;
+}
+
+/** Input for `TaskGraph.Submit`. */
+export interface TaskGraphSubmitInput {
+    /** The graph to submit, as a `TaskGraphSpec`. */
+    spec: {
+        workflowName: string;
+        reasoning?: string;
+        tasks: Array<{
+            /** One step. `kind` selects which `configuration` shape applies. */
+            tempId: string;
+            name: string;
+            description: string;
+            kind: 'Agent' | 'Action' | 'Human' | 'Prompt' | 'ForEach' | 'While' | 'External';
+            configuration:
+                | { agentName: string; message?: string; templateParameters?: Record<string, string> }
+                | { actionName: string; inputMapping?: string; outputMapping?: string }
+                | { assignToUserID?: string; instructions?: string }
+                | { promptName: string; templateParameters?: Record<string, string> }
+                | { collectionPath: string; itemVariable?: string; maxIterations?: number; executionMode?: 'sequential' | 'parallel' }
+                | { condition: string; itemVariable?: string; maxIterations?: number }
+                | { domain: string; ref?: string };
+            dependsOn: Array<string | { tempId: string; condition?: string; dependencyType?: 'Prerequisite' | 'Corequisite' | 'Optional'; priority?: number; sequence?: number; exclusiveGroup?: string; pathPoints?: string }>;
+            policy?: { timeoutSeconds?: number; retryCount?: number; onError?: 'fail' | 'continue' };
+            /** Canvas geometry. Presentation only: the dispatcher ignores it, the validator never requires it. */
+            layout?: { x?: number; y?: number; width?: number; height?: number };
+            inputPayload?: Record<string, unknown>;
+        }>;
+        continuation?: 'message' | 'reinvoke' | 'none';
+        durable?: boolean;
+        /** 'edges' (flow-compiled) evaluates a failed step's outgoing edges; 'block' (default) is terminal for dependents. */
+        failureSemantics?: 'block' | 'edges';
+    };
+    /** Environment the tasks belong to. */
+    environmentID: string;
+    /** Conversation this graph answers, when submitted from a conversational channel. */
+    conversationDetailID?: string;
+}
+
+/** Output of `TaskGraph.Submit`. */
+export interface TaskGraphSubmitOutput {
+    /** True when the graph was validated and persisted. */
+    success: boolean;
+    /** Parent task representing the whole graph — the handle for status, cancel and retry. */
+    parentTaskID?: string;
+    /** Every validation failure, not just the first, when the graph was rejected. */
+    errorMessage?: string;
+}
+
 /** Input for `Template.Run`. */
 export interface TemplateRunInput {
     /** The `MJ: Templates` ID to render. */
@@ -2266,6 +634,121 @@ export interface TemplateRunOutput {
     output: string;
     /** Wall-clock render time in milliseconds. */
     executionTimeMs?: number;
+}
+
+/** Input for `Workflow.Draft`. */
+export interface WorkflowDraftInput {
+    /** What the person wants done, in their own words. */
+    description: string;
+    /** What to call the workflow. Carried through to the draft's `workflowName`. */
+    workflowName: string;
+}
+
+/** Output of `Workflow.Draft`. */
+export interface WorkflowDraftOutput {
+    /** True when a structurally valid draft came back. */
+    success: boolean;
+    /**
+     * The drafted graph, in the same `TaskGraphSpec` shape the canvas and `Workflow.Save` use.
+     *
+     * A DRAFT — nothing is persisted. The author reviews it on the canvas and commits with
+     * `Workflow.Save`, which is what makes "nothing is saved until you approve it" true rather than
+     * merely promised.
+     */
+    graph?: {
+        workflowName: string;
+        reasoning?: string;
+        tasks: Array<{
+            /** One step. `kind` selects which `configuration` shape applies. */
+            tempId: string;
+            name: string;
+            description: string;
+            kind: 'Agent' | 'Action' | 'Human' | 'Prompt' | 'ForEach' | 'While' | 'External';
+            configuration:
+                | { agentName: string; message?: string; templateParameters?: Record<string, string> }
+                | { actionName: string; inputMapping?: string; outputMapping?: string }
+                | { assignToUserID?: string; instructions?: string }
+                | { promptName: string; templateParameters?: Record<string, string> }
+                | { collectionPath: string; itemVariable?: string; maxIterations?: number; executionMode?: 'sequential' | 'parallel' }
+                | { condition: string; itemVariable?: string; maxIterations?: number }
+                | { domain: string; ref?: string };
+            dependsOn: Array<string | { tempId: string; condition?: string; dependencyType?: 'Prerequisite' | 'Corequisite' | 'Optional'; priority?: number; sequence?: number; exclusiveGroup?: string; pathPoints?: string }>;
+            policy?: { timeoutSeconds?: number; retryCount?: number; onError?: 'fail' | 'continue' };
+            /** Canvas geometry. Presentation only: the dispatcher ignores it, the validator never requires it. */
+            layout?: { x?: number; y?: number; width?: number; height?: number };
+            inputPayload?: Record<string, unknown>;
+        }>;
+        continuation?: 'message' | 'reinvoke' | 'none';
+        durable?: boolean;
+        /** 'edges' (flow-compiled) evaluates a failed step's outgoing edges; 'block' (default) is terminal for dependents. */
+        failureSemantics?: 'block' | 'edges';
+    };
+    /** Why drafting failed, or why the model's output was rejected. */
+    errorMessage?: string;
+}
+
+/** Input for `Workflow.Save`. */
+export interface WorkflowSaveInput {
+    /** The workflow to save, as a `WorkflowSpec`. */
+    spec: {
+        name: string;
+        description?: string;
+        status: 'Active' | 'Paused' | 'Draft';
+        graph: {
+            workflowName: string;
+            reasoning?: string;
+            tasks: Array<{
+                /** One step. `kind` selects which `configuration` shape applies. */
+                tempId: string;
+                name: string;
+                description: string;
+                kind: 'Agent' | 'Action' | 'Human' | 'Prompt' | 'ForEach' | 'While' | 'External';
+                configuration:
+                    | { agentName: string; message?: string; templateParameters?: Record<string, string> }
+                    | { actionName: string; inputMapping?: string; outputMapping?: string }
+                    | { assignToUserID?: string; instructions?: string }
+                    | { promptName: string; templateParameters?: Record<string, string> }
+                    | { collectionPath: string; itemVariable?: string; maxIterations?: number; executionMode?: 'sequential' | 'parallel' }
+                    | { condition: string; itemVariable?: string; maxIterations?: number }
+                    | { domain: string; ref?: string };
+                dependsOn: Array<string | { tempId: string; condition?: string; dependencyType?: 'Prerequisite' | 'Corequisite' | 'Optional'; priority?: number; sequence?: number; exclusiveGroup?: string; pathPoints?: string }>;
+                policy?: { timeoutSeconds?: number; retryCount?: number; onError?: 'fail' | 'continue' };
+                /** Canvas geometry. Presentation only: the dispatcher ignores it, the validator never requires it. */
+                layout?: { x?: number; y?: number; width?: number; height?: number };
+                inputPayload?: Record<string, unknown>;
+            }>;
+            continuation?: 'message' | 'reinvoke' | 'none';
+            durable?: boolean;
+            /** 'edges' (flow-compiled) evaluates a failed step's outgoing edges; 'block' (default) is terminal for dependents. */
+            failureSemantics?: 'block' | 'edges';
+        };
+        triggers: Array<
+            | { type: 'EntityEvent'; entityName: string; invocationType: string; filter?: string; scopeEntityName?: string; scopeRecordID?: string }
+            | { type: 'Schedule'; cron: string; timezone?: string }
+            | { type: 'OnDemand' }>;
+        notifications?: { condition: 'Always' | 'OnFailure' | 'OnChange'; recipients: string[] };
+    };
+}
+
+/** Output of `Workflow.Save`. */
+export interface WorkflowSaveOutput {
+    /** True when the workflow was validated and every substrate reconciled. */
+    success: boolean;
+    /** The Flow agent the workflow's graph persisted as — the handle for everything downstream. */
+    agentID?: string;
+    /** Scheduled Jobs created, updated or disabled by this save. */
+    scheduledJobIDs?: string[];
+    /** Triggers the spec asked for that this build cannot yet reconcile, stated rather than dropped. */
+    unreconciled?: string[];
+    /** Every validation failure, not just the first, when the workflow was rejected. */
+    errorMessage?: string;
+}
+
+/** Output of `Workflow.Validate`. */
+export interface WorkflowValidateOutput {
+    valid: boolean;
+    /** One entry per problem, each carrying a machine-readable code. */
+    errors?: Array<{ code: string; message: string; triggerIndex?: number }>;
 }
 
 // ============================================================
@@ -2297,310 +780,6 @@ export class AISkillImportMarkdownOperation extends BaseRemotableOperation<AISki
     public readonly OperationKey = "AISkill.ImportMarkdown";
     public readonly ExecutionMode = 'Sync' as const;
     public readonly RequiredScope = "aiskill:manage";
-    public readonly RequiresSystemUser = false;
-}
-
-// ============================================================
-// Contracts.ActivateTerm — Activate Term
-// ============================================================
-/**
- * Activate Term
- * Bring a contract term to life: move it to Active and create the billing schedule plus the billing events its cadence implies, in one transaction. Activation is not a status flip — a term marked Active with no schedule bills nothing, and nobody notices until a quarter closes light. Refuses a term that covers nothing, and refuses to activate twice.
- * GenerationType=Manual — the server body is supplied by a hand-authored subclass registered
- * under 'Contracts.ActivateTerm'. This generated base provides the typed contract only (client-safe).
- */
-export class ContractsActivateTermOperation extends BaseRemotableOperation<ActivateTermInput, ActivateTermOutput> {
-    public readonly OperationKey = "Contracts.ActivateTerm";
-    public readonly ExecutionMode = 'Sync' as const;
-    public readonly RequiredScope = "contracts:write";
-    public readonly RequiresSystemUser = false;
-}
-
-// ============================================================
-// Contracts.AmendTerm — Amend Term
-// ============================================================
-/**
- * Amend Term
- * Change a term that is RUNNING, without restarting it. Adding a product mid-term creates a ContractAmendment plus a co-term line whose window runs from the amendment date to the TERM's end date, so the new product lands on the same renewal date as everything else the customer already has and the stub period prorates on the next billing event. All-or-none: the amendment and the line are written together or neither is. PreviewOnly computes the stub window and its day count without writing. Refuses a term that is not Active, an amendment dated outside its term, and the amendment kinds whose change cannot be derived from the record.
- * GenerationType=Manual — the server body is supplied by a hand-authored subclass registered
- * under 'Contracts.AmendTerm'. This generated base provides the typed contract only (client-safe).
- */
-export class ContractsAmendTermOperation extends BaseRemotableOperation<AmendTermInput, AmendTermOutput> {
-    public readonly OperationKey = "Contracts.AmendTerm";
-    public readonly ExecutionMode = 'Sync' as const;
-    public readonly RequiredScope = "contracts:write";
-    public readonly RequiresSystemUser = false;
-}
-
-// ============================================================
-// Contracts.RenewTerm — Renew Term
-// ============================================================
-/**
- * Renew Term
- * Carry an agreement into its next period: create the successor term pointed back at its predecessor, carry the coverage forward with prices escalated by the agreed percentage, and close the prior term as Completed rather than deleting it. The requested escalation is CLAMPED to the term's negotiated ceiling rather than rejected. PreviewOnly runs the identical computation and writes nothing, so a human can approve the actual numbers before they exist.
- * GenerationType=Manual — the server body is supplied by a hand-authored subclass registered
- * under 'Contracts.RenewTerm'. This generated base provides the typed contract only (client-safe).
- */
-export class ContractsRenewTermOperation extends BaseRemotableOperation<RenewTermInput, RenewTermOutput> {
-    public readonly OperationKey = "Contracts.RenewTerm";
-    public readonly ExecutionMode = 'Sync' as const;
-    public readonly RequiredScope = "contracts:write";
-    public readonly RequiresSystemUser = false;
-}
-
-// ============================================================
-// Contracts.SaveContract — Save Contract
-// ============================================================
-/**
- * Save Contract
- * Create or update a whole agreement from one payload — contract, terms, coverage, billing schedules and commitments — in a single transaction. A failure anywhere rolls back everything, including the allocated contract number, so a half-written agreement cannot exist. Removals are named explicitly rather than inferred from absence, because a client that loaded a contract lazily holds only some of its terms. Returns the saved agreement re-read from the database, so the caller sees the values the server derived rather than its own guesses.
- * GenerationType=Manual — the server body is supplied by a hand-authored subclass registered
- * under 'Contracts.SaveContract'. This generated base provides the typed contract only (client-safe).
- */
-export class ContractsSaveContractOperation extends BaseRemotableOperation<SaveContractInput, SaveContractOutput> {
-    public readonly OperationKey = "Contracts.SaveContract";
-    public readonly ExecutionMode = 'Sync' as const;
-    public readonly RequiredScope = "contracts:write";
-    public readonly RequiresSystemUser = false;
-}
-
-// ============================================================
-// Contracts.TerminateContract — Terminate Contract
-// ============================================================
-/**
- * Terminate Contract
- * End an agreement and STOP IT BILLING. Moves the contract and every live term to Terminated, and cancels the scheduled billing events dated after the effective date while leaving the ones on or before it standing — periods already covered are still owed. Events already Generated or Invoiced are never touched: un-billing money that has left the building is an accounting act, not a contract one. PreviewOnly reports the exact cancelled/retained split without writing.
- * GenerationType=Manual — the server body is supplied by a hand-authored subclass registered
- * under 'Contracts.TerminateContract'. This generated base provides the typed contract only (client-safe).
- */
-export class ContractsTerminateContractOperation extends BaseRemotableOperation<TerminateContractInput, TerminateContractOutput> {
-    public readonly OperationKey = "Contracts.TerminateContract";
-    public readonly ExecutionMode = 'Sync' as const;
-    public readonly RequiredScope = "contracts:write";
-    public readonly RequiresSystemUser = false;
-}
-
-// ============================================================
-// Orders.ApplyAccountCredit — Apply Account Credit
-// ============================================================
-/**
- * Apply Account Credit
- * Spend a customer's credit on another order. Writes a zero-amount payment with two offsetting lines — no new cash entered the business, so this only re-attributes money already received. A credit IS a negative order balance; there is no separate instrument to fall out of sync with it. Cross-company applications raise the intercompany legs through the ordinary allocation path, which is required rather than convenient.
- * GenerationType=Manual — the server body is supplied by a hand-authored subclass registered
- * under 'Orders.ApplyAccountCredit'. This generated base provides the typed contract only (client-safe).
- */
-export class OrdersApplyAccountCreditOperation extends BaseRemotableOperation<ApplyAccountCreditInput, ApplyAccountCreditOutput> {
-    public readonly OperationKey = "Orders.ApplyAccountCredit";
-    public readonly ExecutionMode = 'Sync' as const;
-    public readonly RequiredScope = "payments:write";
-    public readonly RequiresSystemUser = false;
-}
-
-// ============================================================
-// Orders.CancelSubscription — Cancel Subscription
-// ============================================================
-/**
- * Cancel Subscription
- * Cancel a subscription: policy in, reversal out. The subscription type's cancellation mode, refund mode and grace period decide when coverage ends, when access ends and what is refunded; the operation emits the reversal order, stamps the term and logs the lifecycle event in one transaction. Grace extends ACCESS, never revenue — storing one in place of the other silently revokes access early.
- * GenerationType=Manual — the server body is supplied by a hand-authored subclass registered
- * under 'Orders.CancelSubscription'. This generated base provides the typed contract only (client-safe).
- */
-export class OrdersCancelSubscriptionOperation extends BaseRemotableOperation<CancelSubscriptionInput, CancelSubscriptionOutput> {
-    public readonly OperationKey = "Orders.CancelSubscription";
-    public readonly ExecutionMode = 'Sync' as const;
-    public readonly RequiredScope = "subscriptions:write";
-    public readonly RequiresSystemUser = false;
-}
-
-// ============================================================
-// Orders.CapturePayment — Capture Payment
-// ============================================================
-/**
- * Capture Payment
- * Take a payment and allocate it, in ONE transaction. A payment is a header plus its allocation lines, and PaymentHeaderEntityServer.Lines is a TRANSIENT collection rather than a column - CodeGen cannot emit it client-side, so a browser entity.Save() has nowhere to put the allocations. Same situation Orders.SaveOrder was built for. A two-step create-then-allocate flow was rejected because between the steps there would be a captured payment with no allocations in the database: cash recorded against nothing. The fee is computed server-side and returned, never accepted as input, because a client-supplied fee is a client-supplied general-ledger amount. Over-payment is ACCEPTED and becomes spendable credit (D68) rather than being refused. Preview runs the real capture inside a transaction that always rolls back rather than modelling the arithmetic separately.
- * GenerationType=Manual — the server body is supplied by a hand-authored subclass registered
- * under 'Orders.CapturePayment'. This generated base provides the typed contract only (client-safe).
- */
-export class OrdersCapturePaymentOperation extends BaseRemotableOperation<OrdersCapturePaymentInput, OrdersCapturePaymentOutput> {
-    public readonly OperationKey = "Orders.CapturePayment";
-    public readonly ExecutionMode = 'Sync' as const;
-    public readonly RequiredScope = "orders:write";
-    public readonly RequiresSystemUser = false;
-}
-
-// ============================================================
-// Orders.ConfirmOrder — Confirm Order
-// ============================================================
-/**
- * Confirm Order
- * The irreversible step. In one transaction: saves the draft, transitions to Confirmed, books one journal entry per line, decides and writes subscriptions, issues entitlement grants, and captures the initial payment when the order carries one. Any failure rolls back everything — a confirmed order without its entries is invalid state, not a partial success. Accepts an expected gross total so a price that moved underneath the user stops the confirm instead of silently booking a different amount.
- * GenerationType=Manual — the server body is supplied by a hand-authored subclass registered
- * under 'Orders.ConfirmOrder'. This generated base provides the typed contract only (client-safe).
- */
-export class OrdersConfirmOrderOperation extends BaseRemotableOperation<OrdersConfirmOrderInput, OrdersConfirmOrderOutput> {
-    public readonly OperationKey = "Orders.ConfirmOrder";
-    public readonly ExecutionMode = 'Sync' as const;
-    public readonly RequiredScope = "orders:confirm";
-    public readonly RequiresSystemUser = false;
-}
-
-// ============================================================
-// Orders.CreateOrderInState — Create Order In State
-// ============================================================
-/**
- * Create Order In State
- * Create an order directly in Confirmed, Posted or Fulfilled - for back-office entry of something that has ALREADY happened: a counter sale, a shipment that went out before anyone opened the system, a migration. It delegates to the REAL Orders.ConfirmOrder rather than reimplementing it, then advances the status. The tempting implementation is one UPDATE setting Status='Fulfilled'; it would be faster, would pass any test checking the order's own fields, and would produce an order that looks complete with no ledger behind it - the failure nothing downstream can detect, because the order reconciles perfectly against itself and the revenue simply never existed (D17). Advancing books nothing: Posted to Fulfilled fires no journal entry (D15). Fulfillable lines are marked before the header advances, so an imported order cannot claim to have shipped things it has no record of shipping.
- * GenerationType=Manual — the server body is supplied by a hand-authored subclass registered
- * under 'Orders.CreateOrderInState'. This generated base provides the typed contract only (client-safe).
- */
-export class OrdersCreateOrderInStateOperation extends BaseRemotableOperation<OrdersCreateOrderInStateInput, OrdersCreateOrderInStateOutput> {
-    public readonly OperationKey = "Orders.CreateOrderInState";
-    public readonly ExecutionMode = 'Sync' as const;
-    public readonly RequiredScope = "orders:write";
-    public readonly RequiresSystemUser = false;
-}
-
-// ============================================================
-// Orders.FulfillOrderLines — Fulfill Order Lines
-// ============================================================
-/**
- * Fulfill Order Lines
- * Mark lines Fulfilled and advance each order whose last fulfillable line is now done - ONE decision, so one operation. As two calls there is a window where every line is shipped and the order still reads Posted, which a warehouse experiences as the system losing its work. An order advances when nothing is AWAITING fulfilment rather than when every line is Fulfilled: on a mixed order the subscription line never flips, so the stricter test would hold it open forever. No journal entry fires (D15).
- * GenerationType=Manual — the server body is supplied by a hand-authored subclass registered
- * under 'Orders.FulfillOrderLines'. This generated base provides the typed contract only (client-safe).
- */
-export class OrdersFulfillOrderLinesOperation extends BaseRemotableOperation<OrdersFulfillOrderLinesInput, OrdersFulfillOrderLinesOutput> {
-    public readonly OperationKey = "Orders.FulfillOrderLines";
-    public readonly ExecutionMode = 'Sync' as const;
-    public readonly RequiredScope = "orders:write";
-    public readonly RequiresSystemUser = false;
-}
-
-// ============================================================
-// Orders.GetFulfillmentQueue — Get Fulfillment Queue
-// ============================================================
-/**
- * Get Fulfillment Queue
- * Every order line still awaiting shipment, oldest confirmed first. Computed at read time like the overdue worklist, because it changes as lines are flipped rather than as anything is written - a stored flag would need a job to keep it honest, and the day that job failed the warehouse would quietly stop seeing work. Lines whose product type requires no fulfilment never appear, and neither do reversals (goods coming back are tracked on the line they reverse) or a bundle rollup parent (its children carry the goods).
- * GenerationType=Manual — the server body is supplied by a hand-authored subclass registered
- * under 'Orders.GetFulfillmentQueue'. This generated base provides the typed contract only (client-safe).
- */
-export class OrdersGetFulfillmentQueueOperation extends BaseRemotableOperation<OrdersGetFulfillmentQueueInput, OrdersGetFulfillmentQueueOutput> {
-    public readonly OperationKey = "Orders.GetFulfillmentQueue";
-    public readonly ExecutionMode = 'Sync' as const;
-    public readonly RequiredScope = "orders:read";
-    public readonly RequiresSystemUser = false;
-}
-
-// ============================================================
-// Orders.GetOverdueWorklist — Get Overdue Worklist
-// ============================================================
-/**
- * Get Overdue Worklist
- * Assemble the collections worklist. Overdue is a computed surface — balance above zero and past due — never a stored flag, because it changes with the clock rather than with a write; so this cannot be a client-side filter over a column. Each row carries what is needed to decide the next action without a second round trip, including the credit the customer already holds, since spending that comes before chasing cash.
- * GenerationType=Manual — the server body is supplied by a hand-authored subclass registered
- * under 'Orders.GetOverdueWorklist'. This generated base provides the typed contract only (client-safe).
- */
-export class OrdersGetOverdueWorklistOperation extends BaseRemotableOperation<OrdersGetOverdueWorklistInput, OrdersGetOverdueWorklistOutput> {
-    public readonly OperationKey = "Orders.GetOverdueWorklist";
-    public readonly ExecutionMode = 'Sync' as const;
-    public readonly RequiredScope = "orders:read";
-    public readonly RequiresSystemUser = false;
-}
-
-// ============================================================
-// Orders.PreviewConfirm — Preview Confirm
-// ============================================================
-/**
- * Preview Confirm
- * A dry run of Orders.ConfirmOrder that writes nothing: resolves a GL account for every role every line needs, runs the subscription decision, resolves entitlement policy and evaluates sales rules, then reports what would happen and what would stop it. Exists so a user learns about an unresolvable account before pressing Confirm rather than from a failure banner after. Must stay in lock-step with ConfirmOrder — a preview that can disagree with reality is worse than no preview.
- * GenerationType=Manual — the server body is supplied by a hand-authored subclass registered
- * under 'Orders.PreviewConfirm'. This generated base provides the typed contract only (client-safe).
- */
-export class OrdersPreviewConfirmOperation extends BaseRemotableOperation<OrdersPreviewConfirmInput, OrdersPreviewConfirmOutput> {
-    public readonly OperationKey = "Orders.PreviewConfirm";
-    public readonly ExecutionMode = 'Sync' as const;
-    public readonly RequiredScope = "orders:read";
-    public readonly RequiresSystemUser = false;
-}
-
-// ============================================================
-// Orders.PreviewOrder — Preview Order
-// ============================================================
-/**
- * Preview Order
- * Run the real pricing pipeline over an unsaved draft and return the full decomposition — net, promotions (applied and offered-not-applied), charges, tax layers on their shared base, and per-company subtotals — without writing anything. This is what lets order entry show what an order will cost while it is being typed, using the engine rather than a second copy of the rules in the browser.
- * GenerationType=Manual — the server body is supplied by a hand-authored subclass registered
- * under 'Orders.PreviewOrder'. This generated base provides the typed contract only (client-safe).
- */
-export class OrdersPreviewOrderOperation extends BaseRemotableOperation<OrdersPreviewOrderInput, OrdersPreviewOrderOutput> {
-    public readonly OperationKey = "Orders.PreviewOrder";
-    public readonly ExecutionMode = 'Sync' as const;
-    public readonly RequiredScope = "orders:read";
-    public readonly RequiresSystemUser = false;
-}
-
-// ============================================================
-// Orders.PreviewPrice — Preview Price
-// ============================================================
-/**
- * Preview Price
- * Resolve one product's price through the real pricing pipeline and explain how — which list, which rule, which volume band, which resolver. Read-only. Powers the order line's price badge and the pricing admin screen's resolution-walk visualiser.
- * GenerationType=Manual — the server body is supplied by a hand-authored subclass registered
- * under 'Orders.PreviewPrice'. This generated base provides the typed contract only (client-safe).
- */
-export class OrdersPreviewPriceOperation extends BaseRemotableOperation<PreviewPriceInput, PreviewPriceOutput> {
-    public readonly OperationKey = "Orders.PreviewPrice";
-    public readonly ExecutionMode = 'Sync' as const;
-    public readonly RequiredScope = "orders:read";
-    public readonly RequiresSystemUser = false;
-}
-
-// ============================================================
-// Orders.RefundPayment — Refund Payment
-// ============================================================
-/**
- * Refund Payment
- * Issue a refund against a captured payment. A refund is a NEW payment, never an edit: the reversal carries its own instrument snapshot and negative allocation lines that un-apply proportionally to how the original was applied. The processing fee is not reversed — the processor kept it. Guards: must be captured, never more than remains, never twice.
- * GenerationType=Manual — the server body is supplied by a hand-authored subclass registered
- * under 'Orders.RefundPayment'. This generated base provides the typed contract only (client-safe).
- */
-export class OrdersRefundPaymentOperation extends BaseRemotableOperation<RefundPaymentInput, RefundPaymentOutput> {
-    public readonly OperationKey = "Orders.RefundPayment";
-    public readonly ExecutionMode = 'Sync' as const;
-    public readonly RequiredScope = "payments:refund";
-    public readonly RequiresSystemUser = false;
-}
-
-// ============================================================
-// Orders.SaveOrder — Save Order
-// ============================================================
-/**
- * Save Order
- * Create or update a DRAFT order and its lines in one transaction, returning the priced decomposition. Never confirms — confirming books journal entries and is a separate, deliberate step. This is the operation that makes browser-side order entry possible at all: line, charge and promotion collections are transient properties on the server entity, so they cannot cross the entity-save boundary as scalars.
- * GenerationType=Manual — the server body is supplied by a hand-authored subclass registered
- * under 'Orders.SaveOrder'. This generated base provides the typed contract only (client-safe).
- */
-export class OrdersSaveOrderOperation extends BaseRemotableOperation<OrdersSaveOrderInput, OrdersSaveOrderOutput> {
-    public readonly OperationKey = "Orders.SaveOrder";
-    public readonly ExecutionMode = 'Sync' as const;
-    public readonly RequiredScope = "orders:write";
-    public readonly RequiresSystemUser = false;
-}
-
-// ============================================================
-// Orders.SpawnRenewals — Spawn Renewals
-// ============================================================
-/**
- * Spawn Renewals
- * Place renewal orders for subscriptions whose latest term expires inside their own lead window and whose holder consented via auto-renew. Two independent idempotency guards, because an unattended job that double-spawns double-bills: the selection only finds subscriptions whose LATEST term is expiring, plus an explicit check for an order already renewing that subscription. Renewals bypass the concurrency rule — a renewal is not a second subscription.
- * GenerationType=Manual — the server body is supplied by a hand-authored subclass registered
- * under 'Orders.SpawnRenewals'. This generated base provides the typed contract only (client-safe).
- */
-export class OrdersSpawnRenewalsOperation extends BaseRemotableOperation<SpawnRenewalsInput, SpawnRenewalsOutput> {
-    public readonly OperationKey = "Orders.SpawnRenewals";
-    public readonly ExecutionMode = 'LongRunning' as const;
-    public readonly RequiredScope = "subscriptions:write";
     public readonly RequiresSystemUser = false;
 }
 
@@ -2812,6 +991,70 @@ export class RecordProcessRunNowOperation extends BaseRemotableOperation<RecordP
 }
 
 // ============================================================
+// TaskGraph.Cancel — Cancel Task Graph
+// ============================================================
+/**
+ * Cancel Task Graph
+ * Cancel a task graph and every task in it that has not already settled. Children are cancelled before the parent so the dispatcher cannot pick up pending work mid-cancel. Terminal tasks are left untouched. Implemented by TaskGraphCancelOperation in @memberjunction/task-graph.
+ * GenerationType=Manual — the server body is supplied by a hand-authored subclass registered
+ * under 'TaskGraph.Cancel'. This generated base provides the typed contract only (client-safe).
+ */
+export class TaskGraphCancelOperation extends BaseRemotableOperation<TaskGraphControlInput, TaskGraphControlOutput> {
+    public readonly OperationKey = "TaskGraph.Cancel";
+    public readonly ExecutionMode = 'Sync' as const;
+    public readonly RequiredScope = "taskgraph:execute";
+    public readonly RequiresSystemUser = false;
+}
+
+// ============================================================
+// TaskGraph.GetStatus — Get Task Graph Status
+// ============================================================
+/**
+ * Get Task Graph Status
+ * Return a snapshot of a task graph's progress — the parent's rolled-up status and per-task states — without waiting for anything. This is how a client, an agent, or an external caller observes a running graph now that execution is durable and nobody holds a request open. Implemented by TaskGraphGetStatusOperation in @memberjunction/task-graph.
+ * GenerationType=Manual — the server body is supplied by a hand-authored subclass registered
+ * under 'TaskGraph.GetStatus'. This generated base provides the typed contract only (client-safe).
+ */
+export class TaskGraphGetStatusOperation extends BaseRemotableOperation<TaskGraphControlInput, TaskGraphStatusOutput> {
+    public readonly OperationKey = "TaskGraph.GetStatus";
+    public readonly ExecutionMode = 'Sync' as const;
+    public readonly RequiredScope = "taskgraph:read";
+    public readonly RequiresSystemUser = false;
+}
+
+// ============================================================
+// TaskGraph.RetryTask — Retry Task
+// ============================================================
+/**
+ * Retry Task
+ * Return a failed task to Pending so the dispatcher runs it again, and clear any dependents it had Blocked. Unblocking is not optional: retrying a task while its dependents stay Blocked leaves the graph exactly as stuck as before. Implemented by TaskGraphRetryTaskOperation in @memberjunction/task-graph.
+ * GenerationType=Manual — the server body is supplied by a hand-authored subclass registered
+ * under 'TaskGraph.RetryTask'. This generated base provides the typed contract only (client-safe).
+ */
+export class TaskGraphRetryTaskOperation extends BaseRemotableOperation<TaskGraphRetryInput, TaskGraphControlOutput> {
+    public readonly OperationKey = "TaskGraph.RetryTask";
+    public readonly ExecutionMode = 'Sync' as const;
+    public readonly RequiredScope = "taskgraph:execute";
+    public readonly RequiresSystemUser = false;
+}
+
+// ============================================================
+// TaskGraph.Submit — Submit Task Graph
+// ============================================================
+/**
+ * Submit Task Graph
+ * Validate and durably persist a dependency-ordered task graph, returning as soon as it is safe. Does NOT wait for execution: the durable dispatcher runs the graph independently, so a submitted graph outlives the submitting request, agent run, and server. Producer-agnostic — an agent, deterministic code, or a UI can all submit. Implemented by TaskGraphSubmitOperation in @memberjunction/task-graph.
+ * GenerationType=Manual — the server body is supplied by a hand-authored subclass registered
+ * under 'TaskGraph.Submit'. This generated base provides the typed contract only (client-safe).
+ */
+export class TaskGraphSubmitOperation extends BaseRemotableOperation<TaskGraphSubmitInput, TaskGraphSubmitOutput> {
+    public readonly OperationKey = "TaskGraph.Submit";
+    public readonly ExecutionMode = 'Sync' as const;
+    public readonly RequiredScope = "taskgraph:execute";
+    public readonly RequiresSystemUser = false;
+}
+
+// ============================================================
 // Template.Run — Run Template
 // ============================================================
 /**
@@ -2824,6 +1067,54 @@ export class TemplateRunOperation extends BaseRemotableOperation<TemplateRunInpu
     public readonly OperationKey = "Template.Run";
     public readonly ExecutionMode = 'Sync' as const;
     public readonly RequiredScope = "template:execute";
+    public readonly RequiresSystemUser = false;
+}
+
+// ============================================================
+// Workflow.Draft — Draft Workflow
+// ============================================================
+/**
+ * Draft Workflow
+ * Draft a workflow's steps from a plain-English description. Returns a TaskGraphSpec and persists NOTHING — the draft goes to the canvas for the author to review, and only Workflow.Save commits it, which is what makes the front door's "nothing is saved until you approve it" promise true rather than merely stated. Constrained to agents that actually exist on the instance, because a workflow referencing an unknown agent cannot be saved and a draft that cannot be saved wastes the author's time. Validated with the SAME ValidateTaskGraphSpec the canvas and Workflow.Save run, so a draft that comes back cannot be rejected later for a reason drafting never checked. Implemented by WorkflowDraftServerOperation in @memberjunction/task-graph.
+ * GenerationType=Manual — the server body is supplied by a hand-authored subclass registered
+ * under 'Workflow.Draft'. This generated base provides the typed contract only (client-safe).
+ */
+export class WorkflowDraftOperation extends BaseRemotableOperation<WorkflowDraftInput, WorkflowDraftOutput> {
+    public readonly OperationKey = "Workflow.Draft";
+    public readonly ExecutionMode = 'Sync' as const;
+    public readonly RequiredScope = "workflow:read";
+    public readonly RequiresSystemUser = false;
+}
+
+// ============================================================
+// Workflow.Save — Save Workflow
+// ============================================================
+/**
+ * Save Workflow
+ * Validate and persist a workflow — its graph of steps AND the triggers that fire it — by reconciling the substrates that already exist (a Flow agent for the graph, Scheduled Jobs for schedules). Creates no new storage: there is no Workflow table, because a second definition of a scheduled thing would give the scheduler two masters. Producer-agnostic — an agent over MCP, an Action, or the workflow editor all call this. Implemented by WorkflowSaveServerOperation in @memberjunction/task-graph.
+ * GenerationType=Manual — the server body is supplied by a hand-authored subclass registered
+ * under 'Workflow.Save'. This generated base provides the typed contract only (client-safe).
+ */
+export class WorkflowSaveOperation extends BaseRemotableOperation<WorkflowSaveInput, WorkflowSaveOutput> {
+    public readonly OperationKey = "Workflow.Save";
+    public readonly ExecutionMode = 'Sync' as const;
+    public readonly RequiredScope = "workflow:write";
+    public readonly RequiresSystemUser = false;
+}
+
+// ============================================================
+// Workflow.Validate — Validate Workflow
+// ============================================================
+/**
+ * Validate Workflow
+ * Check a workflow for problems without saving it. Runs the identical validation Workflow.Save runs, so a workflow that validates here cannot be rejected for a different reason on save. Exists so an agent drafting a workflow can iterate before committing anything — the draft-then-confirm shape dry-run and Plan Mode already established. Implemented by WorkflowValidateServerOperation in @memberjunction/task-graph.
+ * GenerationType=Manual — the server body is supplied by a hand-authored subclass registered
+ * under 'Workflow.Validate'. This generated base provides the typed contract only (client-safe).
+ */
+export class WorkflowValidateOperation extends BaseRemotableOperation<WorkflowSaveInput, WorkflowValidateOutput> {
+    public readonly OperationKey = "Workflow.Validate";
+    public readonly ExecutionMode = 'Sync' as const;
+    public readonly RequiredScope = "workflow:read";
     public readonly RequiresSystemUser = false;
 }
 

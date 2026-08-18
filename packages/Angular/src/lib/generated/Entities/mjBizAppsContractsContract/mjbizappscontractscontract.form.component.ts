@@ -16,11 +16,15 @@ export class mjBizAppsContractsContractFormComponent extends BaseFormComponent {
     override async ngOnInit() {
         await super.ngOnInit();
         this.initSections([
-            { sectionKey: 'details', sectionName: 'Details', isExpanded: true },
-            { sectionKey: 'mJBizAppsContractsContractsSupersededByContractID', sectionName: 'Contracts (Superseded By Contract ID)', isExpanded: false },
-            { sectionKey: 'mJBizAppsContractsContractsParentContractID', sectionName: 'Contracts (Parent Contract ID)', isExpanded: false },
-            { sectionKey: 'mJBizAppsContractsContractEvents', sectionName: 'Contract Events', isExpanded: false },
-            { sectionKey: 'mJBizAppsContractsContractTerms', sectionName: 'Contract Terms', isExpanded: false }
+            { sectionKey: 'contractDetails', sectionName: 'Contract Details', isExpanded: true },
+            { sectionKey: 'partiesAndRelationships', sectionName: 'Parties and Relationships', isExpanded: true },
+            { sectionKey: 'documentManagement', sectionName: 'Document Management', isExpanded: true },
+            { sectionKey: 'provenanceAndLinking', sectionName: 'Provenance and Linking', isExpanded: true },
+            { sectionKey: 'timelineAndTerms', sectionName: 'Timeline and Terms', isExpanded: true },
+            { sectionKey: 'systemMetadata', sectionName: 'System Metadata', isExpanded: false },
+            { sectionKey: 'mJBizAppsContractsContractTemplateModifications', sectionName: 'Contract Template Modifications', isExpanded: false },
+            { sectionKey: 'mJBizAppsContractsContractsSupersededByContractID', sectionName: 'Contracts (Superseded By Contract)', isExpanded: false },
+            { sectionKey: 'mJBizAppsContractsContractsParentContractID', sectionName: 'Contracts (Parent Contract)', isExpanded: false }
         ]);
     }
 }
