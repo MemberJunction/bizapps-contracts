@@ -12,11 +12,12 @@
 > Platform capabilities this design leans on: [`mj-storage-and-esignature-notes.md`](./mj-storage-and-esignature-notes.md).
 >
 > **Schema:** `__mj_BizAppsContracts` · **Entity prefix:** `MJ_BizApps_Contracts: ` · **Keys:** UUID throughout
-> **7 tables · 9 internal relationships · 4 cross-app foreign keys · 1 polymorphic pair**
+> **7 tables · 8 internal relationships · 4 cross-app foreign keys · 1 polymorphic pair**
 >
-> **Sources, in order of authority:** Amith's written review (2026-08-18) → the 2026-08-18 meeting notes
-> → the planning-meeting transcript (*Contracts App Convo*, 2026-08-16). Where a later ruling reverses an
-> earlier one, §9 records it rather than hiding it.
+> **Sources, in order of authority:** Amith's rulings relayed in chat via Marcelo (2026-08-18 — R-15,
+> R-16) → Amith's written review (2026-08-18) → the 2026-08-18 meeting notes → the planning-meeting
+> transcript (*Contracts App Convo*, 2026-08-16). Where a later ruling reverses an earlier one, §9
+> records it rather than hiding it.
 >
 > **How to read this.** §1 master map (names + connections). §2 every column, no lines. §2.1 every column
 > WITH every line. §4–§6 the per-area diagrams to work from. §7 value lists and the rules no diagram
@@ -63,7 +64,6 @@ erDiagram
     ContractType ||--o{ Contract : "ContractTypeID"
     ContractTemplate ||--o{ Contract : "ContractTemplateID"
     ContractTemplate ||--o{ ContractTemplateProvision : "ContractTemplateID"
-    ContractTemplate ||--o{ ContractTemplateModification : "ContractTemplateID"
     ContractTemplateProvision ||--o{ ContractTemplateModification : "ContractTemplateProvisionID"
     Contract ||--o{ ContractTemplateModification : "ContractID"
     Contract ||--o{ Contract : "ParentContractID"
@@ -132,6 +132,7 @@ erDiagram
         uuid ContractTemplateID FK "ContractTemplate"
         nvarchar ProvisionNumber "e.g. 3.5(b)"
         nvarchar Title "the clause heading"
+        nvarchar ProvisionText "nullable · nvarchar(max) · the clause text · R-15"
         nvarchar Description "nullable"
         int Sequence "display order"
     }
@@ -174,7 +175,6 @@ erDiagram
     ContractTemplateModification {
         uuid ID PK
         uuid ContractID FK "Contract"
-        uuid ContractTemplateID FK "ContractTemplate"
         uuid ContractTemplateProvisionID FK "ContractTemplateProvision"
         nvarchar Notes "nullable"
     }
@@ -202,7 +202,6 @@ erDiagram
     Contract ||--o{ Contract : "ParentContractID"
     Contract ||--o{ Contract : "SupersededByContractID"
     Contract ||--o{ ContractTemplateModification : "ContractID"
-    ContractTemplate ||--o{ ContractTemplateModification : "ContractTemplateID"
     ContractTemplateProvision ||--o{ ContractTemplateModification : "ContractTemplateProvisionID"
 
     ContractTemplateType {
@@ -227,6 +226,7 @@ erDiagram
         uuid ContractTemplateID FK "ContractTemplate"
         nvarchar ProvisionNumber
         nvarchar Title
+        nvarchar ProvisionText "nullable · R-15"
         nvarchar Description "nullable"
         int Sequence "display order"
     }
@@ -269,7 +269,6 @@ erDiagram
     ContractTemplateModification {
         uuid ID PK
         uuid ContractID FK "Contract"
-        uuid ContractTemplateID FK "ContractTemplate"
         uuid ContractTemplateProvisionID FK "ContractTemplateProvision"
         nvarchar Notes "nullable"
     }
@@ -446,7 +445,6 @@ It is **derived** instead, from `ContractType.RequiresExecutedDocument` plus whe
 erDiagram
     ContractTemplate ||--o{ ContractTemplateProvision : "ContractTemplateID"
     Contract ||--o{ ContractTemplateModification : "ContractID"
-    ContractTemplate ||--o{ ContractTemplateModification : "ContractTemplateID"
     ContractTemplateProvision ||--o{ ContractTemplateModification : "ContractTemplateProvisionID"
 
     ContractTemplateProvision {
@@ -454,6 +452,7 @@ erDiagram
         uuid ContractTemplateID FK "ContractTemplate"
         nvarchar ProvisionNumber "e.g. 3.5(b)"
         nvarchar Title "the clause heading"
+        nvarchar ProvisionText "nullable · the clause text · R-15"
         nvarchar Description "nullable"
         int Sequence "display order"
     }
@@ -461,7 +460,6 @@ erDiagram
     ContractTemplateModification {
         uuid ID PK
         uuid ContractID FK "Contract"
-        uuid ContractTemplateID FK "ContractTemplate"
         uuid ContractTemplateProvisionID FK "ContractTemplateProvision"
         nvarchar Notes "nullable"
     }
@@ -484,10 +482,14 @@ the provisions that exist in our contract so we can categorize things easily."*
 - `ProvisionNumber` (`3.5(b)`) + `Title` (the heading) are what a person picks from. `UNIQUE(ContractTemplateID, ProvisionNumber)`.
 - `Sequence` exists because `ProvisionNumber` does not sort as text (`3.10` before `3.5`), and a legal
   document has a canonical order.
-- **No provision text.** The meeting described one — *"every provision of the agreement is numbered and
-  has like a little heading and then the actual text"* — but the 2026-08-18 notes removed
-  `ContractTemplate.ContentText`, so storing full clause text is out for v1. Adding `ProvisionText` later
-  is one additive column.
+- **`ProvisionText` is in — v1 stores the clause's own text** (nullable `nvarchar(max)`). The meeting
+  described it — *"every provision of the agreement is numbered and has like a little heading and then
+  the actual text"* — R-11 deferred it as F-3, and Amith brought it back on 2026-08-18 (via Marcelo:
+  *"Do you want the provision's text in the provision table?" "yep"* — R-15). Nullable so listing
+  provisions never blocks on pasting text, but the MA seed captures it completely. This is the
+  **standard** text, clause by clause — it substantially delivers what R-11's `ContentText` was for,
+  without a blob on the template. It does not touch D-4 (a modification's negotiated wording still
+  lives only in the PDF) or D-10 (still no reusable-clause library).
 
 ### 5.2 `ContractTemplateModification` — what this contract changed
 
@@ -496,11 +498,19 @@ Deliberately lean: it records **that** a provision was modified, not the new wor
 | Column | Notes |
 |---|---|
 | `ContractID` | The contract |
-| `ContractTemplateID` | The template whose provision is being modified. Redundant with `Contract.ContractTemplateID` **today**, kept per Amith because a contract may incorporate more than one template in future (an MA plus an SOW template) |
 | `ContractTemplateProvisionID` | **`NOT NULL`** — the structured identifier, and the only one |
 | `Notes` | Optional working note |
 
 `UNIQUE(ContractID, ContractTemplateProvisionID)` — a contract modifies a given provision once.
+
+**There is no `ContractTemplateID`, and that is R-16 (2026-08-18, Marcelo).** An earlier ruling kept it
+against the multi-template future (an MA plus an SOW template on one contract), but the provision FK
+already answers it: a provision belongs to exactly **one** template in every future, so
+`Modification → Provision → Template` derives the template always, and §7.2's rule applies — a stored
+copy of `provision.ContractTemplateID` is a projection that can only agree or lie. Keeping it would
+have required a server rule that the named template equals the provision's template. What replaces it
+is the rule that was always implicit: **a modification's provision must belong to a template this
+contract incorporates** (§7.1). ⚠ Reverses an Amith "keep" — flagged for his nod (master plan O-3).
 
 > **There is no modification text, and that is deliberate.** The transcript settles it. Joanna, asked
 > directly whether a clause reference alone suffices: *"Even if it's just referencing what clause in the MA
@@ -510,7 +520,8 @@ Deliberately lean: it records **that** a provision was modified, not the new wor
 
 > **Operational consequence, and it is a real one.** With the provision FK mandatory and no free-text
 > escape hatch, **the provision list must be seeded completely from our Master Agreement before finance
-> can record a modification.** That makes seeding a build prerequisite, not a nice-to-have.
+> can record a modification** — and with R-15, the seed captures each clause's `ProvisionText` too.
+> That makes seeding a build prerequisite, not a nice-to-have.
 
 ---
 
@@ -611,14 +622,15 @@ still a contract"* — agreed. So it **has a `ContractTemplateID`** and **no doc
 orders get no contract at all: *"there's no deal, there's no contract, there's just an order."*
 
 **`ContractTemplateProvision` must also be seeded** — the full clause list of the current Master
-Agreement. See §5.2.
+Agreement, including each clause's `ProvisionText` (R-15). See §5.2.
 
 ### 7.1 Rules that are NOT in the schema
 
 | Rule | Where it lives |
 |---|---|
 | `ContractNumber` is `CTR-{seq}` from `ContractSequence` | Server-side `ContractEntityServer.Save()`, as orders does for `ORD-` |
-| `HasModifications` must be true when modification rows exist; never auto-cleared | Server-side entity subclasses — a cross-row rule a `CHECK` cannot see. §4.4 |
+| `HasModifications` must be true when modification rows exist; never auto-cleared | **Shared** subclass `ContractEntity.Validate()` — a cross-row rule a `CHECK` cannot see (§4.4), and with the `Modifications` collection declared (master plan §6.1) the browser preflights it before any round trip while the server stays authoritative. `ContractTemplateModificationEntityServer` additionally forces the parent flag true on a standalone modification save |
+| A modification's provision must belong to a template this contract incorporates | Server-side `ContractTemplateModificationEntityServer` (needs a cross-entity read); the UI's provision picker only offers the contract's template's provisions. Replaces the dropped `ContractTemplateID` column — R-16 |
 | `ContractType = 'Change Order'` implies `ParentContractID IS NOT NULL` | Server-side — needs a join to the type table |
 | `Status = 'Superseded'` requires `SupersededByContractID` | `CHECK` |
 | A contract cannot be its own parent or successor | `CHECK` on both self-references |
@@ -682,6 +694,8 @@ Recorded so that nothing looks like a silent drift, and so each reversal has an 
 | R-12 | `ContractTemplate.Status` (Active/Retired) | Removed — every version simply stays listed | 2026-08-18 |
 | R-13 | An approval workflow "not built" | **Relocated**, not declined: it lives in `bizapps-sales` on the deal, modelling Johanna's authority levels. At current volume she may approve manually, and the contract is generated after deal approval | Amith, 2026-08-18 |
 | R-14 | `Sequence` on `ContractType` and `ContractTemplateType` | Removed — the two lists are short enough to order by name. `ContractTemplateProvision.Sequence` **stays**: provision numbers do not sort as text and a legal document has a canonical order | 2026-08-18 |
+| R-15 | `ProvisionText` deferred to a future phase (F-3, via R-11) | **In for v1** — nullable `nvarchar(max)` on `ContractTemplateProvision`, seeded from the current MA. §5.1. D-4 and D-10 are untouched | Amith via Marcelo, 2026-08-18 chat |
+| R-16 | `ContractTemplateModification.ContractTemplateID` kept for the multi-template future | **Dropped** — the provision FK derives the template in every future (a provision belongs to exactly one template), and §7.2 forbids storing a projection. Replaced by the §7.1 consistency rule. ⚠ Reverses an Amith "keep" — flagged for his nod (master plan O-3) | Marcelo, 2026-08-18 |
 
 ---
 
@@ -691,7 +705,7 @@ Recorded so that nothing looks like a silent drift, and so each reversal has an 
 |---|---|---|
 | F-1 | **Per-product renewal-pricing override** from the contract | Would be a child table keyed on contract + product. Orders currently renews on then-current product pricing; finance reconciles manually. *"It's no worse than current."* |
 | F-2 | Deeper contract ↔ subscription integration | Today subscriptions know nothing of contract renewal terms and assume auto-renewal until cancelled |
-| F-3 | `ContractTemplateProvision.ProvisionText` | One additive column; the meeting described it, R-11 deferred it |
+| F-3 | ~~`ContractTemplateProvision.ProvisionText`~~ | **Moved into v1** by R-15 (Amith, 2026-08-18) — no longer a future phase |
 | F-4 | PandaDoc retrieval through MJ's eSignature driver | The driver ships in MJ 6; direct PDF handling is first-class in v1 |
 | F-5 | Versioned SOW templates | *"That will change for sure as we scale PS."* |
 
