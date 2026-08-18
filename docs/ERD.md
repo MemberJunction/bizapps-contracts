@@ -1,5 +1,21 @@
 # `bizapps-contracts` — ERD
 
+> ## ⚠ THIS DESCRIBES THE **v1** SCHEMA, WHICH IS BEING RETIRED
+>
+> As of **2026-08-18** the app is being rebuilt from a clean sheet: 10 tables become 7, and the billing
+> engine, pricing resolver, commitment tracking and amendment approval workflow are all removed. **The
+> schema to build is [`plans/ERD-planned.md`](../plans/ERD-planned.md)**; the governing document is
+> [`plans/bizapps-contracts-master.md`](../plans/bizapps-contracts-master.md).
+>
+> This file stays as-is because it is generated from the live database and still describes it accurately.
+> Regenerate it from `sys.tables` once the new baseline migration has been applied.
+
+EffectiveDate · ExecutedDate · EndDate · TerminatedDate
+AutoRenew · RenewalNoticeDays · CancellationWindowDays
+AnnualIncreasePercent · EscalationBasis
+TerminationPolicy
+
+
 > **This is the AS-BUILT ERD — a reflection of the implementation, not a plan.** Intended-but-unbuilt
 > schema changes belong in [`plans/ERD-planned.md`](../plans/ERD-planned.md), never here; this file
 > must always describe what the database actually contains.
