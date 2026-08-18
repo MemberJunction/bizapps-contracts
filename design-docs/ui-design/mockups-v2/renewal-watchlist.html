@@ -13,8 +13,23 @@
   .due--now{color:var(--mj-color-error-700)}
   .due--soon{color:var(--mj-status-warning-text)}
   .due--ok{color:var(--mj-text-secondary)}
+  .filter-wrap{position:relative}
+  .filter-pop{position:absolute; right:0; top:calc(100% + 6px); width:24rem; z-index:5;
+    background:var(--mj-bg-surface); border:1px solid var(--mj-brand-primary);
+    border-radius:var(--mj-radius-md); box-shadow:0 12px 32px rgba(0,0,0,.13)}
+  .filter-pop__head{padding:var(--mj-space-3) var(--mj-space-4); font-weight:700;
+    border-bottom:1px solid var(--mj-border-default); background:var(--mj-bg-surface-card)}
+  .filter-pop__body{padding:var(--mj-space-3) var(--mj-space-4); display:grid; gap:var(--mj-space-3)}
+  .filter-pop__foot{display:flex; align-items:center; gap:var(--mj-space-2);
+    padding:var(--mj-space-3) var(--mj-space-4); border-top:1px solid var(--mj-border-default)}
+  .ff label{display:block; font-size:var(--mj-text-xs); color:var(--mj-text-muted);
+    text-transform:uppercase; letter-spacing:.04em; margin-bottom:3px}
+  .ff .val{padding:5px 8px; border:1px solid var(--mj-border-default);
+    border-radius:var(--mj-radius-sm); font-size:var(--mj-text-sm)}
+  .ff2{display:grid; grid-template-columns:1fr 1fr; gap:var(--mj-space-3)}
 </style>
 <svg style="display:none">
+  <symbol id="i-filter" viewBox="0 0 24 24"><path d="M4 5h16l-6 8v5l-4 2v-7z"/></symbol>
   <symbol id="i-cal" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M8 3v4M16 3v4M3 11h18"/></symbol>
   <symbol id="i-warn" viewBox="0 0 24 24"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17h.01"/></symbol>
 </svg>
@@ -37,6 +52,38 @@
     <button class="tab">Notice window open</button>
     <button class="tab">Auto-renewing</button>
     <button class="tab">All active</button>
+    <div class="filter-wrap">
+      <button class="btn btn--sm" style="font-weight:700">
+        <svg class="icon" style="width:13px;height:13px"><use href="#i-filter"/></svg> Filter
+        <span class="chip chip--info" style="margin-left:4px">2</span> &or;
+      </button>
+      <div class="filter-pop">
+        <div class="filter-pop__head">Advanced filter</div>
+        <div class="filter-pop__body">
+          <div class="ff"><label>Customer</label><div class="val">Any organisation</div></div>
+          <div class="ff"><label>Selling company</label><div class="val">Sidecar &times;&nbsp; Rasa &times;</div></div>
+          <div class="ff"><label>Contract type</label><div class="val">Order Form, SOW</div></div>
+          <div class="ff"><label>Agreement version</label><div class="val">Any</div></div>
+          <div class="ff2">
+            <div class="ff"><label>Term ends after</label><div class="val">1 Sep 2026</div></div>
+            <div class="ff"><label>&hellip; and before</label><div class="val">31 Dec 2026</div></div>
+          </div>
+          <div class="ff"><label>Notice window</label><div class="val">Open or overdue</div></div>
+          <div class="ff"><label>Renewal</label><div class="val">Auto-renewing only</div></div>
+          <div class="ff2">
+            <div class="ff"><label>Increase at least</label><div class="val">5%</div></div>
+            <div class="ff"><label>MA modified</label><div class="val">Any</div></div>
+          </div>
+          <div class="ff"><label>Owner &mdash; from the deal</label><div class="val">Any</div></div>
+        </div>
+        <div class="filter-pop__foot">
+          <button class="btn btn--flat btn--sm">Clear all</button>
+          <span style="flex:1"></span>
+          <button class="btn btn--sm">Save as view</button>
+          <button class="btn btn--primary btn--sm">Apply</button>
+        </div>
+      </div>
+    </div>
   </div>
   <table class="grid">
     <thead><tr>
@@ -100,6 +147,11 @@
     does that in Orders (D-1), so there is no action button here beyond <i>Open</i>. And the increase column is
     what the <i>paper</i> says; Orders will renew at then-current product pricing unless someone applies it.
     That gap is the point of the column.
+  </p>
+  <p class="muted" style="margin:0; padding:0 var(--mj-space-4) var(--mj-space-3); font-size:var(--mj-text-xs)">
+    <b>Quick tabs vs. Filter.</b> The pills are the four questions finance asks daily and should stay one
+    click. <b>Filter</b> is everything else &mdash; and <b>Save as view</b> matters more than the fields do:
+    a filter someone rebuilds every Monday should become a saved view instead.
   </p>
 </div>
 </div>

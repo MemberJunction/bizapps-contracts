@@ -122,7 +122,7 @@ Every item below is settled (D-14 carries a confirmation flag — see O-3). §5 
 | D-1 | **Renewal obligations live in contracts** — auto-renew, notice periods, annual increase. Subscriptions know nothing of them; orders assumes auto-renewal until a sub is cancelled and prices renewals from then-current product rules. **Finance reconciles the difference manually** — *"no worse than current, as everything is manual right now"* | Amith 08-18 |
 | D-2 | **No approval workflow in contracts.** Approval of negotiated terms lives in `bizapps-sales`, on the deal, modelling Johanna's levels of authority. At current volume she may approve manually; the contract is generated *after* deal approval | Amith 08-18 |
 | D-3 | **No versioned SOW templates in v1.** SOWs have standard language but no versioned template today — *"that will change for sure as we scale PS"* | Amith 08-18 |
-| D-4 | **Modifications are structured, not textual.** A modification names a provision; the negotiated wording stays in the PDF | transcript + 08-18 |
+| D-4 | ~~Modifications are structured, not textual~~ &rarr; **superseded by D-16.** A modification names a provision **and** carries the negotiated wording | Amith, 08-18 (ERD R-17) |
 | D-5 | **`ContractTemplateProvision` is required** — the clause list, so modifications categorise cleanly | Amith 08-18 |
 | D-6 | **No termination-policy field.** It is *"simply one of the provisions in a contract"* | Amith 08-18 |
 | D-7 | **No document is required to create a contract**, and no named document column exists — the link table is sufficient | 08-18 |
@@ -134,6 +134,9 @@ Every item below is settled (D-14 carries a confirmation flag — see O-3). §5 
 | D-13 | **Provision text ships in v1.** `ContractTemplateProvision.ProvisionText` (nullable `nvarchar(max)`), seeded from the current Master Agreement. This does **not** touch D-4 or D-10: it is the *standard* clause's own text, there for reference while categorising a modification — the *negotiated* wording still lives only in the PDF, and there is still no reusable-clause library. Was future-phase F-3; now in scope (ERD §9 R-15) | Amith via Marcelo, 08-18 chat — *"Do you want the provision's text in the provision table?" "yep"* |
 | D-14 | **The modification row carries no template FK.** `Modification → Provision → Template` derives it, and the derivation survives the multi-template future intact — a provision belongs to exactly one template no matter how many templates a contract incorporates. Keeping the column would demand a "named template = provision's template" server rule to stop rows lying. Reverses the 08-18 "keep" (ERD §9 R-16); flagged for Amith's nod — O-3 | Marcelo, 08-18 |
 | D-15 | **The app is built on MJ 6's composition and forms stack.** The 1:N dependents (`Contract.Modifications`, `ContractTemplate.Provisions`) are metadata-declared **related-record collections**; the Angular UI binds **directly to the BaseEntity subclass** and one `Save()` persists the graph; forms are the generated forms customised by **`BaseFormPanel` contributions**, not bespoke editors. *"Make sure to use the new Related Records approach in Contracts … directly bind the Angular UI to the BaseEntity subclass. See how I did this in Orders repo."* §6 is the design; orders on `next` is the reference | Amith via Marcelo, 08-18 |
+| D-16 | **Both texts are stored, and read as a pair.** `ContractTemplateProvision.ProvisionText` holds the standard clause; `ContractTemplateModification.ModificationText` holds what this contract says instead. Supersedes D-4, which rested on the transcript &mdash; **Amith overruled it**. Corollary he stated with it: *all contract text ends up in provisions*; the template holds no prose of its own | Amith, 08-18 |
+| D-17 | **Forms use the left-nav rail.** `Entity.Configuration.UI.Form.Layout = "left-nav"` with `RelatedRolePolicy: "smart"` and a `PrimaryRelatedBudget`, matching what orders sets on every entity. Supersedes &sect;6.4's `Layout: 'auto'` &mdash; at six sections on the Contract form the rail is the point, and family consistency settles it anyway | Marcelo, 08-18 |
+| D-18 | **Reference data is cached in an engine, not re-queried per form.** A `BaseEngine` subclass caches contract types, template types, templates and **provisions** &mdash; without it the provision picker issues a `RunView` every time a row is added. See &sect;6.6 | Marcelo, 08-18 |
 
 The full reversal log — sixteen items, each with owner and date — is **§9 of the ERD**.
 
@@ -294,7 +297,7 @@ does (`person-orders.panel.ts` / `.form-chrome.json`):
 - Contract's own related list from the modification FK is claimed by the editor panel above, so no
   stock grid doubles it.
 
-**Chrome + overlays:** `Entity.Configuration.UI.Form` on Contract (`Layout: 'auto'` is fine at this
+**Chrome + overlays:** `Entity.Configuration.UI.Form` on Contract with **`Layout: 'left-nav'`** (D-17), plus `RelatedRolePolicy: 'smart'` and a `PrimaryRelatedBudget` &mdash; the settings orders carries on every entity. (An earlier draft said `Layout: 'auto'` was fine at this
 section count). Quick capture anywhere (e.g. "record a modification" from the watchlist) uses the
 stock overlays — `<mj-form-dialog>` / `MJFormPresenterService.Open({ Presentation: 'slide-in' })` —
 never a bespoke dialog. List/watchlist pages are `BaseResourceComponent` surfaces registered by
@@ -321,6 +324,30 @@ Reading PDFs straight out of SharePoint needs an Azure app registration from IT.
 off the critical path** — finance can attach documents through platform storage meanwhile, and switching
 to SharePoint later is configuration, not redesign. Details and the honest caveats:
 [`mj-storage-and-esignature-notes.md`](./mj-storage-and-esignature-notes.md).
+
+---
+
+### 6.6 Caching — reference data loads once, not per form (D-18)
+
+Four things are read constantly and change rarely: **contract types**, **template types**, **templates**, and
+**provisions**. Without a cache the provision picker issues a `RunView` every time a row is added, and every
+contract form re-reads the type lists to render two dropdowns.
+
+So contracts ships a `BaseEngine` subclass — the pattern orders and accounting already use — configured with
+those four entities and loaded once per session:
+
+| Cached | Why it is safe to cache | Read by |
+|---|---|---|
+| `ContractType` | Lookup; changes when a business user adds a type | Every form, the list views, `RequiresExecutedDocument` |
+| `ContractTemplateType` | Lookup | Template form |
+| `ContractTemplate` | A handful of rows — one per MA version, ever | Contract form, the version registry |
+| `ContractTemplateProvision` | Tens of rows per template, and immutable once a version is published | **The provision picker**, and the standard-text pane beside every modification |
+
+Two rules that keep it honest: the engine is **read-through for reference data only** — never contracts,
+never modifications, which are per-record and must come from the record's own collection; and the provision
+picker filters the **cached** set by the contract's `ContractTemplateID` in memory rather than issuing a
+scoped query, which is what makes §7.1's "provision must belong to a template this contract incorporates"
+rule cheap to preflight in the browser.
 
 ---
 

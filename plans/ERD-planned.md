@@ -176,6 +176,7 @@ erDiagram
         uuid ID PK
         uuid ContractID FK "Contract"
         uuid ContractTemplateProvisionID FK "ContractTemplateProvision"
+        nvarchar ModificationText "nullable · nvarchar(max) · what THIS contract says · R-17"
         nvarchar Notes "nullable"
     }
 
@@ -270,6 +271,7 @@ erDiagram
         uuid ID PK
         uuid ContractID FK "Contract"
         uuid ContractTemplateProvisionID FK "ContractTemplateProvision"
+        nvarchar ModificationText "nullable · nvarchar(max) · what THIS contract says · R-17"
         nvarchar Notes "nullable"
     }
 ```
@@ -461,6 +463,7 @@ erDiagram
         uuid ID PK
         uuid ContractID FK "Contract"
         uuid ContractTemplateProvisionID FK "ContractTemplateProvision"
+        nvarchar ModificationText "nullable · nvarchar(max) · what THIS contract says · R-17"
         nvarchar Notes "nullable"
     }
 
@@ -498,7 +501,8 @@ Deliberately lean: it records **that** a provision was modified, not the new wor
 | Column | Notes |
 |---|---|
 | `ContractID` | The contract |
-| `ContractTemplateProvisionID` | **`NOT NULL`** — the structured identifier, and the only one |
+| `ContractTemplateProvisionID` | **`NOT NULL`** — the structured identifier |
+| `ModificationText` | **What this contract says instead** (nullable `nvarchar(max)`). Read as a pair with the provision's `ProvisionText`: standard on the left, negotiated on the right. R-17 |
 | `Notes` | Optional working note |
 
 `UNIQUE(ContractID, ContractTemplateProvisionID)` — a contract modifies a given provision once.
@@ -512,15 +516,23 @@ have required a server rule that the named template equals the provision's templ
 is the rule that was always implicit: **a modification's provision must belong to a template this
 contract incorporates** (§7.1). ⚠ Reverses an Amith "keep" — flagged for his nod (master plan O-3).
 
-> **There is no modification text, and that is deliberate.** The transcript settles it. Joanna, asked
-> directly whether a clause reference alone suffices: *"Even if it's just referencing what clause in the MA
-> was modified? **Yes. Yes.**"* And Amith: *"I don't even know that it would be that much more value to know
-> what was negotiated. **Just knowing that there were additional terms.**"* The wording lives in the PDF,
-> which is one click away.
+> **Both texts are stored, and reading them as a pair is the point.** `ContractTemplateProvision.ProvisionText`
+> holds the **standard** clause; `ContractTemplateModification.ModificationText` holds **what this contract
+> says instead**. A dispute needs the comparison, not either half.
+>
+> ⚠ **This reverses the earlier clause-reference-only decision** (D-4 / R-5), which rested on the transcript —
+> Joanna, asked directly: *"Even if it's just referencing what clause in the MA was modified? Yes. Yes."* and
+> Amith: *"I don't even know that it would be that much more value to know what was negotiated."* **Amith
+> overruled both on 2026-08-18** (R-17). No confirmation flag needed: he reversed himself knowingly.
+>
+> **Corollary he stated at the same time: all contract text ends up in provisions.** The template holds no
+> prose of its own (R-11 removed `ContentText`); every clause's standard wording lives on its provision row,
+> and every deviation lives on the modification. There is no third place for contract text.
 
 > **Operational consequence, and it is a real one.** With the provision FK mandatory and no free-text
 > escape hatch, **the provision list must be seeded completely from our Master Agreement before finance
-> can record a modification** — and with R-15, the seed captures each clause's `ProvisionText` too.
+> can record a modification** — and with R-15, the seed captures each clause's `ProvisionText` too, which is
+> what the editor shows beside the negotiated text (R-17).
 > That makes seeding a build prerequisite, not a nice-to-have.
 
 ---
@@ -695,6 +707,7 @@ Recorded so that nothing looks like a silent drift, and so each reversal has an 
 | R-13 | An approval workflow "not built" | **Relocated**, not declined: it lives in `bizapps-sales` on the deal, modelling Johanna's authority levels. At current volume she may approve manually, and the contract is generated after deal approval | Amith, 2026-08-18 |
 | R-14 | `Sequence` on `ContractType` and `ContractTemplateType` | Removed — the two lists are short enough to order by name. `ContractTemplateProvision.Sequence` **stays**: provision numbers do not sort as text and a legal document has a canonical order | 2026-08-18 |
 | R-15 | `ProvisionText` deferred to a future phase (F-3, via R-11) | **In for v1** — nullable `nvarchar(max)` on `ContractTemplateProvision`, seeded from the current MA. §5.1. D-4 and D-10 are untouched | Amith via Marcelo, 2026-08-18 chat |
+| R-17 | Modification carried no wording (D-4 / R-5) | **`ModificationText` added** — nullable `nvarchar(max)`. Standard text on the provision, negotiated text on the modification, read as a pair. Reverses the transcript **and** Amith's own 08-18 field list; he overruled both. Corollary: *all contract text ends up in provisions* | **Amith**, 2026-08-18 |
 | R-16 | `ContractTemplateModification.ContractTemplateID` kept for the multi-template future | **Dropped** — the provision FK derives the template in every future (a provision belongs to exactly one template), and §7.2 forbids storing a projection. Replaced by the §7.1 consistency rule. ⚠ Reverses an Amith "keep" — flagged for his nod (master plan O-3) | Marcelo, 2026-08-18 |
 
 ---

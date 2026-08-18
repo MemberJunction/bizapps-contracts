@@ -21,7 +21,12 @@
     padding:var(--mj-space-2) var(--mj-space-3); border-radius:0 var(--mj-radius-sm) var(--mj-radius-sm) 0}
   .prov__toggle{font-size:var(--mj-text-xs); color:var(--mj-brand-primary); font-weight:600; margin-top:4px}
   .row-form{display:grid; grid-template-columns:1fr 1fr; gap:var(--mj-space-3); margin-top:var(--mj-space-3)}
-  .dirty{border-left:3px solid var(--mj-status-warning)}
+.dirty{border-left:3px solid var(--mj-status-warning)}
+  .pair{display:grid; grid-template-columns:1fr 1fr; gap:var(--mj-space-3); margin-top:var(--mj-space-2)}
+  .pair__tag{display:block; font-size:var(--mj-text-xs); font-weight:700; text-transform:uppercase;
+    letter-spacing:.04em; color:var(--mj-text-muted); margin-bottom:3px}
+  .pair__tag--mod{color:var(--mj-status-warning-text)}
+  .prov__text--mod{border-left-color:var(--mj-status-warning); background:var(--mj-color-warning-50)}
 </style>
 <svg style="display:none">
   <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></symbol>
@@ -34,7 +39,8 @@
   shown mid-edit with one unsaved row. The picker is <b>filtered to the contract's own template's
   provisions</b> &mdash; that filter is what replaces the dropped <code>ContractTemplateID</code> column
   (ERD R-16), so it is a correctness feature, not a convenience. <code>ProvisionText</code> (D-13) is
-  expandable inline so finance reads the standard clause while recording that it was modified.
+  expandable inline, and <code>ModificationText</code> sits directly beneath it so the standard and the
+  negotiated wording read <b>as a pair</b>. Amith ruled the text in on 2026-08-18, reversing D-4.
 </div>
 
 <div class="shell" style="max-width:880px">
@@ -51,15 +57,26 @@
         <tbody>
           <tr><td class="mono">3.5(b)</td>
               <td><strong>Limitation of Liability</strong>
-                  <div class="prov__toggle">show standard text &or;</div></td>
+                  <div class="prov__toggle">show standard &amp; modified text &or;</div></td>
               <td class="muted">Negotiated by Joanna</td>
               <td><button class="btn btn--danger btn--sm">&times;</button></td></tr>
           <tr><td class="mono">11.2</td>
               <td><strong>Governing Law &amp; Venue</strong>
-                  <div class="prov__text">11.2 &mdash; Any dispute arising under this Agreement shall be
-                  brought exclusively in the state or federal courts located in New Orleans, Louisiana, and
-                  each party consents to the jurisdiction and venue of such courts.</div>
-                  <div class="prov__toggle">hide standard text &and;</div></td>
+                  <div class="pair">
+                    <div class="pair__side">
+                      <span class="pair__tag">Standard &mdash; MA v6</span>
+                      <div class="prov__text">11.2 &mdash; Any dispute arising under this Agreement shall be
+                      brought exclusively in the state or federal courts located in New Orleans, Louisiana,
+                      and each party consents to the jurisdiction and venue of such courts.</div>
+                    </div>
+                    <div class="pair__side pair__side--mod">
+                      <span class="pair__tag pair__tag--mod">As modified &mdash; this contract</span>
+                      <div class="prov__text prov__text--mod">11.2 &mdash; Any dispute arising under this
+                      Agreement shall be brought in a court of competent jurisdiction. <i>The parties make
+                      no election as to venue.</i></div>
+                    </div>
+                  </div>
+                  <div class="prov__toggle">hide standard &amp; modified text &and;</div></td>
               <td class="muted">&mdash;</td>
               <td><button class="btn btn--danger btn--sm">&times;</button></td></tr>
         </tbody>
@@ -100,6 +117,23 @@
           <div class="field"><label>Provision</label><div class="val"><b class="mono">7.4</b> &mdash; Customer-Provided Model Keys</div></div>
           <div class="field"><label>Notes (optional)</label><div class="val">Standard for AI products</div></div>
         </div>
+        <div class="field" style="margin-top:var(--mj-space-3)">
+          <label>Standard text &mdash; read-only, from the provision</label>
+          <div class="val val--ro" style="font-size:var(--mj-text-xs)">7.4 &mdash; Where the Services
+          incorporate third-party artificial intelligence models, Customer shall provide and maintain its
+          own API credentials for such models, and Company shall not be responsible for usage charges
+          incurred thereunder.</div>
+        </div>
+        <div class="field" style="margin-top:var(--mj-space-3)">
+          <label>Modified text &mdash; as this contract states it</label>
+          <div class="val" style="min-height:5rem; border-color:var(--mj-status-warning); font-size:var(--mj-text-xs)">7.4
+          &mdash; Where the Services incorporate third-party artificial intelligence models, Customer shall
+          provide and maintain its own API credentials. <i>Company shall bear model usage charges up to
+          $2,000 per calendar quarter.</i><span style="color:var(--mj-text-muted)"> |</span></div>
+          <div class="muted" style="font-size:var(--mj-text-xs); margin-top:3px">
+            Pre-filled from the standard text so the negotiated version is edited, not retyped.
+          </div>
+        </div>
         <div style="display:flex; gap:var(--mj-space-2); margin-top:var(--mj-space-3)">
           <button class="btn btn--sm">Cancel</button>
           <button class="btn btn--primary btn--sm">Add to list</button>
@@ -107,9 +141,11 @@
       </div>
 
       <p class="muted" style="margin:0; padding:var(--mj-space-3) var(--mj-space-4); font-size:var(--mj-text-xs); border-top:1px solid var(--mj-color-neutral-100)">
-        <b>No wording field, by design.</b> We record <i>which</i> provision changed, not the negotiated
-        text &mdash; the text lives in the executed PDF, one click away (D-4). Joanna, asked directly:
-        <i>&ldquo;Even if it's just referencing what clause in the MA was modified? Yes. Yes.&rdquo;</i>
+        <b>Both texts, deliberately.</b> The provision carries the <i>standard</i> clause
+        (<code>ProvisionText</code>, D-13); the modification carries <i>what this contract says instead</i>.
+        Reading them as a pair is what a dispute actually needs, and it is why the modified box is
+        pre-filled from the standard text rather than blank &mdash; you edit the clause, you do not retype it.
+        Amith ruled this in on 2026-08-18, reversing the earlier clause-reference-only decision (D-4).
       </p>
     </div>
   </div>
