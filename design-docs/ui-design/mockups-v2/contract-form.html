@@ -1,4 +1,4 @@
-<!doctype html><meta charset="utf-8"><title>Contract form — hero + panels</title>
+<!doctype html><meta charset="utf-8"><title>Contract form — left-nav rail</title>
 <link rel="stylesheet" href="tokens.css">
 <style>
   .form-cols{display:grid; grid-template-columns:13.5rem 1fr; gap:var(--mj-space-4); align-items:start}
@@ -6,14 +6,39 @@
     border:1px solid var(--mj-border-default); border-radius:var(--mj-radius-md); overflow:hidden}
   .rail__group{font-size:var(--mj-text-xs); text-transform:uppercase; letter-spacing:.05em;
     color:var(--mj-text-muted); padding:var(--mj-space-3) var(--mj-space-3) var(--mj-space-1)}
-  .rail a{display:flex; align-items:center; gap:var(--mj-space-2); padding:7px var(--mj-space-3);
-    color:var(--mj-text-secondary); text-decoration:none; font-size:var(--mj-text-sm);
-    border-left:3px solid transparent}
-  .rail a:hover{background:var(--mj-color-neutral-50)}
-  .rail a.on{background:var(--mj-color-brand-50); color:var(--mj-color-brand-700);
+  .rail button{display:flex; width:100%; align-items:center; gap:var(--mj-space-2);
+    padding:7px var(--mj-space-3); color:var(--mj-text-secondary); font:inherit;
+    font-size:var(--mj-text-sm); background:none; border:0; border-left:3px solid transparent;
+    cursor:pointer; text-align:left}
+  .rail button:hover{background:var(--mj-color-neutral-50)}
+  .rail button.on{background:var(--mj-color-brand-50); color:var(--mj-color-brand-700);
     border-left-color:var(--mj-brand-primary); font-weight:700}
   .rail .badge{margin-left:auto; font-size:var(--mj-text-xs); color:var(--mj-text-muted)}
-  .rail a.on .badge{color:var(--mj-color-brand-700)}
+  .rail button.on .badge{color:var(--mj-color-brand-700)}
+  section[data-sec]{display:none}
+  section[data-sec].mj-chrome-show{display:block}
+  /* lookup + select controls, as the generated form renders them */
+  .ctl{display:flex; align-items:center; gap:6px; padding:6px 9px; background:var(--mj-bg-surface);
+    border:1px solid var(--mj-border-default); border-radius:var(--mj-radius-sm); min-height:31px}
+  .ctl .grow{flex:1}
+  .ctl__hint{color:var(--mj-text-muted); font-size:var(--mj-text-xs)}
+  .ctl--link .grow{color:var(--mj-brand-primary); font-weight:600}
+  .caret{color:var(--mj-text-muted)}
+  .modrow{cursor:pointer}
+  .modrow .modrow__detail{display:none}
+  .modrow.open .modrow__detail{display:grid}
+  .pair{display:grid; grid-template-columns:1fr 1fr; gap:var(--mj-space-3); margin-top:var(--mj-space-2)}
+  .pair__tag{display:block; font-size:var(--mj-text-xs); font-weight:700; text-transform:uppercase;
+    letter-spacing:.04em; color:var(--mj-text-muted); margin-bottom:3px}
+  .pair__tag--mod{color:var(--mj-status-warning-text)}
+  .ptxt{font-size:var(--mj-text-xs); color:var(--mj-text-secondary); background:var(--mj-color-neutral-50);
+    border-left:2px solid var(--mj-color-neutral-300); padding:var(--mj-space-2) var(--mj-space-3);
+    border-radius:0 var(--mj-radius-sm) var(--mj-radius-sm) 0}
+  .ptxt--mod{border-left-color:var(--mj-status-warning); background:var(--mj-color-warning-50)}
+  .flag{background:var(--mj-color-warning-50); border-left:3px solid var(--mj-status-warning);
+    padding:var(--mj-space-2) var(--mj-space-3); font-size:var(--mj-text-xs);
+    color:var(--mj-status-warning-text); border-radius:0 var(--mj-radius-sm) var(--mj-radius-sm) 0;
+    margin-top:var(--mj-space-3)}
 </style>
 <svg style="display:none">
   <symbol id="i-file" viewBox="0 0 24 24"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></symbol>
@@ -24,16 +49,17 @@
   <symbol id="i-trash" viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></symbol>
   <symbol id="i-link" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7 0l2-2a5 5 0 0 0-7-7l-1 1"/><path d="M14 11a5 5 0 0 0-7 0l-2 2a5 5 0 0 0 7 7l1-1"/></symbol>
   <symbol id="i-branch" viewBox="0 0 24 24"><circle cx="6" cy="6" r="2"/><circle cx="6" cy="18" r="2"/><circle cx="18" cy="12" r="2"/><path d="M6 8v8M8 18h4a4 4 0 0 0 4-4"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></symbol>
 </svg>
 
 <div class="mock-note">
-  <b>Mockup 1 · The Contract form.</b> The white frame and the <b>Details</b> field grid are what MJ's
-  <b>generated form</b> renders — not ours to design. Everything in a bordered panel is a
-  <code>BaseFormPanel</code> contribution we register, per master plan §6.4. The <b>left-nav rail</b> is generated chrome too &mdash; it comes from
-  <code>Entity.Configuration.UI.Form.Layout = "left-nav"</code>, which is what orders sets on its entities
-  (with <code>RelatedRolePolicy: "smart"</code>, <code>PrimaryRelatedBudget: 6</code>). Our plan says
-  <code>Layout: 'auto'</code>; at six sections it should say <code>left-nav</code>. Visual language and tokens are
-  copied from <code>orders/form-panels/document-hero.css</code> and MJ's <code>_tokens.scss</code>.
+  <b>Mockup 1 &middot; The Contract form.</b> <b>Click the rail</b> &mdash; it routes. MJ's
+  <code>left-nav</code> chrome toggles <code>mj-chrome-show</code> per section, so exactly one section
+  renders at a time; an earlier draft of this mockup drew a rail beside a stacked accordion, which is a
+  hybrid MJ does not have. The hero sits in <code>slot: before-fields</code> so it stays put across
+  sections. Rail, toolbar and section frames are <b>generated chrome</b>
+  (<code>UI.Form.Layout = "left-nav"</code>, as orders sets it); the contents of Renewal terms,
+  Modifications, Documents and Lineage are our <code>BaseFormPanel</code> contributions.
 </div>
 
 <div class="shell">
@@ -46,23 +72,8 @@
     <span class="gen-tag">generated form chrome</span>
   </div>
   <div class="gen-body">
-   <div class="form-cols">
-    <!-- LEFT-NAV RAIL — Entity.Configuration.UI.Form.Layout = "left-nav", as orders sets it -->
-    <nav class="rail">
-      <div class="rail__group">Sections</div>
-      <a class="on" href="#">Overview</a>
-      <a href="#">Details</a>
-      <a href="#">Renewal terms</a>
-      <div class="rail__group">Related</div>
-      <a href="#">Modifications <span class="badge">3</span></a>
-      <a href="#">Documents <span class="badge">2</span></a>
-      <a href="#">Lineage <span class="badge">1</span></a>
-      <div class="rail__group">More</div>
-      <a href="#">History</a>
-    </nav>
-   <div>
 
-    <!-- CONTRACT HERO — slot: before-fields, replacesSectionKey: 'details' -->
+    <!-- HERO — persistent, slot: before-fields -->
     <div class="hero">
       <div class="hero__identity">
         <div class="hero__avatar"><svg class="icon"><use href="#i-file"/></svg></div>
@@ -74,10 +85,8 @@
             <span class="chip chip--warn"><svg class="icon" style="width:12px;height:12px"><use href="#i-warn"/></svg> MA modified</span>
           </div>
           <div class="hero__meta">
-            <span>CTR-0184</span>
-            <span>Customer: <strong>American Geophysical Union</strong></span>
-            <span>Selling: <strong>Sidecar</strong></span>
-            <span>Contact: <strong>Ben Badlury</strong></span>
+            <span>CTR-0184</span><span>Customer: <strong>American Geophysical Union</strong></span>
+            <span>Selling: <strong>Sidecar</strong></span><span>Contact: <strong>Ben Badlury</strong></span>
           </div>
         </div>
       </div>
@@ -90,104 +99,192 @@
       </div>
     </div>
 
-    <!-- what the generated form still renders for the remaining fields -->
-    <div class="panel">
-      <div class="panel__head"><svg class="icon icon--brand"><use href="#i-edit"/></svg><h2>Details</h2><span class="spacer"></span><span class="gen-tag">generated</span></div>
-      <div class="panel__body">
-        <div class="fields">
-          <div class="field"><label>Contract Type</label><div class="val">Order Form</div></div>
-          <div class="field"><label>Contract Template</label><div class="val">Master Agreement &mdash; June 2026</div></div>
-          <div class="field"><label>Status</label><div class="val">Active</div></div>
+   <div class="form-cols">
+    <nav class="rail" id="rail">
+      <div class="rail__group">Sections</div>
+      <button class="on" data-go="overview">Overview</button>
+      <button data-go="dates">Dates</button>
+      <button data-go="renewal">Renewal terms</button>
+      <div class="rail__group">Related</div>
+      <button data-go="mods">Modifications <span class="badge">3</span></button>
+      <button data-go="docs">Documents <span class="badge">2</span></button>
+      <button data-go="lineage">Lineage <span class="badge">1</span></button>
+      <div class="rail__group">More</div>
+      <button data-go="history">History</button>
+    </nav>
+
+   <div>
+    <!-- OVERVIEW -->
+    <section data-sec="overview" class="mj-chrome-show">
+      <div class="panel"><div class="panel__head"><svg class="icon icon--brand"><use href="#i-edit"/></svg><h2>Overview</h2><span class="spacer"></span><span class="gen-tag">generated fields</span></div>
+        <div class="panel__body">
+          <div class="fields">
+            <div class="field"><label>Contract Type</label>
+              <div class="ctl"><span class="grow">Order Form</span><span class="caret">&or;</span></div></div>
+            <div class="field"><label>Contract Template</label>
+              <div class="ctl ctl--link"><svg class="icon" style="width:13px;height:13px;color:var(--mj-text-muted)"><use href="#i-search"/></svg><span class="grow">Master Agreement &mdash; June 2026</span><span class="caret">&or;</span></div>
+              <div class="ctl__hint">searchable record lookup &mdash; cached (D-18)</div></div>
+            <div class="field"><label>Status</label>
+              <div class="ctl"><span class="grow">Active</span><span class="caret">&or;</span></div></div>
+            <div class="field"><label>Customer Organisation</label>
+              <div class="ctl ctl--link"><svg class="icon" style="width:13px;height:13px;color:var(--mj-text-muted)"><use href="#i-search"/></svg><span class="grow">American Geophysical Union</span><span class="caret">&or;</span></div></div>
+            <div class="field"><label>Primary Contact</label>
+              <div class="ctl ctl--link"><svg class="icon" style="width:13px;height:13px;color:var(--mj-text-muted)"><use href="#i-search"/></svg><span class="grow">Ben Badlury</span><span class="caret">&or;</span></div></div>
+            <div class="field"><label>Selling Company</label>
+              <div class="ctl"><span class="grow">Sidecar</span><span class="caret">&or;</span></div></div>
+            <div class="field"><label>Description</label><div class="val">2-year Learning Hub subscription, 40 seats.</div></div>
+            <div class="field"><label>Notes</label><div class="val">Renewal call booked for Oct 2027.</div></div>
+          </div>
+          <div class="flag"><b>Open question &mdash; does Status belong here at all?</b> Four of its five values
+            are derivable (Expired from EndDate, Terminated from TerminatedDate, Superseded from
+            SupersededByContractID, Active from the absence of those). Only <i>Draft</i> is a stored fact, and
+            that may be the finance task rather than a status. Drawn as a dropdown here pending your ruling.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- DATES -->
+    <section data-sec="dates">
+      <div class="panel"><div class="panel__head"><svg class="icon icon--brand"><use href="#i-cal"/></svg><h2>Dates</h2><span class="spacer"></span><span class="gen-tag">generated fields</span></div>
+        <div class="panel__body"><div class="fields">
+          <div class="field"><label>Executed Date</label><div class="val">12 Dec 2025</div><div class="ctl__hint">may precede the effective date &mdash; no constraint</div></div>
+          <div class="field"><label>Effective Date</label><div class="val">1 Jan 2026</div></div>
+          <div class="field"><label>End Date</label><div class="val">31 Dec 2027</div></div>
           <div class="field"><label>Terminated Date</label><div class="val val--ro">&mdash;</div></div>
-          <div class="field"><label>Description</label><div class="val">2-year Learning Hub subscription, 40 seats.</div></div>
-          <div class="field"><label>Notes</label><div class="val">Renewal call booked for Oct 2027.</div></div>
+        </div></div>
+      </div>
+    </section>
+
+    <!-- RENEWAL TERMS -->
+    <section data-sec="renewal">
+      <div class="panel"><div class="panel__head"><svg class="icon icon--brand"><use href="#i-cal"/></svg>
+        <h2>Renewal terms</h2><span class="chip chip--muted">as stated in the agreement</span><span class="spacer"></span></div>
+        <div class="panel__body">
+          <div class="fields">
+            <div class="field"><label>Auto-renews</label>
+              <div class="ctl"><span class="grow">Yes</span><span class="caret">&or;</span></div>
+              <div class="ctl__hint">Yes / No / not stated</div></div>
+            <div class="field"><label>Renewal notice we owe</label><div class="val">60 days</div></div>
+            <div class="field"><label>Notice to cancel</label><div class="val">90 days</div></div>
+            <div class="field"><label>Annual increase</label><div class="val">10.0%</div></div>
+          </div>
+          <p class="muted" style="margin:var(--mj-space-3) 0 0; font-size:var(--mj-text-xs)">
+            These record what the signed paper says. The subscription in Orders holds the operational setting
+            and may legitimately differ &mdash; a mismatch is a finding, not a bug (ERD &sect;4.3).</p>
+          <div class="flag"><b>Open question &mdash; should Auto-renews be nullable?</b> A <code>NOT NULL DEFAULT 0</code>
+            bit asserts &ldquo;does not auto-renew&rdquo; for every contract nobody has read yet &mdash; the same trap the
+            modified flag avoids. Drawn with a third option, <i>not stated</i>, which needs a nullable bit.</div>
         </div>
       </div>
-    </div>
+    </section>
 
-    <!-- RENEWAL TERMS — slot: after-fields -->
-    <div class="panel">
-      <div class="panel__head"><svg class="icon icon--brand"><use href="#i-cal"/></svg>
-        <h2>Renewal terms</h2>
-        <span class="chip chip--muted">as stated in the agreement</span>
-        <span class="spacer"></span>
-      </div>
-      <div class="panel__body">
-        <div class="fields">
-          <div class="field"><label>Auto-renews</label><div class="val">Yes</div></div>
-          <div class="field"><label>Renewal notice we owe</label><div class="val">60 days</div></div>
-          <div class="field"><label>Notice to cancel</label><div class="val">90 days</div></div>
-          <div class="field"><label>Annual increase</label><div class="val">10.0%</div></div>
+    <!-- MODIFICATIONS -->
+    <section data-sec="mods">
+      <div class="panel">
+        <div class="panel__head"><svg class="icon icon--brand"><use href="#i-warn"/></svg>
+          <h2>Modifications to the Master Agreement</h2><span class="count">3</span><span class="spacer"></span>
+          <button class="btn btn--flat btn--sm">Cards / Grid</button>
+          <button class="btn btn--flat btn--sm"><svg class="icon" style="width:13px;height:13px"><use href="#i-plus"/></svg> Add modification</button>
         </div>
-        <p class="muted" style="margin:var(--mj-space-3) 0 0; font-size:var(--mj-text-xs)">
-          These record what the signed paper says. The subscription in Orders holds the operational
-          setting and may legitimately differ &mdash; a mismatch is a finding, not a bug (ERD &sect;4.3).
-        </p>
-      </div>
-    </div>
-
-    <!-- MODIFICATIONS EDITOR — slot: after-related, claims the related grid -->
-    <div class="panel">
-      <div class="panel__head"><svg class="icon icon--brand"><use href="#i-warn"/></svg>
-        <h2>Modifications to the Master Agreement</h2><span class="count">3</span>
-        <span class="spacer"></span>
-        <button class="btn btn--flat btn--sm"><svg class="icon" style="width:13px;height:13px"><use href="#i-plus"/></svg> Add modification</button>
-      </div>
-      <div class="panel__body" style="padding:0">
-        <table class="grid">
-          <thead><tr><th style="width:8rem">Provision</th><th>Clause</th><th>Notes</th><th style="width:3rem"></th></tr></thead>
-          <tbody>
-            <tr><td class="mono">3.5(b)</td>
-                <td><strong>Limitation of Liability</strong><br><span class="muted" style="font-size:var(--mj-text-xs)">Cap raised to 2&times; fees paid</span></td>
-                <td class="muted">Negotiated by Joanna, Nov 2025</td>
-                <td><button class="btn btn--danger btn--sm"><svg class="icon" style="width:13px;height:13px"><use href="#i-trash"/></svg></button></td></tr>
-            <tr><td class="mono">11.2</td>
-                <td><strong>Governing Law &amp; Venue</strong><br><span class="muted" style="font-size:var(--mj-text-xs)">Silent on venue</span></td>
+        <div class="panel__body" style="padding:0">
+          <table class="grid">
+            <thead><tr><th style="width:7rem">Provision</th><th>Clause</th><th style="width:12rem">Notes</th><th style="width:7rem"></th></tr></thead>
+            <tbody id="mods">
+              <tr class="modrow"><td class="mono">3.5(b)</td>
+                <td><strong>Limitation of Liability</strong>
+                  <div class="ctl__hint">click the row to compare standard &amp; modified text</div>
+                  <div class="modrow__detail pair">
+                    <div><span class="pair__tag">Standard &mdash; MA v6</span><div class="ptxt">3.5(b) &mdash; In no
+                      event shall Company's aggregate liability exceed the fees paid in the twelve months
+                      preceding the claim.</div></div>
+                    <div><span class="pair__tag pair__tag--mod">As modified</span><div class="ptxt ptxt--mod">3.5(b)
+                      &mdash; &hellip; shall not exceed <i>two times</i> the fees paid in the twelve months preceding
+                      the claim.</div></div>
+                  </div></td>
+                <td class="muted">Negotiated by Joanna</td>
+                <td><button class="btn btn--flat btn--sm">Open</button><button class="btn btn--danger btn--sm"><svg class="icon" style="width:13px;height:13px"><use href="#i-trash"/></svg></button></td></tr>
+              <tr class="modrow"><td class="mono">11.2</td>
+                <td><strong>Governing Law &amp; Venue</strong>
+                  <div class="ctl__hint">click the row to compare standard &amp; modified text</div>
+                  <div class="modrow__detail pair">
+                    <div><span class="pair__tag">Standard &mdash; MA v6</span><div class="ptxt">11.2 &mdash; Any dispute
+                      shall be brought exclusively in the courts located in New Orleans, Louisiana.</div></div>
+                    <div><span class="pair__tag pair__tag--mod">As modified</span><div class="ptxt ptxt--mod">11.2
+                      &mdash; Any dispute shall be brought in a court of competent jurisdiction. <i>The parties make
+                      no election as to venue.</i></div></div>
+                  </div></td>
                 <td class="muted">&mdash;</td>
-                <td><button class="btn btn--danger btn--sm"><svg class="icon" style="width:13px;height:13px"><use href="#i-trash"/></svg></button></td></tr>
-            <tr><td class="mono">7.4</td>
-                <td><strong>Customer-Provided Model Keys</strong><br><span class="muted" style="font-size:var(--mj-text-xs)">Standard for AI products</span></td>
+                <td><button class="btn btn--flat btn--sm">Open</button><button class="btn btn--danger btn--sm"><svg class="icon" style="width:13px;height:13px"><use href="#i-trash"/></svg></button></td></tr>
+              <tr class="modrow"><td class="mono">7.4</td>
+                <td><strong>Customer-Provided Model Keys</strong>
+                  <div class="ctl__hint">click the row to compare standard &amp; modified text</div>
+                  <div class="modrow__detail pair">
+                    <div><span class="pair__tag">Standard &mdash; MA v6</span><div class="ptxt">7.4 &mdash; Customer
+                      shall provide and maintain its own API credentials for third-party AI models.</div></div>
+                    <div><span class="pair__tag pair__tag--mod">As modified</span><div class="ptxt ptxt--mod">7.4
+                      &mdash; &hellip; <i>Company shall bear model usage charges up to $2,000 per calendar quarter.</i></div></div>
+                  </div></td>
                 <td class="muted">Standard clause</td>
-                <td><button class="btn btn--danger btn--sm"><svg class="icon" style="width:13px;height:13px"><use href="#i-trash"/></svg></button></td></tr>
-          </tbody>
-        </table>
-        <p class="muted" style="margin:0; padding:var(--mj-space-3) var(--mj-space-4); font-size:var(--mj-text-xs); border-top:1px solid var(--mj-color-neutral-100)">
-          Rows are unsaved until the form's <b>Save</b> &mdash; one <code>record.Save()</code>, header and rows in one transaction.
-          Adding the first row sets <b>MA modified</b> above in the same graph.
-        </p>
+                <td><button class="btn btn--flat btn--sm">Open</button><button class="btn btn--danger btn--sm"><svg class="icon" style="width:13px;height:13px"><use href="#i-trash"/></svg></button></td></tr>
+            </tbody>
+          </table>
+          <p class="muted" style="margin:0; padding:var(--mj-space-3) var(--mj-space-4); font-size:var(--mj-text-xs); border-top:1px solid var(--mj-color-neutral-100)">
+            <b>Not the stock entity grid.</b> This panel claims <code>relatedEntity</code> to hide it, because a
+            grid cannot join the parent's single save. <b>Single click expands</b> the text pair;
+            <b>Open</b> navigates to the modification's own generated form in a tab. No double-click &mdash; click
+            already means something. A <b>Cards / Grid</b> toggle mirrors orders' subscription-terms panel, where the
+            grid view buys sorting and column-picking for read-only use.
+          </p>
+        </div>
       </div>
-    </div>
+    </section>
 
     <!-- DOCUMENTS -->
-    <div class="panel">
-      <div class="panel__head"><svg class="icon icon--brand"><use href="#i-link"/></svg><h2>Documents</h2><span class="count">2</span><span class="spacer"></span>
-        <button class="btn btn--flat btn--sm">Attach</button></div>
-      <div class="panel__body" style="padding:0">
-        <table class="grid">
+    <section data-sec="docs">
+      <div class="panel"><div class="panel__head"><svg class="icon icon--brand"><use href="#i-link"/></svg><h2>Documents</h2><span class="count">2</span><span class="spacer"></span><button class="btn btn--flat btn--sm">Attach</button></div>
+        <div class="panel__body" style="padding:0"><table class="grid">
           <thead><tr><th>Name</th><th style="width:9rem">Kind</th><th style="width:9rem">Added</th><th style="width:7rem"></th></tr></thead>
           <tbody>
             <tr><td><strong>AGU-LearningHub-Executed.pdf</strong></td><td><span class="chip chip--ok">Executed</span></td><td class="muted">14 Dec 2025</td><td><button class="btn btn--flat btn--sm">Open</button></td></tr>
             <tr><td>AGU-countersigned-page.pdf</td><td><span class="chip chip--muted">Attachment</span></td><td class="muted">16 Dec 2025</td><td><button class="btn btn--flat btn--sm">Open</button></td></tr>
-          </tbody>
-        </table>
+          </tbody></table></div>
       </div>
-    </div>
+    </section>
 
     <!-- LINEAGE -->
-    <div class="panel">
-      <div class="panel__head"><svg class="icon icon--brand"><use href="#i-branch"/></svg><h2>Lineage</h2><span class="count">1 change order</span><span class="spacer"></span><span class="gen-tag">read-only</span></div>
-      <div class="panel__body" style="padding:0">
-        <table class="grid">
+    <section data-sec="lineage">
+      <div class="panel"><div class="panel__head"><svg class="icon icon--brand"><use href="#i-branch"/></svg><h2>Lineage</h2><span class="count">1 change order</span><span class="spacer"></span><span class="gen-tag">read-only</span></div>
+        <div class="panel__body" style="padding:0"><table class="grid">
           <thead><tr><th style="width:9rem">Contract</th><th style="width:10rem">Relationship</th><th>Summary</th><th style="width:8rem">Executed</th></tr></thead>
-          <tbody>
-            <tr><td class="mono">CTR-0231</td><td><span class="chip chip--info">Change order</span></td><td>Seats 40 &rarr; 55</td><td class="muted">3 Jun 2026</td></tr>
-          </tbody>
-        </table>
+          <tbody><tr><td class="mono">CTR-0231</td><td><span class="chip chip--info">Change order</span></td><td>Seats 40 &rarr; 55</td><td class="muted">3 Jun 2026</td></tr></tbody>
+        </table></div>
       </div>
-    </div>
+    </section>
 
+    <!-- HISTORY -->
+    <section data-sec="history">
+      <div class="panel"><div class="panel__head"><svg class="icon icon--brand"><use href="#i-cal"/></svg><h2>History</h2><span class="spacer"></span><span class="gen-tag">MJ Record Changes</span></div>
+        <div class="panel__body"><p class="muted" style="margin:0; font-size:var(--mj-text-sm)">
+          Platform-provided. Contracts stores no audit table of its own &mdash; <code>__mj.RecordChange</code>
+          already records every change to every field, which is why v1's <code>ContractEvent</code> was dropped.</p></div>
+      </div>
+    </section>
    </div>
    </div>
+
   </div>
 </div>
 </div>
+<script>
+  document.getElementById('rail').addEventListener('click', e => {
+    const b = e.target.closest('button[data-go]'); if (!b) return;
+    document.querySelectorAll('#rail button').forEach(x => x.classList.remove('on'));
+    b.classList.add('on');
+    document.querySelectorAll('section[data-sec]').forEach(s =>
+      s.classList.toggle('mj-chrome-show', s.dataset.sec === b.dataset.go));
+  });
+  document.querySelectorAll('.modrow').forEach(r => r.addEventListener('click', e => {
+    if (e.target.closest('button')) return;
+    r.classList.toggle('open');
+  }));
+</script>
