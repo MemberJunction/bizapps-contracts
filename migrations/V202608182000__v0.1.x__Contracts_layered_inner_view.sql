@@ -44,6 +44,55 @@ UPDATE [${mjSchema}].[Entity]
         OR [GeneratedBaseViewName] <> 'vwContractsGenerated');
 GO
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 -- =============================================================================
 -- The generated INNER view, captured from the CodeGen run made after the flags
 -- above were set. Copied verbatim from

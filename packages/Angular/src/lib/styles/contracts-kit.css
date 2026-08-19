@@ -1,0 +1,184 @@
+/**
+ * contracts-kit.css — the app's own component classes, on MJ's design tokens.
+ *
+ * SHIPPED VIA THE SECTION SHELL, not imported by a host app. `ngc` only compiles what a component
+ * references, so a stylesheet nothing references is built into dist and never loaded by a real
+ * Explorer. The shell every section renders inside declares this file in `styleUrls` with
+ * `ViewEncapsulation.None`, which is what carries it wherever the app is mounted.
+ *
+ * EVERY COLOUR, SPACE AND RADIUS BELOW IS A TOKEN. No hex literals, no px spacing. The tokens come
+ * from MJ (`packages/Angular/Generic/shared/src/lib/_tokens.scss`), so this app follows the platform's
+ * theme — including dark mode — for free, and a token change lands here without an edit. A hardcoded
+ * colour is how an app stops looking like MJ six months later.
+ *
+ * Kept deliberately small: MJ's own components do the chrome, the grids and the forms. What is here is
+ * only what MJ has no component for.
+ */
+
+/* ── Page frame ─────────────────────────────────────────────────────────────── */
+
+.mjc-page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--mj-space-4);
+  padding: var(--mj-space-5);
+}
+
+.mjc-page__intro {
+  color: var(--mj-text-secondary);
+  font-size: var(--mj-font-size-sm);
+  margin: 0;
+  max-width: 78ch; /* Prose stops being readable past roughly this width. */
+}
+
+/* ── Cards ──────────────────────────────────────────────────────────────────── */
+
+.mjc-card {
+  background: var(--mj-bg-surface-card);
+  border: 1px solid var(--mj-border-subtle);
+  border-radius: var(--mj-radius-lg);
+  padding: var(--mj-space-4);
+}
+
+.mjc-card__title {
+  font-size: var(--mj-font-size-sm);
+  font-weight: 600;
+  color: var(--mj-text-primary);
+  margin: 0 0 var(--mj-space-3);
+}
+
+/* ── Filter pills ───────────────────────────────────────────────────────────
+   The watchlist's four defaults (D-21). Pills rather than a saved-view system:
+   users drive filters in-session, and persisting custom watchlists is phase 2 or
+   never. Deliberately NOT a bespoke control — a pill is a button that reads as
+   selected, which is all the affordance this needs. */
+
+.mjc-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--mj-space-2);
+}
+
+.mjc-pill {
+  appearance: none;
+  cursor: pointer;
+  border: 1px solid var(--mj-border-default);
+  background: var(--mj-bg-surface);
+  color: var(--mj-text-secondary);
+  border-radius: var(--mj-radius-full, 999px);
+  padding: var(--mj-space-1) var(--mj-space-3);
+  font-size: var(--mj-font-size-sm);
+  line-height: 1.6;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--mj-space-2);
+}
+
+.mjc-pill:hover { border-color: var(--mj-brand-primary); color: var(--mj-text-primary); }
+
+.mjc-pill--active {
+  background: var(--mj-brand-primary);
+  border-color: var(--mj-brand-primary);
+  color: #fff; /* On the brand fill specifically — the token set has no on-primary colour. */
+}
+
+.mjc-pill__count {
+  font-variant-numeric: tabular-nums; /* So counts do not jitter as they change. */
+  opacity: 0.8;
+  font-size: var(--mj-font-size-xs);
+}
+
+/* ── State chip ─────────────────────────────────────────────────────────────
+   The six derived states (ERD §4.5). Colour carries MEANING here, so it is worth
+   the six rules: Executed and Active are both fine but different (a wait vs in
+   force), and Terminated and Superseded are both endings but not the same ending.
+   Falls back to neutral for an unknown value rather than rendering unstyled — a
+   seventh state should look plain, not broken. */
+
+.mjc-state {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--mj-space-1);
+  border-radius: var(--mj-radius-sm);
+  padding: 0 var(--mj-space-2);
+  font-size: var(--mj-font-size-xs);
+  font-weight: 600;
+  line-height: 1.8;
+  border: 1px solid var(--mj-border-subtle);
+  background: var(--mj-bg-surface-sunken, var(--mj-bg-surface));
+  color: var(--mj-text-secondary);
+  white-space: nowrap;
+}
+
+.mjc-state--active     { border-color: var(--mj-color-success-border, var(--mj-border-default)); color: var(--mj-color-success-text, var(--mj-text-primary)); }
+.mjc-state--executed   { border-color: var(--mj-brand-primary); color: var(--mj-brand-primary); }
+.mjc-state--draft      { border-style: dashed; }
+.mjc-state--expired    { color: var(--mj-text-tertiary, var(--mj-text-secondary)); }
+.mjc-state--terminated { border-color: var(--mj-color-danger-border, var(--mj-border-default)); color: var(--mj-color-danger-text, var(--mj-text-primary)); }
+.mjc-state--superseded { text-decoration: line-through; }
+
+/* ── Warning flag ───────────────────────────────────────────────────────────
+   HasModifications and IsAwaitingDocument. Both mean "a person must look at
+   something", which is a different thing from a lifecycle state, so it reads
+   differently rather than being a seventh chip colour. */
+
+.mjc-flag {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--mj-space-1);
+  font-size: var(--mj-font-size-xs);
+  color: var(--mj-color-warning-text, var(--mj-text-secondary));
+}
+
+/* ── Provision / modification text ──────────────────────────────────────────
+   Contract language read side by side: the standard clause and what this contract
+   says instead (D-16). Monospace would be wrong — this is prose, not code — but it
+   needs a tighter measure and a visible left edge so a reader can tell where a
+   quoted clause starts and stops. */
+
+.mjc-clause {
+  border-left: 3px solid var(--mj-border-default);
+  padding: var(--mj-space-1) 0 var(--mj-space-1) var(--mj-space-3);
+  margin: 0;
+  color: var(--mj-text-secondary);
+  font-size: var(--mj-font-size-sm);
+  white-space: pre-wrap; /* Clause text carries its own line breaks; preserve them. */
+  max-width: 80ch;
+}
+
+.mjc-clause--modified {
+  border-left-color: var(--mj-brand-primary);
+  color: var(--mj-text-primary);
+}
+
+.mjc-clause__label {
+  display: block;
+  font-size: var(--mj-font-size-xs);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--mj-text-tertiary, var(--mj-text-secondary));
+  margin-bottom: var(--mj-space-1);
+}
+
+/* Side by side on wide screens, stacked on narrow — the comparison is the point, but
+   two 40ch columns on a laptop is worse than one readable column. */
+.mjc-clause-pair {
+  display: grid;
+  gap: var(--mj-space-4);
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 1100px) {
+  .mjc-clause-pair { grid-template-columns: 1fr 1fr; }
+}
+
+/* ── Empty state ────────────────────────────────────────────────────────────
+   A sentence, never a blank pane. A blank content area reads as a broken app. */
+
+.mjc-empty {
+  color: var(--mj-text-secondary);
+  font-size: var(--mj-font-size-sm);
+  padding: var(--mj-space-6) var(--mj-space-4);
+  text-align: center;
+}

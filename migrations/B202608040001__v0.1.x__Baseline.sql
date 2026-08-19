@@ -458,6 +458,55 @@ EXEC sp_addextendedproperty @name=N'MS_Description', @value=N'What this contract
 EXEC sp_addextendedproperty @name=N'MS_Description', @value=N'Optional working note, e.g. who negotiated it.', @level0type=N'SCHEMA', @level0name=N'__mj_BizAppsContracts', @level1type=N'TABLE', @level1name=N'ContractTemplateModification', @level2type=N'COLUMN', @level2name=N'Notes';
 GO
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 -- =============================================================================
 -- SECTION 6 — CODEGEN CAPTURE
 -- =============================================================================

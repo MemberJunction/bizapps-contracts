@@ -19,17 +19,75 @@
 -- (V202608131542). The filename timestamp is what enforces the ordering, so do not
 -- renumber it below V202608182001.
 --
--- WHY IT IS A SEPARATE FILE, where orders appended the same capture INTO its
--- wrapper migration: orders authored both halves before either was applied.
--- V202608182001 was already applied here, and editing an applied migration changes
--- its checksum, which makes Flyway refuse every subsequent migrate on this database.
--- A later file is functionally identical — it runs after the wrapper either way —
--- and it costs one filename instead of a database rebuild.
+-- WHY IT IS A SEPARATE FILE, where orders appended the same capture INTO its wrapper
+-- migration. My first reason for splitting was WRONG and is corrected here rather
+-- than quietly dropped: I asserted that editing an applied migration changes its
+-- checksum and makes the tool refuse every later migrate. That is Flyway's
+-- behaviour, and skyway does NOT do it — verified by editing these files and running
+-- `mj migrate`, which reported "0 applied" with no validation complaint. Editing an
+-- applied migration in place is therefore safe here, which is also what makes this
+-- repo's pre-production edit-the-baseline practice workable day to day.
+--
+-- The split STANDS on a smaller and true reason: this capture and the wrapper are
+-- different KINDS of content — one is hand-authored DDL, one is CodeGen output
+-- replaced wholesale on regeneration — so separate files mean a re-capture overwrites
+-- a whole file rather than a region inside one. Orders achieves the same separation
+-- with the 50-blank-line rule inside one file; both are valid, and this one is
+-- already applied, so reordering it now would buy nothing.
 --
 -- Sequence numbers use apply-time `MAX([Sequence]) + n`, so the rows land after
 -- whatever real columns exist rather than at hardcoded positions that a later
 -- schema change would collide with.
 -- =============================================================================
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 /* SQL text to update existing entities from schema */
 EXEC [${mjSchema}].[spUpdateExistingEntitiesFromSchema] @ExcludedSchemaNames='sys,staging,dbo,${mjSchema},${mjSchema}_BizAppsAccounting,${mjSchema}_BizAppsCommon,${mjSchema}_BizAppsOrders,${mjSchema}_BizAppsTasks';
