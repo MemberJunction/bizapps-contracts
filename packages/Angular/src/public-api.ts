@@ -1,126 +1,54 @@
 /**
  * @mj-biz-apps/contracts-ng — the CLIENT BOOTSTRAP package.
  *
- * This is the package named in mj-app.json under packages.client with role
- * "bootstrap". When the app is installed (or dev-linked), MJExplorer's
- * auto-generated open-app-bootstrap.generated.ts gains a static
- * `import '@mj-biz-apps/contracts-ng';` — ESBuild bundles it and module evaluation
- * fires the @RegisterClass decorators that make your components discoverable.
+ * This is the package named in mj-app.json under packages.client with role "bootstrap". When the app
+ * is installed (or dev-linked), MJExplorer's auto-generated open-app-bootstrap.generated.ts gains a
+ * static `import '@mj-biz-apps/contracts-ng';` — ESBuild bundles it and module evaluation fires the
+ * @RegisterClass decorators that make our components discoverable.
  *
  * WHAT LIVES HERE
- *   src/lib/generated/ — CodeGen Angular output (entity forms; do not edit)
- *   src/lib/           — your hand-written components (dashboards, tabs, ...)
+ *   src/lib/generated/    — CodeGen Angular output (one form per entity; do not edit)
+ *   src/lib/form-panels/  — BaseFormPanel contributions (plan §6.4) — our UX, layered onto the
+ *                           GENERATED forms rather than replacing them
+ *   src/lib/custom/       — the few bespoke components (the modification editor, §6.4 / D-22)
+ *   src/lib/pages/        — BaseResourceComponent surfaces the nav points at (list, watchlist, …)
  *
- * AFTER YOUR FIRST CODEGEN RUN (the pattern every shipped app uses): import
- * the entity package + the generated forms module so their @RegisterClass
- * decorators fire, and RE-EXPORT the generated module/components so the
- * host's class-registration manifest can import them by name:
- *
- *   import '@mj-biz-apps/contracts-entities';
- *   import './lib/generated/generated-forms.module';
- *   import { GeneratedFormsModule } from './lib/generated/generated-forms.module';
- *   export { GeneratedFormsModule } from './lib/generated/generated-forms.module';
- *   export { <YourEntity>FormComponent } from './lib/generated/Entities/<YourEntity>/<yourentity>.form.component';
- *
- * HAND-WRITTEN COMPONENT EXAMPLE — a resource component that renders as a tab
- * in MJ Explorer (its DriverClass must match a DefaultNavItems entry in your
- * application metadata — see docs/template-docs/metadata.md):
- *
- *   import { Component } from '@angular/core';
- *   import { RegisterClass } from '@memberjunction/global';
- *   import { BaseResourceComponent, ResourceData } from '@memberjunction/ng-shared';
- *
- *   @RegisterClass(BaseResourceComponent, 'MjBizappsContractsDashboard')
- *   @Component({
- *     selector: 'sample-app-dashboard',
- *     template: '<div><h2>BizApps Contracts</h2></div>',
- *     standalone: false
- *   })
- *   export class MjBizappsContractsDashboardComponent extends BaseResourceComponent {
- *     async GetResourceDisplayName(data: ResourceData): Promise<string> { return 'Sample App'; }
- *     async GetResourceIconClass(data: ResourceData): Promise<string> { return 'fa-solid fa-cube'; }
- *   }
- *
- * NOTE: package.json already carries the peer deps the generated forms will
- * import (@angular/forms, ng-base-forms, ng-entity-viewer, ng-link-directives)
- * so your first codegen run builds without dependency surgery.
- *
- * TODO(template): rename the function to Load<YourApp>Client and keep it in
- * sync with mj-app.json "startupExport".
+ * THE V2 SHAPE, AND WHY IT IS SMALLER THAN V1'S. v1 replaced the generated Contract form with a
+ * custom one at priority 2 and hand-rolled a workspace/tab shell around it. v2 keeps every generated
+ * form registered and contributes panels into its slots — orders' current direction, adopted
+ * wholesale (plan §6.4). A full form replacement is a last resort; contracts expects to need none.
  */
 
 /* ============================================================================
- * GENERATED FORMS — wired after the first CodeGen run, exactly as the header
- * above prescribes. The side-effect imports fire the @RegisterClass decorators;
- * the re-exports are what MJExplorer's class-registration manifest imports BY
- * NAME. Without these exports the Explorer bundle fails to compile with
- * TS2305 'has no exported member', which is precisely what happened.
+ * GENERATED FORMS. The side-effect imports fire the @RegisterClass decorators; the re-exports are
+ * what MJExplorer's class-registration manifest imports BY NAME. Without these exports the Explorer
+ * bundle fails to compile with TS2305 'has no exported member'.
  * ========================================================================== */
 import '@mj-biz-apps/contracts-entities';
 import './lib/generated/generated-forms.module';
 import { GeneratedFormsModule } from './lib/generated/generated-forms.module';
-import {
-    MJCContractsSectionComponent,
-    ContractsSectionResource,
-    ContractsBillingSectionResource,
-    ContractsSetupSectionResource,
-} from './lib/sections/contracts-section.component';
-import { MJCContractFormComponent } from './lib/forms/contract.form.component';
-import { MJCContractTermFormComponent } from './lib/forms/contract-term.form.component';
-import { MJCContractLineFormComponent } from './lib/forms/contract-line.form.component';
-import { ContractFilesPanel, ContractTermFilesPanel, ContractAmendmentFilesPanel } from './lib/panels/record-files.panel';
 export { GeneratedFormsModule } from './lib/generated/generated-forms.module';
-export { mjBizAppsContractsContractAmendmentFormComponent } from './lib/generated/Entities/mjBizAppsContractsContractAmendment/mjbizappscontractscontractamendment.form.component';
-export { mjBizAppsContractsContractBillingEventFormComponent } from './lib/generated/Entities/mjBizAppsContractsContractBillingEvent/mjbizappscontractscontractbillingevent.form.component';
-export { mjBizAppsContractsContractBillingScheduleFormComponent } from './lib/generated/Entities/mjBizAppsContractsContractBillingSchedule/mjbizappscontractscontractbillingschedule.form.component';
-export { mjBizAppsContractsContractCommitmentFormComponent } from './lib/generated/Entities/mjBizAppsContractsContractCommitment/mjbizappscontractscontractcommitment.form.component';
-export { mjBizAppsContractsContractEventFormComponent } from './lib/generated/Entities/mjBizAppsContractsContractEvent/mjbizappscontractscontractevent.form.component';
 export { mjBizAppsContractsContractFormComponent } from './lib/generated/Entities/mjBizAppsContractsContract/mjbizappscontractscontract.form.component';
-export { mjBizAppsContractsContractLineFormComponent } from './lib/generated/Entities/mjBizAppsContractsContractLine/mjbizappscontractscontractline.form.component';
 export { mjBizAppsContractsContractSequenceFormComponent } from './lib/generated/Entities/mjBizAppsContractsContractSequence/mjbizappscontractscontractsequence.form.component';
-export { mjBizAppsContractsContractTermFormComponent } from './lib/generated/Entities/mjBizAppsContractsContractTerm/mjbizappscontractscontractterm.form.component';
+export { mjBizAppsContractsContractTemplateFormComponent } from './lib/generated/Entities/mjBizAppsContractsContractTemplate/mjbizappscontractscontracttemplate.form.component';
+export { mjBizAppsContractsContractTemplateModificationFormComponent } from './lib/generated/Entities/mjBizAppsContractsContractTemplateModification/mjbizappscontractscontracttemplatemodification.form.component';
+export { mjBizAppsContractsContractTemplateProvisionFormComponent } from './lib/generated/Entities/mjBizAppsContractsContractTemplateProvision/mjbizappscontractscontracttemplateprovision.form.component';
+export { mjBizAppsContractsContractTemplateTypeFormComponent } from './lib/generated/Entities/mjBizAppsContractsContractTemplateType/mjbizappscontractscontracttemplatetype.form.component';
 export { mjBizAppsContractsContractTypeFormComponent } from './lib/generated/Entities/mjBizAppsContractsContractType/mjbizappscontractscontracttype.form.component';
 
-
-/* THE THREE EXPLORER TABS. Each @RegisterClass key must match a DriverClass in
- * metadata/applications/.contracts-application.json — that pairing is the entire wiring, and both
- * halves are required: metadata without a registered class renders a dead tab, a registered class
- * without metadata never appears. MJCContractsSectionComponent is the shared implementation the
- * three mount; it is exported for reuse but is NOT itself a nav item. */
-export {
-    MJCContractsSectionComponent,
-    ContractsSectionResource,
-    ContractsBillingSectionResource,
-    ContractsSetupSectionResource,
-} from './lib/sections/contracts-section.component';
-/* Custom Contract form — overrides the generated one at priority 2. */
-export { MJCContractFormComponent } from './lib/forms/contract.form.component';
-export { MJCContractTermFormComponent } from './lib/forms/contract-term.form.component';
-export { MJCContractLineFormComponent } from './lib/forms/contract-line.form.component';
-/* Record-scoped Documents panel — mounts into any of the three forms via BaseFormPanel slots. */
-export { RecordFilesPanelBase, ContractFilesPanel, ContractTermFilesPanel, ContractAmendmentFilesPanel } from './lib/panels/record-files.panel';
+/* ============================================================================
+ * FORM PANELS — the record-scoped Documents panel (plan §6.5). Entity-agnostic base carried forward
+ * from v1; its subclasses are re-registered against the v2 entities. The v1 subclasses named
+ * Contract Terms and Contract Amendments, entities that no longer exist.
+ * ========================================================================== */
+import { ContractFilesPanel, ContractTemplateFilesPanel } from './lib/form-panels/record-files.panel';
+export { RecordFilesPanelBase, ContractFilesPanel, ContractTemplateFilesPanel } from './lib/form-panels/record-files.panel';
 
 export function LoadMjBizappsContractsClient(): void {
-    // Importing this module is what registers everything above. The reference
-    // below is an anti-tree-shake anchor: without a live use, a production build
-    // can drop the module import and the registrations never fire.
+    // Importing the modules above is what registers everything; the references below are
+    // anti-tree-shake anchors. Without a live use, a production build can drop the import and the
+    // registrations never fire — a silent failure with no error, so one anchor per registration.
     void GeneratedFormsModule;
-    void MJCContractsSectionComponent;
-    // One anchor PER registered resource: a production build can drop an import whose class is
-    // never referenced, and a dropped registration is a nav tab that mounts nothing.
-    void ContractsSectionResource;
-    void ContractsBillingSectionResource;
-    void ContractsSetupSectionResource;
-    void MJCContractFormComponent;
-    void MJCContractTermFormComponent;
-    void MJCContractLineFormComponent;
     void ContractFilesPanel;
-    void ContractTermFilesPanel;
-    void ContractAmendmentFilesPanel;
+    void ContractTemplateFilesPanel;
 }
-
-// The unified contract workspace — one surface for viewing, editing and creating, with the inner
-// tab strip that carries the three states. Exported so other sections (and other apps) can host it.
-export * from './lib/nav/contracts-nav.model';
-export * from './lib/workspace/contract-tabs.model';
-export * from './lib/workspace/contract-workspace.component';

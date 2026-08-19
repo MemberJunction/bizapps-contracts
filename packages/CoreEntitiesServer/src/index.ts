@@ -1,129 +1,28 @@
 /**
- * @mj-biz-apps/contracts-core-entities-server — SERVER-ONLY entity subclasses
- * (OPTIONAL — delete if you have no server-side entity logic).
+ * @mj-biz-apps/contracts-core-entities-server — SERVER-ONLY entity subclasses. This package must
+ * NEVER be imported by client code; it is a dependency of the Server package only.
  *
- * Override generated entities here to add server-side behavior: validation,
- * cross-record invariants (ValidateAsync — not DB triggers), Save() hooks,
- * FK cleanup before delete. This package must NEVER be imported by client
- * code — it is a dependency of the Server package only.
+ * WHAT BELONGS HERE, AND WHAT DOES NOT (plan §6.3). A rule lives here only when it CANNOT run in
+ * the browser — it needs a transaction, a lock, or a cross-entity read the client has no business
+ * doing. Everything the browser should be able to preflight lives on the SHARED subclass in
+ * @mj-biz-apps/contracts-entities instead, so the user sees the error before the round trip.
  *
- * NOTE the dependency shape in package.json: the sibling app package
- * (@mj-biz-apps/contracts-entities) is a HARD dependency pinned to the exact same
- * version (all app packages version together via changesets `fixed`), while
- * every @memberjunction/* package is a PEER (^X.Y.Z).
+ * Dependency shape in package.json: the sibling app package (@mj-biz-apps/contracts-entities) is a
+ * HARD dependency pinned to the same version (all app packages version together via changesets
+ * `fixed`); every @memberjunction/* package is a PEER (^X.Y.Z).
  *
- * EXAMPLE — override a generated entity's Save():
- *
- *   import { RegisterClass } from '@memberjunction/global';
- *   import { BaseEntity } from '@memberjunction/core';
- *   import { SampleRecordEntity } from '@mj-biz-apps/contracts-entities';
- *
- *   @RegisterClass(BaseEntity, 'Sample App: Sample Records')
- *   export class SampleRecordEntityServer extends SampleRecordEntity {
- *       public override async Save(): Promise<boolean> {
- *           // server-side enrichment / invariants here
- *           return super.Save();
- *       }
- *   }
+ * WHAT THE REBUILD DELETED. v1's nine `*EntityServer`s, `ContractsEngine`, `ChildCollection`,
+ * `BillingDraft` and all seven remote operations — the billing engine wholesale. v2 is a
+ * record-keeping app: it has no billing engine, and MJ 6's graph save replaced the hand-rolled
+ * composition machinery (plan §6.3). The v2 contents are two subclasses, arriving with item 3.
  */
-import { LoadContractEntityServer } from './ContractEntityServer.js';
-import { LoadContractTermEntityServer } from './ContractTermEntityServer.js';
-import { LoadContractLineEntityServer } from './ContractLineEntityServer.js';
-import { LoadContractBillingScheduleEntityServer } from './ContractBillingScheduleEntityServer.js';
-import { LoadContractCommitmentEntityServer } from './ContractCommitmentEntityServer.js';
-import { LoadContractAmendmentEntityServer } from './ContractAmendmentEntityServer.js';
-import { LoadContractTypeEntityServer } from './ContractTypeEntityServer.js';
-import { LoadContractEventEntityServer } from './ContractEventEntityServer.js';
-import { LoadContractBillingEventEntityServer } from './ContractBillingEventEntityServer.js';
-import { LoadActivateTermOperation } from './ActivateTermOperation.js';
-import { LoadRenewTermOperation } from './RenewTermOperation.js';
-import { LoadTerminateContractOperation } from './TerminateContractOperation.js';
-import { LoadSaveContractOperation } from './SaveContractOperation.js';
-import { LoadGenerateBillingEventOperation } from './GenerateBillingEventOperation.js';
-import { LoadAmendTermOperation } from './AmendTermOperation.js';
-
-export { ContractEntityServer, LoadContractEntityServer } from './ContractEntityServer.js';
-export { ContractTermEntityServer, LoadContractTermEntityServer } from './ContractTermEntityServer.js';
-export { ContractLineEntityServer, LoadContractLineEntityServer } from './ContractLineEntityServer.js';
-export { ContractBillingScheduleEntityServer, LoadContractBillingScheduleEntityServer } from './ContractBillingScheduleEntityServer.js';
-export { ContractCommitmentEntityServer, LoadContractCommitmentEntityServer } from './ContractCommitmentEntityServer.js';
-export { ContractAmendmentEntityServer, LoadContractAmendmentEntityServer } from './ContractAmendmentEntityServer.js';
-export { ContractTypeEntityServer, LoadContractTypeEntityServer } from './ContractTypeEntityServer.js';
-export { ContractEventEntityServer, LoadContractEventEntityServer } from './ContractEventEntityServer.js';
-export { ContractBillingEventEntityServer, LoadContractBillingEventEntityServer } from './ContractBillingEventEntityServer.js';
-
-// The one implementation of "a parent entity owns child rows", shared by the contract's terms and
-// each term's coverage, schedules and commitments. Exported so an operation can compose a tree
-// without re-deriving the hydrated-versus-empty rule that makes the validators correct.
-export { ChildCollection } from './ChildCollection.js';
-export type { ChildCollectionConfig } from './ChildCollection.js';
-
-// The lookup cache. Exported so callers outside this package can read a contract type's rules
-// without another RunView — and so the CONVENTION matches OrdersEngine, which is exported the same
-// way from the same position in the orders package.
-export { ContractsEngine, LoadContractsEngine } from './ContractsEngine.js';
-
-// Remote operations — the write API the UI calls. State changes live here rather than in Actions:
-// orders settled that split for the family (Actions are for agent/workflow-invocable work; the
-// operations that MUTATE are the callable API), and consistency across the apps is worth more than
-// this app's original plan text, which said Actions. Raised on PR #2 rather than changed silently.
-export { ActivateTermOperation, LoadActivateTermOperation } from './ActivateTermOperation.js';
-export type { ActivateTermInput, ActivateTermOutput } from './ActivateTermOperation.js';
-export { RenewTermOperation, LoadRenewTermOperation } from './RenewTermOperation.js';
-export type { RenewTermInput, RenewTermOutput, RenewedLine } from './RenewTermOperation.js';
-export { TerminateContractOperation, LoadTerminateContractOperation } from './TerminateContractOperation.js';
-export type { TerminateContractInput, TerminateContractOutput } from './TerminateContractOperation.js';
-
-// The BROWSER's way to compose a whole agreement. A client cannot use the entity's child
-// collections — it holds the generated entity, not the server subclass — so this rehydrates a
-// ContractDraft payload into the real tree and delegates to one Save().
-export { SaveContractOperation, LoadSaveContractOperation } from './SaveContractOperation.js';
-export type { SaveContractInput, SaveContractOutput } from './SaveContractOperation.js';
-
-// The billing engine — the thing this app exists to do. `RunDueBillingEvents` is the scheduled
-// driver; the bridge is where orders plugs in to price and materialise (blocked on the C0 seams).
-export { GenerateBillingEventOperation, LoadGenerateBillingEventOperation, RunDueBillingEvents } from './GenerateBillingEventOperation.js';
-export type { GenerateBillingEventInput, GenerateBillingEventOutput } from './GenerateBillingEventOperation.js';
-
-// Co-terming (plan §5.4) — the capability standalone subscriptions structurally cannot provide, and
-// the reason the contract owns the calendar.
-export { AmendTermOperation, LoadAmendTermOperation } from './AmendTermOperation.js';
-export type { AmendTermInput, AmendTermOutput } from './AmendTermOperation.js';
-export {
-    RegisterOrdersBillingBridge,
-    GetOrdersBillingBridge,
-    ResetOrdersBillingBridge,
-    UnavailableOrdersBridge,
-    ORDERS_BRIDGE_UNAVAILABLE_MESSAGE,
-} from './BillingDraft.js';
-export type {
-    BillingDraft,
-    BillingDraftLine,
-    BillingReason,
-    OrdersBillingBridge,
-    PreviewResult,
-    MaterializeResult,
-} from './BillingDraft.js';
 
 /**
- * Called by the server bootstrap. The imports above are what fire @RegisterClass; these calls are
- * anti-tree-shake anchors — without a live reference a production build can drop the import and the
- * subclasses silently never register, so every invariant in them stops existing with no error.
+ * Called by the server bootstrap. When subclasses land here, their imports are what fire
+ * @RegisterClass and the calls below are anti-tree-shake anchors — without a live reference a
+ * production build can drop the import and the subclass silently never registers, so every
+ * invariant in it stops existing with no error.
  */
 export function LoadMjBizappsContractsEntitiesServer(): void {
-    LoadContractEntityServer();
-    LoadContractTermEntityServer();
-    LoadContractLineEntityServer();
-    LoadContractBillingScheduleEntityServer();
-    LoadContractCommitmentEntityServer();
-    LoadContractAmendmentEntityServer();
-    LoadContractTypeEntityServer();
-    LoadContractEventEntityServer();
-    LoadContractBillingEventEntityServer();
-    LoadActivateTermOperation();
-    LoadRenewTermOperation();
-    LoadTerminateContractOperation();
-    LoadSaveContractOperation();
-    LoadGenerateBillingEventOperation();
-    LoadAmendTermOperation();
+    /* item 3: LoadContractEntityServer(); LoadContractTemplateModificationEntityServer(); */
 }

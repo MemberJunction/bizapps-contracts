@@ -17,22 +17,12 @@
  * `composition.CC1` would not collide on id, but `GetBundle('composition')` would return both apps'
  * checks as one bundle. Prefixing keeps every app's namespace its own.
  *
- * BUNDLES
- *   contracts-composition    CC1–CC16   the contract as one entity, one transaction, one tree
- *   contracts-save-contract  SC1–SC9    the BROWSER's path to that tree, through a draft payload
- *   contracts-billing        BE1–BE15   the engine that decides what to bill, and the driver
- *   contracts-amendment      AM1–AM8    changing a LIVE term, and co-terming (plan §5.4)
+ * THE V1 BUNDLES ARE GONE. `contracts-composition` (CC1–CC16), `contracts-save-contract` (SC1–SC9),
+ * `contracts-billing` (BE1–BE15) and `contracts-amendment` (AM1–AM8) all tested machinery the
+ * rebuild deleted — the draft payload, the billing engine, term amendment. Their v2 replacements
+ * are named in plan item 13: `contracts-graph-save`, `contracts-numbering`, `contracts-provisions`,
+ * `contracts-watchlist`.
  *
  * @module @mj-biz-apps/contracts-integration-tests
  */
-
-import './checks/composition.checks.js';
-import './checks/save-contract.checks.js';
-import './checks/billing.checks.js';
-import './checks/amendment.checks.js';
-
-export { CompositionChecks } from './checks/composition.checks.js';
-export { SaveContractChecks } from './checks/save-contract.checks.js';
-export { BillingChecks } from './checks/billing.checks.js';
-export { AmendmentChecks } from './checks/amendment.checks.js';
-export * from './fixture.js';
+export {};

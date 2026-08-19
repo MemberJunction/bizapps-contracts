@@ -1,6 +1,10 @@
 /**
  * @fileoverview `Documents` — the record-scoped file panel MJ does not have yet.
  *
+ * CARRIED FORWARD FROM V1 (plan §6.5). The rebuild deleted every other hand-written component in
+ * this package; this one survived because the gap it fills is MJ's, not v1's, and it never knew
+ * anything about the billing schema. Only its registrations changed — see the bottom of the file.
+ *
  * THE GAP THIS FILLS. MJ models record↔file linking properly: `__mj.FileEntityRecordLink` is a
  * polymorphic `EntityID` + `RecordID` pair, so any record can carry any number of files. What it
  * does NOT ship is a way to SEE them on a record. `@memberjunction/ng-file-storage` has
@@ -11,19 +15,20 @@
  *
  * WHY IT IS A PANEL AND NOT A TAB. `BaseFormPanel` is MJ's own extension point: a panel registers
  * for an entity + slot and the form mounts it automatically, with no edit to the form and nothing
- * for CodeGen to overwrite. That means this panel works identically on the custom Contract form and
- * on the generated ContractTerm form — and it will keep working when either is regenerated.
+ * for CodeGen to overwrite. That means this panel works identically on every GENERATED form it
+ * registers for — and it keeps working when they are regenerated, which is the whole reason v2
+ * stopped replacing forms and started contributing panels to them (plan §6.4).
  *
  * BUILT DONATION-SHAPED, ON PURPOSE. Nothing below knows what a contract is. The logic reads
  * `Record.EntityInfo.ID` and `Record.PrimaryKey`, so it is already entity-agnostic — the only
  * contracts-specific thing in the file is *which entities it registers for*, isolated into the
- * three one-line subclasses at the bottom. To donate this to MJ base, move the base class and
+ * one-line subclasses at the bottom. To donate this to MJ base, move the base class and
  * re-register it once with `entity: '*'` (PANELS.md's wildcard); the only new requirement then is
  * self-hiding on forms that have no files, which `HasFiles` already answers.
  *
  * WHY NOT WILDCARD HERE AND NOW: a wildcard panel must render nothing on the ~99% of forms it does
  * not apply to, but a panel that hides when empty can never accept the FIRST file. Registering
- * explicitly for the three entities that carry paper keeps the attach affordance available while
+ * explicitly for the two entities that carry paper keeps the attach affordance available while
  * staying honest about clutter. That tension is the real design question to settle before donating.
  *
  * @module @mj-biz-apps/contracts-ng
@@ -209,29 +214,15 @@ export class RecordFilesPanelBase extends BaseFormPanel implements OnInit {
 export class ContractFilesPanel extends RecordFilesPanelBase {}
 
 @RegisterClassEx(BaseFormPanel, {
-    key: 'contracts:record-files:term',
+    key: 'contracts:record-files:template',
     skipNullKeyWarning: true,
-    metadata: { entity: 'MJ_BizApps_Contracts: Contract Terms', slot: 'after-fields', sortKey: 60 },
+    metadata: { entity: 'MJ_BizApps_Contracts: Contract Templates', slot: 'after-fields', sortKey: 60 },
 })
 @Component({
     standalone: true,
     imports: [CommonModule, BaseFormsModule],
-    selector: 'mjc-term-files-panel',
+    selector: 'mjc-template-files-panel',
     styles: [PANEL_STYLES],
     template: PANEL_TEMPLATE,
 })
-export class ContractTermFilesPanel extends RecordFilesPanelBase {}
-
-@RegisterClassEx(BaseFormPanel, {
-    key: 'contracts:record-files:amendment',
-    skipNullKeyWarning: true,
-    metadata: { entity: 'MJ_BizApps_Contracts: Contract Amendments', slot: 'after-fields', sortKey: 60 },
-})
-@Component({
-    standalone: true,
-    imports: [CommonModule, BaseFormsModule],
-    selector: 'mjc-amendment-files-panel',
-    styles: [PANEL_STYLES],
-    template: PANEL_TEMPLATE,
-})
-export class ContractAmendmentFilesPanel extends RecordFilesPanelBase {}
+export class ContractTemplateFilesPanel extends RecordFilesPanelBase {}
