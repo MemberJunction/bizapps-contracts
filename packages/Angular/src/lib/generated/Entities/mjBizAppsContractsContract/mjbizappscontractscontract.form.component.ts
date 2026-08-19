@@ -16,15 +16,18 @@ export class mjBizAppsContractsContractFormComponent extends BaseFormComponent {
     override async ngOnInit() {
         await super.ngOnInit();
         this.initSections([
-            { sectionKey: 'contractDetails', sectionName: 'Contract Details', isExpanded: true },
-            { sectionKey: 'partiesAndRelationships', sectionName: 'Parties and Relationships', isExpanded: true },
-            { sectionKey: 'documentManagement', sectionName: 'Document Management', isExpanded: true },
-            { sectionKey: 'provenanceAndLinking', sectionName: 'Provenance and Linking', isExpanded: true },
-            { sectionKey: 'timelineAndTerms', sectionName: 'Timeline and Terms', isExpanded: true },
+            { sectionKey: 'contractOverview', sectionName: 'Contract Overview', isExpanded: true },
+            { sectionKey: 'partiesAndContext', sectionName: 'Parties and Context', isExpanded: true },
+            { sectionKey: 'provenance', sectionName: 'Provenance', isExpanded: true },
+            { sectionKey: 'contractLifecycle', sectionName: 'Contract Lifecycle', isExpanded: true },
+            { sectionKey: 'datesAndTerms', sectionName: 'Dates and Terms', isExpanded: true },
+            { sectionKey: 'renewalTerms', sectionName: 'Renewal Terms', isExpanded: true },
+            { sectionKey: 'notesAndDetails', sectionName: 'Notes and Details', isExpanded: true },
+            { sectionKey: 'details', sectionName: 'Details', isExpanded: true },
             { sectionKey: 'systemMetadata', sectionName: 'System Metadata', isExpanded: false },
-            { sectionKey: 'mJBizAppsContractsContractTemplateModifications', sectionName: 'Contract Template Modifications', isExpanded: false },
-            { sectionKey: 'mJBizAppsContractsContractsSupersededByContractID', sectionName: 'Contracts (Superseded By Contract)', isExpanded: false },
-            { sectionKey: 'mJBizAppsContractsContractsParentContractID', sectionName: 'Contracts (Parent Contract)', isExpanded: false }
+            { sectionKey: 'mJBizAppsContractsContractsSupersededByContractID', sectionName: 'Contracts (Superseded By)', isExpanded: false },
+            { sectionKey: 'mJBizAppsContractsContractsParentContractID', sectionName: 'Contracts (Parent Contract)', isExpanded: false },
+            { sectionKey: 'mJBizAppsContractsContractTemplateModifications', sectionName: 'Contract Template Modifications', isExpanded: false }
         ]);
     }
 }

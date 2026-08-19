@@ -10,11 +10,11 @@
     <!-- ========================================
          FIELD PANELS
          ======================================== -->
-    <!-- Contract Details Section -->
+    <!-- Contract Overview Section -->
     <mj-collapsible-panel
-        SectionKey="contractDetails"
-        SectionName="Contract Details"
-        Icon="fa fa-file-alt"
+        SectionKey="contractOverview"
+        SectionName="Contract Overview"
+        Icon="fa fa-file-contract"
         [Form]="this"
         [FormContext]="formContext">
         <mj-form-field 
@@ -37,18 +37,36 @@
         <mj-form-field 
             [Record]="record"
             [ShowLabel]="true"
-            FieldName="Description"
-            Type="textarea"
+            FieldName="ContractTemplateID"
+            Type="textbox"
+            [EditMode]="EditMode"
+            [FormContext]="formContext"
+            LinkType="Record"
+        ></mj-form-field>
+        <mj-form-field 
+            [Record]="record"
+            [ShowLabel]="true"
+            FieldName="SigningProviderURL"
+            Type="textbox"
+            [EditMode]="EditMode"
+            [FormContext]="formContext"
+            LinkType="URL"
+        ></mj-form-field>
+        <mj-form-field 
+            [Record]="record"
+            [ShowLabel]="true"
+            FieldName="HasModifications"
+            Type="checkbox"
             [EditMode]="EditMode"
             [FormContext]="formContext"
         ></mj-form-field>
 
     </mj-collapsible-panel>
 
-    <!-- Parties and Relationships Section -->
+    <!-- Parties and Context Section -->
     <mj-collapsible-panel
-        SectionKey="partiesAndRelationships"
-        SectionName="Parties and Relationships"
+        SectionKey="partiesAndContext"
+        SectionName="Parties and Context"
         Icon="fa fa-users"
         [Form]="this"
         [FormContext]="formContext">
@@ -82,55 +100,11 @@
 
     </mj-collapsible-panel>
 
-    <!-- Document Management Section -->
+    <!-- Provenance Section -->
     <mj-collapsible-panel
-        SectionKey="documentManagement"
-        SectionName="Document Management"
-        Icon="fa fa-file-signature"
-        [Form]="this"
-        [FormContext]="formContext">
-        <mj-form-field 
-            [Record]="record"
-            [ShowLabel]="true"
-            FieldName="ContractTemplateID"
-            Type="textbox"
-            [EditMode]="EditMode"
-            [FormContext]="formContext"
-            LinkType="Record"
-        ></mj-form-field>
-        <mj-form-field 
-            [Record]="record"
-            [ShowLabel]="true"
-            FieldName="SigningProviderURL"
-            Type="textbox"
-            [EditMode]="EditMode"
-            [FormContext]="formContext"
-            LinkType="URL"
-        ></mj-form-field>
-        <mj-form-field 
-            [Record]="record"
-            [ShowLabel]="true"
-            FieldName="HasModifications"
-            Type="checkbox"
-            [EditMode]="EditMode"
-            [FormContext]="formContext"
-        ></mj-form-field>
-        <mj-form-field 
-            [Record]="record"
-            [ShowLabel]="true"
-            FieldName="Notes"
-            Type="textarea"
-            [EditMode]="EditMode"
-            [FormContext]="formContext"
-        ></mj-form-field>
-
-    </mj-collapsible-panel>
-
-    <!-- Provenance and Linking Section -->
-    <mj-collapsible-panel
-        SectionKey="provenanceAndLinking"
-        SectionName="Provenance and Linking"
-        Icon="fa fa-link"
+        SectionKey="provenance"
+        SectionName="Provenance"
+        Icon="fa fa-project-diagram"
         [Form]="this"
         [FormContext]="formContext">
         <mj-form-field 
@@ -150,6 +124,16 @@
             [EditMode]="EditMode"
             [FormContext]="formContext"
         ></mj-form-field>
+
+    </mj-collapsible-panel>
+
+    <!-- Contract Lifecycle Section -->
+    <mj-collapsible-panel
+        SectionKey="contractLifecycle"
+        SectionName="Contract Lifecycle"
+        Icon="fa fa-history"
+        [Form]="this"
+        [FormContext]="formContext">
         <mj-form-field 
             [Record]="record"
             [ShowLabel]="true"
@@ -187,10 +171,10 @@
 
     </mj-collapsible-panel>
 
-    <!-- Timeline and Terms Section -->
+    <!-- Dates and Terms Section -->
     <mj-collapsible-panel
-        SectionKey="timelineAndTerms"
-        SectionName="Timeline and Terms"
+        SectionKey="datesAndTerms"
+        SectionName="Dates and Terms"
         Icon="fa fa-calendar-alt"
         [Form]="this"
         [FormContext]="formContext">
@@ -226,6 +210,16 @@
             [EditMode]="EditMode"
             [FormContext]="formContext"
         ></mj-form-field>
+
+    </mj-collapsible-panel>
+
+    <!-- Renewal Terms Section -->
+    <mj-collapsible-panel
+        SectionKey="renewalTerms"
+        SectionName="Renewal Terms"
+        Icon="fa fa-sync-alt"
+        [Form]="this"
+        [FormContext]="formContext">
         <mj-form-field 
             [Record]="record"
             [ShowLabel]="true"
@@ -255,6 +249,90 @@
             [ShowLabel]="true"
             FieldName="AnnualIncreasePercent"
             Type="number"
+            [EditMode]="EditMode"
+            [FormContext]="formContext"
+        ></mj-form-field>
+
+    </mj-collapsible-panel>
+
+    <!-- Notes and Details Section -->
+    <mj-collapsible-panel
+        SectionKey="notesAndDetails"
+        SectionName="Notes and Details"
+        Icon="fa fa-align-left"
+        [Form]="this"
+        [FormContext]="formContext">
+        <mj-form-field 
+            [Record]="record"
+            [ShowLabel]="true"
+            FieldName="Description"
+            Type="textarea"
+            [EditMode]="EditMode"
+            [FormContext]="formContext"
+        ></mj-form-field>
+        <mj-form-field 
+            [Record]="record"
+            [ShowLabel]="true"
+            FieldName="Notes"
+            Type="textarea"
+            [EditMode]="EditMode"
+            [FormContext]="formContext"
+        ></mj-form-field>
+
+    </mj-collapsible-panel>
+
+    <!-- Details Section -->
+    <mj-collapsible-panel
+        SectionKey="details"
+        SectionName="Details"
+        Icon="fa fa-align-left"
+        [Form]="this"
+        [FormContext]="formContext">
+        <mj-form-field 
+            [Record]="record"
+            [ShowLabel]="true"
+            FieldName="State"
+            Type="textbox"
+            [EditMode]="EditMode"
+            [FormContext]="formContext"
+        ></mj-form-field>
+        <mj-form-field 
+            [Record]="record"
+            [ShowLabel]="true"
+            FieldName="IsAwaitingDocument"
+            Type="textbox"
+            [EditMode]="EditMode"
+            [FormContext]="formContext"
+        ></mj-form-field>
+        <mj-form-field 
+            [Record]="record"
+            [ShowLabel]="true"
+            FieldName="IsChangeOrder"
+            Type="textbox"
+            [EditMode]="EditMode"
+            [FormContext]="formContext"
+        ></mj-form-field>
+        <mj-form-field 
+            [Record]="record"
+            [ShowLabel]="true"
+            FieldName="DaysToEnd"
+            Type="textbox"
+            [EditMode]="EditMode"
+            [FormContext]="formContext"
+        ></mj-form-field>
+        <mj-form-field 
+            [Record]="record"
+            [ShowLabel]="true"
+            FieldName="RenewalNoticeDeadline"
+            Type="textbox"
+            [EditMode]="EditMode"
+            [FormContext]="formContext"
+        ></mj-form-field>
+        <mj-form-field 
+            [Record]="record"
+            [ShowLabel]="true"
+            FieldName="IsInCancellationWindow"
+            Type="textbox"
             [EditMode]="EditMode"
             [FormContext]="formContext"
         ></mj-form-field>
@@ -293,36 +371,11 @@
          RELATED ENTITY PANELS
          ======================================== -->
 
-    <!-- Contract Template Modifications Section -->
-    <mj-collapsible-panel
-        SectionKey="mJBizAppsContractsContractTemplateModifications"
-        SectionName="Contract Template Modifications"
-        Icon="fa fa-file-contract"
-        Variant="related-entity"
-        [Form]="this"
-        [FormContext]="formContext"
-        [BadgeCount]="GetSectionRowCount('mJBizAppsContractsContractTemplateModifications')"
-        [DefaultExpanded]="false">
-        @if (record.IsSaved) {
-        <div>
-            <mj-explorer-entity-data-grid
-                [Params]="BuildRelationshipViewParamsByEntityName('MJ_BizApps_Contracts: Contract Template Modifications','ContractID')"
-                [NewRecordValues]="NewRecordValues('MJ_BizApps_Contracts: Contract Template Modifications','ContractID')"
-                [AllowLoad]="IsSectionExpanded('mJBizAppsContractsContractTemplateModifications')"
-                [ShowToolbar]="true"
-                (Navigate)="OnFormNavigate($event)"
-                (AfterDataLoad)="SetSectionRowCount('mJBizAppsContractsContractTemplateModifications', $event.totalRowCount)"
-                >
-            </mj-explorer-entity-data-grid>
-        </div>
-        }
-    </mj-collapsible-panel>
-
-    <!-- Contracts (Superseded By Contract) Section -->
+    <!-- Contracts (Superseded By) Section -->
     <mj-collapsible-panel
         SectionKey="mJBizAppsContractsContractsSupersededByContractID"
-        SectionName="Contracts (Superseded By Contract)"
-        Icon="fa fa-file-signature"
+        SectionName="Contracts (Superseded By)"
+        Icon="fa fa-file-contract"
         Variant="related-entity"
         [Form]="this"
         [FormContext]="formContext"
@@ -347,7 +400,7 @@
     <mj-collapsible-panel
         SectionKey="mJBizAppsContractsContractsParentContractID"
         SectionName="Contracts (Parent Contract)"
-        Icon="fa fa-file-signature"
+        Icon="fa fa-file-contract"
         Variant="related-entity"
         [Form]="this"
         [FormContext]="formContext"
@@ -362,6 +415,31 @@
                 [ShowToolbar]="true"
                 (Navigate)="OnFormNavigate($event)"
                 (AfterDataLoad)="SetSectionRowCount('mJBizAppsContractsContractsParentContractID', $event.totalRowCount)"
+                >
+            </mj-explorer-entity-data-grid>
+        </div>
+        }
+    </mj-collapsible-panel>
+
+    <!-- Contract Template Modifications Section -->
+    <mj-collapsible-panel
+        SectionKey="mJBizAppsContractsContractTemplateModifications"
+        SectionName="Contract Template Modifications"
+        Icon="fa fa-file-contract"
+        Variant="related-entity"
+        [Form]="this"
+        [FormContext]="formContext"
+        [BadgeCount]="GetSectionRowCount('mJBizAppsContractsContractTemplateModifications')"
+        [DefaultExpanded]="false">
+        @if (record.IsSaved) {
+        <div>
+            <mj-explorer-entity-data-grid
+                [Params]="BuildRelationshipViewParamsByEntityName('MJ_BizApps_Contracts: Contract Template Modifications','ContractID')"
+                [NewRecordValues]="NewRecordValues('MJ_BizApps_Contracts: Contract Template Modifications','ContractID')"
+                [AllowLoad]="IsSectionExpanded('mJBizAppsContractsContractTemplateModifications')"
+                [ShowToolbar]="true"
+                (Navigate)="OnFormNavigate($event)"
+                (AfterDataLoad)="SetSectionRowCount('mJBizAppsContractsContractTemplateModifications', $event.totalRowCount)"
                 >
             </mj-explorer-entity-data-grid>
         </div>

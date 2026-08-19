@@ -20,6 +20,10 @@
  */
 export * from './generated/entity_subclasses';
 
+/* Hand-written SHARED subclasses. Rules that must run in BOTH tiers live here, so the browser
+ * refuses before the round trip and the server refuses regardless (plan §6.3). */
+export * from './ContractEntity';
+
 /* NOTE on `src/generated/remote_operations.ts`: CodeGen writes it, and it is deliberately NOT
  * re-exported. v2 ships zero remote operations (plan §6.3), so every symbol in that file is an
  * MJ-CORE operation (AISkill, PredictiveStudio, TaskGraph, …) emitted into every app's file

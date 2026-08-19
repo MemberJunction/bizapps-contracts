@@ -1247,14 +1247,33 @@ export class mjBizAppsContractsContract_ {
     @MaxLength(36)
     RootSupersededByContractID?: string;
         
-    @Field(() => [mjBizAppsContractsContractTemplateModification_])
-    mjBizAppsContractsContractTemplateModifications_ContractIDArray: mjBizAppsContractsContractTemplateModification_[]; // Link to mjBizAppsContractsContractTemplateModifications
-    
+    @Field() 
+    @MaxLength(10)
+    State: string;
+        
+    @Field(() => Boolean, {nullable: true}) 
+    IsAwaitingDocument?: boolean;
+        
+    @Field(() => Boolean, {nullable: true}) 
+    IsChangeOrder?: boolean;
+        
+    @Field(() => Int, {nullable: true}) 
+    DaysToEnd?: number;
+        
+    @Field({nullable: true}) 
+    RenewalNoticeDeadline?: Date;
+        
+    @Field(() => Boolean, {nullable: true}) 
+    IsInCancellationWindow?: boolean;
+        
     @Field(() => [mjBizAppsContractsContract_])
     mjBizAppsContractsContracts_SupersededByContractIDArray: mjBizAppsContractsContract_[]; // Link to mjBizAppsContractsContracts
     
     @Field(() => [mjBizAppsContractsContract_])
     mjBizAppsContractsContracts_ParentContractIDArray: mjBizAppsContractsContract_[]; // Link to mjBizAppsContractsContracts
+    
+    @Field(() => [mjBizAppsContractsContractTemplateModification_])
+    mjBizAppsContractsContractTemplateModifications_ContractIDArray: mjBizAppsContractsContractTemplateModification_[]; // Link to mjBizAppsContractsContractTemplateModifications
     
 }
 
@@ -1475,16 +1494,6 @@ export class mjBizAppsContractsContractResolver extends ResolverBase {
         return result;
     }
     
-    @FieldResolver(() => [mjBizAppsContractsContractTemplateModification_])
-    async mjBizAppsContractsContractTemplateModifications_ContractIDArray(@Root() mjbizappscontractscontract_: mjBizAppsContractsContract_, @Ctx() { userPayload, providers }: AppContext, @PubSub() pubSub: PubSubEngine) {
-        this.CheckUserReadPermissions('MJ_BizApps_Contracts: Contract Template Modifications', userPayload);
-        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
-        const sSQL = `SELECT * FROM ${provider.QuoteSchemaAndView('__mj_BizAppsContracts', 'vwContractTemplateModifications')} WHERE ${provider.QuoteIdentifier('ContractID')}=${provider.BuildParameterPlaceholder(0)} ` + this.getRowLevelSecurityWhereClause(provider, 'MJ_BizApps_Contracts: Contract Template Modifications', userPayload, EntityPermissionType.Read, 'AND');
-        const rows = await provider.ExecuteSQL(sSQL, [mjbizappscontractscontract_.ID], undefined, this.GetUserFromPayload(userPayload));
-        const result = await this.ArrayMapFieldNamesToCodeNames('MJ_BizApps_Contracts: Contract Template Modifications', rows, this.GetUserFromPayload(userPayload));
-        return result;
-    }
-        
     @FieldResolver(() => [mjBizAppsContractsContract_])
     async mjBizAppsContractsContracts_SupersededByContractIDArray(@Root() mjbizappscontractscontract_: mjBizAppsContractsContract_, @Ctx() { userPayload, providers }: AppContext, @PubSub() pubSub: PubSubEngine) {
         this.CheckUserReadPermissions('MJ_BizApps_Contracts: Contracts', userPayload);
@@ -1502,6 +1511,16 @@ export class mjBizAppsContractsContractResolver extends ResolverBase {
         const sSQL = `SELECT * FROM ${provider.QuoteSchemaAndView('__mj_BizAppsContracts', 'vwContracts')} WHERE ${provider.QuoteIdentifier('ParentContractID')}=${provider.BuildParameterPlaceholder(0)} ` + this.getRowLevelSecurityWhereClause(provider, 'MJ_BizApps_Contracts: Contracts', userPayload, EntityPermissionType.Read, 'AND');
         const rows = await provider.ExecuteSQL(sSQL, [mjbizappscontractscontract_.ID], undefined, this.GetUserFromPayload(userPayload));
         const result = await this.ArrayMapFieldNamesToCodeNames('MJ_BizApps_Contracts: Contracts', rows, this.GetUserFromPayload(userPayload));
+        return result;
+    }
+        
+    @FieldResolver(() => [mjBizAppsContractsContractTemplateModification_])
+    async mjBizAppsContractsContractTemplateModifications_ContractIDArray(@Root() mjbizappscontractscontract_: mjBizAppsContractsContract_, @Ctx() { userPayload, providers }: AppContext, @PubSub() pubSub: PubSubEngine) {
+        this.CheckUserReadPermissions('MJ_BizApps_Contracts: Contract Template Modifications', userPayload);
+        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
+        const sSQL = `SELECT * FROM ${provider.QuoteSchemaAndView('__mj_BizAppsContracts', 'vwContractTemplateModifications')} WHERE ${provider.QuoteIdentifier('ContractID')}=${provider.BuildParameterPlaceholder(0)} ` + this.getRowLevelSecurityWhereClause(provider, 'MJ_BizApps_Contracts: Contract Template Modifications', userPayload, EntityPermissionType.Read, 'AND');
+        const rows = await provider.ExecuteSQL(sSQL, [mjbizappscontractscontract_.ID], undefined, this.GetUserFromPayload(userPayload));
+        const result = await this.ArrayMapFieldNamesToCodeNames('MJ_BizApps_Contracts: Contract Template Modifications', rows, this.GetUserFromPayload(userPayload));
         return result;
     }
         

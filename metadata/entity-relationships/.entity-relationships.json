@@ -34,6 +34,10 @@
     },
     "primaryKey": {
       "ID": "@lookup:MJ: Entity Relationships.Entity=MJ_BizApps_Contracts: Contracts&RelatedEntity=MJ_BizApps_Contracts: Contract Template Modifications"
+    },
+    "sync": {
+      "lastModified": "2026-08-19T02:44:49.635Z",
+      "checksum": "c180798fe579454969a42a7c3dbb70eb02283030aad5baca6cfc32101aef9f1d"
     }
   },
   {
@@ -57,6 +61,10 @@
     },
     "primaryKey": {
       "ID": "@lookup:MJ: Entity Relationships.Entity=MJ_BizApps_Contracts: Contract Templates&RelatedEntity=MJ_BizApps_Contracts: Contract Template Provisions"
+    },
+    "sync": {
+      "lastModified": "2026-08-19T02:44:49.653Z",
+      "checksum": "514235a1576e5e7b8d1094907c3643f48bf54be8fdd208741c5e50718572a1cd"
     }
   }
 ]

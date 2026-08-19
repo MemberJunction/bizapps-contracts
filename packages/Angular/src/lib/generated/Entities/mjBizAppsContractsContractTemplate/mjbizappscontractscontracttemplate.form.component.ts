@@ -17,7 +17,6 @@ export class mjBizAppsContractsContractTemplateFormComponent extends BaseFormCom
         await super.ngOnInit();
         this.initSections([
             { sectionKey: 'templateDetails', sectionName: 'Template Details', isExpanded: true },
-            { sectionKey: 'publishingInformation', sectionName: 'Publishing Information', isExpanded: true },
             { sectionKey: 'systemMetadata', sectionName: 'System Metadata', isExpanded: false },
             { sectionKey: 'mJBizAppsContractsContracts', sectionName: 'Contracts', isExpanded: false },
             { sectionKey: 'mJBizAppsContractsContractTemplateProvisions', sectionName: 'Contract Template Provisions', isExpanded: false }

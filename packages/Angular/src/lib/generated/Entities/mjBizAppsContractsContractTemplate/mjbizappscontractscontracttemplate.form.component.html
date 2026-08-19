@@ -45,24 +45,6 @@
         <mj-form-field 
             [Record]="record"
             [ShowLabel]="true"
-            FieldName="Description"
-            Type="textarea"
-            [EditMode]="EditMode"
-            [FormContext]="formContext"
-        ></mj-form-field>
-
-    </mj-collapsible-panel>
-
-    <!-- Publishing Information Section -->
-    <mj-collapsible-panel
-        SectionKey="publishingInformation"
-        SectionName="Publishing Information"
-        Icon="fa fa-globe"
-        [Form]="this"
-        [FormContext]="formContext">
-        <mj-form-field 
-            [Record]="record"
-            [ShowLabel]="true"
             FieldName="IntroducedDate"
             Type="datepicker"
             [EditMode]="EditMode"
@@ -76,6 +58,14 @@
             [EditMode]="EditMode"
             [FormContext]="formContext"
             LinkType="URL"
+        ></mj-form-field>
+        <mj-form-field 
+            [Record]="record"
+            [ShowLabel]="true"
+            FieldName="Description"
+            Type="textarea"
+            [EditMode]="EditMode"
+            [FormContext]="formContext"
         ></mj-form-field>
 
     </mj-collapsible-panel>
@@ -116,7 +106,7 @@
     <mj-collapsible-panel
         SectionKey="mJBizAppsContractsContracts"
         SectionName="Contracts"
-        Icon="fa fa-file-signature"
+        Icon="fa fa-file-contract"
         Variant="related-entity"
         [Form]="this"
         [FormContext]="formContext"

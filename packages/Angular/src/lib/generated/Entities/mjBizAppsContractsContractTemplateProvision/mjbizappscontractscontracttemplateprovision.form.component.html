@@ -117,35 +117,6 @@
 
     <mj-form-panel-slot Entity="{{record.EntityInfo.Name}}" Slot="after-fields" [Record]="record" [FormComponent]="this" [FormContext]="formContext"></mj-form-panel-slot>
 
-    <!-- ========================================
-         RELATED ENTITY PANELS
-         ======================================== -->
-
-    <!-- Contract Template Modifications Section -->
-    <mj-collapsible-panel
-        SectionKey="mJBizAppsContractsContractTemplateModifications"
-        SectionName="Contract Template Modifications"
-        Icon="fa fa-file-contract"
-        Variant="related-entity"
-        [Form]="this"
-        [FormContext]="formContext"
-        [BadgeCount]="GetSectionRowCount('mJBizAppsContractsContractTemplateModifications')"
-        [DefaultExpanded]="false">
-        @if (record.IsSaved) {
-        <div>
-            <mj-explorer-entity-data-grid
-                [Params]="BuildRelationshipViewParamsByEntityName('MJ_BizApps_Contracts: Contract Template Modifications','ContractTemplateProvisionID')"
-                [NewRecordValues]="NewRecordValues('MJ_BizApps_Contracts: Contract Template Modifications','ContractTemplateProvisionID')"
-                [AllowLoad]="IsSectionExpanded('mJBizAppsContractsContractTemplateModifications')"
-                [ShowToolbar]="true"
-                (Navigate)="OnFormNavigate($event)"
-                (AfterDataLoad)="SetSectionRowCount('mJBizAppsContractsContractTemplateModifications', $event.totalRowCount)"
-                >
-            </mj-explorer-entity-data-grid>
-        </div>
-        }
-    </mj-collapsible-panel>
-
     <mj-form-panel-slot Entity="{{record.EntityInfo.Name}}" Slot="after-related" [Record]="record" [FormComponent]="this" [FormContext]="formContext"></mj-form-panel-slot>
 </mj-record-form-container>
         

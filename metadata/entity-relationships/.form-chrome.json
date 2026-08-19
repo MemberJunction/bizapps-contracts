@@ -25,6 +25,10 @@
     },
     "primaryKey": {
       "ID": "@lookup:MJ: Entity Relationships.Entity=MJ_BizApps_Common: Organizations&RelatedEntity=MJ_BizApps_Contracts: Contracts&RelatedEntityJoinField=CustomerOrganizationID"
+    },
+    "sync": {
+      "lastModified": "2026-08-19T02:44:49.682Z",
+      "checksum": "f1f343966b7f0c3e397ff2a0fc1a629934b4b7549ca2fe2737d1f66c010d04f3"
     }
   },
   {
@@ -43,11 +47,18 @@
     },
     "primaryKey": {
       "ID": "@lookup:MJ: Entity Relationships.Entity=MJ_BizApps_Common: People&RelatedEntity=MJ_BizApps_Contracts: Contracts&RelatedEntityJoinField=PrimaryContactPersonID"
+    },
+    "sync": {
+      "lastModified": "2026-08-19T02:44:49.753Z",
+      "checksum": "c68d7736524e847be3828282a598b8de8b366d047759868ac6a335296c3e4dd5"
     }
   },
   {
     "_comments": [
       "Company -> Contracts: hidden. CompanyID says which of OUR legal entities is party to the",
+      "agreement, and it points at MJ CORE's Company (MJ: Companies) — not accounting's. Worth stating,",
+      "because the ERD calls it a cross-app reference and the @lookup key silently matches nothing if",
+      "you assume MJ_BizApps_Accounting: Companies (verified against __mj.EntityRelationship, 2026-08-18).",
       "agreement — plumbing for multi-company reporting, not something a person opens a Company record",
       "to browse. Every contract points at one, so the list is unbounded and useless as a related grid."
     ],
@@ -60,7 +71,11 @@
       "DisplayInForm": false
     },
     "primaryKey": {
-      "ID": "@lookup:MJ: Entity Relationships.Entity=MJ_BizApps_Accounting: Companies&RelatedEntity=MJ_BizApps_Contracts: Contracts&RelatedEntityJoinField=CompanyID"
+      "ID": "@lookup:MJ: Entity Relationships.Entity=MJ: Companies&RelatedEntity=MJ_BizApps_Contracts: Contracts&RelatedEntityJoinField=CompanyID"
+    },
+    "sync": {
+      "lastModified": "2026-08-19T02:44:49.699Z",
+      "checksum": "674bddf1c5019995af265013cccb77fe7538a160c6b821d4dfea5b495129f68b"
     }
   },
   {
@@ -80,6 +95,10 @@
     },
     "primaryKey": {
       "ID": "@lookup:MJ: Entity Relationships.Entity=MJ: Entities&RelatedEntity=MJ_BizApps_Contracts: Contracts&RelatedEntityJoinField=CreatingEntityID"
+    },
+    "sync": {
+      "lastModified": "2026-08-19T02:44:49.717Z",
+      "checksum": "674bddf1c5019995af265013cccb77fe7538a160c6b821d4dfea5b495129f68b"
     }
   },
   {
@@ -101,6 +120,10 @@
     },
     "primaryKey": {
       "ID": "@lookup:MJ: Entity Relationships.Entity=MJ_BizApps_Contracts: Contract Template Provisions&RelatedEntity=MJ_BizApps_Contracts: Contract Template Modifications&RelatedEntityJoinField=ContractTemplateProvisionID"
+    },
+    "sync": {
+      "lastModified": "2026-08-19T02:44:49.735Z",
+      "checksum": "674bddf1c5019995af265013cccb77fe7538a160c6b821d4dfea5b495129f68b"
     }
   }
 ]

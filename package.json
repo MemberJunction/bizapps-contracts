@@ -21,7 +21,8 @@
     "version": "changeset version",
     "commitpush": "node ci/commit_push.mjs",
     "mergemain": "node ci/merge_main.mjs",
-    "mergemain:update-lock": "node ci/merge_main_and_update_lock.mjs"
+    "mergemain:update-lock": "node ci/merge_main_and_update_lock.mjs",
+    "test:unit": "vitest run"
   },
   "repository": {
     "type": "git",
@@ -48,6 +49,7 @@
     "tsc-alias": "^1.8.16",
     "turbo": "^2.7.3",
     "typescript": "^5.9.3",
+    "vitest": "^4.0.18",
     "zod": "^3.25.76"
   },
   "pnpm": {
