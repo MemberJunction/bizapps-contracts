@@ -62,3 +62,46 @@ sibling-app bugs → `~/MJDev/MJ-UPSTREAM.md`. This file indexes the ones being 
   `excludeSchemas` names what to skip and the linked workspace contains the siblings. Fixed in
   the committed `mj.config.cjs` with `includeSchemas: ['__mj_BizAppsContracts']`, a positive
   opt-in scope. Not a workaround — the config now enforces what its own comment always claimed.
+
+## W-4 · `mjdev app register` cannot be used at all — registration is hand-wired
+
+**What breaks:** every mjdev *app-engine* command on this instance dies with
+`Cannot read properties of undefined (reading 'Instance')` — MJ moved `UserCache` to
+`@memberjunction/generic-database-provider` and mjdev still reads it off
+`sqlserver-dataprovider`. That is MJDev#28, and its affected-command list is incomplete: it also
+breaks `app drop-schema` and `app register`.
+
+**Why it matters more than the others:** `app register` is the ONLY sanctioned way to wire an open app
+into MJAPI/MJExplorer, so an unregistered app is invisible in Explorer with no supported route to fix
+it. Worse, **its rollback DELETED the entire app worktree** while printing "instance restored, retry is
+clean" — filed as **MJDev#29**. Recovery was lossless only because everything was committed and pushed.
+
+**Workaround (hand-wiring, all in the instance's MJ worktree, all regenerable):**
+1. `mj/mj.config.cjs` → `dynamicPackages.server` + `.client` entries (shape copied from
+   `instances/orders-mj6-ws`, which mjdev generated itself)
+2. `mj/packages/MJAPI/package.json` → dep on `@mj-biz-apps/contracts-server`
+3. `mj/packages/MJExplorer/package.json` → deps on `contracts-ng` + `contracts-entities`
+4. regenerate Explorer's manifest: `mj codegen manifest --exclude-packages @memberjunction
+   --output ./src/app/generated/class-registrations-manifest.ts --open-app-client-bootstrap`
+   (expect "19 classes from 2 packages"; an empty manifest means step 2/3 is missing)
+5. `mjdev link <slug>` restores workspace membership (the rollback strips it from
+   `pnpm-workspace.yaml`), then `pnpm install` at the INSTANCE dir
+6. **restart MJAPI** — its GraphQL schema has no contracts resolvers until it reboots, and its
+   prestart may add its own dependencies and then crash with an opaque
+   `[Object: null prototype] {}` until you install again
+
+**COMMIT BEFORE RUNNING ANY mjdev app COMMAND.** That is the whole mitigation for #29.
+
+## W-5 · No published MJ can compile current `next` CodeGen output
+
+**What breaks:** `pnpm run build:packages` in a standalone clone fails with 7 × TS2554 on
+`NewRecordValues(entity, field)`.
+
+**Cause:** MJ commit `84f276e` (2026-08-15, on `next`) added a second parameter, and CodeGen emits the
+two-argument call. The newest PUBLISHED MJ is `6.1.0-edge.2`, whose typings declare one parameter —
+same version string, different signature, because the change landed after the edge publish without a
+bump. `bizapps-common` has 21 of the identical calls committed, so this is family-wide.
+
+**Workaround: none, and none should be attempted.** Hand-editing generated code is not a fix. CI
+`build-only` and the PG check are **accepted red while unpublished** (Marcelo, 2026-08-19) — verify the
+unit tests instead. Resolves itself when MJ publishes an edge carrying the two-parameter signature.
