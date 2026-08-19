@@ -1,0 +1,48 @@
+[
+  {
+    "_comments": [
+      "Two negotiated deviations on CTR-900001 — what the app exists to record.",
+      "",
+      "Both name a REAL provision of the 2026-02-02 Master Agreement, looked up by provision number, so",
+      "the standard clause renders beside the negotiated language exactly as D-16 intends. 9.1 is the",
+      "limitation of liability and 6.4 is expense reimbursement — the two clauses most often argued over,",
+      "which is also why they make the point on screen.",
+      "",
+      "The provision lookup is scoped by template as well as number: provision numbers repeat across",
+      "agreement versions, so keying on the number alone would resolve to whichever row happened to be",
+      "found first and could silently attach a modification to the wrong edition's clause.",
+      "",
+      "CTR-900001 already carries HasModifications = true. That is not redundant — the flag is asserted by",
+      "a person BEFORE the modifications are recorded (its job is to say 'go read the PDF'), and the shared",
+      "Validate() enforces only that rows imply the flag, never the reverse."
+    ],
+    "fields": {
+      "ContractID": "c0000000-0000-4000-8000-000000000001",
+      "ContractTemplateProvisionID": "@lookup:MJ_BizApps_Contracts: Contract Template Provisions.ProvisionNumber=9.1&ContractTemplateID=@lookup:MJ_BizApps_Contracts: Contract Templates.VersionLabel=2026-02-02",
+      "ModificationText": "Liability is capped at the total fees paid by Customer in the twenty-four (24) months preceding the act giving rise to liability, rather than twelve (12) months.",
+      "Notes": "Negotiated by legal; the customer's procurement policy requires a 24-month look-back."
+    },
+    "primaryKey": {
+      "ID": "D0000000-0000-4000-8000-000000000001"
+    },
+    "sync": {
+      "lastModified": "2026-08-19T04:25:44.720Z",
+      "checksum": "58ca60c023ec073f8b8dc6b66bf6188b85ea8fc660e1a8a38c4ade2706721814"
+    }
+  },
+  {
+    "fields": {
+      "ContractID": "c0000000-0000-4000-8000-000000000001",
+      "ContractTemplateProvisionID": "@lookup:MJ_BizApps_Contracts: Contract Template Provisions.ProvisionNumber=6.4&ContractTemplateID=@lookup:MJ_BizApps_Contracts: Contract Templates.VersionLabel=2026-02-02",
+      "ModificationText": "Prior written approval is required for any single expense exceeding $2,500 USD, rather than $750 USD.",
+      "Notes": "Raised threshold to reduce approval churn on routine travel."
+    },
+    "primaryKey": {
+      "ID": "D0000000-0000-4000-8000-000000000002"
+    },
+    "sync": {
+      "lastModified": "2026-08-19T04:25:44.737Z",
+      "checksum": "32a5604fdcd37717c0aa469c2ecf49a2fcad848e3a234a7a9446a9618698f682"
+    }
+  }
+]

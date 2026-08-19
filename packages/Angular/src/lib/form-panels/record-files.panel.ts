@@ -111,7 +111,7 @@ const PANEL_TEMPLATE = `
             </div>
             <div class="empty" *ngIf="IsLoading">Loading documents…</div>
 
-            <div class="reg" *ngIf="EditMode">
+            <div class="reg" *ngIf="EditMode && CanDownload">
                 <div class="reg-title">Attach the executed document</div>
 
                 <div class="reg-row">
@@ -151,8 +151,8 @@ const PANEL_TEMPLATE = `
             </p>
 
             <p class="note" *ngIf="!CanDownload && Files.length">
-                You can see that {{ Files.length }} document(s) are attached, but not open them — downloading
-                needs additional permission on this record.
+                {{ Files.length }} document(s) are attached to this record. Opening them — and seeing their
+                names — needs document permission, which is granted to finance, legal and sales leadership.
             </p>
 
             <p class="note">
@@ -199,20 +199,30 @@ export class RecordFilesPanelBase extends BaseFormPanel implements OnInit {
     public ActionError: string | null = null;
 
     /**
-     * Whether this user may DOWNLOAD, as opposed to see that documents exist (D-9).
+     * Whether this user may DOWNLOAD, as opposed to merely see that documents exist (D-9).
      *
-     * Read from the record's own entity permissions rather than a role name: the question "may this
-     * person read this contract's paper" is the same question as "may they read this contract", and
-     * hardcoding a role would drift from whatever the instance actually grants. Defaults to FALSE on
-     * any doubt — a hidden Open button is a nuisance, a leaked executed contract is not.
+     * ⚠ THE OBVIOUS IMPLEMENTATION IS VACUOUS, and this was written that way first. Reading the HOST
+     * RECORD's `CanRead` asks "may they see this contract" — but everyone looking at the panel can
+     * already see the contract, so the gate returns true for every viewer and the restriction can
+     * never bind. D-9 exists precisely to separate two populations (leadership/finance/legal may
+     * download; everyone else sees the record), and gating on record visibility collapses them into
+     * one. Caught on review of PR #9.
+     *
+     * So the gate is the **`MJ: Files` entity's** read permission — a surface genuinely DISTINCT from
+     * record visibility. An administrator grants Files read to the three D-9 roles and to nobody else,
+     * and the check never mentions contracts, so the panel stays entity-agnostic for donation to MJ.
+     *
+     * `GetUserPermisions` is the platform's own allow/deny aggregation across the user's roles, so this
+     * cannot drift from what the instance actually grants. FALSE on any doubt: a hidden Open button is
+     * a nuisance, a leaked executed contract is not.
      */
     public get CanDownload(): boolean {
         try {
-            const user = Metadata.Provider?.CurrentUser;
+            const provider = this.FormComponent?.ProviderToUse ?? Metadata.Provider;
+            const user = provider?.CurrentUser;
             if (!user) return false;
-            // GetUserPermisions aggregates allow/deny across the user's roles — the platform's own
-            // answer, so this cannot drift from what the instance actually grants.
-            return this.Record?.EntityInfo?.GetUserPermisions(user)?.CanRead === true;
+            const files = new Metadata().EntityByName(ENTITY_FILES);
+            return files?.GetUserPermisions(user)?.CanRead === true;
         } catch {
             return false;
         }
@@ -270,6 +280,26 @@ export class RecordFilesPanelBase extends BaseFormPanel implements OnInit {
             });
             if (!links?.Success || !links.Results.length) {
                 this.Files = [];
+                return;
+            }
+
+            // DECIDED CONSCIOUSLY (PR #9 review): a user without Files read sees the COUNT, not the
+            // names. Two reasons. Reading `MJ: Files` is exactly what they lack permission for, so
+            // attempting it would either fail or — worse — succeed and leak the filenames the gate is
+            // meant to withhold; and a filename is itself disclosure ("Termination Notice - Northwind
+            // v3.pdf" tells you plenty). Item 9's done-when is "sees the record but no download", and
+            // knowing that two documents exist satisfies it without disclosing what they are.
+            if (!this.CanDownload) {
+                this.Files = links.Results.map((l) => ({
+                    LinkID: l.ID,
+                    FileID: l.FileID,
+                    Name: 'Document (name withheld)',
+                    Provider: null,
+                    Status: null,
+                    CreatedAt: null,
+                    ProviderKey: null,
+                    AccountID: null,
+                }));
                 return;
             }
 

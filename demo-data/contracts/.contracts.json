@@ -1,0 +1,212 @@
+[
+  {
+    "fields": {
+      "ContractNumber": "CTR-900001",
+      "ContractTypeID": "@lookup:MJ_BizApps_Contracts: Contract Types.Name=Order Form",
+      "CompanyID": "a0000000-0000-4000-8000-000000000001",
+      "CustomerOrganizationID": "b0000000-0000-4000-8000-000000000001",
+      "AutoRenew": true,
+      "HasModifications": true,
+      "Notes": "Renews in four months. Two provisions were negotiated — the point of the app.",
+      "Description": "Order Form with Northwind Association.",
+      "ContractTemplateID": "@lookup:MJ_BizApps_Contracts: Contract Templates.VersionLabel=2026-02-02",
+      "ExecutedDate": "2025-07-15",
+      "EffectiveDate": "2025-07-20",
+      "EndDate": "2026-12-17",
+      "RenewalNoticeDays": 60,
+      "CancellationWindowDays": 30,
+      "AnnualIncreasePercent": 4
+    },
+    "primaryKey": {
+      "ID": "C0000000-0000-4000-8000-000000000001"
+    },
+    "_comments": [
+      "Eight demo contracts, chosen so every derived State and every worklist has content — see",
+      "demo-data/README.md for the row-by-row rationale.",
+      "",
+      "ContractNumber is set EXPLICITLY here, in a CTR-9000xx block that the real sequence will never",
+      "reach. Normally ContractEntityServer mints it from the ContractSequence counter under a lock,",
+      "but that subclass is not loaded in the CLI process that runs metadata sync. So this data does",
+      "NOT exercise the numbering path — creating a contract through the UI does, and that is where",
+      "numbering should be demonstrated.",
+      "",
+      "Dates are ABSOLUTE because a metadata file cannot compute one, and they were chosen around",
+      "2026-08-19. Read much later, the derived states drift: Executed becomes Active, Active becomes",
+      "Expired. That is the derivation working correctly, not the data rotting."
+    ],
+    "sync": {
+      "lastModified": "2026-08-19T04:24:58.687Z",
+      "checksum": "1dad4b1552aad59f08555b07d748c1cd66bbdbf066728da5e9a595b5cfe7fab1"
+    }
+  },
+  {
+    "fields": {
+      "ContractNumber": "CTR-900002",
+      "ContractTypeID": "@lookup:MJ_BizApps_Contracts: Contract Types.Name=Order Form",
+      "CompanyID": "a0000000-0000-4000-8000-000000000001",
+      "CustomerOrganizationID": "b0000000-0000-4000-8000-000000000002",
+      "AutoRenew": true,
+      "HasModifications": false,
+      "Notes": "Notice window has already passed while the contract runs on — the row finance must act on.",
+      "Description": "Order Form with Cascadia Health Society.",
+      "ContractTemplateID": "@lookup:MJ_BizApps_Contracts: Contract Templates.VersionLabel=2026-02-02",
+      "ExecutedDate": "2025-10-23",
+      "EffectiveDate": "2025-11-02",
+      "EndDate": "2026-11-02",
+      "RenewalNoticeDays": 90,
+      "CancellationWindowDays": 45,
+      "AnnualIncreasePercent": 3
+    },
+    "primaryKey": {
+      "ID": "C0000000-0000-4000-8000-000000000002"
+    },
+    "sync": {
+      "lastModified": "2026-08-19T04:24:58.705Z",
+      "checksum": "d697763f50f6cd904035309a6060f92f91a0f80d19a95053bd4f3532cb5274b6"
+    }
+  },
+  {
+    "fields": {
+      "ContractNumber": "CTR-900003",
+      "ContractTypeID": "@lookup:MJ_BizApps_Contracts: Contract Types.Name=Order Form",
+      "CompanyID": "a0000000-0000-4000-8000-000000000001",
+      "CustomerOrganizationID": "b0000000-0000-4000-8000-000000000003",
+      "AutoRenew": true,
+      "HasModifications": false,
+      "Notes": "Signed, starts next month. This is the R-19 case that used to derive as Draft.",
+      "Description": "Order Form with Meridian Credit Union.",
+      "ContractTemplateID": "@lookup:MJ_BizApps_Contracts: Contract Templates.VersionLabel=2026-02-02",
+      "ExecutedDate": "2026-08-09",
+      "EffectiveDate": "2026-09-13",
+      "EndDate": "2027-09-13",
+      "RenewalNoticeDays": 60,
+      "CancellationWindowDays": 30,
+      "AnnualIncreasePercent": 3
+    },
+    "primaryKey": {
+      "ID": "C0000000-0000-4000-8000-000000000003"
+    },
+    "sync": {
+      "lastModified": "2026-08-19T04:24:58.723Z",
+      "checksum": "0ef1749e46c40a345b8df1ddd649b2961f841038c7472808dbf5eee77dd1bec9"
+    }
+  },
+  {
+    "fields": {
+      "ContractNumber": "CTR-900004",
+      "ContractTypeID": "@lookup:MJ_BizApps_Contracts: Contract Types.Name=Statement of Work",
+      "CompanyID": "a0000000-0000-4000-8000-000000000001",
+      "CustomerOrganizationID": "b0000000-0000-4000-8000-000000000004",
+      "AutoRenew": false,
+      "HasModifications": false,
+      "Notes": "Executed weeks ago and the signed PDF was never filed — in force without paper.",
+      "Description": "Statement of Work with Harbor Point Institute.",
+      "ExecutedDate": "2026-07-30",
+      "EffectiveDate": "2026-08-04",
+      "EndDate": "2027-01-26",
+      "RenewalNoticeDays": 30,
+      "CancellationWindowDays": 30
+    },
+    "primaryKey": {
+      "ID": "C0000000-0000-4000-8000-000000000004"
+    },
+    "sync": {
+      "lastModified": "2026-08-19T04:24:58.656Z",
+      "checksum": "b9b9d1dea6b368ee34947cc304a3a170eddd54154d5cfbcd18848d041eff701d"
+    }
+  },
+  {
+    "fields": {
+      "ContractNumber": "CTR-900005",
+      "ContractTypeID": "@lookup:MJ_BizApps_Contracts: Contract Types.Name=Payment Link",
+      "CompanyID": "a0000000-0000-4000-8000-000000000001",
+      "CustomerOrganizationID": "b0000000-0000-4000-8000-000000000001",
+      "AutoRenew": false,
+      "HasModifications": false,
+      "Notes": "Sub-$10k self-serve. Nobody signs, so it never reports as awaiting a document.",
+      "Description": "Payment Link with Northwind Association.",
+      "ContractTemplateID": "@lookup:MJ_BizApps_Contracts: Contract Templates.VersionLabel=2026-02-02",
+      "EffectiveDate": "2026-06-20",
+      "EndDate": "2027-06-20"
+    },
+    "primaryKey": {
+      "ID": "C0000000-0000-4000-8000-000000000005"
+    },
+    "sync": {
+      "lastModified": "2026-08-19T04:24:58.739Z",
+      "checksum": "7833ca6e1e845546f3d82d038001eadece4e613ee30aa4c7c0fbe2e7ae66f41b"
+    }
+  },
+  {
+    "fields": {
+      "ContractNumber": "CTR-900006",
+      "ContractTypeID": "@lookup:MJ_BizApps_Contracts: Contract Types.Name=Order Form",
+      "CompanyID": "a0000000-0000-4000-8000-000000000001",
+      "CustomerOrganizationID": "b0000000-0000-4000-8000-000000000002",
+      "AutoRenew": false,
+      "HasModifications": false,
+      "Notes": "Term ran out and was not renewed.",
+      "Description": "Order Form with Cascadia Health Society.",
+      "ContractTemplateID": "@lookup:MJ_BizApps_Contracts: Contract Templates.VersionLabel=2026-02-02",
+      "ExecutedDate": "2024-06-10",
+      "EffectiveDate": "2024-06-20",
+      "EndDate": "2026-06-20",
+      "RenewalNoticeDays": 60,
+      "CancellationWindowDays": 30,
+      "AnnualIncreasePercent": 3
+    },
+    "primaryKey": {
+      "ID": "C0000000-0000-4000-8000-000000000006"
+    },
+    "sync": {
+      "lastModified": "2026-08-19T04:24:58.755Z",
+      "checksum": "aefabc98fa673de8a3859d321a9fbb090a06558371bf2e1d4a95299ed883b095"
+    }
+  },
+  {
+    "fields": {
+      "ContractNumber": "CTR-900007",
+      "ContractTypeID": "@lookup:MJ_BizApps_Contracts: Contract Types.Name=Order Form",
+      "CompanyID": "a0000000-0000-4000-8000-000000000001",
+      "CustomerOrganizationID": "b0000000-0000-4000-8000-000000000003",
+      "AutoRenew": true,
+      "HasModifications": false,
+      "Notes": "Being prepared — nothing signed, no dates agreed. A task, not a wait.",
+      "Description": "Order Form with Meridian Credit Union.",
+      "ContractTemplateID": "@lookup:MJ_BizApps_Contracts: Contract Templates.VersionLabel=2026-02-02",
+      "RenewalNoticeDays": 60,
+      "CancellationWindowDays": 30
+    },
+    "primaryKey": {
+      "ID": "C0000000-0000-4000-8000-000000000007"
+    },
+    "sync": {
+      "lastModified": "2026-08-19T04:24:58.771Z",
+      "checksum": "4175451e8a0579b8f3a148e69f8aba50309adc232cbfc22f2dfb458d4d0402f0"
+    }
+  },
+  {
+    "fields": {
+      "ContractNumber": "CTR-900008",
+      "ContractTypeID": "@lookup:MJ_BizApps_Contracts: Contract Types.Name=Change Order",
+      "CompanyID": "a0000000-0000-4000-8000-000000000001",
+      "CustomerOrganizationID": "b0000000-0000-4000-8000-000000000001",
+      "AutoRenew": false,
+      "HasModifications": false,
+      "Notes": "Adds a second site to the original agreement, mid-term.",
+      "Description": "Change Order with Northwind Association.",
+      "ContractTemplateID": "@lookup:MJ_BizApps_Contracts: Contract Templates.VersionLabel=2026-02-02",
+      "ExecutedDate": "2026-05-21",
+      "EffectiveDate": "2026-05-26",
+      "EndDate": "2026-12-17",
+      "ParentContractID": "c0000000-0000-4000-8000-000000000001"
+    },
+    "primaryKey": {
+      "ID": "C0000000-0000-4000-8000-000000000008"
+    },
+    "sync": {
+      "lastModified": "2026-08-19T04:24:58.799Z",
+      "checksum": "a7f449bf0cfa5a6e341cfd52970d2f4f022afb89d3283380e0192a8f61d7d179"
+    }
+  }
+]

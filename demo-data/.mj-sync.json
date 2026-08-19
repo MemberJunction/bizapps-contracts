@@ -1,0 +1,17 @@
+{
+  "version": "1.0.0",
+  "push": {
+    "autoCreateMissingRecords": true
+  },
+  "_comments": [
+    "Dependency order: our company, then customers, then the contracts that",
+    "reference both. Contracts last also means the change order's parent exists",
+    "by the time it is pushed \u2014 within one folder, file order is the array order. Modifications last: they reference both a contract and a provision."
+  ],
+  "directoryOrder": [
+    "companies",
+    "organizations",
+    "contracts",
+    "modifications"
+  ]
+}

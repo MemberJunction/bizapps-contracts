@@ -1,0 +1,19 @@
+[
+  {
+    "_comments": [
+      "Our side of every demo agreement. MJ CORE's Company (MJ: Companies) — not accounting's; the",
+      "Contract.CompanyID FK points at __mj.Company."
+    ],
+    "fields": {
+      "Name": "Blue Cypress",
+      "Description": "The contracting entity for demo agreements."
+    },
+    "primaryKey": {
+      "ID": "A0000000-0000-4000-8000-000000000001"
+    },
+    "sync": {
+      "lastModified": "2026-08-19T04:24:58.035Z",
+      "checksum": "24af33476a06889862e4223aefb782ff440200b3fb1884e81b69993ceb177650"
+    }
+  }
+]
