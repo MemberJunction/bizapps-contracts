@@ -23,29 +23,27 @@ Both plan docs are already merged to `next` (PR #6), so `build/contracts-v2` bui
 
 ---
 
-## 2. Work items — status
+## 2. Work items — status (updated 2026-08-19, after items 1–7 + 11–12)
 
-| # | Item | Status |
+| Item | State | Evidence |
 |---|---|---|
-| 1 | Retire v1; new baseline migration | ✅ **done**, verified from zero |
-| 2 | Metadata: seeds, collection declarations, form chrome | ⏭ **NEXT** |
-| 3 | CodeGen + entity packages | ✅ **done**, AI enrichment verified |
-| 4 | Seed the provision list with `ProvisionText` | ⏭ after 2 |
-| 5 | Contract list + detail screens | to do |
-| 6 | Entity CRUD | to do |
-| 7 | Agreement version registry | to do |
-| 8 | Modifications editor (shared component, two hosts) | to do |
-| 9 | Document handling | to do |
-| 10 | Deal → Contract automation | ❌ **SKIP** — ruled out of scope; `bizapps-sales` does not exist |
-| 11 | Customer view | to do |
-| 12 | Renewal + expiry watchlist | to do |
-| 13 | Migration of active contracts | ❌ **SKIP** — ruled out of scope; data pending from Andrew |
-| 14 | Rewrite the README | **last**, after everything else |
+| 1 Retire v1 + baseline | **DONE** | from-zero: 8 views, 21 sprocs, 7 entities, 77 fields, 6 derived cols |
+| 2 Metadata | **DONE** | `mj sync push` errorCount 0; collections emit `DeclareRelatedRecords` |
+| 3 CodeGen + entity classes | **DONE** | 3 hand-written classes; 64 unit tests |
+| 4 Provision seed | **DONE** | 71 provisions, 0 missing text, Sequence 1..71 contiguous |
+| 5 List + detail | **DONE (code)** | 3 grid pages + 4 contract panels; NOT yet rendered in a browser |
+| 6 Entity CRUD | **DONE (code)** | 3 configuration pages over generated base views |
+| 7 Version registry | **DONE (code)** | versions + all-provisions pages, provisions editor panel |
+| 11 Customer view | **DONE (code)** | Organization agreements panel + chrome metadata |
+| 12 Watchlist | **DONE (code)** | layered view + 6 derived cols + renewals page |
+| 8 Modification capture | **DONE (code)** | shared editor, 2 hosts (D-22); inline panel + custom form |
+| 9 Document handling | **NOT STARTED** | `record-files.panel.ts` carried forward, upload/register unfinished |
+| 14 README | **NOT STARTED** | last by design |
+| 10, 13 | **SKIPPED** | ruled out of scope by Marcelo |
 
-Testing: the **MJ Testing Framework** (`mj test`) plus the repo's `test-harnesses/`. **No Playwright**
-(ruled). Verify live in Explorer via `mjdev explorer-url contracts-mj6`.
-
----
+**The honest gap:** everything marked DONE (code) compiles and is committed; **as of this
+line nothing has been confirmed rendering in a browser.** Explorer was starting when this
+was written. Do not describe the UI as working until you have seen it.
 
 ## 3. THE CRITICAL ENVIRONMENT FACT
 
@@ -162,3 +160,77 @@ Form architecture (D-15, D-17, D-22, D-23):
 Every response is bracketed with a task header at top and bottom naming batch+letter, a short
 descriptive name, the branch and the instance. Test results are reported exactly as they happened —
 pass is pass, fail is fail with output, not-run is not-run.
+
+---
+
+## 9. Open-app registration is HAND-WIRED here (read before touching it)
+
+`mjdev app register` CANNOT be used on this instance. Its engine leg dies on MJDev#28
+(`UserCache.Instance`) and **its rollback DELETED the entire app worktree** — filed as
+**MJDev#29**. Recovery was `git worktree prune && git worktree add
+/Users/marcelotorres/MJDev/instances/contracts-mj6/bizapps-contracts build/contracts-v2`,
+lossless only because everything was committed and pushed. **Commit before running any
+mjdev app command.**
+
+So registration is hand-written, and these are the four things that make the app visible:
+
+1. `mj/mj.config.cjs` → `dynamicPackages.server` (`@mj-biz-apps/contracts-server`,
+   StartupExport `LoadMjBizappsContractsServer`) and `.client` (`contracts-ng`,
+   `contracts-entities`). Marked with an `MJDEV-MANAGED REGION` banner explaining why it is
+   hand-written. Shape copied from `instances/orders-mj6-ws`, which mjdev generated.
+2. `mj/packages/MJAPI/package.json` → dependency on `@mj-biz-apps/contracts-server`.
+3. `mj/packages/MJExplorer/package.json` → deps on `contracts-ng` + `contracts-entities`.
+4. **The Explorer manifest must be regenerated** or none of it loads:
+   ```bash
+   cd ~/MJDev/instances/contracts-mj6/mj/packages/MJExplorer
+   DOTENV_CONFIG_PATH=../../.env pnpm exec mj codegen manifest \
+     --exclude-packages @memberjunction \
+     --output ./src/app/generated/class-registrations-manifest.ts \
+     --open-app-client-bootstrap
+   ```
+   Expect "19 classes from 2 packages" and "2 client packages wired". An EMPTY manifest
+   ("0 packages contain @RegisterClass") means the host deps or dynamicPackages are missing.
+
+⚠ `mjdev link <slug>` re-adds workspace membership (the rollback strips
+`bizapps-contracts` from `pnpm-workspace.yaml`) and is safe. `pnpm install` at the
+INSTANCE dir after that.
+
+## 10. Verification method — do NOT grep build output
+
+I reported "all six packages build clean" from
+`pnpm ... run build 2>&1 | grep -E "error TS|error NG"` and it was FALSE. Two independent
+reasons: turbo **caches** tasks, so a package that once built reports nothing on a later
+broken run; and Angular's NG-prefixed template errors did not all match the pattern. A
+filter that can only produce a false GREEN is not a check.
+
+**Use the exit code**, which is what CI uses:
+```bash
+cd ~/MJDev/instances/contracts-mj6/bizapps-contracts
+pnpm run build; echo "EXIT=$?"     # must be 0, "6 successful, 6 total"
+./packages/Angular/node_modules/.bin/vitest run --config vitest.config.ts   # 64 passing
+```
+The instance workspace does not install the app root's own devDependencies, which is why
+vitest is invoked through the Angular package's binary.
+
+## 11. Angular gotchas already paid for
+
+- `ExplorerEntityDataGridComponent` is **not standalone** — import `BaseFormsModule`, never
+  the component (NG2011).
+- A custom form MUST declare `public record!: <EntityType>` — `BaseFormComponent` declares it
+  abstract (TS2515).
+- Page mounting uses `setTimeout`, **never `queueMicrotask`** — a microtask drains inside the
+  current CD pass, so an async `ngOnInit` resolves between check and verify → NG0100, which
+  aborts the update with nothing scheduling another tick. Symptom is a screen frozen on its
+  pre-fetch render (orders saw a dashboard of zeroes against a full database).
+- The styles kit ships via `styleUrls` + `ViewEncapsulation.None` on the section shell. A
+  stylesheet nothing references is compiled into dist and never loaded by a real Explorer.
+- No `toolbar` slot in the shell: a wrapper div defeats MJ's `:empty` rule and costs ~29px of
+  dead header on every section, forever.
+- `mj-page-body-interior` is REQUIRED inside `mj-left-nav-content` or content past the fold is
+  unreachable (a `::ng-deep` child rule forces `overflow:hidden`).
+
+## 12. Decisions added after the plan merged
+
+D-24 (validation ladder), D-25 (provider scoping — bare `new RunView()`/`new Metadata()` is a
+defect; helpers in `packages/Angular/src/lib/data/provider.ts`), D-26 (correlated writes share
+one transaction), R-19 (`State` has SIX values; `Executed` = signed-not-yet-effective).

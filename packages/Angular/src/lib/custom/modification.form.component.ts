@@ -87,7 +87,9 @@ export class MJCModificationFormComponent extends BaseFormComponent {
      * precisely because that path is reachable, and using it here voluntarily would be perverse.
      */
     public override async ngAfterViewInit(): Promise<void> {
-        super.ngAfterViewInit?.();
+        // Plain call — see the note in contracts-sections.component.ts: `super.x?.()` produces a
+        // bundle esbuild cannot parse, and BaseFormComponent declares ngAfterViewInit concretely.
+        super.ngAfterViewInit();
         if (this.loadStarted) return;
         this.loadStarted = true;
 

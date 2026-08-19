@@ -103,9 +103,18 @@ export abstract class MJCSectionBaseComponent extends BaseResourceComponent impl
         // rather than a bug. Orders debugged exactly this; inheriting the fix is cheaper than
         // rediscovering it.
         setTimeout(async () => {
-            await this.showPage(this.ActivePageId!);
-            await this.refreshBadges();
-            this.cdr.detectChanges();
+            try {
+                await this.showPage(this.ActivePageId!);
+                await this.refreshBadges();
+            } finally {
+                // ALWAYS signal, even on failure. Explorer's loading screen BLOCKS on this; a resource
+                // that never signals is carried by a 15-second watchdog that logs a warning naming the
+                // class and fails open. Fifteen seconds of blank screen on every visit is not a
+                // fallback to rely on, and `finally` means a thrown page load degrades to an empty
+                // pane rather than a hung app.
+                this.NotifyLoadComplete();
+                this.cdr.detectChanges();
+            }
         });
     }
 
@@ -200,7 +209,13 @@ export abstract class MJCSectionBaseComponent extends BaseResourceComponent impl
     public override ngOnDestroy(): void {
         for (const ref of this.mounted.values()) ref.destroy();
         this.mounted.clear();
-        super.ngOnDestroy?.();
+        // PLAIN CALL, not `super.ngOnDestroy?.()`. The optional-call form is valid TypeScript and
+        // esbuild fails to PARSE the bundle it produces — "SyntaxError: 'super' keyword unexpected
+        // here" — which kills the whole chunk, so every section and panel in this package silently
+        // fails to register and the app renders no nav tab at all. Found by driving Explorer in a real
+        // browser; nothing in the type-check or the build catches it. BaseResourceComponent declares
+        // ngOnDestroy concretely, so the guard bought nothing anyway.
+        super.ngOnDestroy();
     }
 }
 
