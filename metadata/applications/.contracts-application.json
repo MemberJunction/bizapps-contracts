@@ -4,39 +4,45 @@
       "The BizApps Contracts Application — what makes this app appear in MJ Explorer at all.",
       "",
       "WITHOUT THIS FILE the app is invisible. CodeGen auto-creates a schema-named application",
-      "(__mj_BizAppsContracts) that carries the entities, but that is a container for admin access,",
-      "not a destination: it has no nav items and no icon, so nobody finds the app by looking.",
-      "This row is the user-facing app.",
+      "(__mj_BizAppsContracts) that carries the entities, but that is a container for admin access, not a",
+      "destination: no nav items, no icon, so nobody finds the app by looking. This row is the",
+      "user-facing app.",
       "",
-      "DefaultNavItems IS the top nav bar. Each item is ResourceType 'Custom' pointing at a",
-      "DriverClass registered via @RegisterClass(BaseResourceComponent, '<DriverClass>') in",
-      "@mj-biz-apps/contracts-ng. BOTH HALVES ARE REQUIRED: metadata without a registered class",
-      "renders a dead tab, and a registered class without metadata never appears.",
+      "DefaultNavItems IS the top nav bar. Each item is ResourceType 'Custom' pointing at a DriverClass",
+      "registered via @RegisterClass(BaseResourceComponent, '<DriverClass>') in @mj-biz-apps/contracts-ng.",
+      "BOTH HALVES ARE REQUIRED: metadata without a registered class renders a dead tab, and a registered",
+      "class without metadata never appears.",
       "",
-      "THREE ITEMS, organised by JOB rather than by entity (2026-08-05). Contracts is the agreement;",
-      "Billing is the money it produces; Setup is the configuration every contract inherits. Billing is",
-      "a PEER rather than a page beneath Contracts because 'what failed and why' is a different job,",
-      "done by different people at different times, from 'what did we agree' — filing one under the",
-      "other makes the smaller one invisible. Orders split Receivables out of Orders for the same",
-      "reason.",
+      "THREE SECTIONS, ruled 2026-08-18. Each owns a LEFT RAIL over its own sub-pages — MJ's rule is top",
+      "nav ACROSS sections, left nav WITHIN one:",
       "",
-      "This file previously carried ONE item, with a comment arguing that everything in the app was one",
-      "section and movement belonged on a left rail. That was right about the rail and wrong about the",
-      "count, and the mistake was compounded by drawing a section switcher inside the page header with",
-      "mj-tab-nav — which LOOKS like a top nav bar and is not one. A strip drawn in a page gets no deep",
-      "links, no resource state and no place in the app switcher. MJ's rule is top nav ACROSS sections",
-      "and left nav WITHIN one; honouring the first half means real nav items, not a picture of them.",
+      "  Contracts     — Dashboard · All Contracts · Renewals & Expiry · Awaiting Documents · Modifications",
+      "  Templates     — Agreement Versions · All Provisions",
+      "  Configuration — Contract Types · Template Types · Reference Data",
       "",
-      "DefaultForNewUser is true so the app lands for new users without a per-persona grant. When",
-      "it is false you must run `mjdev apps enable <slug> <app>` or the app stays hidden even though",
-      "everything is installed correctly — a confusing failure that looks like a build problem.",
+      "WHY THIS SHAPE AND NOT V1'S. v1's three were Contracts / Billing / Setup, and Billing was a peer",
+      "because 'what failed to bill and why' is a different job done by different people. The rebuild",
+      "deleted billing entirely, so that section had nothing behind it. Templates earns the vacated slot",
+      "for the same reason Billing did: registering the next Master Agreement version and curating its",
+      "clause list is finance-adjacent legal work, done rarely, by someone who is not filing contracts",
+      "that day. Filing it under Contracts would bury the one surface that has to be findable before a",
+      "modification can be recorded at all (item 4 is a prerequisite, not a nicety).",
       "",
-      "The fixed UUID means a re-push against a rebuilt database UPDATES this row rather than",
-      "creating a second Application with the same name."
+      "Modifications is a RAIL TAB under Contracts, not a section: 'every deviation we have ever agreed",
+      "to' is a way of reading contracts, not a separate job. Awaiting Documents is a rail tab for the",
+      "same reason — it is the IsAwaitingDocument filter over the same list, which is exactly why that",
+      "column is derived in the base view rather than being a stored worklist flag.",
+      "",
+      "DefaultForNewUser is true so the app lands for new users without a per-persona grant. When it is",
+      "false you must run `mjdev apps enable <slug> <app>` or the app stays hidden even though everything",
+      "is installed correctly — a confusing failure that looks like a build problem.",
+      "",
+      "The fixed UUID means a re-push against a rebuilt database UPDATES this row rather than creating a",
+      "second Application with the same name. Unchanged from v1 deliberately: it is the same app."
     ],
     "fields": {
       "Name": "Contracts",
-      "Description": "The agreement envelope — commitment, term structure, escalation, renewal and the billing event. Contracts decides what is owed and when; orders remains the only place anyone is billed.",
+      "Description": "The record of what we agreed: every agreement, the standard terms it incorporates, the provisions negotiated away from those terms, and the executed paper. Contracts tracks obligations and documents; orders bills, and sales sells.",
       "Icon": "fa-solid fa-file-signature",
       "DefaultForNewUser": true,
       "DefaultNavItems": [
@@ -48,27 +54,23 @@
           "isDefault": true
         },
         {
-          "Label": "Billing",
-          "Icon": "fa-solid fa-conveyor-belt",
+          "Label": "Templates",
+          "Icon": "fa-solid fa-file-lines",
           "ResourceType": "Custom",
-          "DriverClass": "ContractsBillingSectionResource",
+          "DriverClass": "ContractsTemplatesSectionResource",
           "isDefault": false
         },
         {
-          "Label": "Setup",
+          "Label": "Configuration",
           "Icon": "fa-solid fa-sliders",
           "ResourceType": "Custom",
-          "DriverClass": "ContractsSetupSectionResource",
+          "DriverClass": "ContractsConfigurationSectionResource",
           "isDefault": false
         }
       ]
     },
     "primaryKey": {
       "ID": "7C1D2E3F-4A5B-4C6D-8E9F-0A1B2C3D4E5F"
-    },
-    "sync": {
-      "lastModified": "2026-08-06T22:28:26.111Z",
-      "checksum": "1bf628dead49a9fe22c80cd2c28cb32824bb042f0b9ae04883c17faba5cacc20"
     }
   }
 ]

@@ -137,7 +137,7 @@ Every item below is settled (D-14 carries a confirmation flag — see O-3). §5 
 | D-16 | **Both texts are stored, and read as a pair.** `ContractTemplateProvision.ProvisionText` holds the standard clause; `ContractTemplateModification.ModificationText` holds what this contract says instead. Supersedes D-4, which rested on the transcript &mdash; **Amith overruled it**. Corollary he stated with it: *all contract text ends up in provisions*; the template holds no prose of its own | Amith, 08-18 |
 | D-17 | **Forms use the left-nav rail.** `Entity.Configuration.UI.Form.Layout = "left-nav"` with `RelatedRolePolicy: "smart"` and a `PrimaryRelatedBudget`, matching what orders sets on every entity. Supersedes &sect;6.4's `Layout: 'auto'` &mdash; at six sections on the Contract form the rail is the point, and family consistency settles it anyway | Marcelo, 08-18 |
 | D-18 | **Reference data is cached in an engine, not re-queried per form.** A `BaseEngine` subclass caches contract types, template types, templates and **provisions** &mdash; without it the provision picker issues a `RunView` every time a row is added. See &sect;6.6 | Marcelo, 08-18 |
-| D-19 | **No `Status` column; lifecycle is derived.** Four of its five values were projections of the dates and the two self-FKs, and the fifth (`Draft`) was the finance task wearing a status. The layered base view exposes `State`, `IsAwaitingDocument` and `IsChangeOrder`. ERD &sect;4.5 / R-18 | Marcelo, 08-18 |
+| D-19 | **No `Status` column; lifecycle is derived.** Four of its five values were projections of the dates and the two self-FKs, and the fifth (`Draft`) was the finance task wearing a status. The layered base view exposes `State`, `IsAwaitingDocument` and `IsChangeOrder`. `State` has **six** values, not five — `Executed` covers signed-but-not-yet-effective, which otherwise fell through to `Draft` (R-19). ERD &sect;4.5 / R-18 / R-19 | Marcelo, 08-18 |
 | D-20 | **`AutoRenew` is a plain true/false bit.** No "not stated" third value; the day counts stay nullable | Marcelo, 08-18 |
 | D-21 | **The watchlist ships with fixed default filters and no saved views.** Users drive the filters in-session; persisting custom watchlists is phase 2 or never. The screen is the **stock MJ grid** plus minor chrome, using MJ's own tokens | Marcelo, 08-18 |
 | D-22 | **Modifications get a custom form as well as the inline panel — one shared editor component, two hosts.** MJ cannot embed a child entity's form inside a parent, so the same component renders inline in the contract's panel (joining the parent's single save) and as the body of the modification's own custom form (reached via *Open*). No duplicated logic, and the single transaction survives | Marcelo, 08-18 |
@@ -245,8 +245,8 @@ later so ClassFactory priority resolves it server-side while the browser keeps t
 | `HasModifications` monotonic — must be true when modification rows exist, never auto-cleared | **Shared** `ContractEntity.Validate()` (browser preflight + server authority) **and** `ContractTemplateModificationEntityServer` | `Validate()`: reject `HasModifications === false` when `Modifications.Count > 0` — with orders' unloaded-collection guard (`Count === 0 && (!IsSaved \|\| Modifications.IsLoaded)` means *known* empty; empty+saved+unloaded means *unknown*, settled server-side). The server modification subclass forces the parent flag true on a **standalone** modification save, so the invariant holds outside the graph path too |
 | A modification's provision must belong to the template this contract incorporates | `ContractTemplateModificationEntityServer` (authoritative) + the picker (preflight) | Needs a cross-entity read, so the hard check is server-side; the UI never offers an out-of-template provision in the first place (§6.4). New with D-14 — this rule replaces the column that could lie |
 | `ContractType = 'Change Order'` ⇒ `ParentContractID IS NOT NULL` | Server subclass | Needs the type-table join, as the ERD rules |
-| `Status = 'Superseded'` ⇔ `SupersededByContractID`; no self-parent/self-successor | `CHECK` constraints | In the baseline migration |
-| Re-papering is one graph | `ContractEntity.Supersede(successor)` on the shared subclass | Sets predecessor `Status = 'Superseded'` + `SupersededByContractID`; the entity method is the API, mirroring orders' `Confirm()` |
+| No self-parent / self-successor; `EndDate >= EffectiveDate`; the creating pair is both-or-neither | `CHECK` constraints | In the baseline migration. The old `Status = 'Superseded'` ⇔ successor-FK constraint died with the column (R-18): with the state derived *from* the FK it is a tautology |
+| Re-papering is one graph | `ContractEntity.Supersede(successor)` on the shared subclass | Sets the predecessor's `SupersededByContractID` — which *is* the superseded state now that §4.5 derives it (R-18), so there is one write, not two that could disagree. The entity method is the API, mirroring orders' `Confirm()` |
 | Validation errors reach the user attributed | shared subclasses + a `SectionForField()` static | Graph errors arrive as `Modifications[2].ContractTemplateProvisionID`; map `/^Modifications\[/` to the modifications section for red-dot navigation, as `OrderHeaderEntity.SectionForField` does |
 
 ### 6.4 Forms — generated forms plus contributions, one bespoke editor
@@ -427,7 +427,9 @@ Run CodeGen after the push (ordering rule above). Then the hand-written classes,
 
 - `packages/Entities` (shared, browser + server — nothing server-only may leak in):
   `ContractEntity` — `Validate()` (HasModifications guard per §6.3), `NewRecord()` defaults
-  (`Status = 'Draft'`), `Supersede()`, `static SectionForField()`. `ContractTemplateEntity` only if a
+  `Supersede()`, `static SectionForField()`. **No `NewRecord()` status default** — an earlier draft
+  seeded `Status = 'Draft'`, and D-19 removed the column; a new contract is `Draft` because §4.5's
+  derivation says so, with nothing to set. `ContractTemplateEntity` only if a
   rule earns it. **No `DeclareRelatedRecords` by hand — CodeGen emits them from item 2's metadata**
   ("edit that row, not this file").
 - `packages/CoreEntitiesServer`: `ContractEntityServer` (CTR numbering per §6.3),
@@ -495,8 +497,9 @@ non-privileged user sees the record but no download.
 
 Joint with the sales app, which supplies the Closed-Won trigger, the deal id, and the modified flag.
 Contracts' side of the contract: rows arrive with `CreatingEntityID` (Deals) + `CreatingRecordID`,
-`CustomerOrganizationID`, `ContractTypeID`, `HasModifications` as sales asserted it, `Status = 'Draft'`
-— numbering and defaults are the server subclass's, automatically. Recommended sales-side shape:
+`CustomerOrganizationID`, `ContractTypeID` and `HasModifications` as sales asserted it — numbering and
+defaults are the server subclass's, automatically. The row needs no status: with no dates yet set it
+derives as `Draft` (&sect;4.5), which is exactly what it is. Recommended sales-side shape:
 `Deal.ContractID` as a hard FK declared **embedded** (`OnClear: 'orphan'`), so creation is
 `deal.ContractID_EnsureObject()` + one `deal.Save()` (§6.2); the finance task rides the same flow.
 

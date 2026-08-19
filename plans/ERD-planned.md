@@ -440,10 +440,27 @@ agree or lie — precisely what §7.2 forbids:
 | `Superseded` | `SupersededByContractID IS NOT NULL` |
 | `Expired` | `EndDate < today` |
 | `Active` | none of the above, and `EffectiveDate <= today` |
-| `Draft` | *was the only stored fact* — and it means "a person has not finished with this", which is the **finance task**, not a property of the agreement |
+| `Executed` | signed but not yet in force — `ExecutedDate IS NOT NULL` and `EffectiveDate` is null or in the future (**R-19**) |
+| `Draft` | everything else. *Was the only stored fact* — and it means "a person has not finished with this", which is the **finance task**, not a property of the agreement |
 
 So the layered base view (§7.2) exposes **`State`**, computed in that precedence order. Consumers filter
 and chip on it exactly as they would a column.
+
+**Why `Executed` exists (R-19, ruled 2026-08-18 on PR #9 review).** The first draft of this table had
+five values and a hole in it: a contract whose paper is signed and whose term starts next month matched
+none of the first four branches and fell through to `Draft` — indistinguishable from a record nobody has
+touched. That is not a rounding error, it is the **October 1 renewal season**, when a stack of contracts
+is signed weeks before it takes effect; the `ExecutedDate` column comment in the baseline calls exactly
+that shape *"the ordinary case, not an anomaly"*.
+
+The alternative was to let `Active` stop requiring `EffectiveDate <= today` — rejected, because `Active`
+is the word finance uses for *in force*, and a contract that has not started is not in force. Both facts
+are worth showing, so both get a name. The two states also drive different work: `Draft` is a **task**
+(finish this), `Executed` is a **wait** (nothing to do until the date arrives), and a watchlist that
+conflates them asks finance to re-triage the same rows every week.
+
+Note the branch reads `EffectiveDate IS NULL OR EffectiveDate > today` — a signed contract with no start
+date recorded is still `Executed`, not `Draft`, because the signature is the fact that moved it on.
 
 **Two consequences worth stating, because they are easy to miss:**
 
@@ -661,6 +678,8 @@ Agreement, including each clause's `ProvisionText` (R-15). See §5.2.
 | A modification's provision must belong to a template this contract incorporates | Server-side `ContractTemplateModificationEntityServer` (needs a cross-entity read); the UI's provision picker only offers the contract's template's provisions. Replaces the dropped `ContractTemplateID` column — R-16 |
 | `ContractType = 'Change Order'` implies `ParentContractID IS NOT NULL` | Server-side — needs a join to the type table |
 | ~~`Status = 'Superseded'` requires `SupersededByContractID`~~ | **Dropped with `Status`** (R-18) — the successor FK *is* the superseded state |
+| `EndDate >= EffectiveDate` when both are set | `CK_Contract_Dates`. `>=` deliberately permits a same-day start and end (a one-day agreement is legal, if unusual). **`TerminatedDate` is related to neither date on purpose:** termination is a *fact about what happened*, not a projection of the term, so a contract terminated after its `EndDate` was later shortened is a true record, not a violation — do not add a constraint tying them |
+| `(CreatingEntityID, CreatingRecordID)` is indexed | `IX_Contract_CreatingRecord`, non-unique. Not a rule but the reason the reverse lookup is cheap: "which contract came from this deal?" is the question the sales side asks constantly (§3), and the pair is a soft reference no FK can serve |
 | A contract cannot be its own parent or successor | `CHECK` on both self-references |
 | `ExecutedDate` may precede `EffectiveDate` | **No constraint, deliberately** — signing in December for a January start is the ordinary case |
 | **A document is never required to save a contract** | No constraint at all (2026-08-18 ruling) |
@@ -723,6 +742,7 @@ Recorded so that nothing looks like a silent drift, and so each reversal has an 
 | R-13 | An approval workflow "not built" | **Relocated**, not declined: it lives in `bizapps-sales` on the deal, modelling Johanna's authority levels. At current volume she may approve manually, and the contract is generated after deal approval | Amith, 2026-08-18 |
 | R-14 | `Sequence` on `ContractType` and `ContractTemplateType` | Removed — the two lists are short enough to order by name. `ContractTemplateProvision.Sequence` **stays**: provision numbers do not sort as text and a legal document has a canonical order | 2026-08-18 |
 | R-15 | `ProvisionText` deferred to a future phase (F-3, via R-11) | **In for v1** — nullable `nvarchar(max)` on `ContractTemplateProvision`, seeded from the current MA. §5.1. D-4 and D-10 are untouched | Amith via Marcelo, 2026-08-18 chat |
+| R-19 | The 5-value derived `State` | **Six values.** `Executed` added for signed-but-not-yet-effective, which previously fell through to `Draft` and hid the entire pre-October-1 signing stack behind the word for "unfinished". §4.5 carries the reasoning and the rejected alternative | Marcelo, 2026-08-18 (PR #9 review) |
 | R-18 | `Contract.Status` (5-value CHECK) | **Removed.** Four values were projections; the fifth (`Draft`) was the finance task wearing a status. Replaced by a derived `State` in the layered base view, and `CK_Contract_SupersededHasSuccessor` drops with it as a tautology | Marcelo, 2026-08-18 |
 | R-17 | Modification carried no wording (D-4 / R-5) | **`ModificationText` added** — nullable `nvarchar(max)`. Standard text on the provision, negotiated text on the modification, read as a pair. Reverses the transcript **and** Amith's own 08-18 field list; he overruled both. Corollary: *all contract text ends up in provisions* | **Amith**, 2026-08-18 |
 | R-16 | `ContractTemplateModification.ContractTemplateID` kept for the multi-template future | **Dropped** — the provision FK derives the template in every future (a provision belongs to exactly one template), and §7.2 forbids storing a projection. Replaced by the §7.1 consistency rule. ⚠ Reverses an Amith "keep" — flagged for his nod (master plan O-3) | Marcelo, 2026-08-18 |

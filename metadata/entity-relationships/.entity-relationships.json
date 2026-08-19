@@ -1,0 +1,62 @@
+[
+  {
+    "_comments": [
+      "Declares Contracts -> Contract Template Modifications as a related-record collection (MJ 6.1).",
+      "",
+      "This row is the whole of D-15 in the data model. CodeGen reads RelatedRecordCollection and emits",
+      "a typed `Modifications` accessor onto the GENERATED entity class, so browser and server both get",
+      "it: the modifications editor adds rows in the browser and ONE contract.Save() writes header and",
+      "rows in one transaction (plan §6.3). That is what let the rebuild delete the Contracts.SaveContract",
+      "remote operation, ContractDraft (688 lines) and the client-side hydrator — machinery whose entire",
+      "job was carrying child rows over the wire.",
+      "",
+      "NO Sequence policy. A modification has no positional column: it is identified by WHICH PROVISION",
+      "it names, not by where it sits in a list. Declaring a sequence against a field that does not exist",
+      "fails at save time. Same shape as orders' Payment Lines, and for the same reason.",
+      "",
+      "OrderBy __mj_CreatedAt ASC — capture order. There is no meaningful business ordering (provision",
+      "number would be plausible, but it lives on the joined provision row, not here), so the honest",
+      "answer is the order finance recorded them in. The editor groups by provision on screen anyway.",
+      "",
+      "OnRemove 'delete': true composition. A modification without its contract means nothing — it is a",
+      "sentence about a clause with no agreement to be a deviation FROM.",
+      "",
+      "RelatedEntity and RelatedEntityJoinField (Contract Template Modifications / ContractID) are",
+      "already columns on this same row and are deliberately NOT duplicated inside the blob — two",
+      "sources of truth where the JSON copy wins silently.",
+      "",
+      "Keyed by entity NAMES, never the row's ID: EntityRelationship IDs are minted by CodeGen, so a",
+      "hardcoded UUID stops matching the first time this database is rebuilt from zero — routine here,",
+      "since pre-production schema changes edit the baseline in place."
+    ],
+    "fields": {
+      "RelatedRecordCollection": "@file:modifications-collection.json"
+    },
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entity Relationships.Entity=MJ_BizApps_Contracts: Contracts&RelatedEntity=MJ_BizApps_Contracts: Contract Template Modifications"
+    }
+  },
+  {
+    "_comments": [
+      "Declares Contract Templates -> Contract Template Provisions as a related-record collection.",
+      "",
+      "This is the Lines-shaped one: Sequence is genuinely positional. Provision NUMBERS do not sort as",
+      "text (ERD §5.1 — '10' sorts before '2', and real MAs use 4.2.1-style numbering), so the canonical",
+      "order is an integer the collection maintains gap-free across adds and removals.",
+      "",
+      "Both writers go through it, which is the point: item 4's seed of the current Master Agreement's",
+      "clause list and item 7's registry UI where finance registers the NEXT version. One code path, so",
+      "the seed exercises what the UI will do.",
+      "",
+      "OnRemove 'delete': a provision without its template version is not an orphan worth keeping. Note",
+      "this deletes the PROVISION row, and a modification pointing at it is blocked by its FK — which is",
+      "correct: you cannot retract a clause that a signed contract records a deviation from."
+    ],
+    "fields": {
+      "RelatedRecordCollection": "@file:provisions-collection.json"
+    },
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entity Relationships.Entity=MJ_BizApps_Contracts: Contract Templates&RelatedEntity=MJ_BizApps_Contracts: Contract Template Provisions"
+    }
+  }
+]

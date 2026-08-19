@@ -1,0 +1,35 @@
+[
+  {
+    "_comments": [
+      "What KIND of standard-terms document a ContractTemplate is a version of. Two rows, and only one",
+      "of them has a real template behind it today.",
+      "",
+      "Master Agreement is the whole point: the numbered-provision document that Order Forms and",
+      "Payment Links incorporate, versioned by date, whose clause list becomes ContractTemplateProvision",
+      "rows (item 4).",
+      "",
+      "Statement of Work is seeded but UNUSED, on purpose. Amith, 2026-08-18: SOWs have standard",
+      "language but no versioned template. Seeding the type row now means registering the first real",
+      "SOW template later is data entry rather than a migration — and it documents that the absence is",
+      "a fact about the business, not a hole in the seed."
+    ],
+    "fields": {
+      "Name": "Master Agreement",
+      "Description": "The numbered-provision standard-terms document, versioned by publication date. Every Order Form and Payment Link incorporates one version of it, and a negotiated deviation from one of its provisions is a Contract Template Modification.",
+      "Status": "Active"
+    },
+    "primaryKey": {
+      "ID": "33333333-0000-4000-8000-000000002001"
+    }
+  },
+  {
+    "fields": {
+      "Name": "Statement of Work",
+      "Description": "Standard SOW language. Seeded so the type exists; no versioned template is registered against it yet, because the business does not version its SOW language (Amith, 2026-08-18).",
+      "Status": "Active"
+    },
+    "primaryKey": {
+      "ID": "33333333-0000-4000-8000-000000002002"
+    }
+  }
+]

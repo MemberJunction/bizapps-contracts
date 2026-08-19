@@ -1,0 +1,106 @@
+[
+  {
+    "_comments": [
+      "FORM CHROME — how OTHER apps' forms present the relationships our FKs create (plan §6.4/§7 item 11).",
+      "",
+      "Contracts owns these rows because contracts created the FKs. This file is why the 'customer view'",
+      "(item 11) is mostly metadata rather than a screen: an organisation's agreements appear on Common's",
+      "Organization form, where someone looking at a customer already is.",
+      "",
+      "Same file split as orders: collection declarations live in .entity-relationships.json, presentation",
+      "lives here. Both push to MJ: Entity Relationships; keeping them apart means a chrome tweak never",
+      "risks a collection blob.",
+      "",
+      "Organization -> Contracts is PRIMARY and renamed 'Agreements' — the word the business uses, and",
+      "the word the plan's reviewers used throughout. 'Contracts' would also collide conceptually with",
+      "the app name in a sidebar that already says Contracts."
+    ],
+    "fields": {
+      "DisplayName": "Agreements",
+      "Configuration": {
+        "UI": {
+          "inclusion": "Primary"
+        }
+      }
+    },
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entity Relationships.Entity=MJ_BizApps_Common: Organizations&RelatedEntity=MJ_BizApps_Contracts: Contracts&RelatedEntityJoinField=CustomerOrganizationID"
+    }
+  },
+  {
+    "_comments": [
+      "Person -> Contracts via PrimaryContactPersonID is 'More', not Primary. A person is the CONTACT on",
+      "an agreement, not its counterparty — the counterparty is always the organisation (ERD §4.1). Real",
+      "but secondary, which is exactly what More means."
+    ],
+    "fields": {
+      "DisplayName": "Agreements",
+      "Configuration": {
+        "UI": {
+          "inclusion": "More"
+        }
+      }
+    },
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entity Relationships.Entity=MJ_BizApps_Common: People&RelatedEntity=MJ_BizApps_Contracts: Contracts&RelatedEntityJoinField=PrimaryContactPersonID"
+    }
+  },
+  {
+    "_comments": [
+      "Company -> Contracts: hidden. CompanyID says which of OUR legal entities is party to the",
+      "agreement — plumbing for multi-company reporting, not something a person opens a Company record",
+      "to browse. Every contract points at one, so the list is unbounded and useless as a related grid."
+    ],
+    "fields": {
+      "Configuration": {
+        "UI": {
+          "inclusion": "None"
+        }
+      },
+      "DisplayInForm": false
+    },
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entity Relationships.Entity=MJ_BizApps_Accounting: Companies&RelatedEntity=MJ_BizApps_Contracts: Contracts&RelatedEntityJoinField=CompanyID"
+    }
+  },
+  {
+    "_comments": [
+      "Entity -> Contracts: hidden. This is the polymorphic half of the creating pair (CreatingEntityID",
+      "is a real FK to __mj.Entity). Nobody opens the metadata row for 'Deals' to see every contract a",
+      "deal ever created — the useful direction is the other one, which IX_Contract_CreatingRecord serves.",
+      "Left visible it would put a contracts grid on an MJ CORE form, which is somebody else's screen."
+    ],
+    "fields": {
+      "Configuration": {
+        "UI": {
+          "inclusion": "None"
+        }
+      },
+      "DisplayInForm": false
+    },
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entity Relationships.Entity=MJ: Entities&RelatedEntity=MJ_BizApps_Contracts: Contracts&RelatedEntityJoinField=CreatingEntityID"
+    }
+  },
+  {
+    "_comments": [
+      "Contract Template Provisions -> Modifications: hidden. 'Which contracts negotiated THIS clause'",
+      "is a genuinely interesting question — and it is a report, not a grid of join rows on the provision",
+      "form. Item 7's registry shows provisions; the analysis belongs on a purpose-built surface.",
+      "",
+      "Contract -> Modifications is deliberately absent from this file: the modifications editor panel",
+      "CLAIMS that related entity (plan §6.4), which hides the stock grid without any metadata."
+    ],
+    "fields": {
+      "Configuration": {
+        "UI": {
+          "inclusion": "None"
+        }
+      },
+      "DisplayInForm": false
+    },
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entity Relationships.Entity=MJ_BizApps_Contracts: Contract Template Provisions&RelatedEntity=MJ_BizApps_Contracts: Contract Template Modifications&RelatedEntityJoinField=ContractTemplateProvisionID"
+    }
+  }
+]
