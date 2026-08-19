@@ -17,9 +17,10 @@
  */
 import { ChangeDetectorRef, Component, OnInit, ViewEncapsulation, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RunView, type RunViewParams } from '@memberjunction/core';
+import type { RunViewParams } from '@memberjunction/core';
 import { ExplorerEntityDataGridComponent } from '@memberjunction/ng-base-forms';
 import { MJC_ENTITIES } from '../data/entity-names';
+import { ScopedRunView } from '../data/provider';
 
 /** One provision and how often it has been modified. */
 interface ProvisionTally {
@@ -107,7 +108,7 @@ export class MJCModificationsPageComponent implements OnInit {
      */
     private async loadTally(): Promise<void> {
         try {
-            const result = await new RunView().RunView({
+            const result = await ScopedRunView().RunView({
                 EntityName: MJC_ENTITIES.ContractTemplateModification,
                 // The base view already joins the provision's name columns (D-23), so no second read.
                 ResultType: 'simple',

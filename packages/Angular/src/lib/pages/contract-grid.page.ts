@@ -23,9 +23,10 @@
  */
 import { ChangeDetectorRef, Component, OnInit, ViewEncapsulation, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RunView, type RunViewParams } from '@memberjunction/core';
+import type { RunViewParams } from '@memberjunction/core';
 import { ExplorerEntityDataGridComponent } from '@memberjunction/ng-base-forms';
 import { MJC_ENTITIES } from '../data/entity-names';
+import { ScopedRunView } from '../data/provider';
 
 /** One filter pill: a label, the SQL it contributes, and a live count. */
 export interface MJCFilterPill {
@@ -135,7 +136,7 @@ export abstract class MJCContractGridPageBase implements OnInit {
      * cosmetic loss, and a page that refuses to render because a count query failed is not.
      */
     protected async refreshCounts(): Promise<void> {
-        const rv = new RunView();
+        const rv = ScopedRunView();
         await Promise.all(
             this.Pills.map(async (pill) => {
                 const clauses = [this.pageFilter, pill.Filter].filter(Boolean).map((c) => `(${c})`);

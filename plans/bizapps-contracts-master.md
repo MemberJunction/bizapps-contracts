@@ -142,6 +142,9 @@ Every item below is settled (D-14 carries a confirmation flag — see O-3). §5 
 | D-21 | **The watchlist ships with fixed default filters and no saved views.** Users drive the filters in-session; persisting custom watchlists is phase 2 or never. The screen is the **stock MJ grid** plus minor chrome, using MJ's own tokens | Marcelo, 08-18 |
 | D-22 | **Modifications get a custom form as well as the inline panel — one shared editor component, two hosts.** MJ cannot embed a child entity's form inside a parent, so the same component renders inline in the contract's panel (joining the parent's single save) and as the body of the modification's own custom form (reached via *Open*). No duplicated logic, and the single transaction survives | Marcelo, 08-18 |
 | D-23 | **Grids and pickers select the BASE VIEWS, never raw tables**, so foreign keys display names rather than IDs. MJ's generated base views already expose the joined name columns | Marcelo, 08-18 |
+| D-24 | **Validation is written once, on the entity — the ladder.** (1) Field rules: generated validation, both tiers for free. (2) Cross-record rules: the shared subclass's `Validate()`, so the browser preflights exactly what the server enforces. (3) Server-only rules (locks, cross-entity reads): server subclass `ValidateAsync()`, whose verdicts reach the UI through the save's attributed `ValidationResult` — the client never re-implements them. (4) A **remotable operation** is justified only when the UI needs a server verdict *before* a save — an expensive or interactive preflight — and it must call the same BaseEntity logic, never restate it. &sect;6.3's "zero remote operations" is v1's *outcome*, not a ban; this ladder is the test any future one must pass | Marcelo, 08-19 |
+| D-25 | **Every data access is provider-scoped.** Server subclasses and engines use `this.ProviderToUse`; form panels read `FormComponent.ProviderToUse`; standalone editors take `@Input() Provider` with a `Metadata.Provider` fallback (orders' lines-editor shape); reads outside a component context use `RunView.FromMetadataProvider`. A bare `new RunView()` / `new Metadata()` where a scoped provider is reachable is a defect, not a style choice | Marcelo, 08-19 |
+| D-26 | **Correlated writes share one transaction.** A graph save already is one — header plus companions, all or nothing. Writes to multiple roots that must land together go through one graph or a server-side provider transaction; never sequential unwrapped saves. (A single-row write like `Supersede()` setting the predecessor's FK needs no ceremony — the rule is for the day two roots must agree) | Marcelo, 08-19 |
 
 The full reversal log — sixteen items, each with owner and date — is **§9 of the ERD**.
 
@@ -248,6 +251,36 @@ later so ClassFactory priority resolves it server-side while the browser keeps t
 | No self-parent / self-successor; `EndDate >= EffectiveDate`; the creating pair is both-or-neither | `CHECK` constraints | In the baseline migration. The old `Status = 'Superseded'` ⇔ successor-FK constraint died with the column (R-18): with the state derived *from* the FK it is a tautology |
 | Re-papering is one graph | `ContractEntity.Supersede(successor)` on the shared subclass | Sets the predecessor's `SupersededByContractID` — which *is* the superseded state now that §4.5 derives it (R-18), so there is one write, not two that could disagree. The entity method is the API, mirroring orders' `Confirm()` |
 | Validation errors reach the user attributed | shared subclasses + a `SectionForField()` static | Graph errors arrive as `Modifications[2].ContractTemplateProvisionID`; map `/^Modifications\[/` to the modifications section for red-dot navigation, as `OrderHeaderEntity.SectionForField` does |
+
+### Where validation lives — the ladder (D-24)
+
+One rule, one home, both tiers served. In order of preference:
+
+1. **Field rules** — generated validation from the schema (CHECKs, nullability, value lists). Free
+   everywhere; never restated by hand.
+2. **Cross-record rules** — the **shared** subclass's `Validate()`. The browser refuses before the
+   round trip; the server, resolving the same class (or its subclass), enforces the identical rule.
+3. **Server-only rules** — locks and cross-entity reads live in the server subclass's
+   `ValidateAsync()`. The UI still gets these verdicts without re-implementing them: a refused save
+   returns the attributed `ValidationResult`, and `SectionForField()` routes each error to the rail
+   section that owns it.
+4. **A remotable operation** enters only when the UI needs a server verdict *before* a save — an
+   expensive or interactive preflight the save-error channel cannot serve. It must expose the same
+   BaseEntity logic (typically: construct the entity server-side, run its validation, return the
+   result). Re-implementing a rule inside an operation is the same defect as re-implementing it in
+   the browser — two statements of one rule, one of them silently wrong someday.
+
+Rungs 1–3 cover every rule this app has today, which is why v2 ships zero remote operations. The
+ladder exists so the *next* rule lands on the right rung rather than re-litigating the architecture.
+
+**Worked example, as built.** `HasModifications` uses rungs 2 and 3 together, and the seam between them
+is where a real defect lived (found on PR #9 review): the shared `Validate()` refuses a false flag only
+when it can PROVE rows exist, so the ambiguous case — a saved contract whose collection was never loaded
+— had to be settled at rung 3 by `ContractEntityServer.ValidateAsync()`. The shared class's comment
+claimed that check existed before it did. A documented-but-absent rung is worse than a missing one,
+because the comment stops the next person looking.
+
+---
 
 ### 6.4 Forms — generated forms plus contributions, one bespoke editor
 
@@ -593,4 +626,7 @@ Recorded so they are not re-litigated. Full list in **§10 of the ERD**.
 | Server rules | Cross-row invariants on **shared** subclasses where the browser can preflight them; server subclasses stay authoritative and carry what needs SQL or secrets — §6.3 |
 | Forms | Generated forms + `BaseFormPanel` contributions; full custom form only when a bespoke editor demands it (§6.4). Overlays via `ng-base-forms` shells, never bespoke dialogs |
 | Derived values | Layered base views (`vwContracts` over `vwContractsGenerated`), orders' `IsOverdue` pattern — §7 item 12 |
+| Provider scoping | `this.ProviderToUse` in entity/server code and engines; `FormComponent.ProviderToUse` in panels; `@Input() Provider` + `Metadata.Provider` fallback in standalone editors; `RunView.FromMetadataProvider` elsewhere. Bare `new RunView()` / `new Metadata()` is a defect where a scoped provider is reachable (D-25). The helpers live in `packages/Angular/src/lib/data/provider.ts` so the pattern is stated once |
+| Transactions | One graph save = one transaction. Correlated multi-root writes ride one graph or a server-side provider transaction — never sequential unwrapped saves (D-26) |
+| Typed entities | Cast to the generated subclass (`GetEntityObject<ContractEntity>`) and use its typed members — `.Get()`/`.Set()` never substitute for them. (Restates repo law — MJ CLAUDE.md and `docs/claude/01` — here for self-containment) |
 | UI layering | L0→L3 per `MJ/guides/UI_LAYERING_GUIDE.md`; design tokens; `mjc-` selector prefix |

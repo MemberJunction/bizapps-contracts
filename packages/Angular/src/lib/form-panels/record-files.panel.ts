@@ -38,7 +38,7 @@ import { ChangeDetectorRef, Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RegisterClassEx } from '@memberjunction/global';
 import { BaseFormPanel, BaseFormsModule } from '@memberjunction/ng-base-forms';
-import { RunView } from '@memberjunction/core';
+import { ScopedRunView } from '../data/provider';
 
 /** One linked file, flattened from the link + the file it points at. */
 interface LinkedFile {
@@ -154,7 +154,10 @@ export class RecordFilesPanelBase extends BaseFormPanel implements OnInit {
                 return;
             }
 
-            const rv = new RunView();
+            // D-25: the HOST FORM's provider, not the ambient one. A panel showing files for a record
+            // must read from wherever that record came from; the flagged bare `new RunView()` was correct
+            // only while exactly one provider existed.
+            const rv = ScopedRunView(this.FormComponent?.ProviderToUse);
             const links = await rv.RunView<{ ID: string; FileID: string }>({
                 EntityName: ENTITY_FILE_LINKS,
                 Fields: ['ID', 'FileID'],
