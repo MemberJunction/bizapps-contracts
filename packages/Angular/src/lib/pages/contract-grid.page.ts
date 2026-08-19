@@ -99,8 +99,11 @@ export abstract class MJCContractGridPageBase implements OnInit {
             // carries no default-values field, so `OpenNewEntityRecord` cannot pre-populate. Harmless on
             // these pages (nothing sets NewRecordValues), but it means the Organization agreements
             // panel's pre-linking to the customer will NOT survive a New click routed through here —
-            // that panel needs its own affordance, or MJ needs the option. Written down rather than
-            // discovered later as "New forgets the customer".
+            // that panel needs its own affordance, or MJ needs the option.
+            //
+            // Filed upstream in ~/MJDev/MJ-UPSTREAM.md, because it is a PLATFORM gap every family app
+            // hosting a grid in a resource page will hit, and a comment here only reaches readers of
+            // this repo.
             this.navigation.OpenNewEntityRecord(event.EntityName);
         }
     }
