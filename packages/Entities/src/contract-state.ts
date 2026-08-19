@@ -84,8 +84,9 @@ export function DeriveContractState(facts: ContractStateFacts, now?: Date): Cont
     const today = todayUTC(now);
     const end = asDate(facts.EndDate);
     const effective = asDate(facts.EffectiveDate);
+    const terminatedDate = asDate(facts.TerminatedDate);
 
-    if (asDate(facts.TerminatedDate) !== null) return 'Terminated';
+    if (terminatedDate !== null && terminatedDate < today) return 'Terminated';
     if (facts.SupersededByContractID) return 'Superseded';
     if (end !== null && end < today) return 'Expired';
     if (effective !== null && effective <= today) return 'Active';

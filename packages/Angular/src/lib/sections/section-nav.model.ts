@@ -71,12 +71,17 @@ export const CONTRACTS_SUB_PAGES: MJCSubPage[] = [
 /**
  * Templates — the standard terms, and the clauses that make them up.
  *
- * "Agreement versions" rather than "Templates" in the rail, deliberately: a template row is one
- * DATED version of the Master Agreement and is never edited in place, because signed contracts
- * reference it. The word "template" invites editing.
+ * The rail says "All templates". It used to say "Agreement versions", on the reasoning that a row
+ * here is one DATED version of the Master Agreement, never edited in place (signed contracts
+ * reference it), and that the word "template" invites editing. Marcelo overruled that on
+ * 2026-08-19: the section is already called Templates, so a child item naming a different noun
+ * makes the reader work out that the two are the same thing. Parallel with "All provisions"
+ * below, and with "All contracts" in the Contracts rail — "All <the thing>" is this app's word
+ * for the unfiltered list. The don't-edit-in-place rule is enforced by the schema and stated on
+ * the page, which is where it belongs rather than in a nav label.
  */
 export const TEMPLATES_SUB_PAGES: MJCSubPage[] = [
-    { Id: 'versions', Label: 'Agreement versions', Icon: 'fa-solid fa-file-lines', Description: 'One row per published MA' },
+    { Id: 'versions', Label: 'All templates', Icon: 'fa-solid fa-file-lines', Description: 'One row per published MA' },
     { Id: 'provisions', Label: 'All provisions', Icon: 'fa-solid fa-list-ol', Description: 'Every clause, across versions' },
 ];
 
