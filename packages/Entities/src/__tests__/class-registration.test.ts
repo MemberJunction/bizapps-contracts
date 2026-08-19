@@ -25,9 +25,8 @@ import { ContractEntity } from '../ContractEntity.js';
 
 /** Every entity this app owns, and the class each name must resolve to. */
 const EXPECTED: ReadonlyArray<{ entity: string; className: string }> = [
-    // The one entity with a hand-written shared subclass — it carries the HasModifications guard,
-    // Supersede() and SectionForField(), so resolving to the generated class instead would silently
-    // drop all three.
+    // The one entity with a hand-written shared subclass — it carries the HasModifications guard
+    // and Supersede(), so resolving to the generated class instead would silently drop both.
     { entity: 'MJ_BizApps_Contracts: Contracts', className: 'ContractEntity' },
     // The rest have no hand-written subclass yet, so the GENERATED class is the correct answer.
     // Asserting that is not redundant: it is what fails if someone adds a subclass without adding it
@@ -74,7 +73,6 @@ describe('the shared subclass is what the browser gets', () => {
     it('exposes the rules the form depends on', () => {
         // Cheap, but it is what breaks if a refactor moves these off the shared class and onto the
         // server one, where the browser cannot reach them.
-        expect(typeof ContractEntity.SectionForField).toBe('function');
         expect(typeof ContractEntity.prototype.Supersede).toBe('function');
         expect(typeof ContractEntity.prototype.Validate).toBe('function');
     });

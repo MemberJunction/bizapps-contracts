@@ -23,9 +23,6 @@ import { BaseEntity, ValidationErrorInfo, ValidationErrorType, ValidationResult 
 import { RegisterClass } from '@memberjunction/global';
 import { mjBizAppsContractsContractEntity } from './generated/entity_subclasses';
 
-/** The contract form's left-nav sections, in the order the rail shows them (D-17). */
-export type ContractFormSection = 'overview' | 'dates' | 'renewal' | 'modifications' | 'documents' | 'lineage';
-
 @RegisterClass(BaseEntity, 'MJ_BizApps_Contracts: Contracts')
 export class ContractEntity extends mjBizAppsContractsContractEntity {
     /**
@@ -136,53 +133,6 @@ export class ContractEntity extends mjBizAppsContractsContractEntity {
         this.SupersededByContractID = successor.ID;
     }
 
-    /**
-     * Which left-nav SECTION a validation failure belongs to, so the form can put a red dot on the
-     * rail item that owns the field rather than showing a rejection the user has to go hunting for.
-     *
-     * Metadata-only — it reads the `Source` a `ValidationErrorInfo` already carries. No database, no
-     * provider, so the browser gets it free and the server never needs it.
-     *
-     * The `Modifications[` case is why this is worth having: whole-graph validation attributes child
-     * failures positionally (`Modifications[2].ContractTemplateProvisionID`), and without the mapping
-     * every one of them would land on the header section, which is the one place the user cannot fix
-     * it.
-     */
-    public static SectionForField(source: string | null | undefined): ContractFormSection {
-        const field = (source ?? '').trim();
-        if (!field) return 'overview';
-        if (/^Modifications\[/i.test(field)) return 'modifications';
-        switch (field) {
-            case 'EffectiveDate':
-            case 'ExecutedDate':
-            case 'EndDate':
-            case 'TerminatedDate':
-                return 'dates';
-            case 'AutoRenew':
-            case 'RenewalNoticeDays':
-            case 'CancellationWindowDays':
-            case 'AnnualIncreasePercent':
-                return 'renewal';
-            case 'HasModifications':
-                return 'modifications';
-            case 'SigningProviderURL':
-                return 'documents';
-            case 'ParentContractID':
-            case 'SupersededByContractID':
-                return 'lineage';
-            default:
-                return 'overview';
-        }
-    }
-
-    /** The rail sections currently holding at least one error, for the form's section chrome. */
-    public SectionsWithErrors(): ContractFormSection[] {
-        const result = this.Validate();
-        if (result.Success) return [];
-        const sections = new Set<ContractFormSection>();
-        for (const e of result.Errors) sections.add(ContractEntity.SectionForField(e.Source));
-        return [...sections];
-    }
 }
 
 /**
