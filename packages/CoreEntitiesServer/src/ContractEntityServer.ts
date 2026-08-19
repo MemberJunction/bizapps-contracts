@@ -39,6 +39,21 @@ export class ContractEntityServer extends ContractEntity {
     /**
      * Server-authoritative rules that need to read another entity.
      *
+     * SETTLE THE `HasModifications` UNKNOWN CASE. The shared `ContractEntity.Validate()` only rejects
+     * a false flag when it can PROVE rows exist — `Modifications.Count > 0`. On an ordinary form load
+     * the collection is not loaded, so `Count === 0` means *unknown*, and the shared guard stays
+     * silent by design rather than refusing a legitimate save.
+     *
+     * That design is only honest if something settles the unknown case, and until now nothing did:
+     * load a saved contract without its modifications, set `HasModifications = false`, save, and it
+     * succeeded — flag false with rows in the table, which ERD §4.4 explicitly rejects and which the
+     * modification subclass's own comment calls the single most misleading state this app can produce.
+     * The shared class's comment PROMISED this check existed. Caught on review of PR #9.
+     *
+     * One `EXISTS`, and only when it can matter (`IsSaved && HasModifications === false`), so the
+     * ordinary save pays nothing. The message is the shared class's, deliberately — the user should
+     * not be able to tell which tier refused them.
+     *
      * A CHANGE ORDER MUST NAME WHAT IT CHANGES. The rule needs the ContractType row to know whether
      * this contract IS a change order, which is a join the browser has no business doing — so the
      * shared class cannot carry it (ERD §7.1). Without the rule a change order with no parent is a
@@ -51,6 +66,20 @@ export class ContractEntityServer extends ContractEntity {
      */
     public override async ValidateAsync(): Promise<ValidationResult> {
         const result = await super.ValidateAsync();
+
+        if (this.IsSaved && this.HasModifications === false && (await this.modificationRowsExist())) {
+            result.Success = false;
+            result.Errors.push(
+                new ValidationErrorInfo(
+                    'HasModifications',
+                    `Contract ${this.ContractNumber ?? ''} has modifications recorded against the standard ` +
+                        `agreement, so it cannot be marked as unmodified. Remove the modifications first if the ` +
+                        `agreement really is standard.`,
+                    this.HasModifications,
+                    ValidationErrorType.Failure,
+                ),
+            );
+        }
 
         if (this.ContractTypeID && !this.ParentContractID && (await this.isChangeOrderType())) {
             result.Success = false;
@@ -69,6 +98,20 @@ export class ContractEntityServer extends ContractEntity {
         return result;
     }
 
+    /**
+     * Whether any modification row exists for this contract, read from the DATABASE rather than the
+     * collection — which is the whole point: the collection is exactly what the browser could not
+     * know about. `TOP 1` because existence is the question, not the count.
+     */
+    private async modificationRowsExist(): Promise<boolean> {
+        const provider = this.ProviderToUse as unknown as { ExecuteSQL: (sql: string, params?: unknown[]) => Promise<unknown> };
+        const rows = (await provider.ExecuteSQL(
+            `SELECT TOP 1 1 AS Found FROM __mj_BizAppsContracts.ContractTemplateModification WHERE ContractID = @p0`,
+            [this.ID],
+        )) as Array<{ Found: number }>;
+        return (rows?.length ?? 0) > 0;
+    }
+
     /** Whether this contract's type is the Change Order type. One scalar read, no entity load. */
     private async isChangeOrderType(): Promise<boolean> {
         const provider = this.ProviderToUse as unknown as { ExecuteSQL: (sql: string, params?: unknown[]) => Promise<unknown> };
@@ -82,9 +125,15 @@ export class ContractEntityServer extends ContractEntity {
     /**
      * Take the next value from the `ContractSequence` singleton and format it `CTR-000001`.
      *
-     * `UPDLOCK, HOLDLOCK` inside the CALLER'S transaction, so concurrent creates serialize on the
-     * counter row rather than colliding on the unique index — and a create that rolls back releases
-     * its number rather than leaving a gap.
+     * `UPDLOCK, HOLDLOCK` serialises concurrent creates on the counter row rather than letting them
+     * collide on the unique index.
+     *
+     * ⚠ It does NOT guarantee gap-free numbering, and an earlier version of this comment claimed it
+     * did. On a standalone save the counter `UPDATE` runs BEFORE `super.Save()` opens its transaction,
+     * so a save that then fails has already consumed a number. Inside a graph save that is already in
+     * a transaction, a rollback does release it. The effect is harmless — the unique index is the real
+     * guard and orders has the identical shape — but "gap-conscious" is a promise this cannot keep, so
+     * it is not made. Caught on review of PR #9.
      *
      * `OUTPUT … INTO` rather than a bare `OUTPUT`: CodeGen puts an `__mj_UpdatedAt` trigger on every
      * table, and SQL Server forbids a bare OUTPUT clause on a table that has triggers. Copied

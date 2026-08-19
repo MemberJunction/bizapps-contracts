@@ -125,5 +125,63 @@
       "lastModified": "2026-08-19T02:44:49.735Z",
       "checksum": "674bddf1c5019995af265013cccb77fe7538a160c6b821d4dfea5b495129f68b"
     }
+  },
+  {
+    "_comments": [
+      "Contracts -> Contracts via SupersededByContractID: hidden.",
+      "",
+      "Raised twice on review and worth the explicit row. §6.4's lineage panel claims only the",
+      "ParentContractID grid, so WITHOUT this the baked grid for the OTHER self-FK still mounts stock on",
+      "every contract form — a related list headed something like 'Contracts' that means 'contracts naming",
+      "me as their successor'. That is the supersession chain read backwards, which is a real question but",
+      "one nobody asks from this side: the useful direction is 'what replaced this?', which is the FK on",
+      "the record itself and is already on the form.",
+      "",
+      "None rather than More: a grid whose meaning has to be explained is worse than no grid."
+    ],
+    "fields": {
+      "Configuration": {
+        "UI": {
+          "inclusion": "None"
+        }
+      },
+      "DisplayInForm": false
+    },
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entity Relationships.Entity=MJ_BizApps_Contracts: Contracts&RelatedEntity=MJ_BizApps_Contracts: Contracts&RelatedEntityJoinField=SupersededByContractID"
+    },
+    "sync": {
+      "lastModified": "2026-08-19T03:18:47.370Z",
+      "checksum": "674bddf1c5019995af265013cccb77fe7538a160c6b821d4dfea5b495129f68b"
+    }
+  },
+  {
+    "_comments": [
+      "Contracts -> Contracts via ParentContractID: also None, and this one needs saying out loud.",
+      "",
+      "It is NOT hidden because the relationship is uninteresting — change orders are exactly what a reader",
+      "wants. It is hidden because the §6.4 LINEAGE PANEL claims this related entity and renders it",
+      "properly: parent and children together, read-only, with the supersession chain. A claimed related",
+      "entity has its baked grid suppressed by the panel, so this row is belt-and-braces for the window",
+      "before that panel is registered — without it, a stock grid appears and then vanishes when the panel",
+      "lands, which reads as a regression.",
+      "",
+      "If the lineage panel is ever removed, change this to Primary rather than deleting the row."
+    ],
+    "fields": {
+      "Configuration": {
+        "UI": {
+          "inclusion": "None"
+        }
+      },
+      "DisplayInForm": false
+    },
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entity Relationships.Entity=MJ_BizApps_Contracts: Contracts&RelatedEntity=MJ_BizApps_Contracts: Contracts&RelatedEntityJoinField=ParentContractID"
+    },
+    "sync": {
+      "lastModified": "2026-08-19T03:18:47.391Z",
+      "checksum": "674bddf1c5019995af265013cccb77fe7538a160c6b821d4dfea5b495129f68b"
+    }
   }
 ]

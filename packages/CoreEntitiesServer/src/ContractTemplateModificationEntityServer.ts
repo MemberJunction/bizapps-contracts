@@ -9,16 +9,16 @@
  *
  * @module @mj-biz-apps/contracts-core-entities-server
  */
-import { BaseEntity, LogError, ValidationErrorInfo, ValidationErrorType, ValidationResult } from '@memberjunction/core';
+import { BaseEntity, LogError, Metadata, ValidationErrorInfo, ValidationErrorType, ValidationResult } from '@memberjunction/core';
 import { RegisterClass } from '@memberjunction/global';
-import { mjBizAppsContractsContractTemplateModificationEntity } from '@mj-biz-apps/contracts-entities';
+import { ContractEntity, mjBizAppsContractsContractTemplateModificationEntity } from '@mj-biz-apps/contracts-entities';
 
 @RegisterClass(BaseEntity, 'MJ_BizApps_Contracts: Contract Template Modifications')
 export class ContractTemplateModificationEntityServer extends mjBizAppsContractsContractTemplateModificationEntity {
     /**
      * THE PROVISION MUST BELONG TO THE TEMPLATE THIS CONTRACT INCORPORATES.
      *
-     * This rule is why the modification row carries no `ContractTemplateID` of its own (ERD R-13). An
+     * This rule is why the modification row carries no `ContractTemplateID` of its own (ERD R-16). An
      * earlier design stored the template beside the provision, which meant the row could say it
      * modified template B's clause on a contract that incorporates template A — a stored copy of a
      * derivable fact, free to disagree with it. Removing the column made the disagreement impossible
@@ -89,15 +89,38 @@ export class ContractTemplateModificationEntityServer extends mjBizAppsContracts
         return saved;
     }
 
-    /** Set the parent's flag, in one statement, only when it is not already true. */
+    /**
+     * Set the parent's flag — THROUGH THE ENTITY, not a raw `UPDATE`.
+     *
+     * The first version of this did `UPDATE … SET HasModifications = 1`, which worked and was wrong.
+     * Rule 4 of this schema is "audit is MJ's": `TrackRecordChanges` is on, and *who marked this
+     * contract as modified, and when* is exactly the question someone asks during a dispute over what
+     * was agreed. A raw `UPDATE` bypasses `MJ: Record Changes` entirely, so that flip would have been
+     * the one state transition in the app with no audit trail — on the field whose whole purpose is to
+     * warn a reader that the paper differs from the standard. It also skips cache invalidation, so a
+     * long-lived client could keep showing the old value. Caught on review of PR #9.
+     *
+     * Loading a whole entity to set one bit is more expensive than one statement. That is the right
+     * trade here and only here: this runs when a modification is saved OUTSIDE its contract's graph,
+     * which is the uncommon path, and it no-ops when the flag is already true — so the ordinary graph
+     * save never reaches it.
+     */
     private async forceParentFlag(): Promise<void> {
-        const provider = this.ProviderToUse as unknown as { ExecuteSQL: (sql: string, params?: unknown[]) => Promise<unknown> };
-        await provider.ExecuteSQL(
-            `UPDATE __mj_BizAppsContracts.Contract
-                SET HasModifications = 1
-              WHERE ID = @p0 AND HasModifications = 0;`,
-            [this.ContractID],
-        );
+        const md = new Metadata();
+        // Typed as the SHARED class, but the ClassFactory hands back ContractEntityServer here — it is
+        // registered later, so it wins on the server. That is deliberate: the flag flip should run the
+        // contract's own server rules, not bypass them.
+        const contract = await md.GetEntityObject<ContractEntity>('MJ_BizApps_Contracts: Contracts', this.ContextCurrentUser);
+        if (!(await contract.Load(this.ContractID))) {
+            throw new Error(`contract ${this.ContractID} could not be loaded`);
+        }
+        // Already true is the common case — leave it alone rather than writing a Record Change that
+        // says nothing happened.
+        if (contract.HasModifications === true) return;
+        contract.HasModifications = true;
+        if (!(await contract.Save())) {
+            throw new Error(contract.LatestResult?.Message ?? 'save returned false');
+        }
     }
 
     /**
