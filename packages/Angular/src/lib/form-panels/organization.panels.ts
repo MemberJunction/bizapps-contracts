@@ -19,6 +19,7 @@ import { RegisterClassEx } from '@memberjunction/global';
 import { BaseFormPanel, BaseFormsModule } from '@memberjunction/ng-base-forms';
 import type { BaseEntity, RunViewParams } from '@memberjunction/core';
 import { MJC_ENTITIES, MJC_FOREIGN_ENTITIES } from '../data/entity-names';
+import { MJCFkNavigateDirective } from '../directives/fk-navigate.directive';
 
 @RegisterClassEx(BaseFormPanel, {
     key: 'contracts:organization-agreements',
@@ -36,7 +37,7 @@ import { MJC_ENTITIES, MJC_FOREIGN_ENTITIES } from '../data/entity-names';
     selector: 'mjc-organization-agreements-panel',
     standalone: true,
     encapsulation: ViewEncapsulation.None,
-    imports: [CommonModule, BaseFormsModule],
+    imports: [CommonModule, BaseFormsModule, MJCFkNavigateDirective],
     template: `
         <div class="mjc-card">
             <h3 class="mjc-card__title">Agreements</h3>
@@ -44,7 +45,7 @@ import { MJC_ENTITIES, MJC_FOREIGN_ENTITIES } from '../data/entity-names';
                 Every contract with this organisation, live ones first. <strong>New</strong> opens a
                 contract already linked to this customer.
             </p>
-            <mj-explorer-entity-data-grid
+            <mj-explorer-entity-data-grid mjcFkNavigate
                 [Params]="Params"
                 [NewRecordValues]="NewValues"
                 [ShowToolbar]="true"

@@ -396,14 +396,25 @@ Two traps worth keeping:
 ## 18. The grid has NO filter UI — I was wrong about this
 
 I told Marcelo the grid already had filtering via `ToolbarConfig.showFilterToggle`, having read it in
-`GridToolbarConfig`. **It is declared in the type and referenced nowhere else.** Verified in
-`mj/packages/Angular/Generic/entity-viewer/src`: the grid template has **zero** occurrences of
-"filter", and AG Grid column filtering is not enabled (no `floatingFilter`, no `filter: true`, no
-`filterParams`). `FilterText` is the search box, not a filter.
+`GridToolbarConfig`. It does not. Verified in
+`mj/packages/Angular/Generic/entity-viewer/src/lib/entity-data-grid/` — **four half-built or disabled
+hooks, no filter UI anywhere:**
 
-So the pages currently pass `showFilterToggle: true` and it does nothing. Options: build the filter
-popover the mockup draws (`mockups-v2/renewal-watchlist.html` specifies ten named filters), or file it
-upstream. **Do not tell anyone the stock grid can filter.**
+| Hook | Where | State |
+| --- | --- | --- |
+| `ToolbarConfig.showFilterToggle` | `models/grid-types.ts:249` | declared + in the README; **read nowhere**. No template branch renders a filter button. |
+| `AllowColumnFilters` input | `entity-data-grid.component.ts:554-561` | setter/getter stores `_allowColumnFilters`; **read nowhere else**. Dead input. |
+| `_filterState: FilterState[]` | `entity-data-grid.component.ts:1511` | declared; never read or written. |
+| `defaultColDef.filter` | `entity-data-grid.component.ts:1457` | **hardcoded `false`** — AG Grid per-column filters off, and no input flips it. No `floatingFilter`, no `filterParams`. |
+
+**What the grid DOES have** is the `ShowSearch` box (`entity-data-grid.component.html:12-29`), which
+sets AG Grid `quickFilterText` (`onFilterTextChanged`, `:2193`) — a **client-side substring match over
+the rows already loaded**. It is not structured filtering and it is not server-side, so it cannot
+answer any of the mockup's ten questions.
+
+So the pages pass `showFilterToggle: true` and it does nothing. Options: build the filter popover the
+mockup draws (`mockups-v2/renewal-watchlist.html` specifies ten named filters) in our own page chrome,
+which we own; or file it upstream on MJ. **Do not tell anyone the stock grid can filter.**
 
 ## 19. Sibling apps are ALL wired now (they were not)
 
@@ -444,3 +455,104 @@ A metadata push does NOT reach the running app. `mjdev restart contracts-mj6 api
 an opaque `[Object: null prototype] {}`, its prestart added dependencies to its own `package.json` —
 run `pnpm install` at the INSTANCE dir and restart again. Explorer caches entity metadata at load, so
 field-visibility changes need it restarted too.
+
+## 23. Modification CRUD, and why the form was a blank spinner (2026-08-19)
+
+Marcelo opened a modification and got one line — "Loading the contract this modification belongs
+to…" — and no fields. Three separate causes, fixed and each verified in a real browser.
+
+### 23.1 The form: a priority-2 override was shadowing a better generated form
+
+`custom/modification.form.component.ts` replaced the whole form with a shell that loaded the PARENT
+contract, then rendered `mjc-modification-editor` against `contract.Modifications`. The parent load
+never completed the render, so the form had no fields, no dropdowns, no way to save.
+
+**Deleted rather than debugged**, because the generated form is strictly better here — and this is
+the reusable lesson: **replacing a form costs you every generated affordance.** CodeGen already
+emits `ContractID` and `ContractTemplateProvisionID` with `LinkType="Record"`, which `mj-form-field`
+renders as **searchable FK dropdowns** (a result grid with sortable columns and a "Create …" row),
+plus a `Modification Details` section for `ModificationText` + `Notes` and `System Metadata` under
+More. That is exactly what Marcelo asked for — "very similar to creating a provision" — and it is
+what a form REPLACEMENT threw away. Reach for a panel unless you mean to replace all of it.
+
+The editor component stays: it is still the contract form's inline Modifications panel. Its
+`SingleRowMode` / `OnlyModificationID` inputs are now set by nobody (the deleted form was the only
+host) — harmless, but do not go looking for their caller.
+
+**Verified end to end**, not just rendered: created a modification through the UI — picked
+`CTR-900002` and provision `9.1` in the dropdowns, typed the clause, saved — and confirmed the row in
+SQL (`100F1188-…`, CTR-900002 / 9.1) with `Contract.HasModifications` flipped `true` by the server
+subclass. 0 console errors throughout.
+
+### 23.2 FK links looked clickable and were inert — an MJ wrapper gap
+
+The grid emits `ForeignKeyClick`; `mj-explorer-entity-data-grid` never binds it and declares no
+equivalent, so the event dies in the wrapper. **Every FK link in every wrapper-hosted grid is
+dead.** Fixed app-side with `lib/directives/fk-navigate.directive.ts` (`mjcFkNavigate`) on all 9
+grid tags across 5 files — it injects the wrapper, subscribes to the inner component's own `@Output`,
+and navigates via `NavigationService.OpenEntityRecord` with a `CompositeKey` built from the related
+entity's real primary-key field name. Full write-up + how to delete it: `plans/WORKAROUNDS.md` → W-1.
+**File upstream.**
+
+Verified: clicking the `CTR-900002` link on the Modifications grid opens that contract's form (hero
+card, dates strip, full rail).
+
+### 23.3 The raw-UUID columns are STILL THERE, and hiding them is a real trade-off
+
+The Modifications grid shows four link columns, two of them bare UUIDs. Those two are the FK fields
+themselves — MJ derives an FK field's DisplayName by dropping `ID`, so `ContractID` presents as
+"Contract". The readable ones are the app's virtual `Contract` / `ContractTemplateProvision` fields
+(DisplayName "Contract Reference" / "Provision Reference").
+
+I hid the UUID pair with a migration setting `DefaultInView = 0` (the grid picks default columns by
+that flag — `shouldShowField`, which is `field.DefaultInView === true`). It worked: two clean
+columns. **It also killed every link on the page — 12 anchors to 0.** The reason is the pairing
+mechanism: a virtual display field links to its FK partner found BY NAME CONVENTION (`Contract` +
+`ID`, `:2773`) and reads the target id from **`params.data[fkField.Name]`** (`:2823`). Hide the FK
+column and that lookup returns `''`, so the readable cell degrades to plain text. Adding
+`Params.Fields` to keep the ids in the payload did **not** restore the anchors (measured).
+
+**So I reverted it** — migration deleted, flags back to `1`, the `flyway_schema_history` row removed
+— because losing click-through is worse than two ugly columns, and click-through is what Marcelo
+actually asked for. Getting both wants either a `[Columns]` input on the wrapper (it has none) or an
+MJ fix. **This is a decision for Marcelo, not a bug to grind on.**
+
+### 23.4 Two caches that make metadata work look broken
+
+MJAPI caches metadata at boot: a `__mj.EntityField` change is right in SQL and invisible in Explorer
+until `mjdev restart <slug> api`. Independently, the grid persists a per-user default column set as
+a `__mj.UserSetting` row keyed `default-view-setting/<Entity Name>`, which pins columns for that
+persona regardless of metadata. Check the DB value, then restart, before concluding a migration
+failed. (`plans/WORKAROUNDS.md` → W-3.)
+
+### 23.5 Things I broke and put back
+
+- **Ran `mj codegen manifest` from the MJ root.** It regenerated the wrong manifest (973 classes/91
+  packages) and **added 91 dependencies to the MJ root `package.json`**. Reverted both files; the
+  legitimate dev-link wiring in `packages/MJAPI|MJExplorer/package.json` was left alone. The correct
+  invocation is the root script `mj:manifest:explorer` (`--appDir ./packages/MJExplorer --output
+  ./packages/MJExplorer/src/app/generated/… --lazy-config …`), which yields 145 classes / 9 packages.
+  Deleting an exported class REQUIRES this regen — the Explorer build fails on the stale import.
+- **`accounting-ng` contributes 0 classes to that manifest**, and that is not a break: its classes
+  are not exported from its `public-api`, so the scanner skips them (it reports 128 such skips) and
+  the package self-registers through its own bundled manifest.
+- **The proof row's Notes** said "Recorded through the UI to prove modification CRUD end to end",
+  which would read badly in a demo; reworded to realistic business text rather than deleted, since
+  deleting the row would leave `HasModifications` set on CTR-900002 (the server subclass computes it
+  on save, not on delete).
+
+### 23.6 Corrections to §18 and to the page docblocks
+
+§18's evidence was imprecise ("the grid template has zero occurrences of filter" — false, the search
+box is there). Rewritten with line references, and it now names **four** dead hooks, not one:
+`showFilterToggle` (`grid-types.ts:249`, read nowhere), the `AllowColumnFilters` input
+(`:554-561`, stored and never read), `_filterState` (`:1511`, never touched), and
+`defaultColDef.filter` **hardcoded `false`** (`:1457`). The same wrong claim was copy-pasted into
+five docblocks across four page files ("MJ's grid ALREADY has a filter toggle…") — all replaced with
+the measured truth. `modifications.page.ts` also declared `GridToolbar` and never bound it; now bound.
+
+**Root runner note:** the canonical test command is `npx vitest run` from the app root — 75/75, exit
+0. `npm test` (turbo, `--filter=@mj-biz-apps/contracts-*`) fails with "Could not find task `test`"
+in this parent-workspace topology; pre-existing, unrelated to this work. `pnpm -r run test` is now
+green (the Angular package's `vitest run` had no specs and exited 1; it is `--passWithNoTests` so the
+runner stays wired for when specs land).

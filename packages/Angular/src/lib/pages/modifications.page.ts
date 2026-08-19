@@ -23,6 +23,7 @@ import type { RunViewParams } from '@memberjunction/core';
 import { BaseFormsModule } from '@memberjunction/ng-base-forms';
 import { MJC_ENTITIES } from '../data/entity-names';
 import { ScopedRunView } from '../data/provider';
+import { MJCFkNavigateDirective } from '../directives/fk-navigate.directive';
 
 /** One provision and how often it has been modified. */
 interface ProvisionTally {
@@ -35,7 +36,7 @@ interface ProvisionTally {
     selector: 'mjc-modifications-page',
     standalone: true,
     encapsulation: ViewEncapsulation.None,
-    imports: [CommonModule, BaseFormsModule],
+    imports: [CommonModule, BaseFormsModule, MJCFkNavigateDirective],
     template: `
         <div class="mjc-page mjc-page--grid">
             <p class="mjc-page__intro">
@@ -65,12 +66,12 @@ interface ProvisionTally {
 
             <div class="mjc-grid-fill">
 
-                <mj-explorer-entity-data-grid
-
+                <mj-explorer-entity-data-grid mjcFkNavigate
                     [Params]="Params"
-                        [ShowToolbar]="true"
-                        [NavigateOnDoubleClick]="true"
-                (Navigate)="OnNavigate($event)" />
+                    [ShowToolbar]="true"
+                    [ToolbarConfig]="GridToolbar"
+                    [NavigateOnDoubleClick]="true"
+                    (Navigate)="OnNavigate($event)" />
 
             </div>
         </div>
@@ -121,15 +122,22 @@ export class MJCModificationsPageComponent implements OnInit {
     public ActiveProvisionID: string | null = null;
 
     /**
-     * MJ's grid ALREADY has a filter toggle and a column chooser — `showFilterToggle` and
-     * `showColumnChooser` on `GridToolbarConfig`. We were passing no `ToolbarConfig` at all and got the
-     * default, which omits both; the pages then looked like they had no way to filter beyond the pills.
+     * Toolbar affordances that actually work, and one that does not.
      *
-     * Using the stock affordance rather than building a bespoke filter dropdown beside it: AG Grid's
-     * per-column filters carry the whole operator set (equals / contains / greater-than / in / is-null),
-     * which covers filtering by date, category and the derived State without us writing a filter UI at
-     * all. The pills stay because they encode the QUESTIONS finance asks — "notice window passed" is not
-     * something a user would assemble from column filters — and the filter button covers everything else.
+     * ⚠ `showFilterToggle` IS A NO-OP, and this comment used to claim the opposite. It is declared on
+     * `GridToolbarConfig` (`grid-types.ts:249`) and documented in the entity-viewer README, and it is
+     * **read nowhere in MJ** — no template branch renders a filter button. Three sibling hooks are dead
+     * the same way: the `AllowColumnFilters` input stores `_allowColumnFilters` and nothing reads it,
+     * `_filterState` is declared and never touched, and `defaultColDef.filter` is hardcoded `false`, so
+     * AG Grid's per-column filters are off with no input to turn them on. It is left set to `true` here
+     * because it costs nothing and is the flag to keep passing if MJ ever wires it up.
+     *
+     * So the ONLY filtering this page has beyond the pills is `showSearch` — which sets AG Grid's
+     * `quickFilterText`, a client-side substring match over the rows already loaded. It is not
+     * structured and not server-side. Filtering by date range / category / derived State needs a real
+     * filter popover (see `design-docs/ui-design/mockups-v2/renewal-watchlist.html`), which is ours to
+     * build; the pills stay regardless, because they encode the QUESTIONS people ask rather than
+     * predicates a user would assemble by hand.
      */
     public readonly GridToolbar = {
         showSearch: true,

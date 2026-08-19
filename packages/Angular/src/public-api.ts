@@ -72,7 +72,6 @@ import {
 } from './lib/form-panels/contract.panels';
 import { MJCTemplateProvisionsPanel } from './lib/form-panels/template.panels';
 import { MJCOrganizationAgreementsPanel } from './lib/form-panels/organization.panels';
-import { MJCModificationFormComponent } from './lib/custom/modification.form.component';
 
 export { RecordFilesPanelBase, ContractFilesPanel, ContractTemplateFilesPanel } from './lib/form-panels/record-files.panel';
 export {
@@ -87,11 +86,23 @@ export { MJCOrganizationAgreementsPanel } from './lib/form-panels/organization.p
 
 /* ============================================================================
  * THE ONE SHARED CUSTOM COMPONENT (D-22) — the modification editor, rendered inline by the contract's
- * panel AND as the body of the modification's own form. One implementation, two hosts, because MJ
- * cannot embed a child entity's form inside a parent's.
+ * Modifications panel. It is NOT a form replacement: the modification's own form is the GENERATED one.
+ *
+ * It used to be both. A priority-2 `BaseFormComponent` replacement (`MJCModificationFormComponent`)
+ * rendered this editor as the modification's whole form, loading the PARENT contract first so the
+ * editor could work through `contract.Modifications`. Opening a modification then showed nothing but
+ * "Loading the contract this modification belongs to…" — the parent load never completed the render,
+ * so the form had no fields, no dropdowns and no way to save. Deleted rather than debugged, because
+ * the generated form is strictly better here: CodeGen already emits `ContractID` and
+ * `ContractTemplateProvisionID` as `LinkType="Record"` fields, which `mj-form-field` renders as
+ * SEARCHABLE FK dropdowns, plus a `Modification Details` section holding `ModificationText` and
+ * `Notes`. That is exactly the shape a modification wants, and it is the same shape as creating a
+ * provision — which is what makes the two feel like one app.
+ *
+ * The lesson: replacing a form costs you every generated affordance (FK search, section grouping,
+ * validation display). Reach for a PANEL unless you are replacing all of it deliberately.
  * ========================================================================== */
 export { MJCModificationEditorComponent } from './lib/custom/modification-editor.component';
-export { MJCModificationFormComponent } from './lib/custom/modification.form.component';
 
 /* Pages are exported so another app (or a dashboard) can host one directly; the sections resolve them
  * internally, so nothing here depends on these being exported. */
@@ -127,7 +138,4 @@ export function LoadMjBizappsContractsClient(): void {
     void MJCContractLineagePanel;
     void MJCTemplateProvisionsPanel;
     void MJCOrganizationAgreementsPanel;
-
-    // The one custom form replacement (priority 2).
-    void MJCModificationFormComponent;
 }
