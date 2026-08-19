@@ -1,6 +1,35 @@
 [
   {
     "_comments": [
+      "Contracts -> Contract Template Modifications: PRIMARY, so Modifications is its own rail item.",
+      "",
+      "There was no row here at all, on the reasoning that the editor panel claims the related entity",
+      "so no chrome was needed. Wrong for the same reason as ParentContractID below: claiming the",
+      "relationship suppresses the stock GRID; it does not create a rail GROUP. Omitting the row left",
+      "it Auto, and the panel folded into Details.",
+      "",
+      "DisplayName is the rail label. 'Modifications' rather than the entity's full name, which would",
+      "read 'Contract Template Modifications' in a rail on a Contract form — three words of context",
+      "the reader already has."
+    ],
+    "fields": {
+      "DisplayName": "Modifications",
+      "Configuration": {
+        "UI": {
+          "inclusion": "Primary"
+        }
+      }
+    },
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entity Relationships.Entity=MJ_BizApps_Contracts: Contracts&RelatedEntity=MJ_BizApps_Contracts: Contract Template Modifications"
+    },
+    "sync": {
+      "lastModified": "2026-08-19T15:26:20.328Z",
+      "checksum": "2b4b55719c7432c3b7034c552a5d3d1ec61fd2007c1c1ddf35e3d5998677af5f"
+    }
+  },
+  {
+    "_comments": [
       "FORM CHROME — how OTHER apps' forms present the relationships our FKs create (plan §6.4/§7 item 11).",
       "",
       "Contracts owns these rows because contracts created the FKs. This file is why the 'customer view'",
@@ -157,31 +186,56 @@
   },
   {
     "_comments": [
-      "Contracts -> Contracts via ParentContractID: also None, and this one needs saying out loud.",
+      "Contracts -> Contracts via ParentContractID: PRIMARY, and this was WRONG before.",
       "",
-      "It is NOT hidden because the relationship is uninteresting — change orders are exactly what a reader",
-      "wants. It is hidden because the §6.4 LINEAGE PANEL claims this related entity and renders it",
-      "properly: parent and children together, read-only, with the supersession chain. A claimed related",
-      "entity has its baked grid suppressed by the panel, so this row is belt-and-braces for the window",
-      "before that panel is registered — without it, a stock grid appears and then vanishes when the panel",
-      "lands, which reads as a regression.",
+      "I had it as 'None' reasoning that the lineage panel claims the relationship so the stock grid",
+      "should be suppressed. But 'None' means the ranker never sees it AT ALL — so the panel claiming",
+      "it got no chrome group, and under Layout:'left-nav' a contribution with no group folds into",
+      "Details. That is why the form had exactly one section.",
       "",
-      "If the lineage panel is ever removed, change this to Primary rather than deleting the row."
+      "Primary is what makes Lineage its own rail item. The panel still replaces the stock grid,",
+      "because that is what `relatedEntity` on the registration does — suppressing the grid and",
+      "having a rail entry are different mechanisms, and I had conflated them."
     ],
     "fields": {
+      "DisplayName": "Lineage",
       "Configuration": {
         "UI": {
-          "inclusion": "None"
+          "inclusion": "Primary"
         }
-      },
-      "DisplayInForm": false
+      }
     },
     "primaryKey": {
       "ID": "@lookup:MJ: Entity Relationships.Entity=MJ_BizApps_Contracts: Contracts&RelatedEntity=MJ_BizApps_Contracts: Contracts&RelatedEntityJoinField=ParentContractID"
     },
     "sync": {
-      "lastModified": "2026-08-19T03:18:47.391Z",
-      "checksum": "674bddf1c5019995af265013cccb77fe7538a160c6b821d4dfea5b495129f68b"
+      "lastModified": "2026-08-19T15:26:20.369Z",
+      "checksum": "74b60675712ede6ae3d18863543e707d4ea37ab4a2dd515d1532ccd1da93b081"
+    }
+  },
+  {
+    "_comments": [
+      "Contract Templates -> Provisions: PRIMARY. The provisions ARE the template's content.",
+      "",
+      "Rail order on the template form is Details, then Provisions (ruled 2026-08-19). That falls out",
+      "of MJ's fixed band order — lead contributions → Details → Primary related → More — once the",
+      "Documents panel stops being a lead contribution on this entity. See the chromeGroup:'more' note",
+      "in record-files.panel.ts for why that is the only way to order Details ahead of it."
+    ],
+    "fields": {
+      "DisplayName": "Provisions",
+      "Configuration": {
+        "UI": {
+          "inclusion": "Primary"
+        }
+      }
+    },
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entity Relationships.Entity=MJ_BizApps_Contracts: Contract Templates&RelatedEntity=MJ_BizApps_Contracts: Contract Template Provisions"
+    },
+    "sync": {
+      "lastModified": "2026-08-19T15:26:20.349Z",
+      "checksum": "59e0a4c4287920d5758ce516ec1488e910a2d2bcbbfb2670771964838f93d195"
     }
   }
 ]

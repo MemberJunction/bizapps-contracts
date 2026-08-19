@@ -29,6 +29,27 @@ abstract class MJCConfigPageBase implements OnInit {
     public Params: RunViewParams | null = null;
 
     /**
+     * MJ's grid ALREADY has a filter toggle and a column chooser — `showFilterToggle` and
+     * `showColumnChooser` on `GridToolbarConfig`. We were passing no `ToolbarConfig` at all and got the
+     * default, which omits both; the pages then looked like they had no way to filter beyond the pills.
+     *
+     * Using the stock affordance rather than building a bespoke filter dropdown beside it: AG Grid's
+     * per-column filters carry the whole operator set (equals / contains / greater-than / in / is-null),
+     * which covers filtering by date, category and the derived State without us writing a filter UI at
+     * all. The pills stay because they encode the QUESTIONS finance asks — "notice window passed" is not
+     * something a user would assemble from column filters — and the filter button covers everything else.
+     */
+    public readonly GridToolbar = {
+        showSearch: true,
+        showFilterToggle: true,
+        showColumnChooser: true,
+        showRefresh: true,
+        showExport: true,
+        showRowCount: true,
+    };
+
+
+    /**
      * Open the double-clicked record.
      *
      * THE GRID DOES NOT NAVIGATE ITSELF. `NavigateOnDoubleClick` only controls whether it EMITS
@@ -79,7 +100,7 @@ const CONFIG_TEMPLATE = `
     <div class="mjc-page mjc-page--grid">
         <p class="mjc-page__intro"><ng-content /></p>
         <div class="mjc-grid-fill">
-            <mj-explorer-entity-data-grid [Params]="Params" [ShowToolbar]="true" [NavigateOnDoubleClick]="true"
+            <mj-explorer-entity-data-grid [Params]="Params" [ShowToolbar]="true" [ToolbarConfig]="GridToolbar" [NavigateOnDoubleClick]="true"
                 (Navigate)="OnNavigate($event)" />
         </div>
     </div>
@@ -104,7 +125,7 @@ const CONFIG_TEMPLATE = `
                 referencing it keeps resolving.
             </p>
             <div class="mjc-grid-fill">
-                <mj-explorer-entity-data-grid [Params]="Params" [ShowToolbar]="true" [NavigateOnDoubleClick]="true"
+                <mj-explorer-entity-data-grid [Params]="Params" [ShowToolbar]="true" [ToolbarConfig]="GridToolbar" [NavigateOnDoubleClick]="true"
                 (Navigate)="OnNavigate($event)" />
             </div>
         </div>
@@ -132,7 +153,7 @@ export class MJCContractTypesPageComponent extends MJCConfigPageBase {
                 That absence is a fact about the business, not a gap in the data.
             </p>
             <div class="mjc-grid-fill">
-                <mj-explorer-entity-data-grid [Params]="Params" [ShowToolbar]="true" [NavigateOnDoubleClick]="true"
+                <mj-explorer-entity-data-grid [Params]="Params" [ShowToolbar]="true" [ToolbarConfig]="GridToolbar" [NavigateOnDoubleClick]="true"
                 (Navigate)="OnNavigate($event)" />
             </div>
         </div>
@@ -177,7 +198,7 @@ export class MJCTemplateTypesPageComponent extends MJCConfigPageBase {
                 </div>
             }
             <div class="mjc-grid-fill">
-                <mj-explorer-entity-data-grid [Params]="Params" [ShowToolbar]="false" />
+                <mj-explorer-entity-data-grid [Params]="Params" [ShowToolbar]="true" [ToolbarConfig]="GridToolbar" />
             </div>
         </div>
     `,

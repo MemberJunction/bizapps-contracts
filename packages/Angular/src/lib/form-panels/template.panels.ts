@@ -33,6 +33,10 @@ import { MJC_ENTITIES } from '../data/entity-names';
         sortKey: 100,
         contributionKey: 'provisions',
         relatedEntity: MJC_ENTITIES.ContractTemplateProvision,
+        // The provisions ARE the template's content, so this is its own rail item rather than folded
+        // into Details with the four header fields (see contract.panels.ts's header for why this key
+        // is load-bearing under Layout: 'left-nav').
+        inclusion: 'Primary',
     },
 })
 @Component({
@@ -41,58 +45,100 @@ import { MJC_ENTITIES } from '../data/entity-names';
     encapsulation: ViewEncapsulation.None,
     imports: [CommonModule, FormsModule, BaseFormsModule],
     template: `
-        <div class="mjc-card">
-            <h3 class="mjc-card__title">Provisions ({{ Provisions.length }})</h3>
-            <p class="mjc-page__intro">
-                The numbered clauses of this agreement version, in document order. A contract records a
-                deviation by naming one of these, so the text here is what finance reads beside the
-                negotiated language — an empty clause is a picker entry nobody can evaluate.
-            </p>
+        <mj-collapsible-panel
+            SectionKey="templateProvisions"
+            SectionName="Provisions"
+            Icon="fa-solid fa-list-ol"
+            Variant="related-entity"
+            [BadgeCount]="Count"
+            [Form]="FormComponent"
+            [FormContext]="FormContext">
 
-            @if (LoadError) { <p class="mjc-empty">{{ LoadError }}</p> }
+            @if (LoadError) { <div class="mjc-body"><div class="mjc-flag">{{ LoadError }}</div></div> }
 
-            @if (!Provisions.length) {
-                <p class="mjc-empty">
-                    No provisions yet. Add them in document order — <code>Sequence</code> is what orders
-                    the list, because provision numbers do not sort as text.
-                </p>
-            }
-
-            @for (p of Provisions; track p.ID ?? $index) {
-                <div style="border-top:1px solid var(--mj-border-subtle); padding:var(--mj-space-3) 0">
-                    @if (EditMode) {
-                        <div style="display:flex; gap:var(--mj-space-2); align-items:center; flex-wrap:wrap">
-                            <input type="text" style="width:6rem" [ngModel]="p.ProvisionNumber"
-                                   (ngModelChange)="Set(p, 'ProvisionNumber', $event)"
-                                   placeholder="4.2" aria-label="Provision number" />
-                            <input type="text" style="flex:1 1 18rem" [ngModel]="p.Title"
-                                   (ngModelChange)="Set(p, 'Title', $event)"
-                                   placeholder="Limitation of Liability" aria-label="Title" />
-                            <button type="button" class="mjc-pill" (click)="Remove(p)">Remove</button>
-                        </div>
-                        <textarea rows="5" style="width:100%; margin-top:var(--mj-space-2)"
-                                  [ngModel]="p.ProvisionText"
-                                  (ngModelChange)="Set(p, 'ProvisionText', $event)"
-                                  placeholder="The clause text, verbatim." aria-label="Provision text"></textarea>
-                    } @else {
-                        <strong>{{ p.ProvisionNumber }} · {{ p.Title }}</strong>
-                        <p class="mjc-clause">{{ p.ProvisionText || '(no text captured)' }}</p>
-                    }
+            @if (Provisions.length) {
+                <table class="mjc-grid">
+                    <thead>
+                        <tr>
+                            <th style="width:7rem">Number</th>
+                            <th style="width:16rem">Title</th>
+                            <th>Text</th>
+                            @if (EditMode) { <th style="width:5rem"></th> }
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @for (p of Provisions; track p.ID ?? $index) {
+                            <tr>
+                                <td class="mjc-mono">
+                                    @if (EditMode) {
+                                        <input type="text" style="width:100%" [ngModel]="p.ProvisionNumber"
+                                               (ngModelChange)="Set(p, 'ProvisionNumber', $event)"
+                                               placeholder="4.2" aria-label="Provision number" />
+                                    } @else { {{ p.ProvisionNumber }} }
+                                </td>
+                                <td>
+                                    @if (EditMode) {
+                                        <input type="text" style="width:100%" [ngModel]="p.Title"
+                                               (ngModelChange)="Set(p, 'Title', $event)"
+                                               placeholder="Limitation of Liability" aria-label="Title" />
+                                    } @else { <strong>{{ p.Title }}</strong> }
+                                </td>
+                                <td>
+                                    @if (EditMode) {
+                                        <textarea class="mjc-clause" rows="4" style="width:100%"
+                                                  [ngModel]="p.ProvisionText"
+                                                  (ngModelChange)="Set(p, 'ProvisionText', $event)"
+                                                  placeholder="The clause text, verbatim."
+                                                  aria-label="Provision text"></textarea>
+                                    } @else {
+                                        <p class="mjc-clause">{{ p.ProvisionText || '(no text captured)' }}</p>
+                                    }
+                                </td>
+                                @if (EditMode) {
+                                    <td>
+                                        <button type="button" class="mjc-btn mjc-btn--danger mjc-btn--sm"
+                                                (click)="Remove(p)" aria-label="Remove this provision">&times;</button>
+                                    </td>
+                                }
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            } @else {
+                <div class="mjc-body">
+                    <div class="mjc-empty">
+                        No provisions yet. Add them in document order — <code>Sequence</code> is what orders the
+                        list, because provision numbers do not sort as text.
+                    </div>
                 </div>
             }
 
-            @if (EditMode) {
-                <button type="button" class="mjc-pill" style="margin-top:var(--mj-space-3)" (click)="Add()">
-                    <i class="fa-solid fa-plus" aria-hidden="true"></i> Add a provision
-                </button>
-            }
-        </div>
+            <div class="mjc-body">
+                @if (EditMode) {
+                    <button type="button" class="mjc-btn mjc-btn--flat" (click)="Add()">
+                        <i class="fa-solid fa-plus" aria-hidden="true"></i> Add a provision
+                    </button>
+                } @else {
+                    <p class="mjc-note">
+                        A contract records a deviation by naming one of these, and the text here is what finance
+                        reads beside the negotiated language — so an empty clause is a picker entry nobody can
+                        evaluate. Use the toolbar's edit button to change them.
+                    </p>
+                }
+            </div>
+        </mj-collapsible-panel>
     `,
 })
 export class MJCTemplateProvisionsPanel extends BaseFormPanel<mjBizAppsContractsContractTemplateEntity> {
     private readonly cdr = inject(ChangeDetectorRef);
     public LoadError: string | null = null;
     private loadStarted = false;
+
+    /** Drives the rail badge; undefined so an empty section shows none. */
+    public get Count(): number | undefined {
+        const n = this.Provisions.length;
+        return n > 0 ? n : undefined;
+    }
 
     /** Spread so Angular sees a fresh reference when the collection mutates. */
     public get Provisions(): mjBizAppsContractsContractTemplateProvisionEntity[] {

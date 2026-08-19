@@ -16,18 +16,38 @@
       "Keyed by entity NAME. Entity IDs are minted by CodeGen on first registration, so a hardcoded UUID",
       "stops matching the first time this database is rebuilt from zero.",
       "",
-      "FORM CHROME on Contracts (D-17). Layout 'left-nav': the rail down the left side decides what the",
-      "body shows, one section at a time — it ROUTES rather than scrolling an accordion. The contract",
       "form has enough distinct concerns (identity, dates, renewal terms, modifications, documents,",
-      "lineage, history) that an accordion makes the reader hunt.",
       "",
       "RelatedRolePolicy 'smart' + PrimaryRelatedBudget 6: the same settings orders carries on every",
       "entity. 'smart' lets the ranker place related entities we have not explicitly ruled on in",
       ".form-chrome.json, and the budget caps how many earn a primary slot before the rest go to More.",
       "",
-      "An earlier draft said Layout 'auto' was fine at this section count. Superseded by D-17 — matching",
       "orders matters more than the marginal call, because a user moving between the two apps should not",
-      "have to learn two form idioms."
+      "have to learn two form idioms.",
+      "",
+      "",
+      "COLLAPSES EVERY FIELD SECTION INTO ONE 'Details' RAIL ITEM by design (FORMS_ARCHITECTURE_GUIDE 7d:",
+      "Contract Overview, Parties and Context, Dates and Terms, Renewal Terms, Notes and Details — and under",
+      "",
+      "longer 'leftover' and earns its own rail entry — was tried and made it WORSE: the generated section",
+      "disappeared and the replacing panel did not render, so the dates and renewal fields vanished from the",
+      "",
+      "not more replacement panels here.",
+      "",
+      "LAYOUT IS 'left-nav' (D-17), and the rail genuinely works — three coupled mistakes made it look",
+      "otherwise, all mine:",
+      "",
+      "  1. Field panels DO collapse into a single 'Details' rail item by design. Named rail entries come",
+      "     from Primary CONTRIBUTIONS and Primary RELATED grids, never from generated field sections.",
+      "  2. A contribution's `contributionKey` must EQUAL its panel's own `SectionKey`: the container",
+      "     resolves inclusion by contributionKey but builds rail groups from the rendered panels'",
+      "     SectionKey, so a mismatch computes 'Primary' and then attaches it to nothing.",
+      "  3. A panel whose own SectionKey equals its `replacesSectionKey` HIDES ITSELF, because the",
+      "     replacement adds that key to HiddenSectionKeys.",
+      "",
+      "With those fixed the rail carries Overview (Details) + Dates + Renewal terms + Modifications +",
+      "Documents + Lineage + More, which is the mockup. Accordion was briefly set as a workaround and is",
+      "reverted — it was treating the symptom."
     ],
     "fields": {
       "BaseViewGenerated": false,
@@ -46,7 +66,7 @@
       "ID": "@lookup:MJ: Entities.Name=MJ_BizApps_Contracts: Contracts"
     },
     "sync": {
-      "lastModified": "2026-08-19T02:44:49.469Z",
+      "lastModified": "2026-08-19T15:53:55.578Z",
       "checksum": "3ffea54ff56a3ec14d4a08683d625fc7d9bede583fafab9da45c8e1bbdf19c3d"
     }
   },
@@ -75,7 +95,7 @@
       "ID": "@lookup:MJ: Entities.Name=MJ_BizApps_Contracts: Contract Templates"
     },
     "sync": {
-      "lastModified": "2026-08-19T02:44:49.491Z",
+      "lastModified": "2026-08-19T15:53:55.610Z",
       "checksum": "8d7d4e12e5a3ecc7f548bdb430c2216f9e423cc12cb1a64817fd9ea5d76a6943"
     }
   }

@@ -1,18 +1,37 @@
 /**
- * contracts-kit.css — the app's own component classes, on MJ's design tokens.
+ * contracts-kit.css — ported from design-docs/ui-design/mockups-v2/tokens.css.
  *
- * SHIPPED VIA THE SECTION SHELL, not imported by a host app. `ngc` only compiles what a component
- * references, so a stylesheet nothing references is built into dist and never loaded by a real
- * Explorer. The shell every section renders inside declares this file in `styleUrls` with
- * `ViewEncapsulation.None`, which is what carries it wherever the app is mounted.
+ * ⚠ SEMANTIC TOKENS ONLY. MJ's design-token rule is explicit: *"NEVER use primitive tokens
+ * (`--mj-color-neutral-*`, `--mj-color-brand-*`) in component CSS. Primitives don't adapt to dark
+ * mode."* An earlier version of this file used twelve of them, because the mockup did — and in a
+ * standalone mockup page that is harmless, since there is no dark mode to adapt to. Ported into a real
+ * component stylesheet it means every tinted surface, chip and clause box keeps its LIGHT colour when
+ * the app is themed dark. That is the theming break, and it is invisible until someone switches theme.
  *
- * EVERY COLOUR, SPACE AND RADIUS BELOW IS A TOKEN. No hex literals, no px spacing. The tokens come
- * from MJ (`packages/Angular/Generic/shared/src/lib/_tokens.scss`), so this app follows the platform's
- * theme — including dark mode — for free, and a token change lands here without an edit. A hardcoded
- * colour is how an app stops looking like MJ six months later.
+ * The mapping applied: neutral-50 → bg-surface-sunken, neutral-100 → border-subtle, neutral-300 →
+ * border-strong, success/error/warning-50 → status-*-bg, success/error-700 → status-*-text, brand-50 →
+ * status-info-bg, brand-100 → status-info-border, brand-700/900 → status-info-text. `#fff` on a brand
+ * fill → `--mj-brand-on-primary`.
  *
- * Kept deliberately small: MJ's own components do the chrome, the grids and the forms. What is here is
- * only what MJ has no component for.
+ * THE MOCKUPS ARE THE SPEC, and this file exists to keep them so. An earlier version of this kit was
+ * written from MEMORY of them, and it was wrong in a way that is invisible in source and obvious on
+ * screen: it used token names that do not exist. `--mj-font-size-sm`, `--mj-text-tertiary`,
+ * `--mj-color-warning-text`, `--mj-color-success-border` and four others are not MJ tokens (the real
+ * names are `--mj-text-sm`, `--mj-status-warning-text`, `--mj-status-success`, …). Every one of those
+ * resolved to NOTHING — so font sizes fell back to browser defaults and the state chips rendered with
+ * no colour at all. That is most of what "looks bad" was.
+ *
+ * So: class names and rules below are the mockup's, verbatim where possible, and **every token used
+ * here has been checked to exist in MJ's `_tokens.scss`.** If you add a rule, check the token first —
+ * a missing custom property fails silently, which is the worst failure mode CSS has.
+ *
+ * SHIPPED VIA THE SECTION SHELL (`styleUrls` + `ViewEncapsulation.None`). `ngc` only compiles what a
+ * component references, so a stylesheet nothing references is built into dist and never loaded.
+ * `None` is required, not lazy: these classes are used by DESCENDANT components.
+ *
+ * Prefix note: the mockup used bare class names (`.panel`, `.chip`) because it was a standalone page.
+ * Here everything is `mjc-` prefixed — bare `.panel` inside a real Explorer would collide with MJ's own
+ * chrome, and `ViewEncapsulation.None` means these rules are global.
  */
 
 /* ── Page frame ─────────────────────────────────────────────────────────────── */
@@ -24,185 +43,287 @@
   padding: var(--mj-space-5);
 }
 
+/* A grid page needs a DEFINITE height: mj-explorer-entity-data-grid is height:100% outside a related
+   panel, and 100% of an auto-height parent is zero — the grid renders no rows while its toolbar still
+   reports the count. MJ's own source documents that symptom. `min-height: 0` on the fill slot is
+   mandatory: a flex child defaults to min-height:auto and refuses to shrink, so without it the grid
+   pushes the page taller instead of scrolling inside itself. */
+.mjc-page--grid { height: 100%; min-height: 0; }
+.mjc-grid-fill { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
+
+/* Intro prose. Constrained measure — text stops being readable much past this — and it is a real
+   block with real spacing, not a bare text node floating between cards. */
 .mjc-page__intro {
   color: var(--mj-text-secondary);
-  font-size: var(--mj-font-size-sm);
+  font-size: var(--mj-text-sm);
+  line-height: 1.55;
   margin: 0;
-  max-width: 78ch; /* Prose stops being readable past roughly this width. */
+  max-width: 78ch;
 }
 
-/* A page whose main content is a GRID must be full-height, and this is not cosmetic.
-   `mj-explorer-entity-data-grid` renders at `height: 100%` outside a related-entity panel, so its
-   parent needs a DEFINITE height — otherwise 100% of an auto-height parent resolves to zero and AG
-   Grid's viewport collapses while the toolbar still reports "N rows". MJ's own source documents that
-   exact symptom. Measured here: the list said "7 rows" above a completely empty table.
+/* ── Panel body helpers ─────────────────────────────────────────────────────
+   Our panels are real `<mj-collapsible-panel>`s, so MJ paints the frame, the header and the spacing.
+   These classes style only what goes INSIDE one. */
 
-   The shell wraps every page in `mj-page-body-interior`, which is a flex item in a fixed-height
-   column, so ITS height is definite — which is what makes `height: 100%` here resolve to something
-   real. `min-height: 0` on the fill slot is mandatory, not defensive: a flex child defaults to
-   `min-height: auto` and refuses to shrink below its content, so without it the grid pushes the page
-   taller instead of scrolling inside itself. */
+.mjc-body { padding: var(--mj-space-4); }
+.mjc-body--flush { padding: 0; }            /* a table fills the panel edge to edge */
+.mjc-body > * + * { margin-top: var(--mj-space-3); }   /* nothing ever touches its neighbour */
 
-.mjc-page--grid {
-  height: 100%;
-  min-height: 0;
+.mjc-note {
+  margin: 0;
+  color: var(--mj-text-muted);
+  font-size: var(--mj-text-xs);
+  line-height: 1.55;
 }
 
-.mjc-grid-fill {
-  flex: 1 1 auto;
-  min-height: 0;
+/* A note under a flush table needs its own padding and a rule above it, or it reads as a table row. */
+.mjc-note--footer {
+  padding: var(--mj-space-3) var(--mj-space-4);
+  border-top: 1px solid var(--mj-border-subtle);
+}
+
+/* ── Hero (mockup 1) ───────────────────────────────────────────────────────── */
+
+.mjc-hero {
   display: flex;
   flex-direction: column;
-}
-
-/* ── Cards ──────────────────────────────────────────────────────────────────── */
-
-.mjc-card {
+  gap: var(--mj-space-4);
+  padding: var(--mj-space-4) var(--mj-space-5);
   background: var(--mj-bg-surface-card);
-  border: 1px solid var(--mj-border-subtle);
+  border: 1px solid var(--mj-border-default);
   border-radius: var(--mj-radius-lg);
-  padding: var(--mj-space-4);
+  box-shadow: var(--mj-shadow-sm);
 }
 
-.mjc-card__title {
-  font-size: var(--mj-font-size-sm);
-  font-weight: 600;
+.mjc-hero__identity { display: flex; align-items: center; gap: var(--mj-space-4); min-width: 0; }
+
+.mjc-hero__avatar {
+  flex: none;
+  width: 52px; height: 52px;
+  border-radius: var(--mj-radius-md);
+  display: flex; align-items: center; justify-content: center;
+  background: color-mix(in srgb, var(--mj-brand-primary) 18%, var(--mj-bg-surface));
+  color: var(--mj-brand-primary);
+  font-size: var(--mj-text-xl, 1.375rem);
+}
+
+.mjc-hero__copy { min-width: 0; flex: 1; }
+
+.mjc-hero__title-row {
+  display: flex; align-items: center; flex-wrap: wrap;
+  gap: var(--mj-space-2) var(--mj-space-3);
+}
+
+.mjc-hero__title {
+  margin: 0;
+  font-size: var(--mj-text-lg);
+  font-weight: 700;
+  line-height: 1.25;
+  /* Long contract descriptions must not push the chips off the card. */
+  overflow-wrap: anywhere;
+}
+
+.mjc-hero__meta {
+  display: flex; flex-wrap: wrap;
+  gap: var(--mj-space-3);
+  color: var(--mj-text-secondary);
+  font-size: var(--mj-text-sm);
+  margin-top: var(--mj-space-2);
+}
+
+/* auto-fit so five stats sit in a row on a wide screen and reflow on a laptop, rather than
+   overflowing the card — which is what a fixed five-column grid did. */
+.mjc-hero__stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(8.5rem, 1fr));
+  gap: var(--mj-space-3);
+}
+
+.mjc-stat {
+  background: var(--mj-bg-surface);
+  border: 1px solid var(--mj-border-default);
+  border-radius: var(--mj-radius-md);
+  padding: var(--mj-space-3);
+  min-width: 0;
+}
+.mjc-stat__label {
+  display: block; font-size: var(--mj-text-xs);
+  text-transform: uppercase; letter-spacing: .04em;
+  color: var(--mj-text-muted);
+}
+.mjc-stat__value {
+  display: block; font-size: var(--mj-text-base); font-weight: 700; margin-top: 2px;
+  overflow-wrap: anywhere;
+}
+.mjc-stat__sub { display: block; font-size: var(--mj-text-xs); color: var(--mj-text-muted); }
+
+/* ── Chips ─────────────────────────────────────────────────────────────────── */
+
+.mjc-chip {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: var(--mj-text-xs); font-weight: 600;
+  padding: 2px 9px; border-radius: 999px;
+  border: 1px solid transparent; white-space: nowrap;
+}
+.mjc-chip--ok    { background: var(--mj-status-success-bg); color: var(--mj-status-success-text); border-color: var(--mj-status-success); }
+.mjc-chip--warn  { background: var(--mj-status-warning-bg); color: var(--mj-status-warning-text); border-color: var(--mj-status-warning); }
+.mjc-chip--error { background: var(--mj-status-error-bg);   color: var(--mj-status-error-text);   border-color: var(--mj-status-error); }
+.mjc-chip--info  { background: var(--mj-status-info-bg);   color: var(--mj-status-info-text);   border-color: var(--mj-status-info-border); }
+.mjc-chip--muted { background: var(--mj-border-subtle); color: var(--mj-text-secondary);   border-color: var(--mj-border-default); }
+
+/* ── Buttons ───────────────────────────────────────────────────────────────── */
+
+.mjc-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: var(--mj-text-sm); font-weight: 600;
+  padding: 6px 12px;
+  border-radius: var(--mj-radius-sm);
+  border: 1px solid var(--mj-border-default);
+  background: var(--mj-bg-surface);
   color: var(--mj-text-primary);
-  margin: 0 0 var(--mj-space-3);
+  cursor: pointer;
+}
+.mjc-btn:disabled { opacity: .5; cursor: default; }
+.mjc-btn--primary { background: var(--mj-brand-primary); border-color: var(--mj-brand-primary); color: var(--mj-brand-on-primary); }
+.mjc-btn--flat    { background: transparent; border-color: transparent; color: var(--mj-brand-primary); }
+.mjc-btn--sm      { padding: 3px 9px; font-size: var(--mj-text-xs); }
+.mjc-btn--danger  { color: var(--mj-status-error-text); border-color: transparent; background: transparent; }
+
+/* ── Field grid ────────────────────────────────────────────────────────────── */
+
+.mjc-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+  gap: var(--mj-space-3) var(--mj-space-4);
+}
+.mjc-field > label {
+  display: block; font-size: var(--mj-text-xs); color: var(--mj-text-muted);
+  text-transform: uppercase; letter-spacing: .04em; margin-bottom: 3px;
+}
+.mjc-field .mjc-val {
+  padding: 6px 9px;
+  border: 1px solid var(--mj-border-default);
+  border-radius: var(--mj-radius-sm);
+  background: var(--mj-bg-surface);
+  min-height: 31px;
+  overflow-wrap: anywhere;
+}
+.mjc-field .mjc-val--ro { background: var(--mj-bg-surface-sunken); color: var(--mj-text-secondary); }
+.mjc-hint { color: var(--mj-text-muted); font-size: var(--mj-text-xs); margin-top: 3px; }
+
+/* ── Tables ────────────────────────────────────────────────────────────────
+   The mockup renders modifications, documents and lineage as TABLES, not stacked cards. With three
+   or more rows a table is scannable and a stack is a wall. */
+
+table.mjc-grid { width: 100%; border-collapse: collapse; }
+table.mjc-grid th {
+  text-align: left; font-size: var(--mj-text-xs);
+  text-transform: uppercase; letter-spacing: .04em;
+  color: var(--mj-text-muted); font-weight: 700;
+  padding: var(--mj-space-2) var(--mj-space-3);
+  border-bottom: 1.5px solid var(--mj-border-default);
+}
+table.mjc-grid td {
+  padding: var(--mj-space-3);
+  border-bottom: 1px solid var(--mj-border-subtle);
+  vertical-align: top;
+}
+table.mjc-grid tr:last-child td { border-bottom: 0; }
+table.mjc-grid tbody tr:hover td { background: var(--mj-bg-surface-sunken); }
+.mjc-row--click { cursor: pointer; }
+
+.mjc-muted { color: var(--mj-text-muted); }
+.mjc-mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: var(--mj-text-xs); }
+
+/* ── The clause pair (mockups 1 and 2) ─────────────────────────────────────
+   The standard clause and what this contract says instead, read side by side. This is the app's
+   central idea rendered, so it gets real styling rather than two paragraphs. */
+
+.mjc-pair {
+  display: grid; grid-template-columns: 1fr; gap: var(--mj-space-3);
+  margin-top: var(--mj-space-2);
+}
+/* Side by side only when there is room — two 40ch columns on a laptop is worse than one readable one. */
+@media (min-width: 1100px) { .mjc-pair { grid-template-columns: 1fr 1fr; } }
+
+.mjc-pair__tag {
+  display: block; font-size: var(--mj-text-xs); font-weight: 700;
+  text-transform: uppercase; letter-spacing: .04em;
+  color: var(--mj-text-muted); margin-bottom: 3px;
+}
+.mjc-pair__tag--mod { color: var(--mj-status-warning-text); }
+
+.mjc-clause {
+  font-size: var(--mj-text-xs);
+  color: var(--mj-text-secondary);
+  background: var(--mj-bg-surface-sunken);
+  border-left: 2px solid var(--mj-border-strong);
+  padding: var(--mj-space-2) var(--mj-space-3);
+  border-radius: 0 var(--mj-radius-sm) var(--mj-radius-sm) 0;
+  margin: 0;
+  /* Clause text carries its own line breaks, and 9.1 is a single 1,100-character sentence in caps —
+     both must wrap inside the box rather than escaping it. */
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.mjc-clause--mod {
+  border-left-color: var(--mj-status-warning);
+  background: var(--mj-status-warning-bg);
+  color: var(--mj-text-primary);
 }
 
-/* ── Filter pills ───────────────────────────────────────────────────────────
-   The watchlist's four defaults (D-21). Pills rather than a saved-view system:
-   users drive filters in-session, and persisting custom watchlists is phase 2 or
-   never. Deliberately NOT a bespoke control — a pill is a button that reads as
-   selected, which is all the affordance this needs. */
-
-.mjc-pills {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--mj-space-2);
+.mjc-toggle {
+  font-size: var(--mj-text-xs); color: var(--mj-brand-primary);
+  font-weight: 600; margin-top: 4px; background: none; border: 0; padding: 0; cursor: pointer;
 }
+
+/* ── Callout ───────────────────────────────────────────────────────────────── */
+
+.mjc-flag {
+  background: var(--mj-status-warning-bg);
+  border-left: 3px solid var(--mj-status-warning);
+  padding: var(--mj-space-2) var(--mj-space-3);
+  font-size: var(--mj-text-xs);
+  color: var(--mj-status-warning-text);
+  border-radius: 0 var(--mj-radius-sm) var(--mj-radius-sm) 0;
+  line-height: 1.55;
+}
+
+/* ── Filter pills (watchlist) ──────────────────────────────────────────────── */
+
+.mjc-pills { display: flex; flex-wrap: wrap; gap: var(--mj-space-2); align-items: center; }
 
 .mjc-pill {
-  appearance: none;
-  cursor: pointer;
+  appearance: none; cursor: pointer;
   border: 1px solid var(--mj-border-default);
   background: var(--mj-bg-surface);
   color: var(--mj-text-secondary);
-  border-radius: var(--mj-radius-full, 999px);
-  padding: var(--mj-space-1) var(--mj-space-3);
-  font-size: var(--mj-font-size-sm);
+  border-radius: 999px;
+  padding: 3px var(--mj-space-3);
+  font-size: var(--mj-text-sm);
   line-height: 1.6;
-  display: inline-flex;
-  align-items: center;
-  gap: var(--mj-space-2);
+  display: inline-flex; align-items: center; gap: var(--mj-space-2);
 }
-
 .mjc-pill:hover { border-color: var(--mj-brand-primary); color: var(--mj-text-primary); }
-
+.mjc-pill:disabled { opacity: .5; cursor: default; }
 .mjc-pill--active {
-  background: var(--mj-brand-primary);
+  background: var(--mj-status-info-bg);
   border-color: var(--mj-brand-primary);
-  color: #fff; /* On the brand fill specifically — the token set has no on-primary colour. */
+  color: var(--mj-status-info-text);
+  font-weight: 700;
 }
+.mjc-pill__count { font-variant-numeric: tabular-nums; opacity: .85; font-size: var(--mj-text-xs); }
 
-.mjc-pill__count {
-  font-variant-numeric: tabular-nums; /* So counts do not jitter as they change. */
-  opacity: 0.8;
-  font-size: var(--mj-font-size-xs);
-}
-
-/* ── State chip ─────────────────────────────────────────────────────────────
-   The six derived states (ERD §4.5). Colour carries MEANING here, so it is worth
-   the six rules: Executed and Active are both fine but different (a wait vs in
-   force), and Terminated and Superseded are both endings but not the same ending.
-   Falls back to neutral for an unknown value rather than rendering unstyled — a
-   seventh state should look plain, not broken. */
-
-.mjc-state {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--mj-space-1);
-  border-radius: var(--mj-radius-sm);
-  padding: 0 var(--mj-space-2);
-  font-size: var(--mj-font-size-xs);
-  font-weight: 600;
-  line-height: 1.8;
-  border: 1px solid var(--mj-border-subtle);
-  background: var(--mj-bg-surface-sunken, var(--mj-bg-surface));
-  color: var(--mj-text-secondary);
-  white-space: nowrap;
-}
-
-.mjc-state--active     { border-color: var(--mj-color-success-border, var(--mj-border-default)); color: var(--mj-color-success-text, var(--mj-text-primary)); }
-.mjc-state--executed   { border-color: var(--mj-brand-primary); color: var(--mj-brand-primary); }
-.mjc-state--draft      { border-style: dashed; }
-.mjc-state--expired    { color: var(--mj-text-tertiary, var(--mj-text-secondary)); }
-.mjc-state--terminated { border-color: var(--mj-color-danger-border, var(--mj-border-default)); color: var(--mj-color-danger-text, var(--mj-text-primary)); }
-.mjc-state--superseded { text-decoration: line-through; }
-
-/* ── Warning flag ───────────────────────────────────────────────────────────
-   HasModifications and IsAwaitingDocument. Both mean "a person must look at
-   something", which is a different thing from a lifecycle state, so it reads
-   differently rather than being a seventh chip colour. */
-
-.mjc-flag {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--mj-space-1);
-  font-size: var(--mj-font-size-xs);
-  color: var(--mj-color-warning-text, var(--mj-text-secondary));
-}
-
-/* ── Provision / modification text ──────────────────────────────────────────
-   Contract language read side by side: the standard clause and what this contract
-   says instead (D-16). Monospace would be wrong — this is prose, not code — but it
-   needs a tighter measure and a visible left edge so a reader can tell where a
-   quoted clause starts and stops. */
-
-.mjc-clause {
-  border-left: 3px solid var(--mj-border-default);
-  padding: var(--mj-space-1) 0 var(--mj-space-1) var(--mj-space-3);
-  margin: 0;
-  color: var(--mj-text-secondary);
-  font-size: var(--mj-font-size-sm);
-  white-space: pre-wrap; /* Clause text carries its own line breaks; preserve them. */
-  max-width: 80ch;
-}
-
-.mjc-clause--modified {
-  border-left-color: var(--mj-brand-primary);
-  color: var(--mj-text-primary);
-}
-
-.mjc-clause__label {
-  display: block;
-  font-size: var(--mj-font-size-xs);
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--mj-text-tertiary, var(--mj-text-secondary));
-  margin-bottom: var(--mj-space-1);
-}
-
-/* Side by side on wide screens, stacked on narrow — the comparison is the point, but
-   two 40ch columns on a laptop is worse than one readable column. */
-.mjc-clause-pair {
-  display: grid;
-  gap: var(--mj-space-4);
-  grid-template-columns: 1fr;
-}
-
-@media (min-width: 1100px) {
-  .mjc-clause-pair { grid-template-columns: 1fr 1fr; }
-}
-
-/* ── Empty state ────────────────────────────────────────────────────────────
-   A sentence, never a blank pane. A blank content area reads as a broken app. */
+/* ── Empty state ───────────────────────────────────────────────────────────
+   A sentence in a bordered box, never a bare line of text in whitespace. */
 
 .mjc-empty {
-  color: var(--mj-text-secondary);
-  font-size: var(--mj-font-size-sm);
-  padding: var(--mj-space-6) var(--mj-space-4);
+  display: flex; align-items: center; gap: var(--mj-space-2); justify-content: center;
+  padding: var(--mj-space-6);
+  color: var(--mj-text-muted);
+  font-size: var(--mj-text-sm);
+  background: var(--mj-bg-surface-sunken);
+  border: 1px dashed var(--mj-border-strong);
+  border-radius: var(--mj-radius-md);
   text-align: center;
 }

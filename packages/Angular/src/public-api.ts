@@ -64,6 +64,7 @@ export * from './lib/data/entity-names';
  * ========================================================================== */
 import { ContractFilesPanel, ContractTemplateFilesPanel } from './lib/form-panels/record-files.panel';
 import {
+    MJCContractDatesPanel,
     MJCContractHeroPanel,
     MJCContractLineagePanel,
     MJCContractModificationsPanel,
@@ -76,6 +77,7 @@ import { MJCModificationFormComponent } from './lib/custom/modification.form.com
 export { RecordFilesPanelBase, ContractFilesPanel, ContractTemplateFilesPanel } from './lib/form-panels/record-files.panel';
 export {
     MJCContractHeroPanel,
+    MJCContractDatesPanel,
     MJCContractRenewalPanel,
     MJCContractModificationsPanel,
     MJCContractLineagePanel,
@@ -119,6 +121,7 @@ export function LoadMjBizappsContractsClient(): void {
     void ContractFilesPanel;
     void ContractTemplateFilesPanel;
     void MJCContractHeroPanel;
+    void MJCContractDatesPanel;
     void MJCContractRenewalPanel;
     void MJCContractModificationsPanel;
     void MJCContractLineagePanel;

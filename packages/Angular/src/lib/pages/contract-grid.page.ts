@@ -69,6 +69,27 @@ export abstract class MJCContractGridPageBase implements OnInit {
     /** Free-text restriction the user typed, ANDed with the pill. */
     public SearchText = '';
 
+    /**
+     * MJ's grid ALREADY has a filter toggle and a column chooser — `showFilterToggle` and
+     * `showColumnChooser` on `GridToolbarConfig`. We were passing no `ToolbarConfig` at all and got the
+     * default, which omits both; the pages then looked like they had no way to filter beyond the pills.
+     *
+     * Using the stock affordance rather than building a bespoke filter dropdown beside it: AG Grid's
+     * per-column filters carry the whole operator set (equals / contains / greater-than / in / is-null),
+     * which covers filtering by date, category and the derived State without us writing a filter UI at
+     * all. The pills stay because they encode the QUESTIONS finance asks — "notice window passed" is not
+     * something a user would assemble from column filters — and the filter button covers everything else.
+     */
+    public readonly GridToolbar = {
+        showSearch: true,
+        showFilterToggle: true,
+        showColumnChooser: true,
+        showRefresh: true,
+        showExport: true,
+        showRowCount: true,
+    };
+
+
 
     /**
      * Open the double-clicked record.
@@ -227,6 +248,7 @@ const GRID_TEMPLATE = `
             <mj-explorer-entity-data-grid
                 [Params]="Params"
                 [ShowToolbar]="true"
+                [ToolbarConfig]="GridToolbar"
                 [NavigateOnDoubleClick]="true"
                 (Navigate)="OnNavigate($event)" />
         </div>

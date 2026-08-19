@@ -332,3 +332,115 @@ working, not the data rotting.
    section renders) before suspecting registration.
 3. `mjdev app register` DESTROYS the app worktree on failure (MJDev#29). **Commit before any mjdev app
    command.**
+
+---
+
+# UI SESSION (2026-08-19) — read this before touching any form or stylesheet
+
+Marcelo reviewed the running app and rejected most of the UI. Everything below is either a fix that
+landed or a fact that cost real time to establish.
+
+## 16. MJ form chrome — the three rules that made the rail work
+
+The rail DOES support many named sections; my implementation was wrong three ways at once. All of this
+is in `mj/guides/FORMS_ARCHITECTURE_GUIDE.md` §7d and `base-forms/PANELS.md` — **read them in full, do
+not grep them.** Grepping is how I missed this for hours.
+
+1. **Field panels collapse into one `Details` rail item BY DESIGN.** Named rail entries come only from
+   Primary **contributions** and Primary **related grids** — never from generated field sections. The
+   generated Contract form declares nine perfectly good sections and left-nav shows none of them.
+2. **`contributionKey` MUST equal the panel's own `SectionKey`.** The container resolves inclusion by
+   `contributionKey` (`contributionRailKey`) but builds rail groups from the rendered panels'
+   `SectionKey` (`BuildDefaultChromeSpec` over `visiblePanels`). Mismatched, `Primary` is computed and
+   attaches to nothing, so the panel folds into Details.
+3. **A panel whose own `SectionKey` equals its `replacesSectionKey` HIDES ITSELF** — the replacement
+   adds that key to `HiddenSectionKeys`, which filters out the panel. This deleted the Dates and
+   Renewal sections from the form entirely.
+
+Also: a panel with **no** `contributionKey` and no `relatedEntity` returns null from
+`contributionRailKey()` and chrome skips it — it can never be a rail item however it is configured.
+That was Documents.
+
+**Band order is FIXED: lead contributions → Details → Primary related → More.** A Primary contribution
+is *always* a lead (`isLeadContribution` requires `inclusion === 'Primary'` and no `chromeGroup`), so
+there is no way to have a contribution keep a first-class rail item *and* sit after Details. To order
+Details ahead of something, that something must be `chromeGroup: 'more'` (or not Primary).
+
+`FormChromeGroup` is one rail ITEM (`{Key, Title, Icon, SectionKeys, IsMore, IsLead}`) — **there is no
+rail group-header concept.** The mockup's "Sections / Related / More" headings are not expressible;
+the grouping they imply falls out of the band order anyway.
+
+⚠ `Layout: 'accordion'` was set briefly as a workaround and REVERTED. It treats the symptom. D-17's
+`left-nav` stands.
+
+## 17. Design tokens — semantics only, and the trap
+
+MJ's rule (`mj/.claude/rules/design-tokens.md`): **"NEVER use primitive tokens
+(`--mj-color-neutral-*`, `--mj-color-brand-*`) in component CSS. Primitives don't adapt to dark
+mode."**
+
+`contracts-kit.css` had twelve, ported verbatim from the mockup's `tokens.css` — harmless in a
+standalone page, a full theming break in a component stylesheet. Fixed; the mapping is written in the
+file header. **Zero primitives and zero hex now remain in shipped source.**
+
+Two traps worth keeping:
+
+- **Hex fallbacks inside `var()` are worse than no fallback.** `var(--mj-text-muted, #64748b)` renders
+  the hex the moment the token name is wrong, silently pinning a light colour into a dark theme.
+  `record-files.panel.ts` had seven.
+- **A misnamed token fails SILENTLY.** An earlier kit used `--mj-font-size-sm`, `--mj-text-tertiary`,
+  `--mj-color-warning-text` and five others that do not exist — so every font size fell back to browser
+  default and the chips had no colour. **Check a token exists before using it:**
+  `grep -c -- "--<token>:" mj/packages/Angular/Generic/shared/src/lib/_tokens.scss`
+
+## 18. The grid has NO filter UI — I was wrong about this
+
+I told Marcelo the grid already had filtering via `ToolbarConfig.showFilterToggle`, having read it in
+`GridToolbarConfig`. **It is declared in the type and referenced nowhere else.** Verified in
+`mj/packages/Angular/Generic/entity-viewer/src`: the grid template has **zero** occurrences of
+"filter", and AG Grid column filtering is not enabled (no `floatingFilter`, no `filter: true`, no
+`filterParams`). `FilterText` is the search box, not a filter.
+
+So the pages currently pass `showFilterToggle: true` and it does nothing. Options: build the filter
+popover the mockup draws (`mockups-v2/renewal-watchlist.html` specifies ten named filters), or file it
+upstream. **Do not tell anyone the stock grid can filter.**
+
+## 19. Sibling apps are ALL wired now (they were not)
+
+Hand-wiring registration for contracts only meant no other app's forms existed in the bundle — the
+symptom was `No form is registered for "MJ_BizApps_Common: People"` and it would hit any cross-app
+click. All five apps (common, tasks, accounting, orders, contracts) are now in `dynamicPackages`
+(dependency-ordered) and in both host `package.json`s. Manifest went **19 classes / 2 packages → 170 /
+12**.
+
+⚠ **`bizapps-orders` had a stale exact pin**: `@mj-biz-apps/common-ng` and `common-entities` at
+`5.33.2` while the local sibling is `5.34.0`, so pnpm resolved a *published registry copy* predating
+two exports orders imports. Healed to `5.34.0` in orders' working tree — **UNCOMMITTED, and it is
+another repo.** Backup: `/tmp/orders-ng-pkg.bak`. This is what `app register --heal-pins` exists for.
+
+## 20. THE WRITE PATH IS PROVEN
+
+`CTR-000001` was created through the UI by Marcelo. The server minted the number
+(`ContractSequence.NextSequenceNumber` advanced 1 → 2) and `State` derived as `Executed`. That closes
+the last gap §15 listed as unproven.
+
+## 21. Still open (UI)
+
+- **Filter UI** — nothing exists; see §18.
+- **Modifications panel vs mockup 2** — the table + click-to-expand pair and the searchable picker with
+  the **modified text pre-filled from the standard clause** are written but NOT verified on screen.
+- **Overview lead panel** — written but NOT applied. It replaces `details` and would put Overview
+  first in the Contract rail (MJ's own comment says *"Overview is the usual case"* for a lead).
+- **Watchlist countdown columns** (mockup 3: "in 41 days" + progress bar, "overdue by 19 days").
+- **Stale generated-field noise** — `IncludeInGeneratedForm: false` pushed for 8 fields
+  (`RootParentContractID`, `RootSupersededByContractID`, and the six derived columns) but the Explorer
+  had not picked it up when last seen.
+- **Date fields render with a time** (`10/17/2026, 7:00:00 PM`) on `date` columns.
+- **Template rail** — set to Details → Provisions → More(Documents); needs an API restart to confirm.
+
+## 22. Restart discipline (costs 10 minutes each time it is forgotten)
+
+A metadata push does NOT reach the running app. `mjdev restart contracts-mj6 api`. If MJAPI dies with
+an opaque `[Object: null prototype] {}`, its prestart added dependencies to its own `package.json` —
+run `pnpm install` at the INSTANCE dir and restart again. Explorer caches entity metadata at load, so
+field-visibility changes need it restarted too.

@@ -59,30 +59,34 @@ interface LinkedFile {
 }
 
 const PANEL_STYLES = `
-            .reg { margin-top: 12px; }
-            .reg-title { font-size: 12px; font-weight: 600; margin-bottom: 6px; }
-            .reg-row { display: flex; gap: 8px; align-items: center; }
-            .reg-row input { flex: 1 1 22rem; }
-            .rows { display: flex; flex-direction: column; }
-            .row {
-                display: flex; align-items: center; gap: 10px; padding: 9px 2px; font-size: 13px;
-                border-bottom: 1px solid var(--mj-border-subtle, #f1f5f9);
+            /* SEMANTIC TOKENS ONLY — no hex, no bare px for colour/type/space.
+             *
+             * This panel came forward from v1 and its styles did not: it carried seven hex FALLBACKS
+             * inside var() (\`var(--mj-text-muted, #64748b)\`) and six hardcoded px font sizes. The
+             * fallbacks look harmless and are not — they are the value that renders the moment a token
+             * name is wrong, so a typo silently pins a light-mode colour into a dark theme instead of
+             * failing visibly. Every rule below now resolves through a token or a kit class. */
+            .mjc-file-row {
+                display: flex; align-items: center; gap: var(--mj-space-3);
+                padding: var(--mj-space-2) 0;
+                font-size: var(--mj-text-sm);
+                border-bottom: 1px solid var(--mj-border-subtle);
             }
-            .row:last-child { border-bottom: none; }
-            .row i.doc { color: var(--mj-status-error, #ef4444); }
-            .row .name { font-weight: 600; }
-            .row .meta { margin-left: auto; font-size: 11.5px; color: var(--mj-text-muted, #64748b); white-space: nowrap; }
-            .empty {
-                padding: 18px 2px; font-size: 12.5px; color: var(--mj-text-muted, #64748b);
+            .mjc-file-row:last-child { border-bottom: none; }
+            .mjc-file-row .mjc-file-icon { color: var(--mj-status-error); }
+            .mjc-file-row .mjc-file-name { font-weight: 600; overflow-wrap: anywhere; }
+            .mjc-file-row .mjc-file-meta {
+                margin-left: auto; font-size: var(--mj-text-xs);
+                color: var(--mj-text-muted); white-space: nowrap;
             }
-            .drop {
-                border: 1px dashed var(--mj-border-strong, #cbd5e1); border-radius: var(--mj-radius-md, 6px);
-                padding: 16px; text-align: center; color: var(--mj-text-muted, #64748b); font-size: 12.5px;
-                margin-top: 10px;
+            .mjc-reg { margin-top: var(--mj-space-3); }
+            .mjc-reg__title {
+                font-size: var(--mj-text-xs); font-weight: 600;
+                text-transform: uppercase; letter-spacing: .04em;
+                color: var(--mj-text-muted); margin-bottom: var(--mj-space-2);
             }
-            .note {
-                font-size: 11.5px; color: var(--mj-text-secondary, #475569); margin-top: 10px; line-height: 1.5;
-            }
+            .mjc-reg__row { display: flex; gap: var(--mj-space-2); align-items: center; flex-wrap: wrap; }
+            .mjc-reg__row input { flex: 1 1 22rem; }
 `;
 
 const PANEL_TEMPLATE = `
@@ -93,44 +97,45 @@ const PANEL_TEMPLATE = `
             [Form]="FormComponent"
             [FormContext]="FormContext"
         >
-            <div class="rows" *ngIf="Files.length">
-                <div class="row" *ngFor="let f of Files">
-                    <i class="fa-solid fa-file-lines doc"></i>
-                    <span class="name">{{ f.Name }}</span>
-                    <button type="button" class="mjc-pill" *ngIf="CanDownload && f.AccountID"
+          <div class="mjc-body">
+            <div *ngIf="Files.length">
+                <div class="mjc-file-row" *ngFor="let f of Files">
+                    <i class="fa-solid fa-file-lines mjc-file-icon" aria-hidden="true"></i>
+                    <span class="mjc-file-name">{{ f.Name }}</span>
+                    <button type="button" class="mjc-btn mjc-btn--flat mjc-btn--sm" *ngIf="CanDownload && f.AccountID"
                             (click)="Open(f)" [disabled]="Busy">Open</button>
-                    <span class="meta">
+                    <span class="mjc-file-meta">
                         <ng-container *ngIf="f.Status">{{ f.Status }} · </ng-container>
                         {{ f.CreatedAt ? (f.CreatedAt | date: 'mediumDate') : '' }}
                     </span>
                 </div>
             </div>
 
-            <div class="empty" *ngIf="!IsLoading && !Files.length">
+            <div class="mjc-empty" *ngIf="!IsLoading && !Files.length">
                 No documents attached to this record yet.
             </div>
-            <div class="empty" *ngIf="IsLoading">Loading documents…</div>
+            <div class="mjc-empty" *ngIf="IsLoading">Loading documents…</div>
 
-            <div class="reg" *ngIf="EditMode && CanDownload">
-                <div class="reg-title">Attach the executed document</div>
+            <div class="mjc-reg" *ngIf="EditMode && CanDownload">
+                <div class="mjc-reg__title">Attach the executed document</div>
 
-                <div class="reg-row">
+                <div class="mjc-reg__row">
                     <input type="text" [(ngModel)]="RegisterPath" [disabled]="Busy"
                            placeholder="Path in storage, e.g. Contracts/2026/CTR-000004.pdf"
                            aria-label="Path of an existing document in storage" />
-                    <button type="button" class="mjc-pill" (click)="RegisterExisting()"
+                    <button type="button" class="mjc-btn mjc-btn--flat mjc-btn--sm" (click)="RegisterExisting()"
                             [disabled]="Busy || !RegisterPath.trim() || !DefaultAccountID">
                         Register existing
                     </button>
                 </div>
 
-                <p class="note" *ngIf="!DefaultAccountID">
+                <p class="mjc-note" *ngIf="!DefaultAccountID">
                     No storage account is configured on this MJ instance, so there is nowhere to register a
                     document to. Configure a <code>MJ: File Storage Account</code> first — for SharePoint that
                     also needs an Azure AD app registration, which is an IT task.
                 </p>
 
-                <p class="note" *ngIf="DefaultAccountID">
+                <p class="mjc-note" *ngIf="DefaultAccountID">
                     <strong>Register</strong> points at a document that is ALREADY in storage — it creates the
                     record and the link, and moves no bytes. That is the real flow here: executed PDFs arrive in
                     SharePoint by a route MJ knows nothing about (PandaDoc &rarr; HubSpot &rarr; SharePoint), so
@@ -138,11 +143,11 @@ const PANEL_TEMPLATE = `
                 </p>
             </div>
 
-            <div class="note" *ngIf="ActionError">
+            <div class="mjc-note" *ngIf="ActionError">
                 <strong>Nothing was attached.</strong> {{ ActionError }}
             </div>
 
-            <p class="note" *ngIf="SigningProviderURL">
+            <p class="mjc-note" *ngIf="SigningProviderURL">
                 <a [href]="SigningProviderURL" target="_blank" rel="noopener noreferrer">
                     Open in the signing provider
                 </a>
@@ -150,17 +155,18 @@ const PANEL_TEMPLATE = `
                 still resolves when SharePoint is misconfigured or the document was never filed.
             </p>
 
-            <p class="note" *ngIf="!CanDownload && Files.length">
+            <p class="mjc-note" *ngIf="!CanDownload && Files.length">
                 {{ Files.length }} document(s) are attached to this record. Opening them — and seeing their
                 names — needs document permission, which is granted to finance, legal and sales leadership.
             </p>
 
-            <p class="note">
+            <p class="mjc-note">
                 Documents attach through MJ's polymorphic <code>__mj.FileEntityRecordLink</code>
                 (<code>EntityID</code> + <code>RecordID</code>) rather than a column on this schema — so one record
                 can carry the signed PDF, its exhibits and a countersigned amendment, and no future table needs a
                 new column to acquire paper.
             </p>
+          </div>
         </mj-collapsible-panel>
     `;
 
@@ -497,7 +503,17 @@ export class RecordFilesPanelBase extends BaseFormPanel implements OnInit {
 @RegisterClassEx(BaseFormPanel, {
     key: 'contracts:record-files:contract',
     skipNullKeyWarning: true,
-    metadata: { entity: 'MJ_BizApps_Contracts: Contracts', slot: 'after-fields', sortKey: 60 },
+    metadata: {
+        entity: 'MJ_BizApps_Contracts: Contracts',
+        slot: 'after-fields',
+        sortKey: 60,
+        // contributionKey MUST equal this panel's SectionKey — the container resolves chrome by the
+        // former and builds rail groups from the latter. Without a contributionKey at all,
+        // `contributionRailKey()` returns null for a panel with no `relatedEntity` and chrome skips it,
+        // so Documents could never be a rail item however it was configured.
+        contributionKey: 'recordFiles',
+        inclusion: 'Primary',
+    },
 })
 @Component({
     standalone: true,
@@ -511,7 +527,24 @@ export class ContractFilesPanel extends RecordFilesPanelBase {}
 @RegisterClassEx(BaseFormPanel, {
     key: 'contracts:record-files:template',
     skipNullKeyWarning: true,
-    metadata: { entity: 'MJ_BizApps_Contracts: Contract Templates', slot: 'after-fields', sortKey: 60 },
+    metadata: {
+        entity: 'MJ_BizApps_Contracts: Contract Templates',
+        slot: 'after-fields',
+        sortKey: 60,
+        contributionKey: 'recordFiles',
+        // NOT 'Primary' here, unlike on the Contract form — ruled 2026-08-19: the template rail must
+        // read Details, then Provisions.
+        //
+        // MJ's rail band order is fixed: lead contributions → Details → Primary related → More. And a
+        // Primary contribution is ALWAYS a lead (`isLeadContribution` requires inclusion === 'Primary'
+        // with no chromeGroup), so there is no configuration where Documents keeps a first-class rail
+        // item and still sits after Details — Primary here put Documents FIRST.
+        //
+        // 'more' is the honest resolution rather than a compromise: it stays reachable under the More
+        // folder, and a template version's source PDF genuinely is secondary to its clause list. The
+        // Contract form keeps Documents Primary, where paper is the point.
+        chromeGroup: 'more',
+    },
 })
 @Component({
     standalone: true,
