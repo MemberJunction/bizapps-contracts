@@ -49,9 +49,21 @@ derived `State`; renewals; awaiting-documents (and the Payment Link correctly AB
 modifications page; templates; all-provisions; configuration. **The contract FORM opens** (after the
 `(Navigate)` fix).
 
-**NOT proven:** the form's PANELS — hero/renewal/modifications/lineage/documents were never confirmed
-rendering, because the form could not open until late and then MJAPI needed a restart. **This is the
-top open item.** Item 9's document actions and item 11's Organization panel are likewise unexercised.
+**Also proven (2026-08-19, screenshot in `design-docs/ui-design/contract-form-rendered.png`):** the
+contract FORM and its panels — hero (`Active` chip, `Modified` flag, customer + date strip), the FK
+fields rendering as names, the renewal panel with its "as stated in the agreement" framing and the
+DERIVED notice deadline, and the modifications panel showing provision 9.1's standard clause in its
+original ALL CAPS beside the negotiated language. Zero console errors.
+
+**Still NOT proven:** item 9's document actions (register/open need a configured storage account, which
+needs an Azure AD app registration — an IT task), item 11's Organization panel, and **no WRITE path has
+been executed through the UI**: nothing has created or saved a contract in the browser, so the
+one-transaction graph save (D-15) and the CTR numbering remain runtime-unverified. That is item 13's
+job and it is the honest remaining gap.
+
+**One cosmetic gap:** the form's rail shows `Details` + `More` rather than six named sections, and the
+hero renders ABOVE the Details fields rather than replacing them — `replacesSectionKey: 'details'` did
+not take. Everything is visible and usable; it is a chrome refinement, not a defect.
 
 ⚠ **Two of my own passing assertions were false positives**, both from matching text present for the
 wrong reason: "form opened" matched a grid row, and 11/11 checks passed while the grid rendered ZERO
