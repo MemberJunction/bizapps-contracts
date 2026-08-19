@@ -68,7 +68,17 @@ expensive to reverse.
   exists** (plan item 4 calls this a prerequisite, not a nicety). Item 7's registry UI is how the list
   gets entered if no machine-readable source exists — a person can type it once.
 - **Reviewer:** Marcelo (or Amith / Joanna for the document itself) · **Raised:** 2026-08-18 ·
-  **Status:** OPEN — proceeding on structure, content deferred
+  **Status:** ANSWERED 2026-08-18 — seeded and verified
+- **Answer:** `https://bluecypress.io/masteragreement20260202/` (Marcelo). Captured: 16 sections,
+  **71 numbered provisions**, all with verbatim `ProvisionText`, seeded and pushed clean.
+- **The one thing worth carrying forward from this.** I first pulled the document through a
+  summarising fetch, and it silently rewrote the text: 9.1's limitation of liability came back in
+  sentence case instead of the original ALL CAPS, and 1.1's *"shall mean the particular company"*
+  became *"means the company"*. Both read as faithful. Capitalisation in a liability clause can carry
+  legal weight, and `ProvisionText` exists precisely so finance reads the standard clause beside the
+  negotiated one — so a paraphrase there is worse than an empty column, because it looks
+  authoritative. **Any recapture must parse the page source, not a summary of it.** The integrity
+  check to re-run is in `.contract-provisions.json`'s comment block.
 
 
 ## Answered

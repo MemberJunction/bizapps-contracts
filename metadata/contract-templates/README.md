@@ -1,22 +1,30 @@
 # `contract-templates/` and `contract-provisions/` — the agreement versions and their clauses
 
-**These folders are wired and deliberately EMPTY of records.** Plan item 4 is the seed of the current
-Master Agreement's provision list, and it is the one seed in this app that cannot be derived from the
-plan, the transcript or the rulings: it is the **actual wording of a document the business signs**.
-Committing plausible-looking clause text would install it into a real database and put it on screen
-beside a customer's negotiated language, with nothing downstream marking it synthetic. That failure is
-silent and its blast radius is legal, so the content is deferred rather than guessed —
-`plans/QUESTIONS.md` **Q-5** asks for the document.
+**Seeded: the Master Agreement dated 2026-02-02 — 16 sections, 71 numbered provisions, every one with
+its verbatim text.** Captured from `https://bluecypress.io/masteragreement20260202/` on 2026-08-18.
+This is plan item 4, and it is a prerequisite rather than a nicety:
+`ContractTemplateProvisionID` is mandatory on a modification, so finance could not record a single
+modification until this list existed.
 
-Nothing structural is blocked by the gap. The schema, the `Provisions` collection, the registry UI
-(item 7) and the modification editor (item 8) are all built and testable against provisions created
-through the UI. What IS blocked is real use: `ContractTemplateProvisionID` is mandatory on a
-modification, so **finance cannot record a modification until the real list exists.**
+## ⚠ If you ever recapture this, parse the SOURCE — never a summary
 
-## Dropping in the real list
+The clause text is the actual wording of a document the business signs, and a summarising pass over it
+is not a smaller version of the truth, it is a different document that looks authoritative. Measured,
+on this exact page: a summarised fetch returned 9.1's limitation of liability in **sentence case
+instead of the original ALL CAPS**, and turned 1.1's *"shall mean the particular company"* into
+*"means the company"*. Capitalisation in a liability clause can carry legal weight, and
+`ProvisionText` exists so finance reads the standard clause **beside** the negotiated one (D-16) — so
+a paraphrase there is worse than a null, because nothing downstream marks it synthetic.
 
-Two files. `directoryOrder` in `metadata/.mj-sync.json` already sequences them: template types →
-templates → provisions.
+The capture that shipped parses the page's HTML, joins inline tags so links inside a clause survive
+(1.1 contains a URL), splits only on block elements, and then integrity-checks the result.
+
+## Adding the NEXT version
+
+Two files, same shape as what is here. `directoryOrder` in `metadata/.mj-sync.json` sequences them:
+template types → templates → provisions. A new agreement is a **new template row**, never an edit to
+this one — signed contracts reference this version, and rewriting it would silently change what they
+say they incorporate.
 
 **`.contract-templates.json`** — one record per MA VERSION, ever. A version is never edited in place;
 a new agreement means a new row, and the old one stays because signed contracts still reference it.
