@@ -22,7 +22,9 @@
     "commitpush": "node ci/commit_push.mjs",
     "mergemain": "node ci/merge_main.mjs",
     "mergemain:update-lock": "node ci/merge_main_and_update_lock.mjs",
-    "test:unit": "vitest run"
+    "test:unit": "vitest run",
+    "test:state": "node test-harnesses/state-equivalence.mjs",
+    "test:integration": "node test-harnesses/integration.mjs"
   },
   "repository": {
     "type": "git",
@@ -52,7 +54,12 @@
     "@memberjunction/server": "^6.1.0-edge.2",
     "@memberjunction/sqlserver-dataprovider": "^6.1.0-edge.2",
     "@memberjunction/testing-integration": "^6.1.0-edge.2",
+    "@mj-biz-apps/contracts-core-entities-server": "workspace:*",
+    "@mj-biz-apps/contracts-entities": "workspace:*",
+    "@mj-biz-apps/contracts-integration-tests": "workspace:*",
     "@types/node": "^22.10.0",
+    "dotenv": "^17.2.4",
+    "mssql": "^11.0.1",
     "simple-git": "^3.31.1",
     "tsc-alias": "^1.8.16",
     "turbo": "^2.7.3",

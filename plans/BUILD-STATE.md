@@ -556,3 +556,37 @@ the measured truth. `modifications.page.ts` also declared `GridToolbar` and neve
 in this parent-workspace topology; pre-existing, unrelated to this work. `pnpm -r run test` is now
 green (the Angular package's `vitest run` had no specs and exited 1; it is `--passWithNoTests` so the
 runner stays wired for when specs land).
+
+## 24. The state divergence, and the test that can see it (2026-08-19, fast-follow)
+
+`build/contracts-v2` merged as PR #9 with a KNOWN divergence, disclosed at the time: TypeScript said a
+contract terminated today or tomorrow was `Active`; the view said `Terminated`. Fixed on
+`fix/contract-state-view-agreement`.
+
+**The boundary is `< today`, and it is contract law, not preference.** A period ending on a date runs
+through the END of that date — "terminating on 31 December" is in force all of 31 December. So
+terminated-today is still in force today and reads Terminated tomorrow, matching how `EndDate` is
+already treated. A `date` column carries no time, so end-of-day is the only reading available. My
+earlier `<=` recommendation was WRONG and Marcelo's `<` was right.
+
+**Why the guard failed, which is the durable lesson.** `StateSQL()` compares TEXT, so a change on the
+TypeScript side alone left it green — 77 tests passed while the two implementations disagreed. Text
+cannot detect a semantic split. The replacement is `test-harnesses/state-equivalence.mjs`
+(`npm run test:state`): it scores rows through the DEPLOYED view and through the function, over live
+data and then over its own fixtures covering all six states plus terminated yesterday/today/tomorrow.
+It asserts **three** things per fixture — view, function, and the expected answer — because two
+implementations agreeing on a wrong answer is what a text comparison blesses. **Proven to fail:**
+restoring the old predicate makes it exit 1 naming both boundary rows.
+
+**Two harness defects found on the way in — the committed suite was UNRUNNABLE, not just thin.**
+`dotenv`/`mssql` were imported by `integration.mjs` and declared in no manifest; and its `.env` path
+counted four directories up, correct for the pre-6.x nested layout but resolving to `~/MJDev` under
+the parent-workspace topology — where dotenv silently loads nothing, `DB_PORT` stays undefined, and it
+dies with "Failed to connect to localhost:1433", which reads like Docker being down. Both scripts now
+share `test-harnesses/load-env.mjs`, which walks up and asks the filesystem.
+
+**Mechanics worth remembering:** applying a view by hand needs the **CodeGen** credentials (MJ_Connect
+gets error 3701 on ALTER) and BOTH placeholders substituted (`${flyway:defaultSchema}` **and**
+`${mjSchema}`). Declaring deps means refreshing `pnpm-lock.yaml` via `pnpm install --lockfile-only` in
+a THROWAWAY CLONE and copying it back — `lockfile-covers-manifests.test.ts` caught the omission, which
+is the third time that test has earned its keep.

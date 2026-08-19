@@ -91,9 +91,24 @@ importers:
       '@memberjunction/testing-integration':
         specifier: ^6.1.0-edge.2
         version: 6.1.0-edge.2(@aws-sdk/credential-provider-node@3.972.80)(@modelcontextprotocol/sdk@1.30.0(zod@3.25.76))(@smithy/signature-v4@5.7.0)(chokidar@3.6.0)(encoding@0.1.13)(typescript@5.9.3)(ws@8.21.3)(zod@3.25.76)
+      '@mj-biz-apps/contracts-core-entities-server':
+        specifier: workspace:*
+        version: link:packages/CoreEntitiesServer
+      '@mj-biz-apps/contracts-entities':
+        specifier: workspace:*
+        version: link:packages/Entities
+      '@mj-biz-apps/contracts-integration-tests':
+        specifier: workspace:*
+        version: link:packages/IntegrationTests
       '@types/node':
         specifier: ^22.10.0
         version: 22.20.1
+      dotenv:
+        specifier: ^17.2.4
+        version: 17.4.2
+      mssql:
+        specifier: ^11.0.1
+        version: 11.0.1
       simple-git:
         specifier: ^3.31.1
         version: 3.36.0
@@ -9336,7 +9351,7 @@ snapshots:
       '@memberjunction/ai': 6.1.0-edge.2
       '@memberjunction/global': 6.1.0-edge.2
       axios: 1.19.0(debug@4.4.3)
-      axios-retry: 4.5.0(axios@1.19.0(debug@4.4.3))
+      axios-retry: 4.5.0(axios@1.19.0)
       env-var: 7.5.0
     transitivePeerDependencies:
       - debug
@@ -9764,7 +9779,7 @@ snapshots:
       '@memberjunction/global': 6.1.0-edge.2
       '@mistralai/mistralai': 1.15.1
       axios: 1.19.0(debug@4.4.3)
-      axios-retry: 4.5.0(axios@1.19.0(debug@4.4.3))
+      axios-retry: 4.5.0(axios@1.19.0)
     transitivePeerDependencies:
       - bufferutil
       - debug
@@ -9931,7 +9946,7 @@ snapshots:
       '@memberjunction/core-entities': 6.1.0-edge.2
       '@memberjunction/global': 6.1.0-edge.2
       axios: 1.19.0(debug@4.4.3)
-      dotenv: 17.2.4
+      dotenv: 17.4.2
       env-var: 7.5.0
       openai: 6.49.0(@aws-sdk/credential-provider-node@3.972.80)(@smithy/signature-v4@5.7.0)(ws@8.21.3)(zod@3.25.76)
     transitivePeerDependencies:
@@ -10244,7 +10259,7 @@ snapshots:
       '@memberjunction/ai-vectordb': 6.1.0-edge.2
       '@memberjunction/core': 6.1.0-edge.2
       '@memberjunction/global': 6.1.0-edge.2
-      dotenv: 17.2.4
+      dotenv: 17.4.2
       pg: 8.23.0
     transitivePeerDependencies:
       - pg-native
@@ -10280,7 +10295,7 @@ snapshots:
       '@memberjunction/core': 6.1.0-edge.2
       '@memberjunction/global': 6.1.0-edge.2
       '@qdrant/js-client-rest': 1.19.0(typescript@5.9.3)
-      dotenv: 17.2.4
+      dotenv: 17.4.2
     transitivePeerDependencies:
       - supports-color
       - typescript
@@ -10290,7 +10305,7 @@ snapshots:
       '@memberjunction/ai-vectordb': 6.1.0-edge.2
       '@memberjunction/core': 6.1.0-edge.2
       '@memberjunction/global': 6.1.0-edge.2
-      dotenv: 17.2.4
+      dotenv: 17.4.2
     transitivePeerDependencies:
       - supports-color
 
@@ -10931,7 +10946,7 @@ snapshots:
       date-fns: 3.6.0
       date-fns-tz: 3.2.0(date-fns@3.6.0)
       domhandler: 5.0.3
-      dotenv: 17.2.4
+      dotenv: 17.4.2
       officeparser: 6.1.1(encoding@0.1.13)
       openai: 6.49.0(@aws-sdk/credential-provider-node@3.972.80)(@smithy/signature-v4@5.7.0)(ws@8.21.3)(zod@3.25.76)
       pdf-parse: 1.1.4
@@ -10984,7 +10999,7 @@ snapshots:
       date-fns: 3.6.0
       date-fns-tz: 3.2.0(date-fns@3.6.0)
       domhandler: 5.0.3
-      dotenv: 17.2.4
+      dotenv: 17.4.2
       officeparser: 6.1.1(encoding@0.1.13)
       openai: 6.49.0(@aws-sdk/credential-provider-node@3.972.80)(@smithy/signature-v4@5.7.0)(ws@8.21.3)(zod@3.25.76)
       pdf-parse: 1.1.4
@@ -11597,7 +11612,7 @@ snapshots:
       '@oclif/plugin-help': 6.2.58
       chalk: 5.6.2
       commander: 14.0.3
-      dotenv: 17.2.4
+      dotenv: 17.4.2
       inquirer: 8.2.7(@types/node@22.20.1)
       mssql: 12.7.0
       mysql2: 3.23.3(@types/node@22.20.1)
@@ -16024,7 +16039,7 @@ snapshots:
 
   aws-ssl-profiles@1.1.2: {}
 
-  axios-retry@4.5.0(axios@1.19.0(debug@4.4.3)):
+  axios-retry@4.5.0(axios@1.19.0):
     dependencies:
       axios: 1.19.0(debug@4.4.3)
       is-retry-allowed: 2.2.0

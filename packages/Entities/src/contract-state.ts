@@ -108,7 +108,7 @@ export function StateSQL(alias = 'g'): string {
     const a = alias;
     return (
         `CASE\n` +
-        `        WHEN ${a}.TerminatedDate IS NOT NULL THEN 'Terminated'\n` +
+        `        WHEN ${a}.TerminatedDate IS NOT NULL AND ${a}.TerminatedDate < CAST(GETUTCDATE() AS date) THEN 'Terminated'\n` +
         `        WHEN ${a}.SupersededByContractID IS NOT NULL THEN 'Superseded'\n` +
         `        WHEN ${a}.EndDate IS NOT NULL AND ${a}.EndDate < CAST(GETUTCDATE() AS date) THEN 'Expired'\n` +
         `        WHEN ${a}.EffectiveDate IS NOT NULL AND ${a}.EffectiveDate <= CAST(GETUTCDATE() AS date) THEN 'Active'\n` +

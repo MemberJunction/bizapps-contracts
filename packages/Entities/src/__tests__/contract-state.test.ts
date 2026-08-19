@@ -48,6 +48,35 @@ const CASES: ReadonlyArray<{ scenario: string; facts: ContractStateFacts; expect
         facts: { EffectiveDate: '2025-01-01', TerminatedDate: '2025-07-01', SupersededByContractID: 'c0000000-0000-4000-8000-000000000001' },
         expected: 'Terminated',
     },
+    // ─── The termination BOUNDARY, which is contract law and not a coding preference ────────────
+    // A period ending on a date runs through the END of that date: an agreement "terminating on 31
+    // December" is in force all of 31 December. So `TerminatedDate` TODAY is still in force today,
+    // and reads Terminated from tomorrow. NOW is pinned to 2026-08-18, so today IS 2026-08-18.
+    //
+    // These three cases exist because the rule was wrong in both directions at different times. It
+    // first read `TerminatedDate IS NOT NULL` — so a termination scheduled for next year made a
+    // live contract read Terminated today. A later edit added an unreachable `> today` branch
+    // asserting the opposite. Neither was caught, because nothing tested the boundary.
+    {
+        scenario: 'terminated YESTERDAY — the termination has taken effect',
+        facts: { EffectiveDate: '2026-01-01', EndDate: '2027-01-01', TerminatedDate: '2026-08-17' },
+        expected: 'Terminated',
+    },
+    {
+        scenario: 'terminated TODAY — still in force through the end of the termination date',
+        facts: { EffectiveDate: '2026-01-01', EndDate: '2027-01-01', TerminatedDate: '2026-08-18' },
+        expected: 'Active',
+    },
+    {
+        scenario: 'terminated TOMORROW — notice served, not yet effective; it is still a live contract',
+        facts: { EffectiveDate: '2026-01-01', EndDate: '2027-01-01', TerminatedDate: '2026-08-19' },
+        expected: 'Active',
+    },
+    {
+        scenario: 'terminated far in the future, never started — Draft, not Terminated',
+        facts: { TerminatedDate: '2027-01-01' },
+        expected: 'Draft',
+    },
 
     // ─── Superseded: the successor FK IS the state (R-18) ──────────────────────────────────────
     {

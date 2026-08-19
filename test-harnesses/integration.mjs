@@ -13,16 +13,14 @@
  *
  * Exit: 0 pass · 1 check failure · 2 bootstrap failure
  */
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
-import dotenv from 'dotenv';
 import sql from 'mssql';
+import { loadEnvFrom } from './load-env.mjs';
 
-const here = path.dirname(fileURLToPath(import.meta.url));
-// The instance's MJ worktree root — `here` is <mj>/packages/dev-apps/bizapps-contracts/test-harnesses,
-// so the root env is four levels up. The app's own .env, if present, wins.
-dotenv.config({ path: path.resolve(here, '..', '..', '..', '..', '.env'), quiet: true });
-dotenv.config({ path: path.resolve(here, '..', '.env'), quiet: true });
+// Finds the instance .env by walking UP rather than counting directories. The fixed four-level path
+// this used to hard-code was correct only for the pre-6.x nested layout; under the parent-workspace
+// topology it resolved to ~/MJDev and silently loaded nothing, so DB_PORT stayed undefined and the
+// script died with "Failed to connect to localhost:1433". See load-env.mjs.
+loadEnvFrom(import.meta.url);
 
 /** Every bundle, in presentational order — each owns its own fixture. */
 // The v2 bundles (plan item 13). v1's contracts-composition / -save-contract / -billing /
