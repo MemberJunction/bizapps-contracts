@@ -122,7 +122,7 @@ Every item below is settled (D-14 carries a confirmation flag — see O-3). §5 
 | D-1 | **Renewal obligations live in contracts** — auto-renew, notice periods, annual increase. Subscriptions know nothing of them; orders assumes auto-renewal until a sub is cancelled and prices renewals from then-current product rules. **Finance reconciles the difference manually** — *"no worse than current, as everything is manual right now"* | Amith 08-18 |
 | D-2 | **No approval workflow in contracts.** Approval of negotiated terms lives in `bizapps-sales`, on the deal, modelling Johanna's levels of authority. At current volume she may approve manually; the contract is generated *after* deal approval | Amith 08-18 |
 | D-3 | **No versioned SOW templates in v1.** SOWs have standard language but no versioned template today — *"that will change for sure as we scale PS"* | Amith 08-18 |
-| D-4 | **Modifications are structured, not textual.** A modification names a provision; the negotiated wording stays in the PDF | transcript + 08-18 |
+| D-4 | ~~Modifications are structured, not textual~~ &rarr; **superseded by D-16.** A modification names a provision **and** carries the negotiated wording | Amith, 08-18 (ERD R-17) |
 | D-5 | **`ContractTemplateProvision` is required** — the clause list, so modifications categorise cleanly | Amith 08-18 |
 | D-6 | **No termination-policy field.** It is *"simply one of the provisions in a contract"* | Amith 08-18 |
 | D-7 | **No document is required to create a contract**, and no named document column exists — the link table is sufficient | 08-18 |
@@ -134,6 +134,17 @@ Every item below is settled (D-14 carries a confirmation flag — see O-3). §5 
 | D-13 | **Provision text ships in v1.** `ContractTemplateProvision.ProvisionText` (nullable `nvarchar(max)`), seeded from the current Master Agreement. This does **not** touch D-4 or D-10: it is the *standard* clause's own text, there for reference while categorising a modification — the *negotiated* wording still lives only in the PDF, and there is still no reusable-clause library. Was future-phase F-3; now in scope (ERD §9 R-15) | Amith via Marcelo, 08-18 chat — *"Do you want the provision's text in the provision table?" "yep"* |
 | D-14 | **The modification row carries no template FK.** `Modification → Provision → Template` derives it, and the derivation survives the multi-template future intact — a provision belongs to exactly one template no matter how many templates a contract incorporates. Keeping the column would demand a "named template = provision's template" server rule to stop rows lying. Reverses the 08-18 "keep" (ERD §9 R-16); flagged for Amith's nod — O-3 | Marcelo, 08-18 |
 | D-15 | **The app is built on MJ 6's composition and forms stack.** The 1:N dependents (`Contract.Modifications`, `ContractTemplate.Provisions`) are metadata-declared **related-record collections**; the Angular UI binds **directly to the BaseEntity subclass** and one `Save()` persists the graph; forms are the generated forms customised by **`BaseFormPanel` contributions**, not bespoke editors. *"Make sure to use the new Related Records approach in Contracts … directly bind the Angular UI to the BaseEntity subclass. See how I did this in Orders repo."* §6 is the design; orders on `next` is the reference | Amith via Marcelo, 08-18 |
+| D-16 | **Both texts are stored, and read as a pair.** `ContractTemplateProvision.ProvisionText` holds the standard clause; `ContractTemplateModification.ModificationText` holds what this contract says instead. Supersedes D-4, which rested on the transcript &mdash; **Amith overruled it**. Corollary he stated with it: *all contract text ends up in provisions*; the template holds no prose of its own | Amith, 08-18 |
+| D-17 | **Forms use the left-nav rail.** `Entity.Configuration.UI.Form.Layout = "left-nav"` with `RelatedRolePolicy: "smart"` and a `PrimaryRelatedBudget`, matching what orders sets on every entity. Supersedes &sect;6.4's `Layout: 'auto'` &mdash; at six sections on the Contract form the rail is the point, and family consistency settles it anyway | Marcelo, 08-18 |
+| D-18 | **Reference data is cached in an engine, not re-queried per form.** A `BaseEngine` subclass caches contract types, template types, templates and **provisions** &mdash; without it the provision picker issues a `RunView` every time a row is added. See &sect;6.6 | Marcelo, 08-18 |
+| D-19 | **No `Status` column; lifecycle is derived.** Four of its five values were projections of the dates and the two self-FKs, and the fifth (`Draft`) was the finance task wearing a status. The layered base view exposes `State`, `IsAwaitingDocument` and `IsChangeOrder`. `State` has **six** values, not five — `Executed` covers signed-but-not-yet-effective, which otherwise fell through to `Draft` (R-19). ERD &sect;4.5 / R-18 / R-19 | Marcelo, 08-18 |
+| D-20 | **`AutoRenew` is a plain true/false bit.** No "not stated" third value; the day counts stay nullable | Marcelo, 08-18 |
+| D-21 | **The watchlist ships with fixed default filters and no saved views.** Users drive the filters in-session; persisting custom watchlists is phase 2 or never. The screen is the **stock MJ grid** plus minor chrome, using MJ's own tokens | Marcelo, 08-18 |
+| D-22 | **Modifications get a custom form as well as the inline panel — one shared editor component, two hosts.** MJ cannot embed a child entity's form inside a parent, so the same component renders inline in the contract's panel (joining the parent's single save) and as the body of the modification's own custom form (reached via *Open*). No duplicated logic, and the single transaction survives | Marcelo, 08-18 |
+| D-23 | **Grids and pickers select the BASE VIEWS, never raw tables**, so foreign keys display names rather than IDs. MJ's generated base views already expose the joined name columns | Marcelo, 08-18 |
+| D-24 | **Validation is written once, on the entity — the ladder.** (1) Field rules: generated validation, both tiers for free. (2) Cross-record rules: the shared subclass's `Validate()`, so the browser preflights exactly what the server enforces. (3) Server-only rules (locks, cross-entity reads): server subclass `ValidateAsync()`, whose verdicts reach the UI through the save's attributed `ValidationResult` — the client never re-implements them. (4) A **remotable operation** is justified only when the UI needs a server verdict *before* a save — an expensive or interactive preflight — and it must call the same BaseEntity logic, never restate it. &sect;6.3's "zero remote operations" is v1's *outcome*, not a ban; this ladder is the test any future one must pass | Marcelo, 08-19 |
+| D-25 | **Every data access is provider-scoped.** Server subclasses and engines use `this.ProviderToUse`; form panels read `FormComponent.ProviderToUse`; standalone editors take `@Input() Provider` with a `Metadata.Provider` fallback (orders' lines-editor shape); reads outside a component context use `RunView.FromMetadataProvider`. A bare `new RunView()` / `new Metadata()` where a scoped provider is reachable is a defect, not a style choice | Marcelo, 08-19 |
+| D-26 | **Correlated writes share one transaction.** A graph save already is one — header plus companions, all or nothing. Writes to multiple roots that must land together go through one graph or a server-side provider transaction; never sequential unwrapped saves. (A single-row write like `Supersede()` setting the predecessor's FK needs no ceremony — the rule is for the day two roots must agree) | Marcelo, 08-19 |
 
 The full reversal log — sixteen items, each with owner and date — is **§9 of the ERD**.
 
@@ -237,9 +248,39 @@ later so ClassFactory priority resolves it server-side while the browser keeps t
 | `HasModifications` monotonic — must be true when modification rows exist, never auto-cleared | **Shared** `ContractEntity.Validate()` (browser preflight + server authority) **and** `ContractTemplateModificationEntityServer` | `Validate()`: reject `HasModifications === false` when `Modifications.Count > 0` — with orders' unloaded-collection guard (`Count === 0 && (!IsSaved \|\| Modifications.IsLoaded)` means *known* empty; empty+saved+unloaded means *unknown*, settled server-side). The server modification subclass forces the parent flag true on a **standalone** modification save, so the invariant holds outside the graph path too |
 | A modification's provision must belong to the template this contract incorporates | `ContractTemplateModificationEntityServer` (authoritative) + the picker (preflight) | Needs a cross-entity read, so the hard check is server-side; the UI never offers an out-of-template provision in the first place (§6.4). New with D-14 — this rule replaces the column that could lie |
 | `ContractType = 'Change Order'` ⇒ `ParentContractID IS NOT NULL` | Server subclass | Needs the type-table join, as the ERD rules |
-| `Status = 'Superseded'` ⇔ `SupersededByContractID`; no self-parent/self-successor | `CHECK` constraints | In the baseline migration |
-| Re-papering is one graph | `ContractEntity.Supersede(successor)` on the shared subclass | Sets predecessor `Status = 'Superseded'` + `SupersededByContractID`; the entity method is the API, mirroring orders' `Confirm()` |
+| No self-parent / self-successor; `EndDate >= EffectiveDate`; the creating pair is both-or-neither | `CHECK` constraints | In the baseline migration. The old `Status = 'Superseded'` ⇔ successor-FK constraint died with the column (R-18): with the state derived *from* the FK it is a tautology |
+| Re-papering is one graph | `ContractEntity.Supersede(successor)` on the shared subclass | Sets the predecessor's `SupersededByContractID` — which *is* the superseded state now that §4.5 derives it (R-18), so there is one write, not two that could disagree. The entity method is the API, mirroring orders' `Confirm()` |
 | Validation errors reach the user attributed | shared subclasses + a `SectionForField()` static | Graph errors arrive as `Modifications[2].ContractTemplateProvisionID`; map `/^Modifications\[/` to the modifications section for red-dot navigation, as `OrderHeaderEntity.SectionForField` does |
+
+### Where validation lives — the ladder (D-24)
+
+One rule, one home, both tiers served. In order of preference:
+
+1. **Field rules** — generated validation from the schema (CHECKs, nullability, value lists). Free
+   everywhere; never restated by hand.
+2. **Cross-record rules** — the **shared** subclass's `Validate()`. The browser refuses before the
+   round trip; the server, resolving the same class (or its subclass), enforces the identical rule.
+3. **Server-only rules** — locks and cross-entity reads live in the server subclass's
+   `ValidateAsync()`. The UI still gets these verdicts without re-implementing them: a refused save
+   returns the attributed `ValidationResult`, and `SectionForField()` routes each error to the rail
+   section that owns it.
+4. **A remotable operation** enters only when the UI needs a server verdict *before* a save — an
+   expensive or interactive preflight the save-error channel cannot serve. It must expose the same
+   BaseEntity logic (typically: construct the entity server-side, run its validation, return the
+   result). Re-implementing a rule inside an operation is the same defect as re-implementing it in
+   the browser — two statements of one rule, one of them silently wrong someday.
+
+Rungs 1–3 cover every rule this app has today, which is why v2 ships zero remote operations. The
+ladder exists so the *next* rule lands on the right rung rather than re-litigating the architecture.
+
+**Worked example, as built.** `HasModifications` uses rungs 2 and 3 together, and the seam between them
+is where a real defect lived (found on PR #9 review): the shared `Validate()` refuses a false flag only
+when it can PROVE rows exist, so the ambiguous case — a saved contract whose collection was never loaded
+— had to be settled at rung 3 by `ContractEntityServer.ValidateAsync()`. The shared class's comment
+claimed that check existed before it did. A documented-but-absent rung is worse than a missing one,
+because the comment stops the next person looking.
+
+---
 
 ### 6.4 Forms — generated forms plus contributions, one bespoke editor
 
@@ -277,6 +318,17 @@ no pricing, no IS-A extensions:
 - Show `ProvisionText` (D-13) inline/expandable in the picker and rows, so finance reads the standard
   clause while recording that it was modified.
 
+**The modifications editor is ONE component with TWO hosts (D-22).** MJ has no way to embed a child
+entity's form inside a parent form, so rather than choose between the panel and a form we build a single
+`modification-editor` component and render it in both places: inline inside the contract's panel, where it
+binds to `Record.Modifications` and joins the parent's one `record.Save()`; and as the body of the
+modification's **own custom form**, reached from the row's *Open* action for standalone editing. The
+component takes the contract as an input, so in the form host the contract is fixed rather than editable.
+
+**Grids and pickers read base views, not tables (D-23).** Every grid and lookup selects the generated base
+view so FK columns render as names — `ContractType`, `CustomerOrganization`, `ContractTemplate` — instead of
+UUIDs. This is free; the views already carry the joined name columns.
+
 **On the ContractTemplate form:** a Provisions editor panel bound to `Record.Provisions` — same
 pattern, `Sequence` handled by the collection, drag-to-reorder optional later. Seeding (§7 item 4)
 writes through this same collection, so the registry UI and the seed exercise one code path.
@@ -294,7 +346,7 @@ does (`person-orders.panel.ts` / `.form-chrome.json`):
 - Contract's own related list from the modification FK is claimed by the editor panel above, so no
   stock grid doubles it.
 
-**Chrome + overlays:** `Entity.Configuration.UI.Form` on Contract (`Layout: 'auto'` is fine at this
+**Chrome + overlays:** `Entity.Configuration.UI.Form` on Contract with **`Layout: 'left-nav'`** (D-17), plus `RelatedRolePolicy: 'smart'` and a `PrimaryRelatedBudget` &mdash; the settings orders carries on every entity. (An earlier draft said `Layout: 'auto'` was fine at this
 section count). Quick capture anywhere (e.g. "record a modification" from the watchlist) uses the
 stock overlays — `<mj-form-dialog>` / `MJFormPresenterService.Open({ Presentation: 'slide-in' })` —
 never a bespoke dialog. List/watchlist pages are `BaseResourceComponent` surfaces registered by
@@ -321,6 +373,30 @@ Reading PDFs straight out of SharePoint needs an Azure app registration from IT.
 off the critical path** — finance can attach documents through platform storage meanwhile, and switching
 to SharePoint later is configuration, not redesign. Details and the honest caveats:
 [`mj-storage-and-esignature-notes.md`](./mj-storage-and-esignature-notes.md).
+
+---
+
+### 6.6 Caching — reference data loads once, not per form (D-18)
+
+Four things are read constantly and change rarely: **contract types**, **template types**, **templates**, and
+**provisions**. Without a cache the provision picker issues a `RunView` every time a row is added, and every
+contract form re-reads the type lists to render two dropdowns.
+
+So contracts ships a `BaseEngine` subclass — the pattern orders and accounting already use — configured with
+those four entities and loaded once per session:
+
+| Cached | Why it is safe to cache | Read by |
+|---|---|---|
+| `ContractType` | Lookup; changes when a business user adds a type | Every form, the list views, `RequiresExecutedDocument` |
+| `ContractTemplateType` | Lookup | Template form |
+| `ContractTemplate` | A handful of rows — one per MA version, ever | Contract form, the version registry |
+| `ContractTemplateProvision` | Tens of rows per template, and immutable once a version is published | **The provision picker**, and the standard-text pane beside every modification |
+
+Two rules that keep it honest: the engine is **read-through for reference data only** — never contracts,
+never modifications, which are per-record and must come from the record's own collection; and the provision
+picker filters the **cached** set by the contract's `ContractTemplateID` in memory rather than issuing a
+scoped query, which is what makes §7.1's "provision must belong to a template this contract incorporates"
+rule cheap to preflight in the browser.
 
 ---
 
@@ -384,7 +460,9 @@ Run CodeGen after the push (ordering rule above). Then the hand-written classes,
 
 - `packages/Entities` (shared, browser + server — nothing server-only may leak in):
   `ContractEntity` — `Validate()` (HasModifications guard per §6.3), `NewRecord()` defaults
-  (`Status = 'Draft'`), `Supersede()`, `static SectionForField()`. `ContractTemplateEntity` only if a
+  `Supersede()`, `static SectionForField()`. **No `NewRecord()` status default** — an earlier draft
+  seeded `Status = 'Draft'`, and D-19 removed the column; a new contract is `Draft` because §4.5's
+  derivation says so, with nothing to set. `ContractTemplateEntity` only if a
   rule earns it. **No `DeclareRelatedRecords` by hand — CodeGen emits them from item 2's metadata**
   ("edit that row, not this file").
 - `packages/CoreEntitiesServer`: `ContractEntityServer` (CTR numbering per §6.3),
@@ -452,8 +530,9 @@ non-privileged user sees the record but no download.
 
 Joint with the sales app, which supplies the Closed-Won trigger, the deal id, and the modified flag.
 Contracts' side of the contract: rows arrive with `CreatingEntityID` (Deals) + `CreatingRecordID`,
-`CustomerOrganizationID`, `ContractTypeID`, `HasModifications` as sales asserted it, `Status = 'Draft'`
-— numbering and defaults are the server subclass's, automatically. Recommended sales-side shape:
+`CustomerOrganizationID`, `ContractTypeID` and `HasModifications` as sales asserted it — numbering and
+defaults are the server subclass's, automatically. The row needs no status: with no dates yet set it
+derives as `Draft` (&sect;4.5), which is exactly what it is. Recommended sales-side shape:
 `Deal.ContractID` as a hard FK declared **embedded** (`OnClear: 'orphan'`), so creation is
 `deal.ContractID_EnsureObject()` + one `deal.Save()` (§6.2); the finance task rides the same flow.
 
@@ -467,6 +546,12 @@ Organization (and Person) forms, not a new screen: inclusion metadata + the agre
 form contribution proves insufficient.
 
 ### 12 · Renewal and expiry watchlist
+
+Kept as a screen (ruled 2026-08-18), but deliberately thin: the **stock MJ grid** over the layered base
+view, plus four default filter pills (next 120 days · notice window open · auto-renewing · all active) and
+an advanced filter for everything else. **No saved views** — users drive filters in-session; persisting
+custom watchlists is phase 2 or never (D-21). Uses MJ's own design tokens throughout, and the grid selects
+the base view so customers and types show as names (D-23).
 
 The layered base view (orders' `vwOrderHeaders` two-migration split): `vwContractsGenerated` inner +
 hand-written `vwContracts` outer adding `IsAwaitingDocument` (`RequiresExecutedDocument` AND no
@@ -541,4 +626,7 @@ Recorded so they are not re-litigated. Full list in **§10 of the ERD**.
 | Server rules | Cross-row invariants on **shared** subclasses where the browser can preflight them; server subclasses stay authoritative and carry what needs SQL or secrets — §6.3 |
 | Forms | Generated forms + `BaseFormPanel` contributions; full custom form only when a bespoke editor demands it (§6.4). Overlays via `ng-base-forms` shells, never bespoke dialogs |
 | Derived values | Layered base views (`vwContracts` over `vwContractsGenerated`), orders' `IsOverdue` pattern — §7 item 12 |
+| Provider scoping | `this.ProviderToUse` in entity/server code and engines; `FormComponent.ProviderToUse` in panels; `@Input() Provider` + `Metadata.Provider` fallback in standalone editors; `RunView.FromMetadataProvider` elsewhere. Bare `new RunView()` / `new Metadata()` is a defect where a scoped provider is reachable (D-25). The helpers live in `packages/Angular/src/lib/data/provider.ts` so the pattern is stated once |
+| Transactions | One graph save = one transaction. Correlated multi-root writes ride one graph or a server-side provider transaction — never sequential unwrapped saves (D-26) |
+| Typed entities | Cast to the generated subclass (`GetEntityObject<ContractEntity>`) and use its typed members — `.Get()`/`.Set()` never substitute for them. (Restates repo law — MJ CLAUDE.md and `docs/claude/01` — here for self-containment) |
 | UI layering | L0→L3 per `MJ/guides/UI_LAYERING_GUIDE.md`; design tokens; `mjc-` selector prefix |

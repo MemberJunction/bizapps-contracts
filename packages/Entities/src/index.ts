@@ -1,31 +1,37 @@
 /**
- * @mj-biz-apps/contracts-entities — the app's ENTITY package.
+ * @mj-biz-apps/contracts-entities — the app's ENTITY package. SHARED: browser and server both load
+ * it, so nothing server-only may leak in here.
  *
  * WHAT LIVES HERE
- *   src/generated/entity_subclasses.ts — written by MemberJunction CodeGen
- *   (`npm run mj:codegen` at the repo root). One strongly-typed BaseEntity
- *   subclass + zod schema per table in your app's schema. COMMIT this
- *   generated code — the committed code is the source of truth consumers
- *   install; CodeGen on a clean branch is an expected no-op.
+ *   src/generated/entity_subclasses.ts — written by MemberJunction CodeGen. One strongly-typed
+ *     BaseEntity subclass + zod schema per table. COMMIT it; the committed code is what consumers
+ *     install, and CodeGen on a clean branch is an expected no-op.
+ *   src/*.ts — hand-written shared subclasses carrying the rules that must run in BOTH places
+ *     (plan §6.3): validation the browser can preflight and the server enforces.
  *
- * PEER DEPENDENCIES (see package.json + docs/template-docs/versioning-and-peer-deps.md)
- *   @memberjunction/core + global are PEERS (^X.Y.Z), never hard deps —
- *   exactly one copy of each may exist in a host process; a second copy
- *   splits MJ's class factory and silently breaks registration.
+ * PEER DEPENDENCIES (docs/template-docs/versioning-and-peer-deps.md): @memberjunction/core + global
+ * are PEERS (^X.Y.Z), never hard deps — exactly one copy of each may exist in a host process; a
+ * second copy splits MJ's class factory and silently breaks registration.
  *
- * TODO(template): nothing to hand-write here initially. After your first
- * migration + codegen run, the generated subclasses appear below. Add any
- * hand-written helpers in src/ (NOT src/generated/ — CodeGen owns that).
+ * NOT HERE ANY MORE: v1's `contract-draft.ts` (688 lines). A browser could not compose a contract
+ * tree through BaseEntity, so v1 shipped a draft payload and a remote operation to rehydrate it.
+ * MJ 6 related-record collections make the graph save native (plan §6.3), so the draft, its
+ * operation and its hydrator all died with the rebuild.
  */
 export * from './generated/entity_subclasses';
-// Typed Remote Operation clients — the browser-safe CONTRACT for the write API (typed input, typed
-// output, the operation key), with the server engine that implements it left on the server. This is
-// what lets the UI call `new ContractsRenewTermOperation().Execute(input)` instead of reaching for
-// the stringly-typed `RouteOperation` seam.
-export * from './generated/remote_operations';
 
-// Hand-written, framework-free. The client-side model of a contract being composed, and the payload
-// `Contracts.SaveContract` accepts — a browser cannot compose a tree through BaseEntity, because the
-// class it holds is the GENERATED entity and the child collections live on the server subclass.
-// Mirrors bizapps-orders' OrderDraft.
-export * from './contract-draft';
+/* Hand-written SHARED subclasses. Rules that must run in BOTH tiers live here, so the browser
+ * refuses before the round trip and the server refuses regardless (plan §6.3). */
+export * from './ContractEntity';
+
+/* The lifecycle rule, stated once and rendered two ways (D-19 / R-19). Exported because the UI needs
+ * DeriveContractState to show a state that tracks UNSAVED edits — reading the view's stored column
+ * would contradict the form on screen — and because StateSQL() is what the migration's CASE is checked
+ * against by contract-state.test.ts. */
+export * from './contract-state';
+
+/* NOTE on `src/generated/remote_operations.ts`: CodeGen writes it, and it is deliberately NOT
+ * re-exported. v2 ships zero remote operations (plan §6.3), so every symbol in that file is an
+ * MJ-CORE operation (AISkill, PredictiveStudio, TaskGraph, …) emitted into every app's file
+ * regardless of `includeSchemas`. Re-exporting them would make this package appear to own MJ core's
+ * write API. Filed as an upstream CodeGen scoping question — see MJ-UPSTREAM.md. */

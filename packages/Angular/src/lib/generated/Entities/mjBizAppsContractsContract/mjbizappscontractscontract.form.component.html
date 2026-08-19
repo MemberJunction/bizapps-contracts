@@ -10,11 +10,11 @@
     <!-- ========================================
          FIELD PANELS
          ======================================== -->
-    <!-- Details Section -->
+    <!-- Contract Overview Section -->
     <mj-collapsible-panel
-        SectionKey="details"
-        SectionName="Details"
-        Icon="fa fa-align-left"
+        SectionKey="contractOverview"
+        SectionName="Contract Overview"
+        Icon="fa fa-file-contract"
         [Form]="this"
         [FormContext]="formContext">
         <mj-form-field 
@@ -37,6 +37,42 @@
         <mj-form-field 
             [Record]="record"
             [ShowLabel]="true"
+            FieldName="ContractTemplateID"
+            Type="textbox"
+            [EditMode]="EditMode"
+            [FormContext]="formContext"
+            LinkType="Record"
+        ></mj-form-field>
+        <mj-form-field 
+            [Record]="record"
+            [ShowLabel]="true"
+            FieldName="SigningProviderURL"
+            Type="textbox"
+            [EditMode]="EditMode"
+            [FormContext]="formContext"
+            LinkType="URL"
+        ></mj-form-field>
+        <mj-form-field 
+            [Record]="record"
+            [ShowLabel]="true"
+            FieldName="HasModifications"
+            Type="checkbox"
+            [EditMode]="EditMode"
+            [FormContext]="formContext"
+        ></mj-form-field>
+
+    </mj-collapsible-panel>
+
+    <!-- Parties and Context Section -->
+    <mj-collapsible-panel
+        SectionKey="partiesAndContext"
+        SectionName="Parties and Context"
+        Icon="fa fa-users"
+        [Form]="this"
+        [FormContext]="formContext">
+        <mj-form-field 
+            [Record]="record"
+            [ShowLabel]="true"
             FieldName="CompanyID"
             Type="textbox"
             [EditMode]="EditMode"
@@ -55,30 +91,49 @@
         <mj-form-field 
             [Record]="record"
             [ShowLabel]="true"
-            FieldName="CustomerPersonID"
-            Type="textbox"
-            [EditMode]="EditMode"
-            [FormContext]="formContext"
-            LinkType="Record"
-        ></mj-form-field>
-        <mj-form-field 
-            [Record]="record"
-            [ShowLabel]="true"
             FieldName="PrimaryContactPersonID"
             Type="textbox"
             [EditMode]="EditMode"
             [FormContext]="formContext"
             LinkType="Record"
         ></mj-form-field>
+
+    </mj-collapsible-panel>
+
+    <!-- Provenance Section -->
+    <mj-collapsible-panel
+        SectionKey="provenance"
+        SectionName="Provenance"
+        Icon="fa fa-project-diagram"
+        [Form]="this"
+        [FormContext]="formContext">
         <mj-form-field 
             [Record]="record"
             [ShowLabel]="true"
-            FieldName="OwnerUserID"
+            FieldName="CreatingEntityID"
             Type="textbox"
             [EditMode]="EditMode"
             [FormContext]="formContext"
             LinkType="Record"
         ></mj-form-field>
+        <mj-form-field 
+            [Record]="record"
+            [ShowLabel]="true"
+            FieldName="CreatingRecordID"
+            Type="textbox"
+            [EditMode]="EditMode"
+            [FormContext]="formContext"
+        ></mj-form-field>
+
+    </mj-collapsible-panel>
+
+    <!-- Contract Lifecycle Section -->
+    <mj-collapsible-panel
+        SectionKey="contractLifecycle"
+        SectionName="Contract Lifecycle"
+        Icon="fa fa-history"
+        [Form]="this"
+        [FormContext]="formContext">
         <mj-form-field 
             [Record]="record"
             [ShowLabel]="true"
@@ -100,19 +155,29 @@
         <mj-form-field 
             [Record]="record"
             [ShowLabel]="true"
-            FieldName="Status"
-            Type="select"
+            FieldName="RootParentContractID"
+            Type="textbox"
             [EditMode]="EditMode"
             [FormContext]="formContext"
         ></mj-form-field>
         <mj-form-field 
             [Record]="record"
             [ShowLabel]="true"
-            FieldName="Description"
-            Type="textarea"
+            FieldName="RootSupersededByContractID"
+            Type="textbox"
             [EditMode]="EditMode"
             [FormContext]="formContext"
         ></mj-form-field>
+
+    </mj-collapsible-panel>
+
+    <!-- Dates and Terms Section -->
+    <mj-collapsible-panel
+        SectionKey="datesAndTerms"
+        SectionName="Dates and Terms"
+        Icon="fa fa-calendar-alt"
+        [Form]="this"
+        [FormContext]="formContext">
         <mj-form-field 
             [Record]="record"
             [ShowLabel]="true"
@@ -132,7 +197,7 @@
         <mj-form-field 
             [Record]="record"
             [ShowLabel]="true"
-            FieldName="PricedAt"
+            FieldName="EndDate"
             Type="datepicker"
             [EditMode]="EditMode"
             [FormContext]="formContext"
@@ -140,16 +205,26 @@
         <mj-form-field 
             [Record]="record"
             [ShowLabel]="true"
-            FieldName="AutoRenew"
-            Type="checkbox"
+            FieldName="TerminatedDate"
+            Type="datepicker"
             [EditMode]="EditMode"
             [FormContext]="formContext"
         ></mj-form-field>
+
+    </mj-collapsible-panel>
+
+    <!-- Renewal Terms Section -->
+    <mj-collapsible-panel
+        SectionKey="renewalTerms"
+        SectionName="Renewal Terms"
+        Icon="fa fa-sync-alt"
+        [Form]="this"
+        [FormContext]="formContext">
         <mj-form-field 
             [Record]="record"
             [ShowLabel]="true"
-            FieldName="CancellationWindowDays"
-            Type="number"
+            FieldName="AutoRenew"
+            Type="checkbox"
             [EditMode]="EditMode"
             [FormContext]="formContext"
         ></mj-form-field>
@@ -164,7 +239,33 @@
         <mj-form-field 
             [Record]="record"
             [ShowLabel]="true"
-            FieldName="TerminationPolicy"
+            FieldName="CancellationWindowDays"
+            Type="number"
+            [EditMode]="EditMode"
+            [FormContext]="formContext"
+        ></mj-form-field>
+        <mj-form-field 
+            [Record]="record"
+            [ShowLabel]="true"
+            FieldName="AnnualIncreasePercent"
+            Type="number"
+            [EditMode]="EditMode"
+            [FormContext]="formContext"
+        ></mj-form-field>
+
+    </mj-collapsible-panel>
+
+    <!-- Notes and Details Section -->
+    <mj-collapsible-panel
+        SectionKey="notesAndDetails"
+        SectionName="Notes and Details"
+        Icon="fa fa-align-left"
+        [Form]="this"
+        [FormContext]="formContext">
+        <mj-form-field 
+            [Record]="record"
+            [ShowLabel]="true"
+            FieldName="Description"
             Type="textarea"
             [EditMode]="EditMode"
             [FormContext]="formContext"
@@ -172,11 +273,79 @@
         <mj-form-field 
             [Record]="record"
             [ShowLabel]="true"
-            FieldName="ExternalReferenceID"
+            FieldName="Notes"
+            Type="textarea"
+            [EditMode]="EditMode"
+            [FormContext]="formContext"
+        ></mj-form-field>
+
+    </mj-collapsible-panel>
+
+    <!-- Details Section -->
+    <mj-collapsible-panel
+        SectionKey="details"
+        SectionName="Details"
+        Icon="fa fa-align-left"
+        [Form]="this"
+        [FormContext]="formContext">
+        <mj-form-field 
+            [Record]="record"
+            [ShowLabel]="true"
+            FieldName="State"
             Type="textbox"
             [EditMode]="EditMode"
             [FormContext]="formContext"
         ></mj-form-field>
+        <mj-form-field 
+            [Record]="record"
+            [ShowLabel]="true"
+            FieldName="IsAwaitingDocument"
+            Type="textbox"
+            [EditMode]="EditMode"
+            [FormContext]="formContext"
+        ></mj-form-field>
+        <mj-form-field 
+            [Record]="record"
+            [ShowLabel]="true"
+            FieldName="IsChangeOrder"
+            Type="textbox"
+            [EditMode]="EditMode"
+            [FormContext]="formContext"
+        ></mj-form-field>
+        <mj-form-field 
+            [Record]="record"
+            [ShowLabel]="true"
+            FieldName="DaysToEnd"
+            Type="textbox"
+            [EditMode]="EditMode"
+            [FormContext]="formContext"
+        ></mj-form-field>
+        <mj-form-field 
+            [Record]="record"
+            [ShowLabel]="true"
+            FieldName="RenewalNoticeDeadline"
+            Type="textbox"
+            [EditMode]="EditMode"
+            [FormContext]="formContext"
+        ></mj-form-field>
+        <mj-form-field 
+            [Record]="record"
+            [ShowLabel]="true"
+            FieldName="IsInCancellationWindow"
+            Type="textbox"
+            [EditMode]="EditMode"
+            [FormContext]="formContext"
+        ></mj-form-field>
+
+    </mj-collapsible-panel>
+
+    <!-- System Metadata Section -->
+    <mj-collapsible-panel
+        SectionKey="systemMetadata"
+        SectionName="System Metadata"
+        Icon="fa fa-cog"
+        [Form]="this"
+        [FormContext]="formContext">
         <mj-form-field 
             [Record]="record"
             [ShowLabel]="true"
@@ -193,22 +362,6 @@
             [EditMode]="EditMode"
             [FormContext]="formContext"
         ></mj-form-field>
-        <mj-form-field 
-            [Record]="record"
-            [ShowLabel]="true"
-            FieldName="RootParentContractID"
-            Type="textbox"
-            [EditMode]="EditMode"
-            [FormContext]="formContext"
-        ></mj-form-field>
-        <mj-form-field 
-            [Record]="record"
-            [ShowLabel]="true"
-            FieldName="RootSupersededByContractID"
-            Type="textbox"
-            [EditMode]="EditMode"
-            [FormContext]="formContext"
-        ></mj-form-field>
 
     </mj-collapsible-panel>
 
@@ -218,11 +371,11 @@
          RELATED ENTITY PANELS
          ======================================== -->
 
-    <!-- Contracts (Superseded By Contract ID) Section -->
+    <!-- Contracts (Superseded By) Section -->
     <mj-collapsible-panel
         SectionKey="mJBizAppsContractsContractsSupersededByContractID"
-        SectionName="Contracts (Superseded By Contract ID)"
-        Icon="fa fa-table"
+        SectionName="Contracts (Superseded By)"
+        Icon="fa fa-file-contract"
         Variant="related-entity"
         [Form]="this"
         [FormContext]="formContext"
@@ -232,9 +385,9 @@
         <div>
             <mj-explorer-entity-data-grid
                 [Params]="BuildRelationshipViewParamsByEntityName('MJ_BizApps_Contracts: Contracts','SupersededByContractID')"
-                [NewRecordValues]="NewRecordValues('MJ_BizApps_Contracts: Contracts')"
+                [NewRecordValues]="NewRecordValues('MJ_BizApps_Contracts: Contracts','SupersededByContractID')"
                 [AllowLoad]="IsSectionExpanded('mJBizAppsContractsContractsSupersededByContractID')"
-                [ShowToolbar]="false"
+                [ShowToolbar]="true"
                 (Navigate)="OnFormNavigate($event)"
                 (AfterDataLoad)="SetSectionRowCount('mJBizAppsContractsContractsSupersededByContractID', $event.totalRowCount)"
                 >
@@ -243,11 +396,11 @@
         }
     </mj-collapsible-panel>
 
-    <!-- Contracts (Parent Contract ID) Section -->
+    <!-- Contracts (Parent Contract) Section -->
     <mj-collapsible-panel
         SectionKey="mJBizAppsContractsContractsParentContractID"
-        SectionName="Contracts (Parent Contract ID)"
-        Icon="fa fa-table"
+        SectionName="Contracts (Parent Contract)"
+        Icon="fa fa-file-contract"
         Variant="related-entity"
         [Form]="this"
         [FormContext]="formContext"
@@ -257,9 +410,9 @@
         <div>
             <mj-explorer-entity-data-grid
                 [Params]="BuildRelationshipViewParamsByEntityName('MJ_BizApps_Contracts: Contracts','ParentContractID')"
-                [NewRecordValues]="NewRecordValues('MJ_BizApps_Contracts: Contracts')"
+                [NewRecordValues]="NewRecordValues('MJ_BizApps_Contracts: Contracts','ParentContractID')"
                 [AllowLoad]="IsSectionExpanded('mJBizAppsContractsContractsParentContractID')"
-                [ShowToolbar]="false"
+                [ShowToolbar]="true"
                 (Navigate)="OnFormNavigate($event)"
                 (AfterDataLoad)="SetSectionRowCount('mJBizAppsContractsContractsParentContractID', $event.totalRowCount)"
                 >
@@ -268,50 +421,25 @@
         }
     </mj-collapsible-panel>
 
-    <!-- Contract Events Section -->
+    <!-- Contract Template Modifications Section -->
     <mj-collapsible-panel
-        SectionKey="mJBizAppsContractsContractEvents"
-        SectionName="Contract Events"
-        Icon="fa fa-table"
+        SectionKey="mJBizAppsContractsContractTemplateModifications"
+        SectionName="Contract Template Modifications"
+        Icon="fa fa-file-contract"
         Variant="related-entity"
         [Form]="this"
         [FormContext]="formContext"
-        [BadgeCount]="GetSectionRowCount('mJBizAppsContractsContractEvents')"
+        [BadgeCount]="GetSectionRowCount('mJBizAppsContractsContractTemplateModifications')"
         [DefaultExpanded]="false">
         @if (record.IsSaved) {
         <div>
             <mj-explorer-entity-data-grid
-                [Params]="BuildRelationshipViewParamsByEntityName('MJ_BizApps_Contracts: Contract Events','ContractID')"
-                [NewRecordValues]="NewRecordValues('MJ_BizApps_Contracts: Contract Events')"
-                [AllowLoad]="IsSectionExpanded('mJBizAppsContractsContractEvents')"
-                [ShowToolbar]="false"
+                [Params]="BuildRelationshipViewParamsByEntityName('MJ_BizApps_Contracts: Contract Template Modifications','ContractID')"
+                [NewRecordValues]="NewRecordValues('MJ_BizApps_Contracts: Contract Template Modifications','ContractID')"
+                [AllowLoad]="IsSectionExpanded('mJBizAppsContractsContractTemplateModifications')"
+                [ShowToolbar]="true"
                 (Navigate)="OnFormNavigate($event)"
-                (AfterDataLoad)="SetSectionRowCount('mJBizAppsContractsContractEvents', $event.totalRowCount)"
-                >
-            </mj-explorer-entity-data-grid>
-        </div>
-        }
-    </mj-collapsible-panel>
-
-    <!-- Contract Terms Section -->
-    <mj-collapsible-panel
-        SectionKey="mJBizAppsContractsContractTerms"
-        SectionName="Contract Terms"
-        Icon="fa fa-table"
-        Variant="related-entity"
-        [Form]="this"
-        [FormContext]="formContext"
-        [BadgeCount]="GetSectionRowCount('mJBizAppsContractsContractTerms')"
-        [DefaultExpanded]="false">
-        @if (record.IsSaved) {
-        <div>
-            <mj-explorer-entity-data-grid
-                [Params]="BuildRelationshipViewParamsByEntityName('MJ_BizApps_Contracts: Contract Terms','ContractID')"
-                [NewRecordValues]="NewRecordValues('MJ_BizApps_Contracts: Contract Terms')"
-                [AllowLoad]="IsSectionExpanded('mJBizAppsContractsContractTerms')"
-                [ShowToolbar]="false"
-                (Navigate)="OnFormNavigate($event)"
-                (AfterDataLoad)="SetSectionRowCount('mJBizAppsContractsContractTerms', $event.totalRowCount)"
+                (AfterDataLoad)="SetSectionRowCount('mJBizAppsContractsContractTemplateModifications', $event.totalRowCount)"
                 >
             </mj-explorer-entity-data-grid>
         </div>

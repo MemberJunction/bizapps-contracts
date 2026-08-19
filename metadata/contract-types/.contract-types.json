@@ -1,163 +1,79 @@
 [
   {
     "_comments": [
-      "The six seeded contract types. CONFIGURATION-AS-DATA: these columns ARE the rules — the engine",
-      "reads them rather than branching on a type name, which is why DriverClass is null on all six.",
-      "A driver appears only when a customer needs something the columns cannot express.",
+      "The four seeded contract types (plan §7 / ERD §7). CONFIGURATION-AS-DATA in the narrow sense",
+      "that survived the rebuild: exactly ONE column carries a rule — RequiresExecutedDocument — and",
+      "it is read by the derived IsAwaitingDocument, never branched on by name.",
       "",
-      "Percent columns are FRACTIONS, not percents: 0.0400 is 4%. Same convention as orders'",
-      "OrderLine.DiscountPct and SalesAuthority.MaxDiscountPct.",
-      "",
-      "RenewalMode is the fork that decides who renews: 'Deal' means sales opens a renewal deal and",
-      "calls Contracts.RenewTerm (L-18 — a renewal IS a deal); 'Auto' means the scheduled job calls the",
-      "same operation without one; 'Manual' means a person does it deliberately.",
+      "v1 seeded six types with fourteen columns of billing defaults (term months, billing frequency,",
+      "escalation percents, renewal mode, coterm). All of it is gone: v2 does not bill, does not renew",
+      "on a schedule, and does not decide anything from a type beyond whether paper is expected. The",
+      "vocabulary changed too — MSA / Standard / Membership / Evergreen / Pilot described commercial",
+      "shapes; Order Form / SOW / Payment Link / Change Order describe what the DOCUMENT is, which is",
+      "what a tracking app can actually observe.",
       "",
       "Fixed UUIDs so a re-push against a rebuilt database UPDATES these rows rather than creating a",
-      "second set with the same codes."
+      "second set. Deliberately a NEW block (3333…10xx) rather than reusing v1's 3333…000x: the rows",
+      "are not edits of the old ones, and a from-zero rebuild should not resurrect an MSA row as an",
+      "Order Form."
     ],
     "fields": {
-      "Code": "MSA",
-      "Name": "Master Services Agreement",
-      "Description": "The perpetual legal envelope. Carries no commercial terms itself — those live on the Order Form or SOW nested beneath it via ParentContractID. Renewal is a deal, and co-terming is allowed so an addition mid-term aligns to the anniversary.",
-      "DefaultTermMonths": 12,
-      "DefaultBillingFrequency": "Quarterly",
-      "DefaultAutoRenew": true,
-      "RequiresSignature": true,
-      "DefaultEscalationPercent": 0.04,
-      "DefaultMaxEscalationPercent": 0.05,
-      "DefaultRenewalNoticeDays": 60,
-      "DefaultCancellationWindowDays": 90,
-      "RenewalMode": "Deal",
-      "AllowsCoterm": true,
-      "IsActive": true
+      "Name": "Order Form",
+      "Description": "The commercial document a customer signs to buy — the ordinary agreement. Sits beneath a Master Agreement whose provisions it incorporates by reference, which is why the Order Form carries the ContractTemplateID rather than the MA carrying anything about it.",
+      "RequiresExecutedDocument": true,
+      "Status": "Active"
     },
     "primaryKey": {
-      "ID": "33333333-0000-4000-8000-000000000001"
+      "ID": "33333333-0000-4000-8000-000000001001"
     },
     "sync": {
-      "lastModified": "2026-08-06T22:28:26.147Z",
-      "checksum": "03e6d9a43e5fad6162821efaf245e43beb315b7ca4c67a1a72d7b78e85233232"
+      "lastModified": "2026-08-19T02:44:49.554Z",
+      "checksum": "39b8f2fcd4224961b5e68e03012c93a976119aa8f50d74d63f6e7dde323e1d87"
     }
   },
   {
     "fields": {
-      "Code": "Standard",
-      "Name": "Standard Agreement",
-      "Description": "The ordinary single-document agreement: one contract, successive renewal terms under it. The default choice when there is no master agreement above and no statement of work below.",
-      "DefaultTermMonths": 12,
-      "DefaultBillingFrequency": "Annual",
-      "DefaultAutoRenew": true,
-      "RequiresSignature": true,
-      "DefaultEscalationPercent": 0.03,
-      "DefaultMaxEscalationPercent": 0.05,
-      "DefaultRenewalNoticeDays": 30,
-      "DefaultCancellationWindowDays": 30,
-      "RenewalMode": "Deal",
-      "AllowsCoterm": false,
-      "IsActive": true
-    },
-    "primaryKey": {
-      "ID": "33333333-0000-4000-8000-000000000002"
-    },
-    "sync": {
-      "lastModified": "2026-08-06T22:28:26.161Z",
-      "checksum": "256872ab462a19bb6189928d6cf5ea67d67c97bf5811ea28973e48fbfa37a9a7"
-    }
-  },
-  {
-    "fields": {
-      "Code": "SOW",
       "Name": "Statement of Work",
-      "Description": "Scoped services with a defined end, normally nested under an MSA. Billed against milestones rather than a cadence, and deliberately does NOT auto-renew: a statement of work that renews itself is a bug, not a feature.",
-      "DefaultTermMonths": 6,
-      "DefaultBillingFrequency": "Milestone",
-      "DefaultAutoRenew": false,
-      "RequiresSignature": true,
-      "DefaultRenewalNoticeDays": 30,
-      "DefaultCancellationWindowDays": 30,
-      "RenewalMode": "Manual",
-      "AllowsCoterm": true,
-      "IsActive": true
+      "Description": "Scoped services with a defined end. Amith, 2026-08-18: SOWs have standard language but no versioned template — so an SOW contract may have no ContractTemplateID, and that is not a gap to fill. Paper is still expected.",
+      "RequiresExecutedDocument": true,
+      "Status": "Active"
     },
     "primaryKey": {
-      "ID": "33333333-0000-4000-8000-000000000003"
+      "ID": "33333333-0000-4000-8000-000000001002"
     },
     "sync": {
-      "lastModified": "2026-08-06T22:28:26.175Z",
-      "checksum": "4c4b223fe6cdd2b6402846e7d0bc77018b76d0c5658782cc32354c2749b81908"
+      "lastModified": "2026-08-19T02:44:49.566Z",
+      "checksum": "f850e6e241af863051bd3033435b819162fe11a37e770777498d3c25494c8d1b"
     }
   },
   {
     "fields": {
-      "Code": "Membership",
-      "Name": "Membership",
-      "Description": "Annual membership. Auto-renews without a deal — the B2C-shaped path where making a rep work a pipeline for every renewal would cost more than the membership. Escalation is modest and capped tightly because the member sees the increase directly.",
-      "DefaultTermMonths": 12,
-      "DefaultBillingFrequency": "Annual",
-      "DefaultAutoRenew": true,
-      "RequiresSignature": false,
-      "DefaultEscalationPercent": 0.03,
-      "DefaultMaxEscalationPercent": 0.03,
-      "DefaultRenewalNoticeDays": 45,
-      "DefaultCancellationWindowDays": 30,
-      "RenewalMode": "Auto",
-      "AllowsCoterm": false,
-      "IsActive": true
+      "Name": "Payment Link",
+      "Description": "The sub-$10k self-serve case: finance sends a HubSpot payment link that references the Master Agreement, and nobody signs anything. There is an implied contract, so it IS a contract — it has a ContractTemplateID and no document. This is the one type where RequiresExecutedDocument is false, and the reason that column exists at all.",
+      "RequiresExecutedDocument": false,
+      "Status": "Active"
     },
     "primaryKey": {
-      "ID": "33333333-0000-4000-8000-000000000004"
+      "ID": "33333333-0000-4000-8000-000000001003"
     },
     "sync": {
-      "lastModified": "2026-08-06T22:28:26.189Z",
-      "checksum": "7a34eb3fdbcc68f720b099fd5c044d82c0fdec35edf0d2ca6756a0a46c1cbed8"
+      "lastModified": "2026-08-19T02:44:49.577Z",
+      "checksum": "c0adf70557c7ddb637d32b7991354acdfdfa762dff639494397221696cdc2491"
     }
   },
   {
     "fields": {
-      "Code": "Evergreen",
-      "Name": "Evergreen",
-      "Description": "Rolls indefinitely until cancelled — no fixed end, no renewal event to work. Terms still exist as billing periods, but each simply follows the last. Notice is long because there is no natural moment at which either side revisits the agreement.",
-      "DefaultTermMonths": 12,
-      "DefaultBillingFrequency": "Monthly",
-      "DefaultAutoRenew": true,
-      "RequiresSignature": true,
-      "DefaultEscalationPercent": 0.03,
-      "DefaultMaxEscalationPercent": 0.05,
-      "DefaultRenewalNoticeDays": 90,
-      "DefaultCancellationWindowDays": 90,
-      "RenewalMode": "Auto",
-      "AllowsCoterm": true,
-      "IsActive": true
+      "Name": "Change Order",
+      "Description": "Amends an existing agreement rather than replacing it: signed paper of its own, its own dates, and a ParentContractID naming what it changes. A change order must name a parent (enforced in the server subclass, which needs the type join to know it is one) — the derived IsChangeOrder reads the FK, not this row.",
+      "RequiresExecutedDocument": true,
+      "Status": "Active"
     },
     "primaryKey": {
-      "ID": "33333333-0000-4000-8000-000000000005"
+      "ID": "33333333-0000-4000-8000-000000001004"
     },
     "sync": {
-      "lastModified": "2026-08-06T22:28:26.202Z",
-      "checksum": "b6c03c97e2ae505cb78cf3d70dd0981ad23c2ac6a6be1ac1c54166ee82518ebd"
-    }
-  },
-  {
-    "fields": {
-      "Code": "Pilot",
-      "Name": "Pilot",
-      "Description": "A short paid trial with a hard stop. Does NOT auto-renew and has no escalation — a pilot that quietly renews at a higher price is exactly the surprise this app exists to prevent. Converting a pilot means a new agreement, which is a deal.",
-      "DefaultTermMonths": 3,
-      "DefaultBillingFrequency": "Custom",
-      "DefaultAutoRenew": false,
-      "RequiresSignature": true,
-      "DefaultRenewalNoticeDays": 15,
-      "DefaultCancellationWindowDays": 0,
-      "RenewalMode": "Deal",
-      "AllowsCoterm": false,
-      "IsActive": true
-    },
-    "primaryKey": {
-      "ID": "33333333-0000-4000-8000-000000000006"
-    },
-    "sync": {
-      "lastModified": "2026-08-06T22:28:26.216Z",
-      "checksum": "58320a64320d04d097d5a17fd53393830060f8919b60fb34cc2bb7ca42abe583"
+      "lastModified": "2026-08-19T02:44:49.588Z",
+      "checksum": "f22005c152cb8423b7388ee61cf12752d027f7161b108c6e4f99073e180f6c21"
     }
   }
 ]

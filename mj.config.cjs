@@ -65,12 +65,25 @@ module.exports = {
   },
 
   // ==========================================================================
-  // Schema exclusions — RECOMMENDED
+  // Schema scope — REQUIRED
   // ==========================================================================
-  // CodeGen for THIS app must only touch THIS app's schema. Never generate
-  // against MJ core (__mj) or system schemas from an app repo.
-  // Include schemas for dependencies to avoid generating duplicate entities for 
-  // them. See docs/template-docs/codegen-and-metadata-migrations.md.
+  // CodeGen for THIS app must only touch THIS app's schema, and `includeSchemas`
+  // is what actually enforces that. `excludeSchemas` alone does not: it names the
+  // schemas to skip, so in a linked workspace where the sibling BizApps are
+  // present (common, tasks, accounting, orders) CodeGen happily generates against
+  // them too. That is not theoretical — it fails, and it fails confusingly: the
+  // run dies applying permissions for another app's stored procedures
+  // ("Cannot find the object 'spCreateEventOrderLine'"), because those procs only
+  // exist where that app's own CodeGen has run. The error names orders while the
+  // cause is this file.
+  //
+  // `includeSchemas` is a positive opt-in: a schema is in scope iff it is named
+  // here AND absent from excludeSchemas (CodeGenLib/src/Database/schema-scope.ts).
+  // One name, and the blast radius is exactly this app.
+  includeSchemas: ['__mj_BizAppsContracts'],
+
+  // Belt and braces: MJ core and system schemas are never generated from an app
+  // repo, regardless of the include list.
   excludeSchemas: ['sys', 'staging', 'dbo', '__mj'],
 
   // ==========================================================================

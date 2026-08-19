@@ -16,7 +16,7 @@ development.
 
 ## Why the baseline is ONE file
 
-`B…__Baseline.sql` carries everything: the schema, the `__mj.SchemaInfo` registration, all ten
+`B…__Baseline.sql` carries everything: the schema, the `__mj.SchemaInfo` registration, all seven
 tables and their constraints, and the CodeGen output. Applying it to an empty database produces an
 **installed app**, not bare tables — `mj sync push` then seeds the reference vocabulary.
 
@@ -42,6 +42,23 @@ Two things make that hazard survivable now, and both are recent:
    `packages/OpenApp/Engine/src/install/migration-runner.ts`; see `MJ-UPSTREAM.md`.
 2. **The split only helps across files.** Putting a `CREATE TYPE` and a trigger that uses it in the
    SAME file re-creates the deadlock even under `per-migration`.
+
+## The 50-blank-line rule (where hand-written DDL stops and CodeGen output starts)
+
+**In any migration that carries both, exactly 50 empty lines separate the hand-written DDL from the
+CodeGen capture.** The hand-written half ends with its `GO`; then 50 blank lines; then the capture's
+banner comment and the generated SQL. A migration with no capture has no separator; a capture-only file
+puts the separator below its header comment so the boundary is still findable.
+
+It reads like formatting and is not. A capture is **replaced wholesale** on regeneration, so anyone
+re-capturing needs an unambiguous mark for "everything below here is generated — delete it and paste the
+new run." A banner comment cannot be that mark, because banner comments appear *inside* CodeGen output
+dozens of times. Fifty consecutive blank lines appear nowhere else in a SQL file, which is exactly why
+the number is absurd.
+
+Verify with a longest-blank-run check over `migrations/*.sql`: every file carrying a capture must report
+**50**, and `V202608182001` (hand-written wrapper, no capture) must report **1**. `bizapps-orders` is the
+reference implementation — `V202608131541`, `V202608131542`, `V202607061432`.
 
 ## Standing pre-production practice
 
@@ -86,7 +103,7 @@ workaround for a tooling defect.
 ## Verification
 
 The baseline has been applied inside a transaction against a database carrying the full
-dependency chain and rolled back: **10 tables, 25 foreign keys, every cross-app target resolved.**
+dependency chain and rolled back: **8 views, 21 CRUD procedures, 7 entities, 77 entity fields, 6 derived columns** — measured on a wiped database, 2026-08-18.
 Re-run that check after any edit:
 
 ```bash

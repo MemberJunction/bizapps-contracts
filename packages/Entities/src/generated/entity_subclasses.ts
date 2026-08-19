@@ -9,479 +9,19 @@ export const loadModule = () => {
      
  
 /**
- * zod schema definition for the entity MJ_BizApps_Contracts: Contract Amendments
- */
-export const mjBizAppsContractsContractAmendmentSchema = z.object({
-    ID: z.string().describe(`
-        * * Field Name: ID
-        * * Display Name: ID
-        * * SQL Data Type: uniqueidentifier
-        * * Default Value: newsequentialid()`),
-    ContractTermID: z.string().describe(`
-        * * Field Name: ContractTermID
-        * * Display Name: Contract Term ID
-        * * SQL Data Type: uniqueidentifier
-        * * Related Entity/Foreign Key: MJ_BizApps_Contracts: Contract Terms (vwContractTerms.ID)`),
-    AmendmentNumber: z.number().describe(`
-        * * Field Name: AmendmentNumber
-        * * Display Name: Amendment Number
-        * * SQL Data Type: int`),
-    EffectiveDate: z.date().describe(`
-        * * Field Name: EffectiveDate
-        * * Display Name: Effective Date
-        * * SQL Data Type: date`),
-    AmendmentType: z.union([z.literal('AddProduct'), z.literal('ChangePrice'), z.literal('ChangeQuantity'), z.literal('Coterm'), z.literal('Other'), z.literal('PartialTerminate')]).describe(`
-        * * Field Name: AmendmentType
-        * * Display Name: Amendment Type
-        * * SQL Data Type: nvarchar(30)
-    * * Value List Type: List
-    * * Possible Values 
-    *   * AddProduct
-    *   * ChangePrice
-    *   * ChangeQuantity
-    *   * Coterm
-    *   * Other
-    *   * PartialTerminate`),
-    Description: z.string().nullable().describe(`
-        * * Field Name: Description
-        * * Display Name: Description
-        * * SQL Data Type: nvarchar(MAX)`),
-    Status: z.union([z.literal('Applied'), z.literal('Approved'), z.literal('Cancelled'), z.literal('Draft'), z.literal('PendingApproval'), z.literal('Rejected')]).describe(`
-        * * Field Name: Status
-        * * Display Name: Status
-        * * SQL Data Type: nvarchar(20)
-        * * Default Value: Draft
-    * * Value List Type: List
-    * * Possible Values 
-    *   * Applied
-    *   * Approved
-    *   * Cancelled
-    *   * Draft
-    *   * PendingApproval
-    *   * Rejected`),
-    ApprovalTaskID: z.string().nullable().describe(`
-        * * Field Name: ApprovalTaskID
-        * * Display Name: Approval Task ID
-        * * SQL Data Type: uniqueidentifier
-        * * Related Entity/Foreign Key: MJ_BizApps_Tasks: Tasks (vwTasks.ID)
-        * * Description: The bizapps-tasks Task gating this amendment. Raised for non-standard terms, discounts beyond a rep's SalesAuthority, and early-termination waivers; TaskType OnComplete/OnReject hooks call back into contracts to advance or reject.`),
-    __mj_CreatedAt: z.date().describe(`
-        * * Field Name: __mj_CreatedAt
-        * * Display Name: Created At
-        * * SQL Data Type: datetimeoffset
-        * * Default Value: getutcdate()`),
-    __mj_UpdatedAt: z.date().describe(`
-        * * Field Name: __mj_UpdatedAt
-        * * Display Name: Updated At
-        * * SQL Data Type: datetimeoffset
-        * * Default Value: getutcdate()`),
-    ApprovalTask: z.string().nullable().describe(`
-        * * Field Name: ApprovalTask
-        * * Display Name: Approval Task
-        * * SQL Data Type: nvarchar(255)`),
-});
-
-export type mjBizAppsContractsContractAmendmentEntityType = z.infer<typeof mjBizAppsContractsContractAmendmentSchema>;
-
-/**
- * zod schema definition for the entity MJ_BizApps_Contracts: Contract Billing Events
- */
-export const mjBizAppsContractsContractBillingEventSchema = z.object({
-    ID: z.string().describe(`
-        * * Field Name: ID
-        * * Display Name: ID
-        * * SQL Data Type: uniqueidentifier
-        * * Default Value: newsequentialid()`),
-    ContractBillingScheduleID: z.string().nullable().describe(`
-        * * Field Name: ContractBillingScheduleID
-        * * Display Name: Contract Billing Schedule ID
-        * * SQL Data Type: uniqueidentifier
-        * * Related Entity/Foreign Key: MJ_BizApps_Contracts: Contract Billing Schedules (vwContractBillingSchedules.ID)`),
-    ContractTermID: z.string().describe(`
-        * * Field Name: ContractTermID
-        * * Display Name: Contract Term ID
-        * * SQL Data Type: uniqueidentifier
-        * * Related Entity/Foreign Key: MJ_BizApps_Contracts: Contract Terms (vwContractTerms.ID)`),
-    ScheduledDate: z.date().describe(`
-        * * Field Name: ScheduledDate
-        * * Display Name: Scheduled Date
-        * * SQL Data Type: date`),
-    Status: z.union([z.literal('Cancelled'), z.literal('Failed'), z.literal('Generated'), z.literal('Scheduled'), z.literal('Skipped')]).describe(`
-        * * Field Name: Status
-        * * Display Name: Status
-        * * SQL Data Type: nvarchar(20)
-        * * Default Value: Scheduled
-    * * Value List Type: List
-    * * Possible Values 
-    *   * Cancelled
-    *   * Failed
-    *   * Generated
-    *   * Scheduled
-    *   * Skipped`),
-    OrderID: z.string().nullable().describe(`
-        * * Field Name: OrderID
-        * * Display Name: Order ID
-        * * SQL Data Type: uniqueidentifier
-        * * Related Entity/Foreign Key: MJ_BizApps_Orders: Order Headers (vwOrderHeaders.ID)
-        * * Description: The ONE consolidated order this event produced, via Orders.CreateOrderInState. A legal downward reference: contracts sits above orders. Status=Generated requires it, which is what makes the status transition a real idempotency guard.`),
-    ComputedAmount: z.number().nullable().describe(`
-        * * Field Name: ComputedAmount
-        * * Display Name: Computed Amount
-        * * SQL Data Type: decimal(19, 4)
-        * * Description: A STAMP of the total Orders.PreviewOrder returned — never a figure computed in this app. Contracts decides WHAT to bill and never what it costs.`),
-    GeneratedAt: z.date().nullable().describe(`
-        * * Field Name: GeneratedAt
-        * * Display Name: Generated At
-        * * SQL Data Type: datetimeoffset`),
-    FailureReason: z.string().nullable().describe(`
-        * * Field Name: FailureReason
-        * * Display Name: Failure Reason
-        * * SQL Data Type: nvarchar(MAX)`),
-    Notes: z.string().nullable().describe(`
-        * * Field Name: Notes
-        * * Display Name: Notes
-        * * SQL Data Type: nvarchar(MAX)`),
-    __mj_CreatedAt: z.date().describe(`
-        * * Field Name: __mj_CreatedAt
-        * * Display Name: Created At
-        * * SQL Data Type: datetimeoffset
-        * * Default Value: getutcdate()`),
-    __mj_UpdatedAt: z.date().describe(`
-        * * Field Name: __mj_UpdatedAt
-        * * Display Name: Updated At
-        * * SQL Data Type: datetimeoffset
-        * * Default Value: getutcdate()`),
-    Order: z.string().nullable().describe(`
-        * * Field Name: Order
-        * * Display Name: Order
-        * * SQL Data Type: nvarchar(40)`),
-});
-
-export type mjBizAppsContractsContractBillingEventEntityType = z.infer<typeof mjBizAppsContractsContractBillingEventSchema>;
-
-/**
- * zod schema definition for the entity MJ_BizApps_Contracts: Contract Billing Schedules
- */
-export const mjBizAppsContractsContractBillingScheduleSchema = z.object({
-    ID: z.string().describe(`
-        * * Field Name: ID
-        * * Display Name: ID
-        * * SQL Data Type: uniqueidentifier
-        * * Default Value: newsequentialid()`),
-    ContractTermID: z.string().describe(`
-        * * Field Name: ContractTermID
-        * * Display Name: Contract Term ID
-        * * SQL Data Type: uniqueidentifier
-        * * Related Entity/Foreign Key: MJ_BizApps_Contracts: Contract Terms (vwContractTerms.ID)`),
-    ScheduleType: z.union([z.literal('Cadence'), z.literal('Custom'), z.literal('Milestone')]).describe(`
-        * * Field Name: ScheduleType
-        * * Display Name: Schedule Type
-        * * SQL Data Type: nvarchar(20)
-    * * Value List Type: List
-    * * Possible Values 
-    *   * Cadence
-    *   * Custom
-    *   * Milestone`),
-    Frequency: z.union([z.literal('Annual'), z.literal('Custom'), z.literal('Milestone'), z.literal('Monthly'), z.literal('Quarterly'), z.literal('SemiAnnual')]).nullable().describe(`
-        * * Field Name: Frequency
-        * * Display Name: Frequency
-        * * SQL Data Type: nvarchar(20)
-    * * Value List Type: List
-    * * Possible Values 
-    *   * Annual
-    *   * Custom
-    *   * Milestone
-    *   * Monthly
-    *   * Quarterly
-    *   * SemiAnnual`),
-    AnchorDate: z.date().nullable().describe(`
-        * * Field Name: AnchorDate
-        * * Display Name: Anchor Date
-        * * SQL Data Type: date`),
-    IsActive: z.boolean().describe(`
-        * * Field Name: IsActive
-        * * Display Name: Is Active
-        * * SQL Data Type: bit
-        * * Default Value: 1`),
-    Notes: z.string().nullable().describe(`
-        * * Field Name: Notes
-        * * Display Name: Notes
-        * * SQL Data Type: nvarchar(MAX)`),
-    __mj_CreatedAt: z.date().describe(`
-        * * Field Name: __mj_CreatedAt
-        * * Display Name: Created At
-        * * SQL Data Type: datetimeoffset
-        * * Default Value: getutcdate()`),
-    __mj_UpdatedAt: z.date().describe(`
-        * * Field Name: __mj_UpdatedAt
-        * * Display Name: Updated At
-        * * SQL Data Type: datetimeoffset
-        * * Default Value: getutcdate()`),
-});
-
-export type mjBizAppsContractsContractBillingScheduleEntityType = z.infer<typeof mjBizAppsContractsContractBillingScheduleSchema>;
-
-/**
- * zod schema definition for the entity MJ_BizApps_Contracts: Contract Commitments
- */
-export const mjBizAppsContractsContractCommitmentSchema = z.object({
-    ID: z.string().describe(`
-        * * Field Name: ID
-        * * Display Name: ID
-        * * SQL Data Type: uniqueidentifier
-        * * Default Value: newsequentialid()`),
-    ContractTermID: z.string().describe(`
-        * * Field Name: ContractTermID
-        * * Display Name: Contract Term ID
-        * * SQL Data Type: uniqueidentifier
-        * * Related Entity/Foreign Key: MJ_BizApps_Contracts: Contract Terms (vwContractTerms.ID)`),
-    CommitmentType: z.union([z.literal('Draw'), z.literal('Minimum'), z.literal('Prepaid')]).describe(`
-        * * Field Name: CommitmentType
-        * * Display Name: Commitment Type
-        * * SQL Data Type: nvarchar(20)
-    * * Value List Type: List
-    * * Possible Values 
-    *   * Draw
-    *   * Minimum
-    *   * Prepaid`),
-    CommittedAmount: z.number().describe(`
-        * * Field Name: CommittedAmount
-        * * Display Name: Committed Amount
-        * * SQL Data Type: decimal(19, 4)`),
-    ConsumedAmount: z.number().describe(`
-        * * Field Name: ConsumedAmount
-        * * Display Name: Consumed Amount
-        * * SQL Data Type: decimal(19, 4)
-        * * Default Value: 0`),
-    PeriodStart: z.date().nullable().describe(`
-        * * Field Name: PeriodStart
-        * * Display Name: Period Start
-        * * SQL Data Type: date`),
-    PeriodEnd: z.date().nullable().describe(`
-        * * Field Name: PeriodEnd
-        * * Display Name: Period End
-        * * SQL Data Type: date`),
-    TrueUpPolicy: z.union([z.literal('BillShortfall'), z.literal('Forfeit'), z.literal('Rollover')]).describe(`
-        * * Field Name: TrueUpPolicy
-        * * Display Name: True Up Policy
-        * * SQL Data Type: nvarchar(20)
-        * * Default Value: BillShortfall
-    * * Value List Type: List
-    * * Possible Values 
-    *   * BillShortfall
-    *   * Forfeit
-    *   * Rollover
-        * * Description: What happens to an unconsumed minimum at period end: BillShortfall adds the gap to the next bill, Forfeit drops it, Rollover carries it forward.`),
-    Status: z.union([z.literal('Closed'), z.literal('Forfeited'), z.literal('Open'), z.literal('TruedUp')]).describe(`
-        * * Field Name: Status
-        * * Display Name: Status
-        * * SQL Data Type: nvarchar(20)
-        * * Default Value: Open
-    * * Value List Type: List
-    * * Possible Values 
-    *   * Closed
-    *   * Forfeited
-    *   * Open
-    *   * TruedUp`),
-    __mj_CreatedAt: z.date().describe(`
-        * * Field Name: __mj_CreatedAt
-        * * Display Name: Created At
-        * * SQL Data Type: datetimeoffset
-        * * Default Value: getutcdate()`),
-    __mj_UpdatedAt: z.date().describe(`
-        * * Field Name: __mj_UpdatedAt
-        * * Display Name: Updated At
-        * * SQL Data Type: datetimeoffset
-        * * Default Value: getutcdate()`),
-});
-
-export type mjBizAppsContractsContractCommitmentEntityType = z.infer<typeof mjBizAppsContractsContractCommitmentSchema>;
-
-/**
- * zod schema definition for the entity MJ_BizApps_Contracts: Contract Events
- */
-export const mjBizAppsContractsContractEventSchema = z.object({
-    ID: z.string().describe(`
-        * * Field Name: ID
-        * * Display Name: ID
-        * * SQL Data Type: uniqueidentifier
-        * * Default Value: newsequentialid()`),
-    ContractID: z.string().describe(`
-        * * Field Name: ContractID
-        * * Display Name: Contract ID
-        * * SQL Data Type: uniqueidentifier
-        * * Related Entity/Foreign Key: MJ_BizApps_Contracts: Contracts (vwContracts.ID)`),
-    ContractTermID: z.string().nullable().describe(`
-        * * Field Name: ContractTermID
-        * * Display Name: Contract Term ID
-        * * SQL Data Type: uniqueidentifier
-        * * Related Entity/Foreign Key: MJ_BizApps_Contracts: Contract Terms (vwContractTerms.ID)`),
-    EventType: z.union([z.literal('AmendmentApplied'), z.literal('BillingEventFailed'), z.literal('BillingEventGenerated'), z.literal('ContractCreated'), z.literal('ContractExecuted'), z.literal('ContractExpired'), z.literal('ContractSuperseded'), z.literal('ContractTerminated'), z.literal('SentForSignature'), z.literal('SignatureRejected'), z.literal('TermActivated'), z.literal('TermCompleted'), z.literal('TermRenewed'), z.literal('TermTerminated')]).describe(`
-        * * Field Name: EventType
-        * * Display Name: Event Type
-        * * SQL Data Type: nvarchar(50)
-    * * Value List Type: List
-    * * Possible Values 
-    *   * AmendmentApplied
-    *   * BillingEventFailed
-    *   * BillingEventGenerated
-    *   * ContractCreated
-    *   * ContractExecuted
-    *   * ContractExpired
-    *   * ContractSuperseded
-    *   * ContractTerminated
-    *   * SentForSignature
-    *   * SignatureRejected
-    *   * TermActivated
-    *   * TermCompleted
-    *   * TermRenewed
-    *   * TermTerminated`),
-    EventDate: z.date().describe(`
-        * * Field Name: EventDate
-        * * Display Name: Event Date
-        * * SQL Data Type: datetimeoffset
-        * * Default Value: sysdatetimeoffset()`),
-    Payload: z.string().nullable().describe(`
-        * * Field Name: Payload
-        * * Display Name: Payload
-        * * SQL Data Type: nvarchar(MAX)`),
-    PerformedByUserID: z.string().nullable().describe(`
-        * * Field Name: PerformedByUserID
-        * * Display Name: Performed By User ID
-        * * SQL Data Type: uniqueidentifier
-        * * Related Entity/Foreign Key: MJ: Users (vwUsers.ID)`),
-    __mj_CreatedAt: z.date().describe(`
-        * * Field Name: __mj_CreatedAt
-        * * Display Name: Created At
-        * * SQL Data Type: datetimeoffset
-        * * Default Value: getutcdate()`),
-    __mj_UpdatedAt: z.date().describe(`
-        * * Field Name: __mj_UpdatedAt
-        * * Display Name: Updated At
-        * * SQL Data Type: datetimeoffset
-        * * Default Value: getutcdate()`),
-    PerformedByUser: z.string().nullable().describe(`
-        * * Field Name: PerformedByUser
-        * * Display Name: Performed By User
-        * * SQL Data Type: nvarchar(100)`),
-});
-
-export type mjBizAppsContractsContractEventEntityType = z.infer<typeof mjBizAppsContractsContractEventSchema>;
-
-/**
- * zod schema definition for the entity MJ_BizApps_Contracts: Contract Lines
- */
-export const mjBizAppsContractsContractLineSchema = z.object({
-    ID: z.string().describe(`
-        * * Field Name: ID
-        * * Display Name: ID
-        * * SQL Data Type: uniqueidentifier
-        * * Default Value: newsequentialid()`),
-    ContractTermID: z.string().describe(`
-        * * Field Name: ContractTermID
-        * * Display Name: Contract Term ID
-        * * SQL Data Type: uniqueidentifier
-        * * Related Entity/Foreign Key: MJ_BizApps_Contracts: Contract Terms (vwContractTerms.ID)`),
-    ProductID: z.string().describe(`
-        * * Field Name: ProductID
-        * * Display Name: Product ID
-        * * SQL Data Type: uniqueidentifier
-        * * Related Entity/Foreign Key: MJ_BizApps_Orders: Products (vwProducts.ID)`),
-    LineType: z.union([z.literal('Milestone'), z.literal('Minimum'), z.literal('OneTime'), z.literal('Subscription'), z.literal('Usage')]).describe(`
-        * * Field Name: LineType
-        * * Display Name: Line Type
-        * * SQL Data Type: nvarchar(20)
-    * * Value List Type: List
-    * * Possible Values 
-    *   * Milestone
-    *   * Minimum
-    *   * OneTime
-    *   * Subscription
-    *   * Usage
-        * * Description: Subscription | OneTime | Milestone | Usage | Minimum. Usage is present in the value list although usage metering is out of v1, so the schema need not change when metering arrives.`),
-    Quantity: z.number().describe(`
-        * * Field Name: Quantity
-        * * Display Name: Quantity
-        * * SQL Data Type: decimal(18, 4)
-        * * Default Value: 1`),
-    ContractedUnitPrice: z.number().nullable().describe(`
-        * * Field Name: ContractedUnitPrice
-        * * Display Name: Contracted Unit Price
-        * * SQL Data Type: decimal(19, 4)
-        * * Description: The negotiated per-unit price. NULL means RESOLVE NORMALLY — the line is covered by the agreement but priced from the catalog. A non-null value is what ContractPriceResolver returns into orders' pricing walk; escalation is applied by the resolver at billing time, not stored here.`),
-    DiscountPct: z.number().nullable().describe(`
-        * * Field Name: DiscountPct
-        * * Display Name: Discount Pct
-        * * SQL Data Type: decimal(7, 4)`),
-    StartDate: z.date().nullable().describe(`
-        * * Field Name: StartDate
-        * * Display Name: Start Date
-        * * SQL Data Type: date`),
-    EndDate: z.date().nullable().describe(`
-        * * Field Name: EndDate
-        * * Display Name: End Date
-        * * SQL Data Type: date
-        * * Description: Co-term stubs live here: a line added mid-term starts at the amendment date and ends at the TERM's end date, so the stub prorates on the next billing event. This is the capability standalone subscriptions structurally cannot provide, and the reason the contract owns the calendar.`),
-    SubscriptionTypeID: z.string().nullable().describe(`
-        * * Field Name: SubscriptionTypeID
-        * * Display Name: Subscription Type ID
-        * * SQL Data Type: uniqueidentifier
-        * * Related Entity/Foreign Key: MJ_BizApps_Orders: Subscription Types (vwSubscriptionTypes.ID)`),
-    SubscriptionID: z.string().nullable().describe(`
-        * * Field Name: SubscriptionID
-        * * Display Name: Subscription ID
-        * * SQL Data Type: uniqueidentifier
-        * * Related Entity/Foreign Key: MJ_BizApps_Orders: Subscriptions (vwSubscriptions.ID)
-        * * Description: The materialized orders Subscription for a LineType=Subscription line. This linkage lives HERE and points up the graph: orders never learns the word "contract", only that the subscription's BillingMode is External so SpawnRenewals skips it.`),
-    Description: z.string().nullable().describe(`
-        * * Field Name: Description
-        * * Display Name: Description
-        * * SQL Data Type: nvarchar(MAX)`),
-    DisplayOrder: z.number().describe(`
-        * * Field Name: DisplayOrder
-        * * Display Name: Display Order
-        * * SQL Data Type: int
-        * * Default Value: 0`),
-    __mj_CreatedAt: z.date().describe(`
-        * * Field Name: __mj_CreatedAt
-        * * Display Name: Created At
-        * * SQL Data Type: datetimeoffset
-        * * Default Value: getutcdate()`),
-    __mj_UpdatedAt: z.date().describe(`
-        * * Field Name: __mj_UpdatedAt
-        * * Display Name: Updated At
-        * * SQL Data Type: datetimeoffset
-        * * Default Value: getutcdate()`),
-    Product: z.string().describe(`
-        * * Field Name: Product
-        * * Display Name: Product
-        * * SQL Data Type: nvarchar(200)`),
-    SubscriptionType: z.string().nullable().describe(`
-        * * Field Name: SubscriptionType
-        * * Display Name: Subscription Type
-        * * SQL Data Type: nvarchar(200)`),
-    Subscription: z.string().nullable().describe(`
-        * * Field Name: Subscription
-        * * Display Name: Subscription
-        * * SQL Data Type: nvarchar(40)`),
-});
-
-export type mjBizAppsContractsContractLineEntityType = z.infer<typeof mjBizAppsContractsContractLineSchema>;
-
-/**
  * zod schema definition for the entity MJ_BizApps_Contracts: Contract Sequences
  */
 export const mjBizAppsContractsContractSequenceSchema = z.object({
     ID: z.number().describe(`
         * * Field Name: ID
         * * Display Name: ID
-        * * SQL Data Type: int
-        * * Default Value: 1`),
+        * * SQL Data Type: int`),
     NextSequenceNumber: z.number().describe(`
         * * Field Name: NextSequenceNumber
         * * Display Name: Next Sequence Number
         * * SQL Data Type: int
-        * * Default Value: 1`),
+        * * Default Value: 1
+        * * Description: The next number to hand out. Advanced server-side by ContractEntityServer.Save().`),
     __mj_CreatedAt: z.date().describe(`
         * * Field Name: __mj_CreatedAt
         * * Display Name: Created At
@@ -497,9 +37,9 @@ export const mjBizAppsContractsContractSequenceSchema = z.object({
 export type mjBizAppsContractsContractSequenceEntityType = z.infer<typeof mjBizAppsContractsContractSequenceSchema>;
 
 /**
- * zod schema definition for the entity MJ_BizApps_Contracts: Contract Terms
+ * zod schema definition for the entity MJ_BizApps_Contracts: Contract Template Modifications
  */
-export const mjBizAppsContractsContractTermSchema = z.object({
+export const mjBizAppsContractsContractTemplateModificationSchema = z.object({
     ID: z.string().describe(`
         * * Field Name: ID
         * * Display Name: ID
@@ -507,100 +47,181 @@ export const mjBizAppsContractsContractTermSchema = z.object({
         * * Default Value: newsequentialid()`),
     ContractID: z.string().describe(`
         * * Field Name: ContractID
-        * * Display Name: Contract ID
+        * * Display Name: Contract
         * * SQL Data Type: uniqueidentifier
         * * Related Entity/Foreign Key: MJ_BizApps_Contracts: Contracts (vwContracts.ID)`),
-    TermNumber: z.number().describe(`
-        * * Field Name: TermNumber
-        * * Display Name: Term Number
-        * * SQL Data Type: int`),
-    StartDate: z.date().describe(`
-        * * Field Name: StartDate
-        * * Display Name: Start Date
-        * * SQL Data Type: date`),
-    EndDate: z.date().describe(`
-        * * Field Name: EndDate
-        * * Display Name: End Date
-        * * SQL Data Type: date`),
-    Status: z.union([z.literal('Active'), z.literal('Completed'), z.literal('Pending'), z.literal('PendingSignature'), z.literal('Terminated')]).describe(`
-        * * Field Name: Status
-        * * Display Name: Status
-        * * SQL Data Type: nvarchar(20)
-        * * Default Value: Pending
-    * * Value List Type: List
-    * * Possible Values 
-    *   * Active
-    *   * Completed
-    *   * Pending
-    *   * PendingSignature
-    *   * Terminated`),
-    RenewalOfTermID: z.string().nullable().describe(`
-        * * Field Name: RenewalOfTermID
-        * * Display Name: Renewal Of Term ID
+    ContractTemplateProvisionID: z.string().describe(`
+        * * Field Name: ContractTemplateProvisionID
+        * * Display Name: Contract Template Provision
         * * SQL Data Type: uniqueidentifier
-        * * Related Entity/Foreign Key: MJ_BizApps_Contracts: Contract Terms (vwContractTerms.ID)
-        * * Description: Self-FK chaining back to the term this one renewed, making the renewal history navigable without a separate lineage table.`),
-    CommittedAmount: z.number().describe(`
-        * * Field Name: CommittedAmount
-        * * Display Name: Committed Amount
-        * * SQL Data Type: decimal(19, 4)`),
-    EscalationPercent: z.number().nullable().describe(`
-        * * Field Name: EscalationPercent
-        * * Display Name: Escalation Percent
-        * * SQL Data Type: decimal(7, 4)
-        * * Description: The rate increase applied at renewal, per EscalationBasis. Applied BY THE RESOLVER at billing time from the term rules — never baked into stored line prices, which then go stale.`),
-    EscalationBasis: z.union([z.literal('Index'), z.literal('ListPrice'), z.literal('PriorTerm')]).nullable().describe(`
-        * * Field Name: EscalationBasis
-        * * Display Name: Escalation Basis
-        * * SQL Data Type: nvarchar(20)
-    * * Value List Type: List
-    * * Possible Values 
-    *   * Index
-    *   * ListPrice
-    *   * PriorTerm`),
-    BillingFrequency: z.union([z.literal('Annual'), z.literal('Custom'), z.literal('Milestone'), z.literal('Monthly'), z.literal('Quarterly'), z.literal('SemiAnnual')]).describe(`
-        * * Field Name: BillingFrequency
-        * * Display Name: Billing Frequency
-        * * SQL Data Type: nvarchar(20)
-    * * Value List Type: List
-    * * Possible Values 
-    *   * Annual
-    *   * Custom
-    *   * Milestone
-    *   * Monthly
-    *   * Quarterly
-    *   * SemiAnnual`),
-    BillingAnchorMonth: z.number().nullable().describe(`
-        * * Field Name: BillingAnchorMonth
-        * * Display Name: Billing Anchor Month
-        * * SQL Data Type: tinyint`),
-    BillingAnchorDay: z.number().nullable().describe(`
-        * * Field Name: BillingAnchorDay
-        * * Display Name: Billing Anchor Day
-        * * SQL Data Type: tinyint`),
-    PaymentTermsTypeID: z.string().nullable().describe(`
-        * * Field Name: PaymentTermsTypeID
-        * * Display Name: Payment Terms Type ID
-        * * SQL Data Type: uniqueidentifier
-        * * Related Entity/Foreign Key: MJ_BizApps_Orders: Payment Terms Types (vwPaymentTermsTypes.ID)`),
-    CurrencyID: z.string().nullable().describe(`
-        * * Field Name: CurrencyID
-        * * Display Name: Currency ID
-        * * SQL Data Type: uniqueidentifier
-        * * Related Entity/Foreign Key: MJ_BizApps_Accounting: Currencies (vwCurrencies.ID)
-        * * Description: Recorded for forward-compatibility ONLY. Orders defers FX (D24) and nothing in this app converts between currencies. It exists so a term states the currency it was written in, rather than that being inferred from the selling company years later.`),
-    EarlyTerminationDate: z.date().nullable().describe(`
-        * * Field Name: EarlyTerminationDate
-        * * Display Name: Early Termination Date
-        * * SQL Data Type: date`),
-    RenewalProbability: z.number().nullable().describe(`
-        * * Field Name: RenewalProbability
-        * * Display Name: Renewal Probability
-        * * SQL Data Type: decimal(5, 4)
-        * * Description: 0..1 likelihood this term renews. Exists because a renewal forecast in bizapps-sales reads it.`),
+        * * Related Entity/Foreign Key: MJ_BizApps_Contracts: Contract Template Provisions (vwContractTemplateProvisions.ID)
+        * * Description: The provision being modified — the structured identifier, and the only one. A server rule enforces what this replaces: the provision must belong to a template this contract incorporates.`),
+    ModificationText: z.string().nullable().describe(`
+        * * Field Name: ModificationText
+        * * Display Name: Modification Text
+        * * SQL Data Type: nvarchar(MAX)
+        * * Description: What this contract says INSTEAD of the standard clause. Read as a pair with ContractTemplateProvision.ProvisionText.`),
     Notes: z.string().nullable().describe(`
         * * Field Name: Notes
         * * Display Name: Notes
+        * * SQL Data Type: nvarchar(MAX)
+        * * Description: Optional working note, e.g. who negotiated it.`),
+    __mj_CreatedAt: z.date().describe(`
+        * * Field Name: __mj_CreatedAt
+        * * Display Name: Created At
+        * * SQL Data Type: datetimeoffset
+        * * Default Value: getutcdate()`),
+    __mj_UpdatedAt: z.date().describe(`
+        * * Field Name: __mj_UpdatedAt
+        * * Display Name: Updated At
+        * * SQL Data Type: datetimeoffset
+        * * Default Value: getutcdate()`),
+    Contract: z.string().describe(`
+        * * Field Name: Contract
+        * * Display Name: Contract Reference
+        * * SQL Data Type: nvarchar(50)`),
+    ContractTemplateProvision: z.string().describe(`
+        * * Field Name: ContractTemplateProvision
+        * * Display Name: Provision Reference
+        * * SQL Data Type: nvarchar(20)`),
+});
+
+export type mjBizAppsContractsContractTemplateModificationEntityType = z.infer<typeof mjBizAppsContractsContractTemplateModificationSchema>;
+
+/**
+ * zod schema definition for the entity MJ_BizApps_Contracts: Contract Template Provisions
+ */
+export const mjBizAppsContractsContractTemplateProvisionSchema = z.object({
+    ID: z.string().describe(`
+        * * Field Name: ID
+        * * Display Name: ID
+        * * SQL Data Type: uniqueidentifier
+        * * Default Value: newsequentialid()`),
+    ContractTemplateID: z.string().describe(`
+        * * Field Name: ContractTemplateID
+        * * Display Name: Contract Template
+        * * SQL Data Type: uniqueidentifier
+        * * Related Entity/Foreign Key: MJ_BizApps_Contracts: Contract Templates (vwContractTemplates.ID)`),
+    ProvisionNumber: z.string().describe(`
+        * * Field Name: ProvisionNumber
+        * * Display Name: Provision Number
+        * * SQL Data Type: nvarchar(20)
+        * * Description: The clause number as the document writes it, e.g. "3.5(b)". Unique within its template.`),
+    Title: z.string().describe(`
+        * * Field Name: Title
+        * * Display Name: Title
+        * * SQL Data Type: nvarchar(200)
+        * * Description: The clause heading, e.g. "Limitation of Liability". This plus the number is what a person picks from.`),
+    ProvisionText: z.string().nullable().describe(`
+        * * Field Name: ProvisionText
+        * * Display Name: Provision Text
+        * * SQL Data Type: nvarchar(MAX)
+        * * Description: The STANDARD wording of this clause. Read as a pair with ContractTemplateModification.ModificationText, which holds what a given contract says instead — a dispute needs the comparison, not either half.`),
+    Description: z.string().nullable().describe(`
+        * * Field Name: Description
+        * * Display Name: Description
+        * * SQL Data Type: nvarchar(MAX)`),
+    Sequence: z.number().describe(`
+        * * Field Name: Sequence
+        * * Display Name: Sequence
+        * * SQL Data Type: int
+        * * Default Value: 0
+        * * Description: Display order. Earns its place because ProvisionNumber does not sort as text ("3.10" lands before "3.5") and a legal document has a canonical order.`),
+    __mj_CreatedAt: z.date().describe(`
+        * * Field Name: __mj_CreatedAt
+        * * Display Name: Created At
+        * * SQL Data Type: datetimeoffset
+        * * Default Value: getutcdate()`),
+    __mj_UpdatedAt: z.date().describe(`
+        * * Field Name: __mj_UpdatedAt
+        * * Display Name: Updated At
+        * * SQL Data Type: datetimeoffset
+        * * Default Value: getutcdate()`),
+    ContractTemplate: z.string().describe(`
+        * * Field Name: ContractTemplate
+        * * Display Name: Contract Template Name
+        * * SQL Data Type: nvarchar(200)`),
+});
+
+export type mjBizAppsContractsContractTemplateProvisionEntityType = z.infer<typeof mjBizAppsContractsContractTemplateProvisionSchema>;
+
+/**
+ * zod schema definition for the entity MJ_BizApps_Contracts: Contract Template Types
+ */
+export const mjBizAppsContractsContractTemplateTypeSchema = z.object({
+    ID: z.string().describe(`
+        * * Field Name: ID
+        * * Display Name: ID
+        * * SQL Data Type: uniqueidentifier
+        * * Default Value: newsequentialid()`),
+    Name: z.string().describe(`
+        * * Field Name: Name
+        * * Display Name: Name
+        * * SQL Data Type: nvarchar(100)`),
+    Description: z.string().nullable().describe(`
+        * * Field Name: Description
+        * * Display Name: Description
+        * * SQL Data Type: nvarchar(MAX)`),
+    Status: z.union([z.literal('Active'), z.literal('Inactive')]).describe(`
+        * * Field Name: Status
+        * * Display Name: Status
+        * * SQL Data Type: nvarchar(10)
+        * * Default Value: Active
+    * * Value List Type: List
+    * * Possible Values 
+    *   * Active
+    *   * Inactive
+        * * Description: Active | Inactive. Retiring a type hides it from pickers without touching the templates that used it.`),
+    __mj_CreatedAt: z.date().describe(`
+        * * Field Name: __mj_CreatedAt
+        * * Display Name: Created At
+        * * SQL Data Type: datetimeoffset
+        * * Default Value: getutcdate()`),
+    __mj_UpdatedAt: z.date().describe(`
+        * * Field Name: __mj_UpdatedAt
+        * * Display Name: Updated At
+        * * SQL Data Type: datetimeoffset
+        * * Default Value: getutcdate()`),
+});
+
+export type mjBizAppsContractsContractTemplateTypeEntityType = z.infer<typeof mjBizAppsContractsContractTemplateTypeSchema>;
+
+/**
+ * zod schema definition for the entity MJ_BizApps_Contracts: Contract Templates
+ */
+export const mjBizAppsContractsContractTemplateSchema = z.object({
+    ID: z.string().describe(`
+        * * Field Name: ID
+        * * Display Name: ID
+        * * SQL Data Type: uniqueidentifier
+        * * Default Value: newsequentialid()`),
+    Name: z.string().describe(`
+        * * Field Name: Name
+        * * Display Name: Name
+        * * SQL Data Type: nvarchar(200)`),
+    ContractTemplateTypeID: z.string().describe(`
+        * * Field Name: ContractTemplateTypeID
+        * * Display Name: Template Type ID
+        * * SQL Data Type: uniqueidentifier
+        * * Related Entity/Foreign Key: MJ_BizApps_Contracts: Contract Template Types (vwContractTemplateTypes.ID)`),
+    VersionLabel: z.string().nullable().describe(`
+        * * Field Name: VersionLabel
+        * * Display Name: Version Label
+        * * SQL Data Type: nvarchar(50)
+        * * Description: The version the document names itself, e.g. "v6". Free text, because it is the documents own label rather than something we derive.`),
+    IntroducedDate: z.date().nullable().describe(`
+        * * Field Name: IntroducedDate
+        * * Display Name: Introduced Date
+        * * SQL Data Type: date
+        * * Description: When this version started being offered. NOT an effective date: a template becomes effective for a customer when THAT customer signs it, never on a calendar date. Naming it EffectiveDate would invite exactly the wrong query.`),
+    SourceURL: z.string().describe(`
+        * * Field Name: SourceURL
+        * * Display Name: Source URL
+        * * SQL Data Type: nvarchar(1000)
+        * * Description: The dated public URL. NOT NULL — every template we have is a published URL and it is what the executed PDF cites; a template nobody can open is not a record of anything.`),
+    Description: z.string().nullable().describe(`
+        * * Field Name: Description
+        * * Display Name: Description
         * * SQL Data Type: nvarchar(MAX)`),
     __mj_CreatedAt: z.date().describe(`
         * * Field Name: __mj_CreatedAt
@@ -612,21 +233,13 @@ export const mjBizAppsContractsContractTermSchema = z.object({
         * * Display Name: Updated At
         * * SQL Data Type: datetimeoffset
         * * Default Value: getutcdate()`),
-    PaymentTermsType: z.string().nullable().describe(`
-        * * Field Name: PaymentTermsType
-        * * Display Name: Payment Terms Type
-        * * SQL Data Type: nvarchar(200)`),
-    Currency: z.string().nullable().describe(`
-        * * Field Name: Currency
-        * * Display Name: Currency
-        * * SQL Data Type: nvarchar(80)`),
-    RootRenewalOfTermID: z.string().nullable().describe(`
-        * * Field Name: RootRenewalOfTermID
-        * * Display Name: Root Renewal Of Term ID
-        * * SQL Data Type: uniqueidentifier`),
+    ContractTemplateType: z.string().describe(`
+        * * Field Name: ContractTemplateType
+        * * Display Name: Template Type
+        * * SQL Data Type: nvarchar(100)`),
 });
 
-export type mjBizAppsContractsContractTermEntityType = z.infer<typeof mjBizAppsContractsContractTermSchema>;
+export type mjBizAppsContractsContractTemplateEntityType = z.infer<typeof mjBizAppsContractsContractTemplateSchema>;
 
 /**
  * zod schema definition for the entity MJ_BizApps_Contracts: Contract Types
@@ -637,11 +250,6 @@ export const mjBizAppsContractsContractTypeSchema = z.object({
         * * Display Name: ID
         * * SQL Data Type: uniqueidentifier
         * * Default Value: newsequentialid()`),
-    Code: z.string().describe(`
-        * * Field Name: Code
-        * * Display Name: Code
-        * * SQL Data Type: nvarchar(50)
-        * * Description: Stable machine key, unique. Referenced by CloseWonPolicy in bizapps-sales, so renaming Name is safe and changing Code is not.`),
     Name: z.string().describe(`
         * * Field Name: Name
         * * Display Name: Name
@@ -650,75 +258,22 @@ export const mjBizAppsContractsContractTypeSchema = z.object({
         * * Field Name: Description
         * * Display Name: Description
         * * SQL Data Type: nvarchar(MAX)`),
-    DefaultTermMonths: z.number().nullable().describe(`
-        * * Field Name: DefaultTermMonths
-        * * Display Name: Default Term Months
-        * * SQL Data Type: int`),
-    DefaultBillingFrequency: z.union([z.literal('Annual'), z.literal('Custom'), z.literal('Milestone'), z.literal('Monthly'), z.literal('Quarterly'), z.literal('SemiAnnual')]).nullable().describe(`
-        * * Field Name: DefaultBillingFrequency
-        * * Display Name: Default Billing Frequency
-        * * SQL Data Type: nvarchar(20)
-    * * Value List Type: List
-    * * Possible Values 
-    *   * Annual
-    *   * Custom
-    *   * Milestone
-    *   * Monthly
-    *   * Quarterly
-    *   * SemiAnnual`),
-    DefaultAutoRenew: z.boolean().describe(`
-        * * Field Name: DefaultAutoRenew
-        * * Display Name: Default Auto Renew
-        * * SQL Data Type: bit
-        * * Default Value: 0`),
-    RequiresSignature: z.boolean().describe(`
-        * * Field Name: RequiresSignature
-        * * Display Name: Requires Signature
-        * * SQL Data Type: bit
-        * * Default Value: 1`),
-    DefaultEscalationPercent: z.number().nullable().describe(`
-        * * Field Name: DefaultEscalationPercent
-        * * Display Name: Default Escalation Percent
-        * * SQL Data Type: decimal(7, 4)`),
-    DefaultMaxEscalationPercent: z.number().nullable().describe(`
-        * * Field Name: DefaultMaxEscalationPercent
-        * * Display Name: Default Max Escalation Percent
-        * * SQL Data Type: decimal(7, 4)`),
-    DefaultRenewalNoticeDays: z.number().nullable().describe(`
-        * * Field Name: DefaultRenewalNoticeDays
-        * * Display Name: Default Renewal Notice Days
-        * * SQL Data Type: int`),
-    DefaultCancellationWindowDays: z.number().nullable().describe(`
-        * * Field Name: DefaultCancellationWindowDays
-        * * Display Name: Default Cancellation Window Days
-        * * SQL Data Type: int`),
-    RenewalMode: z.union([z.literal('Auto'), z.literal('Deal'), z.literal('Manual')]).describe(`
-        * * Field Name: RenewalMode
-        * * Display Name: Renewal Mode
-        * * SQL Data Type: nvarchar(20)
-        * * Default Value: Deal
-    * * Value List Type: List
-    * * Possible Values 
-    *   * Auto
-    *   * Deal
-    *   * Manual
-        * * Description: How a term of this type renews. Deal = a renewal is a deal (L-18); bizapps-sales calls Contracts.RenewTerm when a renewal deal closes, so renewal gets its own pipeline and win-rate. Auto = the Scheduled Job renews with no deal, for evergreen and B2C. Manual = a human triggers it.`),
-    AllowsCoterm: z.boolean().describe(`
-        * * Field Name: AllowsCoterm
-        * * Display Name: Allows Coterm
+    RequiresExecutedDocument: z.boolean().describe(`
+        * * Field Name: RequiresExecutedDocument
+        * * Display Name: Requires Executed Document
         * * SQL Data Type: bit
         * * Default Value: 1
-        * * Description: Whether a term of this type may absorb a mid-term addition aligned to the term end date (co-terming).`),
-    DriverClass: z.string().nullable().describe(`
-        * * Field Name: DriverClass
-        * * Display Name: Driver Class
-        * * SQL Data Type: nvarchar(255)
-        * * Description: OPTIONAL ClassFactory key for a behaviour subclass, following SubscriptionType rather than RevenueRecognitionType: the columns ARE the rules and a base class reads them. Supply a driver only when a customer needs something the columns cannot express.`),
-    IsActive: z.boolean().describe(`
-        * * Field Name: IsActive
-        * * Display Name: Is Active
-        * * SQL Data Type: bit
-        * * Default Value: 1`),
+        * * Description: Whether paper is ever expected for this kind of contract. No for a Payment Link, which has an implied agreement and no signature. This is what stops such a contract asking forever for a document that will never arrive: "awaiting the document" is DERIVED as requires-it AND no-linked-file, never stored and never a status value.`),
+    Status: z.union([z.literal('Active'), z.literal('Inactive')]).describe(`
+        * * Field Name: Status
+        * * Display Name: Status
+        * * SQL Data Type: nvarchar(10)
+        * * Default Value: Active
+    * * Value List Type: List
+    * * Possible Values 
+    *   * Active
+    *   * Inactive
+        * * Description: Active | Inactive.`),
     __mj_CreatedAt: z.date().describe(`
         * * Field Name: __mj_CreatedAt
         * * Display Name: Created At
@@ -749,98 +304,117 @@ export const mjBizAppsContractsContractSchema = z.object({
         * * Description: CTR-{seq} from ContractSequence. Unique.`),
     ContractTypeID: z.string().describe(`
         * * Field Name: ContractTypeID
-        * * Display Name: Contract Type ID
+        * * Display Name: Contract Type
         * * SQL Data Type: uniqueidentifier
         * * Related Entity/Foreign Key: MJ_BizApps_Contracts: Contract Types (vwContractTypes.ID)`),
     CompanyID: z.string().describe(`
         * * Field Name: CompanyID
-        * * Display Name: Company ID
+        * * Display Name: Company
         * * SQL Data Type: uniqueidentifier
         * * Related Entity/Foreign Key: MJ: Companies (vwCompanies.ID)
-        * * Description: The SELLING company (__mj.Company) — which of our entities holds this agreement. Not the customer.`),
-    CustomerOrganizationID: z.string().nullable().describe(`
+        * * Description: The SELLING company (__mj.Company) — which of OUR entities holds this agreement. Not the customer. Stored rather than derived because it is not reliably recoverable from the deal.`),
+    CustomerOrganizationID: z.string().describe(`
         * * Field Name: CustomerOrganizationID
-        * * Display Name: Customer Organization ID
+        * * Display Name: Customer Organization
         * * SQL Data Type: uniqueidentifier
         * * Related Entity/Foreign Key: MJ_BizApps_Common: Organizations (vwOrganizations.ID)
-        * * Description: The customer, when the customer is an organization. EXACTLY ONE of CustomerOrganizationID / CustomerPersonID is set, enforced by CK_Contract_CustomerXor.`),
-    CustomerPersonID: z.string().nullable().describe(`
-        * * Field Name: CustomerPersonID
-        * * Display Name: Customer Person ID
-        * * SQL Data Type: uniqueidentifier
-        * * Related Entity/Foreign Key: MJ_BizApps_Common: People (vwPeople.ID)
-        * * Description: The customer, when the customer is an individual. EXACTLY ONE of CustomerOrganizationID / CustomerPersonID is set, enforced by CK_Contract_CustomerXor.`),
+        * * Description: The customer. NOT NULL: contracts are B2B here by definition, and the individual case lives entirely in orders. v1 allowed an organization-or-person XOR; that is gone.`),
     PrimaryContactPersonID: z.string().nullable().describe(`
         * * Field Name: PrimaryContactPersonID
-        * * Display Name: Primary Contact Person ID
+        * * Display Name: Primary Contact
         * * SQL Data Type: uniqueidentifier
-        * * Related Entity/Foreign Key: MJ_BizApps_Common: People (vwPeople.ID)`),
-    OwnerUserID: z.string().nullable().describe(`
-        * * Field Name: OwnerUserID
-        * * Display Name: Owner User ID
+        * * Related Entity/Foreign Key: MJ_BizApps_Common: People (vwPeople.ID)
+        * * Description: Their named contact, optional.`),
+    ContractTemplateID: z.string().nullable().describe(`
+        * * Field Name: ContractTemplateID
+        * * Display Name: Contract Template
         * * SQL Data Type: uniqueidentifier
-        * * Related Entity/Foreign Key: MJ: Users (vwUsers.ID)`),
+        * * Related Entity/Foreign Key: MJ_BizApps_Contracts: Contract Templates (vwContractTemplates.ID)
+        * * Description: The agreement version this contract incorporates. Nullable because a contract created automatically at Closed Won has none until finance reads the PDF.`),
+    CreatingEntityID: z.string().nullable().describe(`
+        * * Field Name: CreatingEntityID
+        * * Display Name: Creating Entity ID
+        * * SQL Data Type: uniqueidentifier
+        * * Related Entity/Foreign Key: MJ: Entities (vwEntities.ID)
+        * * Description: Polymorphic reference part 1: the MJ Entity of the record that CREATED this contract, in practice Deals. A real foreign key to __mj.Entity — this is the half that is enforced, and the half that lets MJ resolve the pair generically. Same pattern accounting uses for JournalEntry provenance.`),
+    CreatingRecordID: z.string().nullable().describe(`
+        * * Field Name: CreatingRecordID
+        * * Display Name: Creating Record ID
+        * * SQL Data Type: nvarchar(450)
+        * * Description: Polymorphic reference part 2: the creating records id. Soft by nature — it points at a record owned by an app this repo has no knowledge of. Set together with CreatingEntityID or not at all.`),
     ParentContractID: z.string().nullable().describe(`
         * * Field Name: ParentContractID
-        * * Display Name: Parent Contract ID
+        * * Display Name: Parent Contract
         * * SQL Data Type: uniqueidentifier
         * * Related Entity/Foreign Key: MJ_BizApps_Contracts: Contracts (vwContracts.ID)
-        * * Description: Self-FK for MSA -> SOW nesting (D-5). Modelled as a self-reference rather than a distinct Agreement entity until the two genuinely diverge.`),
+        * * Description: The contract this one amends. How a change order attaches: a change order is signed paper with its own PDF, dates and modifications, so it reuses this entity rather than getting one of its own. The original stays in force.`),
     SupersededByContractID: z.string().nullable().describe(`
         * * Field Name: SupersededByContractID
-        * * Display Name: Superseded By Contract ID
+        * * Display Name: Superseded By
         * * SQL Data Type: uniqueidentifier
-        * * Related Entity/Foreign Key: MJ_BizApps_Contracts: Contracts (vwContracts.ID)`),
-    Status: z.union([z.literal('Active'), z.literal('Draft'), z.literal('Expired'), z.literal('PendingSignature'), z.literal('Superseded'), z.literal('Terminated')]).describe(`
-        * * Field Name: Status
-        * * Display Name: Status
-        * * SQL Data Type: nvarchar(30)
-        * * Default Value: Draft
-    * * Value List Type: List
-    * * Possible Values 
-    *   * Active
-    *   * Draft
-    *   * Expired
-    *   * PendingSignature
-    *   * Superseded
-    *   * Terminated`),
-    Description: z.string().nullable().describe(`
-        * * Field Name: Description
-        * * Display Name: Description
-        * * SQL Data Type: nvarchar(MAX)`),
+        * * Related Entity/Foreign Key: MJ_BizApps_Contracts: Contracts (vwContracts.ID)
+        * * Description: The contract that REPLACED this one, where an agreement was re-papered rather than amended. Also the sole source of the derived Superseded state, which is why the old CHECK tying it to a Status column disappeared with that column.`),
+    SigningProviderURL: z.string().nullable().describe(`
+        * * Field Name: SigningProviderURL
+        * * Display Name: Signing Provider URL
+        * * SQL Data Type: nvarchar(1000)
+        * * Description: Direct link to the document in the signing provider (PandaDoc). The fallback that works before any integration exists, and when a storage sync has broken.`),
     EffectiveDate: z.date().nullable().describe(`
         * * Field Name: EffectiveDate
         * * Display Name: Effective Date
-        * * SQL Data Type: date`),
+        * * SQL Data Type: date
+        * * Description: When the agreement takes effect.`),
     ExecutedDate: z.date().nullable().describe(`
         * * Field Name: ExecutedDate
         * * Display Name: Executed Date
-        * * SQL Data Type: date`),
-    PricedAt: z.date().nullable().describe(`
-        * * Field Name: PricedAt
-        * * Display Name: Priced At
-        * * SQL Data Type: date`),
+        * * SQL Data Type: date
+        * * Description: When it was signed. May legitimately PRECEDE EffectiveDate — sign in December for a January start is the ordinary case. There is deliberately no constraint ordering the two; v1 had one and it rejected exactly the data a correct contract produces.`),
+    EndDate: z.date().nullable().describe(`
+        * * Field Name: EndDate
+        * * Display Name: End Date
+        * * SQL Data Type: date
+        * * Description: When the current term ends. This is what drives the renewal watchlist and every expiry projection.`),
+    TerminatedDate: z.date().nullable().describe(`
+        * * Field Name: TerminatedDate
+        * * Display Name: Terminated Date
+        * * SQL Data Type: date
+        * * Description: When the agreement ended early. Stored rather than derived: it is only recoverable from a successors effective date, and a contract can end with no successor at all when a customer simply leaves.`),
     AutoRenew: z.boolean().describe(`
         * * Field Name: AutoRenew
         * * Display Name: Auto Renew
         * * SQL Data Type: bit
-        * * Default Value: 0`),
-    CancellationWindowDays: z.number().nullable().describe(`
-        * * Field Name: CancellationWindowDays
-        * * Display Name: Cancellation Window Days
-        * * SQL Data Type: int`),
+        * * Default Value: 0
+        * * Description: Whether the agreement auto-renews, AS THE PAPER STATES IT. True or false, no third state. Distinct from the subscriptions operational setting in orders, which someone can change later; when the two disagree that is a finding, not a bug.`),
     RenewalNoticeDays: z.number().nullable().describe(`
         * * Field Name: RenewalNoticeDays
         * * Display Name: Renewal Notice Days
-        * * SQL Data Type: int`),
-    TerminationPolicy: z.string().nullable().describe(`
-        * * Field Name: TerminationPolicy
-        * * Display Name: Termination Policy
+        * * SQL Data Type: int
+        * * Description: Days of written notice we owe before a renewal price change, as stated in the agreement. NOT the same field as CancellationWindowDays even though many agreements set them equal — conflating them silently is how a notice obligation gets missed.`),
+    CancellationWindowDays: z.number().nullable().describe(`
+        * * Field Name: CancellationWindowDays
+        * * Display Name: Cancellation Window Days
+        * * SQL Data Type: int
+        * * Description: Days of notice the customer owes to cancel without renewing.`),
+    AnnualIncreasePercent: z.number().nullable().describe(`
+        * * Field Name: AnnualIncreasePercent
+        * * Display Name: Annual Increase Percent
+        * * SQL Data Type: decimal(7, 4)
+        * * Description: The negotiated year-over-year uplift. Exists here because it exists nowhere else: the orders schema has no escalation concept of any kind, which is why a two-year agreement stepping up 10% in year two is recorded in no other system.`),
+    HasModifications: z.boolean().describe(`
+        * * Field Name: HasModifications
+        * * Display Name: Has Modifications
+        * * SQL Data Type: bit
+        * * Default Value: 0
+        * * Description: Whether the standard agreement was changed for this customer. ASSERTED by a person, not derived — its job is to say "go read the PDF" BEFORE anyone has recorded the modifications, and a derived flag would read false for every contract nobody has processed yet. One direction IS enforced server-side: if modification rows exist this must be true. It is never cleared automatically.`),
+    Description: z.string().nullable().describe(`
+        * * Field Name: Description
+        * * Display Name: Description
         * * SQL Data Type: nvarchar(MAX)`),
-    ExternalReferenceID: z.string().nullable().describe(`
-        * * Field Name: ExternalReferenceID
-        * * Display Name: External Reference ID
-        * * SQL Data Type: nvarchar(255)`),
+    Notes: z.string().nullable().describe(`
+        * * Field Name: Notes
+        * * Display Name: Notes
+        * * SQL Data Type: nvarchar(MAX)
+        * * Description: Free-text working notes for whoever is processing the contract.`),
     __mj_CreatedAt: z.date().describe(`
         * * Field Name: __mj_CreatedAt
         * * Display Name: Created At
@@ -853,36 +427,68 @@ export const mjBizAppsContractsContractSchema = z.object({
         * * Default Value: getutcdate()`),
     ContractType: z.string().describe(`
         * * Field Name: ContractType
-        * * Display Name: Contract Type
+        * * Display Name: Contract Type Name
         * * SQL Data Type: nvarchar(100)`),
     Company: z.string().describe(`
         * * Field Name: Company
-        * * Display Name: Company
+        * * Display Name: Company Name
         * * SQL Data Type: nvarchar(50)`),
-    CustomerOrganization: z.string().nullable().describe(`
+    CustomerOrganization: z.string().describe(`
         * * Field Name: CustomerOrganization
-        * * Display Name: Customer Organization
+        * * Display Name: Customer Name
         * * SQL Data Type: nvarchar(255)`),
-    CustomerPerson: z.string().nullable().describe(`
-        * * Field Name: CustomerPerson
-        * * Display Name: Customer Person
-        * * SQL Data Type: nvarchar(201)`),
     PrimaryContactPerson: z.string().nullable().describe(`
         * * Field Name: PrimaryContactPerson
-        * * Display Name: Primary Contact Person
-        * * SQL Data Type: nvarchar(201)`),
-    OwnerUser: z.string().nullable().describe(`
-        * * Field Name: OwnerUser
-        * * Display Name: Owner User
+        * * Display Name: Primary Contact Name
         * * SQL Data Type: nvarchar(100)`),
+    ContractTemplate: z.string().nullable().describe(`
+        * * Field Name: ContractTemplate
+        * * Display Name: Contract Template Name
+        * * SQL Data Type: nvarchar(200)`),
+    CreatingEntity: z.string().nullable().describe(`
+        * * Field Name: CreatingEntity
+        * * Display Name: Creating Entity
+        * * SQL Data Type: nvarchar(255)`),
+    ParentContract: z.string().nullable().describe(`
+        * * Field Name: ParentContract
+        * * Display Name: Parent Contract
+        * * SQL Data Type: nvarchar(50)`),
+    SupersededByContract: z.string().nullable().describe(`
+        * * Field Name: SupersededByContract
+        * * Display Name: Superseded By Contract
+        * * SQL Data Type: nvarchar(50)`),
     RootParentContractID: z.string().nullable().describe(`
         * * Field Name: RootParentContractID
-        * * Display Name: Root Parent Contract ID
+        * * Display Name: Root Parent Contract
         * * SQL Data Type: uniqueidentifier`),
     RootSupersededByContractID: z.string().nullable().describe(`
         * * Field Name: RootSupersededByContractID
-        * * Display Name: Root Superseded By Contract ID
+        * * Display Name: Root Superseded By
         * * SQL Data Type: uniqueidentifier`),
+    State: z.string().describe(`
+        * * Field Name: State
+        * * Display Name: State
+        * * SQL Data Type: varchar(10)`),
+    IsAwaitingDocument: z.boolean().nullable().describe(`
+        * * Field Name: IsAwaitingDocument
+        * * Display Name: Is Awaiting Document
+        * * SQL Data Type: bit`),
+    IsChangeOrder: z.boolean().nullable().describe(`
+        * * Field Name: IsChangeOrder
+        * * Display Name: Is Change Order
+        * * SQL Data Type: bit`),
+    DaysToEnd: z.number().nullable().describe(`
+        * * Field Name: DaysToEnd
+        * * Display Name: Days To End
+        * * SQL Data Type: int`),
+    RenewalNoticeDeadline: z.date().nullable().describe(`
+        * * Field Name: RenewalNoticeDeadline
+        * * Display Name: Renewal Notice Deadline
+        * * SQL Data Type: date`),
+    IsInCancellationWindow: z.boolean().nullable().describe(`
+        * * Field Name: IsInCancellationWindow
+        * * Display Name: Is In Cancellation Window
+        * * SQL Data Type: bit`),
 });
 
 export type mjBizAppsContractsContractEntityType = z.infer<typeof mjBizAppsContractsContractSchema>;
@@ -890,1136 +496,11 @@ export type mjBizAppsContractsContractEntityType = z.infer<typeof mjBizAppsContr
  
 
 /**
- * MJ_BizApps_Contracts: Contract Amendments - strongly typed entity sub-class
- * * Schema: __mj_BizAppsContracts
- * * Base Table: ContractAmendment
- * * Base View: vwContractAmendments
- * * @description A mid-term change to a LIVE term. Renewals do NOT come through here — they start a new ContractTerm with RenewalOfTermID set.
- * * Primary Key: ID
- * @extends {BaseEntity}
- * @class
- * @public
- */
-@RegisterClass(BaseEntity, 'MJ_BizApps_Contracts: Contract Amendments')
-export class mjBizAppsContractsContractAmendmentEntity extends BaseEntity<mjBizAppsContractsContractAmendmentEntityType> {
-    /**
-    * Loads the MJ_BizApps_Contracts: Contract Amendments record from the database
-    * @param ID: string - primary key value to load the MJ_BizApps_Contracts: Contract Amendments record.
-    * @param EntityRelationshipsToLoad - (optional) the relationships to load
-    * @returns {Promise<boolean>} - true if successful, false otherwise
-    * @public
-    * @async
-    * @memberof mjBizAppsContractsContractAmendmentEntity
-    * @method
-    * @override
-    */
-    public async Load(ID: string, EntityRelationshipsToLoad?: string[]) : Promise<boolean> {
-        const compositeKey: CompositeKey = new CompositeKey();
-        compositeKey.KeyValuePairs.push({ FieldName: 'ID', Value: ID });
-        return await super.InnerLoad(compositeKey, EntityRelationshipsToLoad);
-    }
-
-    /**
-    * * Field Name: ID
-    * * Display Name: ID
-    * * SQL Data Type: uniqueidentifier
-    * * Default Value: newsequentialid()
-    */
-    get ID(): string {
-        return this.Get('ID');
-    }
-    set ID(value: string) {
-        this.Set('ID', value);
-    }
-
-    /**
-    * * Field Name: ContractTermID
-    * * Display Name: Contract Term ID
-    * * SQL Data Type: uniqueidentifier
-    * * Related Entity/Foreign Key: MJ_BizApps_Contracts: Contract Terms (vwContractTerms.ID)
-    */
-    get ContractTermID(): string {
-        return this.Get('ContractTermID');
-    }
-    set ContractTermID(value: string) {
-        this.Set('ContractTermID', value);
-    }
-
-    /**
-    * * Field Name: AmendmentNumber
-    * * Display Name: Amendment Number
-    * * SQL Data Type: int
-    */
-    get AmendmentNumber(): number {
-        return this.Get('AmendmentNumber');
-    }
-    set AmendmentNumber(value: number) {
-        this.Set('AmendmentNumber', value);
-    }
-
-    /**
-    * * Field Name: EffectiveDate
-    * * Display Name: Effective Date
-    * * SQL Data Type: date
-    */
-    get EffectiveDate(): Date {
-        return this.Get('EffectiveDate');
-    }
-    set EffectiveDate(value: Date) {
-        this.Set('EffectiveDate', value);
-    }
-
-    /**
-    * * Field Name: AmendmentType
-    * * Display Name: Amendment Type
-    * * SQL Data Type: nvarchar(30)
-    * * Value List Type: List
-    * * Possible Values 
-    *   * AddProduct
-    *   * ChangePrice
-    *   * ChangeQuantity
-    *   * Coterm
-    *   * Other
-    *   * PartialTerminate
-    */
-    get AmendmentType(): 'AddProduct' | 'ChangePrice' | 'ChangeQuantity' | 'Coterm' | 'Other' | 'PartialTerminate' {
-        return this.Get('AmendmentType');
-    }
-    set AmendmentType(value: 'AddProduct' | 'ChangePrice' | 'ChangeQuantity' | 'Coterm' | 'Other' | 'PartialTerminate') {
-        this.Set('AmendmentType', value);
-    }
-
-    /**
-    * * Field Name: Description
-    * * Display Name: Description
-    * * SQL Data Type: nvarchar(MAX)
-    */
-    get Description(): string | null {
-        return this.Get('Description');
-    }
-    set Description(value: string | null) {
-        this.Set('Description', value);
-    }
-
-    /**
-    * * Field Name: Status
-    * * Display Name: Status
-    * * SQL Data Type: nvarchar(20)
-    * * Default Value: Draft
-    * * Value List Type: List
-    * * Possible Values 
-    *   * Applied
-    *   * Approved
-    *   * Cancelled
-    *   * Draft
-    *   * PendingApproval
-    *   * Rejected
-    */
-    get Status(): 'Applied' | 'Approved' | 'Cancelled' | 'Draft' | 'PendingApproval' | 'Rejected' {
-        return this.Get('Status');
-    }
-    set Status(value: 'Applied' | 'Approved' | 'Cancelled' | 'Draft' | 'PendingApproval' | 'Rejected') {
-        this.Set('Status', value);
-    }
-
-    /**
-    * * Field Name: ApprovalTaskID
-    * * Display Name: Approval Task ID
-    * * SQL Data Type: uniqueidentifier
-    * * Related Entity/Foreign Key: MJ_BizApps_Tasks: Tasks (vwTasks.ID)
-    * * Description: The bizapps-tasks Task gating this amendment. Raised for non-standard terms, discounts beyond a rep's SalesAuthority, and early-termination waivers; TaskType OnComplete/OnReject hooks call back into contracts to advance or reject.
-    */
-    get ApprovalTaskID(): string | null {
-        return this.Get('ApprovalTaskID');
-    }
-    set ApprovalTaskID(value: string | null) {
-        this.Set('ApprovalTaskID', value);
-    }
-
-    /**
-    * * Field Name: __mj_CreatedAt
-    * * Display Name: Created At
-    * * SQL Data Type: datetimeoffset
-    * * Default Value: getutcdate()
-    */
-    get __mj_CreatedAt(): Date {
-        return this.Get('__mj_CreatedAt');
-    }
-
-    /**
-    * * Field Name: __mj_UpdatedAt
-    * * Display Name: Updated At
-    * * SQL Data Type: datetimeoffset
-    * * Default Value: getutcdate()
-    */
-    get __mj_UpdatedAt(): Date {
-        return this.Get('__mj_UpdatedAt');
-    }
-
-    /**
-    * * Field Name: ApprovalTask
-    * * Display Name: Approval Task
-    * * SQL Data Type: nvarchar(255)
-    */
-    get ApprovalTask(): string | null {
-        return this.Get('ApprovalTask');
-    }
-}
-
-
-/**
- * MJ_BizApps_Contracts: Contract Billing Events - strongly typed entity sub-class
- * * Schema: __mj_BizAppsContracts
- * * Base Table: ContractBillingEvent
- * * Base View: vwContractBillingEvents
- * * @description Each billing occurrence AND the audit trail: the record that answers "why did the customer get this bill on this date, and what produced it". A failure stays Failed with a reason rather than retrying into a duplicate — duplicate billing is the kind of defect a customer finds before we do.
- * * Primary Key: ID
- * @extends {BaseEntity}
- * @class
- * @public
- */
-@RegisterClass(BaseEntity, 'MJ_BizApps_Contracts: Contract Billing Events')
-export class mjBizAppsContractsContractBillingEventEntity extends BaseEntity<mjBizAppsContractsContractBillingEventEntityType> {
-    /**
-    * Loads the MJ_BizApps_Contracts: Contract Billing Events record from the database
-    * @param ID: string - primary key value to load the MJ_BizApps_Contracts: Contract Billing Events record.
-    * @param EntityRelationshipsToLoad - (optional) the relationships to load
-    * @returns {Promise<boolean>} - true if successful, false otherwise
-    * @public
-    * @async
-    * @memberof mjBizAppsContractsContractBillingEventEntity
-    * @method
-    * @override
-    */
-    public async Load(ID: string, EntityRelationshipsToLoad?: string[]) : Promise<boolean> {
-        const compositeKey: CompositeKey = new CompositeKey();
-        compositeKey.KeyValuePairs.push({ FieldName: 'ID', Value: ID });
-        return await super.InnerLoad(compositeKey, EntityRelationshipsToLoad);
-    }
-
-    /**
-    * * Field Name: ID
-    * * Display Name: ID
-    * * SQL Data Type: uniqueidentifier
-    * * Default Value: newsequentialid()
-    */
-    get ID(): string {
-        return this.Get('ID');
-    }
-    set ID(value: string) {
-        this.Set('ID', value);
-    }
-
-    /**
-    * * Field Name: ContractBillingScheduleID
-    * * Display Name: Contract Billing Schedule ID
-    * * SQL Data Type: uniqueidentifier
-    * * Related Entity/Foreign Key: MJ_BizApps_Contracts: Contract Billing Schedules (vwContractBillingSchedules.ID)
-    */
-    get ContractBillingScheduleID(): string | null {
-        return this.Get('ContractBillingScheduleID');
-    }
-    set ContractBillingScheduleID(value: string | null) {
-        this.Set('ContractBillingScheduleID', value);
-    }
-
-    /**
-    * * Field Name: ContractTermID
-    * * Display Name: Contract Term ID
-    * * SQL Data Type: uniqueidentifier
-    * * Related Entity/Foreign Key: MJ_BizApps_Contracts: Contract Terms (vwContractTerms.ID)
-    */
-    get ContractTermID(): string {
-        return this.Get('ContractTermID');
-    }
-    set ContractTermID(value: string) {
-        this.Set('ContractTermID', value);
-    }
-
-    /**
-    * * Field Name: ScheduledDate
-    * * Display Name: Scheduled Date
-    * * SQL Data Type: date
-    */
-    get ScheduledDate(): Date {
-        return this.Get('ScheduledDate');
-    }
-    set ScheduledDate(value: Date) {
-        this.Set('ScheduledDate', value);
-    }
-
-    /**
-    * * Field Name: Status
-    * * Display Name: Status
-    * * SQL Data Type: nvarchar(20)
-    * * Default Value: Scheduled
-    * * Value List Type: List
-    * * Possible Values 
-    *   * Cancelled
-    *   * Failed
-    *   * Generated
-    *   * Scheduled
-    *   * Skipped
-    */
-    get Status(): 'Cancelled' | 'Failed' | 'Generated' | 'Scheduled' | 'Skipped' {
-        return this.Get('Status');
-    }
-    set Status(value: 'Cancelled' | 'Failed' | 'Generated' | 'Scheduled' | 'Skipped') {
-        this.Set('Status', value);
-    }
-
-    /**
-    * * Field Name: OrderID
-    * * Display Name: Order ID
-    * * SQL Data Type: uniqueidentifier
-    * * Related Entity/Foreign Key: MJ_BizApps_Orders: Order Headers (vwOrderHeaders.ID)
-    * * Description: The ONE consolidated order this event produced, via Orders.CreateOrderInState. A legal downward reference: contracts sits above orders. Status=Generated requires it, which is what makes the status transition a real idempotency guard.
-    */
-    get OrderID(): string | null {
-        return this.Get('OrderID');
-    }
-    set OrderID(value: string | null) {
-        this.Set('OrderID', value);
-    }
-
-    /**
-    * * Field Name: ComputedAmount
-    * * Display Name: Computed Amount
-    * * SQL Data Type: decimal(19, 4)
-    * * Description: A STAMP of the total Orders.PreviewOrder returned — never a figure computed in this app. Contracts decides WHAT to bill and never what it costs.
-    */
-    get ComputedAmount(): number | null {
-        return this.Get('ComputedAmount');
-    }
-    set ComputedAmount(value: number | null) {
-        this.Set('ComputedAmount', value);
-    }
-
-    /**
-    * * Field Name: GeneratedAt
-    * * Display Name: Generated At
-    * * SQL Data Type: datetimeoffset
-    */
-    get GeneratedAt(): Date | null {
-        return this.Get('GeneratedAt');
-    }
-    set GeneratedAt(value: Date | null) {
-        this.Set('GeneratedAt', value);
-    }
-
-    /**
-    * * Field Name: FailureReason
-    * * Display Name: Failure Reason
-    * * SQL Data Type: nvarchar(MAX)
-    */
-    get FailureReason(): string | null {
-        return this.Get('FailureReason');
-    }
-    set FailureReason(value: string | null) {
-        this.Set('FailureReason', value);
-    }
-
-    /**
-    * * Field Name: Notes
-    * * Display Name: Notes
-    * * SQL Data Type: nvarchar(MAX)
-    */
-    get Notes(): string | null {
-        return this.Get('Notes');
-    }
-    set Notes(value: string | null) {
-        this.Set('Notes', value);
-    }
-
-    /**
-    * * Field Name: __mj_CreatedAt
-    * * Display Name: Created At
-    * * SQL Data Type: datetimeoffset
-    * * Default Value: getutcdate()
-    */
-    get __mj_CreatedAt(): Date {
-        return this.Get('__mj_CreatedAt');
-    }
-
-    /**
-    * * Field Name: __mj_UpdatedAt
-    * * Display Name: Updated At
-    * * SQL Data Type: datetimeoffset
-    * * Default Value: getutcdate()
-    */
-    get __mj_UpdatedAt(): Date {
-        return this.Get('__mj_UpdatedAt');
-    }
-
-    /**
-    * * Field Name: Order
-    * * Display Name: Order
-    * * SQL Data Type: nvarchar(40)
-    */
-    get Order(): string | null {
-        return this.Get('Order');
-    }
-}
-
-
-/**
- * MJ_BizApps_Contracts: Contract Billing Schedules - strongly typed entity sub-class
- * * Schema: __mj_BizAppsContracts
- * * Base Table: ContractBillingSchedule
- * * Base View: vwContractBillingSchedules
- * * @description How a term produces bills. One term may carry MORE THAN ONE schedule — a quarterly subscription cadence AND a milestone schedule for an attached SOW.
- * * Primary Key: ID
- * @extends {BaseEntity}
- * @class
- * @public
- */
-@RegisterClass(BaseEntity, 'MJ_BizApps_Contracts: Contract Billing Schedules')
-export class mjBizAppsContractsContractBillingScheduleEntity extends BaseEntity<mjBizAppsContractsContractBillingScheduleEntityType> {
-    /**
-    * Loads the MJ_BizApps_Contracts: Contract Billing Schedules record from the database
-    * @param ID: string - primary key value to load the MJ_BizApps_Contracts: Contract Billing Schedules record.
-    * @param EntityRelationshipsToLoad - (optional) the relationships to load
-    * @returns {Promise<boolean>} - true if successful, false otherwise
-    * @public
-    * @async
-    * @memberof mjBizAppsContractsContractBillingScheduleEntity
-    * @method
-    * @override
-    */
-    public async Load(ID: string, EntityRelationshipsToLoad?: string[]) : Promise<boolean> {
-        const compositeKey: CompositeKey = new CompositeKey();
-        compositeKey.KeyValuePairs.push({ FieldName: 'ID', Value: ID });
-        return await super.InnerLoad(compositeKey, EntityRelationshipsToLoad);
-    }
-
-    /**
-    * * Field Name: ID
-    * * Display Name: ID
-    * * SQL Data Type: uniqueidentifier
-    * * Default Value: newsequentialid()
-    */
-    get ID(): string {
-        return this.Get('ID');
-    }
-    set ID(value: string) {
-        this.Set('ID', value);
-    }
-
-    /**
-    * * Field Name: ContractTermID
-    * * Display Name: Contract Term ID
-    * * SQL Data Type: uniqueidentifier
-    * * Related Entity/Foreign Key: MJ_BizApps_Contracts: Contract Terms (vwContractTerms.ID)
-    */
-    get ContractTermID(): string {
-        return this.Get('ContractTermID');
-    }
-    set ContractTermID(value: string) {
-        this.Set('ContractTermID', value);
-    }
-
-    /**
-    * * Field Name: ScheduleType
-    * * Display Name: Schedule Type
-    * * SQL Data Type: nvarchar(20)
-    * * Value List Type: List
-    * * Possible Values 
-    *   * Cadence
-    *   * Custom
-    *   * Milestone
-    */
-    get ScheduleType(): 'Cadence' | 'Custom' | 'Milestone' {
-        return this.Get('ScheduleType');
-    }
-    set ScheduleType(value: 'Cadence' | 'Custom' | 'Milestone') {
-        this.Set('ScheduleType', value);
-    }
-
-    /**
-    * * Field Name: Frequency
-    * * Display Name: Frequency
-    * * SQL Data Type: nvarchar(20)
-    * * Value List Type: List
-    * * Possible Values 
-    *   * Annual
-    *   * Custom
-    *   * Milestone
-    *   * Monthly
-    *   * Quarterly
-    *   * SemiAnnual
-    */
-    get Frequency(): 'Annual' | 'Custom' | 'Milestone' | 'Monthly' | 'Quarterly' | 'SemiAnnual' | null {
-        return this.Get('Frequency');
-    }
-    set Frequency(value: 'Annual' | 'Custom' | 'Milestone' | 'Monthly' | 'Quarterly' | 'SemiAnnual' | null) {
-        this.Set('Frequency', value);
-    }
-
-    /**
-    * * Field Name: AnchorDate
-    * * Display Name: Anchor Date
-    * * SQL Data Type: date
-    */
-    get AnchorDate(): Date | null {
-        return this.Get('AnchorDate');
-    }
-    set AnchorDate(value: Date | null) {
-        this.Set('AnchorDate', value);
-    }
-
-    /**
-    * * Field Name: IsActive
-    * * Display Name: Is Active
-    * * SQL Data Type: bit
-    * * Default Value: 1
-    */
-    get IsActive(): boolean {
-        return this.Get('IsActive');
-    }
-    set IsActive(value: boolean) {
-        this.Set('IsActive', value);
-    }
-
-    /**
-    * * Field Name: Notes
-    * * Display Name: Notes
-    * * SQL Data Type: nvarchar(MAX)
-    */
-    get Notes(): string | null {
-        return this.Get('Notes');
-    }
-    set Notes(value: string | null) {
-        this.Set('Notes', value);
-    }
-
-    /**
-    * * Field Name: __mj_CreatedAt
-    * * Display Name: Created At
-    * * SQL Data Type: datetimeoffset
-    * * Default Value: getutcdate()
-    */
-    get __mj_CreatedAt(): Date {
-        return this.Get('__mj_CreatedAt');
-    }
-
-    /**
-    * * Field Name: __mj_UpdatedAt
-    * * Display Name: Updated At
-    * * SQL Data Type: datetimeoffset
-    * * Default Value: getutcdate()
-    */
-    get __mj_UpdatedAt(): Date {
-        return this.Get('__mj_UpdatedAt');
-    }
-}
-
-
-/**
- * MJ_BizApps_Contracts: Contract Commitments - strongly typed entity sub-class
- * * Schema: __mj_BizAppsContracts
- * * Base Table: ContractCommitment
- * * Base View: vwContractCommitments
- * * @description Minimums, prepaid draws and true-ups. ConsumedAmount is deliberately NOT capped at CommittedAmount: over-consumption against a minimum is a real state to record and report, not an error to reject at write time.
- * * Primary Key: ID
- * @extends {BaseEntity}
- * @class
- * @public
- */
-@RegisterClass(BaseEntity, 'MJ_BizApps_Contracts: Contract Commitments')
-export class mjBizAppsContractsContractCommitmentEntity extends BaseEntity<mjBizAppsContractsContractCommitmentEntityType> {
-    /**
-    * Loads the MJ_BizApps_Contracts: Contract Commitments record from the database
-    * @param ID: string - primary key value to load the MJ_BizApps_Contracts: Contract Commitments record.
-    * @param EntityRelationshipsToLoad - (optional) the relationships to load
-    * @returns {Promise<boolean>} - true if successful, false otherwise
-    * @public
-    * @async
-    * @memberof mjBizAppsContractsContractCommitmentEntity
-    * @method
-    * @override
-    */
-    public async Load(ID: string, EntityRelationshipsToLoad?: string[]) : Promise<boolean> {
-        const compositeKey: CompositeKey = new CompositeKey();
-        compositeKey.KeyValuePairs.push({ FieldName: 'ID', Value: ID });
-        return await super.InnerLoad(compositeKey, EntityRelationshipsToLoad);
-    }
-
-    /**
-    * * Field Name: ID
-    * * Display Name: ID
-    * * SQL Data Type: uniqueidentifier
-    * * Default Value: newsequentialid()
-    */
-    get ID(): string {
-        return this.Get('ID');
-    }
-    set ID(value: string) {
-        this.Set('ID', value);
-    }
-
-    /**
-    * * Field Name: ContractTermID
-    * * Display Name: Contract Term ID
-    * * SQL Data Type: uniqueidentifier
-    * * Related Entity/Foreign Key: MJ_BizApps_Contracts: Contract Terms (vwContractTerms.ID)
-    */
-    get ContractTermID(): string {
-        return this.Get('ContractTermID');
-    }
-    set ContractTermID(value: string) {
-        this.Set('ContractTermID', value);
-    }
-
-    /**
-    * * Field Name: CommitmentType
-    * * Display Name: Commitment Type
-    * * SQL Data Type: nvarchar(20)
-    * * Value List Type: List
-    * * Possible Values 
-    *   * Draw
-    *   * Minimum
-    *   * Prepaid
-    */
-    get CommitmentType(): 'Draw' | 'Minimum' | 'Prepaid' {
-        return this.Get('CommitmentType');
-    }
-    set CommitmentType(value: 'Draw' | 'Minimum' | 'Prepaid') {
-        this.Set('CommitmentType', value);
-    }
-
-    /**
-    * * Field Name: CommittedAmount
-    * * Display Name: Committed Amount
-    * * SQL Data Type: decimal(19, 4)
-    */
-    get CommittedAmount(): number {
-        return this.Get('CommittedAmount');
-    }
-    set CommittedAmount(value: number) {
-        this.Set('CommittedAmount', value);
-    }
-
-    /**
-    * * Field Name: ConsumedAmount
-    * * Display Name: Consumed Amount
-    * * SQL Data Type: decimal(19, 4)
-    * * Default Value: 0
-    */
-    get ConsumedAmount(): number {
-        return this.Get('ConsumedAmount');
-    }
-    set ConsumedAmount(value: number) {
-        this.Set('ConsumedAmount', value);
-    }
-
-    /**
-    * * Field Name: PeriodStart
-    * * Display Name: Period Start
-    * * SQL Data Type: date
-    */
-    get PeriodStart(): Date | null {
-        return this.Get('PeriodStart');
-    }
-    set PeriodStart(value: Date | null) {
-        this.Set('PeriodStart', value);
-    }
-
-    /**
-    * * Field Name: PeriodEnd
-    * * Display Name: Period End
-    * * SQL Data Type: date
-    */
-    get PeriodEnd(): Date | null {
-        return this.Get('PeriodEnd');
-    }
-    set PeriodEnd(value: Date | null) {
-        this.Set('PeriodEnd', value);
-    }
-
-    /**
-    * * Field Name: TrueUpPolicy
-    * * Display Name: True Up Policy
-    * * SQL Data Type: nvarchar(20)
-    * * Default Value: BillShortfall
-    * * Value List Type: List
-    * * Possible Values 
-    *   * BillShortfall
-    *   * Forfeit
-    *   * Rollover
-    * * Description: What happens to an unconsumed minimum at period end: BillShortfall adds the gap to the next bill, Forfeit drops it, Rollover carries it forward.
-    */
-    get TrueUpPolicy(): 'BillShortfall' | 'Forfeit' | 'Rollover' {
-        return this.Get('TrueUpPolicy');
-    }
-    set TrueUpPolicy(value: 'BillShortfall' | 'Forfeit' | 'Rollover') {
-        this.Set('TrueUpPolicy', value);
-    }
-
-    /**
-    * * Field Name: Status
-    * * Display Name: Status
-    * * SQL Data Type: nvarchar(20)
-    * * Default Value: Open
-    * * Value List Type: List
-    * * Possible Values 
-    *   * Closed
-    *   * Forfeited
-    *   * Open
-    *   * TruedUp
-    */
-    get Status(): 'Closed' | 'Forfeited' | 'Open' | 'TruedUp' {
-        return this.Get('Status');
-    }
-    set Status(value: 'Closed' | 'Forfeited' | 'Open' | 'TruedUp') {
-        this.Set('Status', value);
-    }
-
-    /**
-    * * Field Name: __mj_CreatedAt
-    * * Display Name: Created At
-    * * SQL Data Type: datetimeoffset
-    * * Default Value: getutcdate()
-    */
-    get __mj_CreatedAt(): Date {
-        return this.Get('__mj_CreatedAt');
-    }
-
-    /**
-    * * Field Name: __mj_UpdatedAt
-    * * Display Name: Updated At
-    * * SQL Data Type: datetimeoffset
-    * * Default Value: getutcdate()
-    */
-    get __mj_UpdatedAt(): Date {
-        return this.Get('__mj_UpdatedAt');
-    }
-}
-
-
-/**
- * MJ_BizApps_Contracts: Contract Events - strongly typed entity sub-class
- * * Schema: __mj_BizAppsContracts
- * * Base Table: ContractEvent
- * * Base View: vwContractEvents
- * * @description Immutable lifecycle log, mirroring orders' SubscriptionEvent. Never edited, never deleted. This is the SYSTEM record; customer-visible events also write a common.Activity row so the agreement appears on the account timeline. Neither replaces the other.
- * * Primary Key: ID
- * @extends {BaseEntity}
- * @class
- * @public
- */
-@RegisterClass(BaseEntity, 'MJ_BizApps_Contracts: Contract Events')
-export class mjBizAppsContractsContractEventEntity extends BaseEntity<mjBizAppsContractsContractEventEntityType> {
-    /**
-    * Loads the MJ_BizApps_Contracts: Contract Events record from the database
-    * @param ID: string - primary key value to load the MJ_BizApps_Contracts: Contract Events record.
-    * @param EntityRelationshipsToLoad - (optional) the relationships to load
-    * @returns {Promise<boolean>} - true if successful, false otherwise
-    * @public
-    * @async
-    * @memberof mjBizAppsContractsContractEventEntity
-    * @method
-    * @override
-    */
-    public async Load(ID: string, EntityRelationshipsToLoad?: string[]) : Promise<boolean> {
-        const compositeKey: CompositeKey = new CompositeKey();
-        compositeKey.KeyValuePairs.push({ FieldName: 'ID', Value: ID });
-        return await super.InnerLoad(compositeKey, EntityRelationshipsToLoad);
-    }
-
-    /**
-    * * Field Name: ID
-    * * Display Name: ID
-    * * SQL Data Type: uniqueidentifier
-    * * Default Value: newsequentialid()
-    */
-    get ID(): string {
-        return this.Get('ID');
-    }
-    set ID(value: string) {
-        this.Set('ID', value);
-    }
-
-    /**
-    * * Field Name: ContractID
-    * * Display Name: Contract ID
-    * * SQL Data Type: uniqueidentifier
-    * * Related Entity/Foreign Key: MJ_BizApps_Contracts: Contracts (vwContracts.ID)
-    */
-    get ContractID(): string {
-        return this.Get('ContractID');
-    }
-    set ContractID(value: string) {
-        this.Set('ContractID', value);
-    }
-
-    /**
-    * * Field Name: ContractTermID
-    * * Display Name: Contract Term ID
-    * * SQL Data Type: uniqueidentifier
-    * * Related Entity/Foreign Key: MJ_BizApps_Contracts: Contract Terms (vwContractTerms.ID)
-    */
-    get ContractTermID(): string | null {
-        return this.Get('ContractTermID');
-    }
-    set ContractTermID(value: string | null) {
-        this.Set('ContractTermID', value);
-    }
-
-    /**
-    * * Field Name: EventType
-    * * Display Name: Event Type
-    * * SQL Data Type: nvarchar(50)
-    * * Value List Type: List
-    * * Possible Values 
-    *   * AmendmentApplied
-    *   * BillingEventFailed
-    *   * BillingEventGenerated
-    *   * ContractCreated
-    *   * ContractExecuted
-    *   * ContractExpired
-    *   * ContractSuperseded
-    *   * ContractTerminated
-    *   * SentForSignature
-    *   * SignatureRejected
-    *   * TermActivated
-    *   * TermCompleted
-    *   * TermRenewed
-    *   * TermTerminated
-    */
-    get EventType(): 'AmendmentApplied' | 'BillingEventFailed' | 'BillingEventGenerated' | 'ContractCreated' | 'ContractExecuted' | 'ContractExpired' | 'ContractSuperseded' | 'ContractTerminated' | 'SentForSignature' | 'SignatureRejected' | 'TermActivated' | 'TermCompleted' | 'TermRenewed' | 'TermTerminated' {
-        return this.Get('EventType');
-    }
-    set EventType(value: 'AmendmentApplied' | 'BillingEventFailed' | 'BillingEventGenerated' | 'ContractCreated' | 'ContractExecuted' | 'ContractExpired' | 'ContractSuperseded' | 'ContractTerminated' | 'SentForSignature' | 'SignatureRejected' | 'TermActivated' | 'TermCompleted' | 'TermRenewed' | 'TermTerminated') {
-        this.Set('EventType', value);
-    }
-
-    /**
-    * * Field Name: EventDate
-    * * Display Name: Event Date
-    * * SQL Data Type: datetimeoffset
-    * * Default Value: sysdatetimeoffset()
-    */
-    get EventDate(): Date {
-        return this.Get('EventDate');
-    }
-    set EventDate(value: Date) {
-        this.Set('EventDate', value);
-    }
-
-    /**
-    * * Field Name: Payload
-    * * Display Name: Payload
-    * * SQL Data Type: nvarchar(MAX)
-    */
-    get Payload(): string | null {
-        return this.Get('Payload');
-    }
-    set Payload(value: string | null) {
-        this.Set('Payload', value);
-    }
-
-    /**
-    * * Field Name: PerformedByUserID
-    * * Display Name: Performed By User ID
-    * * SQL Data Type: uniqueidentifier
-    * * Related Entity/Foreign Key: MJ: Users (vwUsers.ID)
-    */
-    get PerformedByUserID(): string | null {
-        return this.Get('PerformedByUserID');
-    }
-    set PerformedByUserID(value: string | null) {
-        this.Set('PerformedByUserID', value);
-    }
-
-    /**
-    * * Field Name: __mj_CreatedAt
-    * * Display Name: Created At
-    * * SQL Data Type: datetimeoffset
-    * * Default Value: getutcdate()
-    */
-    get __mj_CreatedAt(): Date {
-        return this.Get('__mj_CreatedAt');
-    }
-
-    /**
-    * * Field Name: __mj_UpdatedAt
-    * * Display Name: Updated At
-    * * SQL Data Type: datetimeoffset
-    * * Default Value: getutcdate()
-    */
-    get __mj_UpdatedAt(): Date {
-        return this.Get('__mj_UpdatedAt');
-    }
-
-    /**
-    * * Field Name: PerformedByUser
-    * * Display Name: Performed By User
-    * * SQL Data Type: nvarchar(100)
-    */
-    get PerformedByUser(): string | null {
-        return this.Get('PerformedByUser');
-    }
-}
-
-
-/**
- * MJ_BizApps_Contracts: Contract Lines - strongly typed entity sub-class
- * * Schema: __mj_BizAppsContracts
- * * Base Table: ContractLine
- * * Base View: vwContractLines
- * * @description What the agreement covers. LineType is what lets ONE table serve subscriptions, one-time fees, milestone draws, usage true-ups and minimum commitments — the billing engine reads it and nothing else branches on it.
- * * Primary Key: ID
- * @extends {BaseEntity}
- * @class
- * @public
- */
-@RegisterClass(BaseEntity, 'MJ_BizApps_Contracts: Contract Lines')
-export class mjBizAppsContractsContractLineEntity extends BaseEntity<mjBizAppsContractsContractLineEntityType> {
-    /**
-    * Loads the MJ_BizApps_Contracts: Contract Lines record from the database
-    * @param ID: string - primary key value to load the MJ_BizApps_Contracts: Contract Lines record.
-    * @param EntityRelationshipsToLoad - (optional) the relationships to load
-    * @returns {Promise<boolean>} - true if successful, false otherwise
-    * @public
-    * @async
-    * @memberof mjBizAppsContractsContractLineEntity
-    * @method
-    * @override
-    */
-    public async Load(ID: string, EntityRelationshipsToLoad?: string[]) : Promise<boolean> {
-        const compositeKey: CompositeKey = new CompositeKey();
-        compositeKey.KeyValuePairs.push({ FieldName: 'ID', Value: ID });
-        return await super.InnerLoad(compositeKey, EntityRelationshipsToLoad);
-    }
-
-    /**
-    * * Field Name: ID
-    * * Display Name: ID
-    * * SQL Data Type: uniqueidentifier
-    * * Default Value: newsequentialid()
-    */
-    get ID(): string {
-        return this.Get('ID');
-    }
-    set ID(value: string) {
-        this.Set('ID', value);
-    }
-
-    /**
-    * * Field Name: ContractTermID
-    * * Display Name: Contract Term ID
-    * * SQL Data Type: uniqueidentifier
-    * * Related Entity/Foreign Key: MJ_BizApps_Contracts: Contract Terms (vwContractTerms.ID)
-    */
-    get ContractTermID(): string {
-        return this.Get('ContractTermID');
-    }
-    set ContractTermID(value: string) {
-        this.Set('ContractTermID', value);
-    }
-
-    /**
-    * * Field Name: ProductID
-    * * Display Name: Product ID
-    * * SQL Data Type: uniqueidentifier
-    * * Related Entity/Foreign Key: MJ_BizApps_Orders: Products (vwProducts.ID)
-    */
-    get ProductID(): string {
-        return this.Get('ProductID');
-    }
-    set ProductID(value: string) {
-        this.Set('ProductID', value);
-    }
-
-    /**
-    * * Field Name: LineType
-    * * Display Name: Line Type
-    * * SQL Data Type: nvarchar(20)
-    * * Value List Type: List
-    * * Possible Values 
-    *   * Milestone
-    *   * Minimum
-    *   * OneTime
-    *   * Subscription
-    *   * Usage
-    * * Description: Subscription | OneTime | Milestone | Usage | Minimum. Usage is present in the value list although usage metering is out of v1, so the schema need not change when metering arrives.
-    */
-    get LineType(): 'Milestone' | 'Minimum' | 'OneTime' | 'Subscription' | 'Usage' {
-        return this.Get('LineType');
-    }
-    set LineType(value: 'Milestone' | 'Minimum' | 'OneTime' | 'Subscription' | 'Usage') {
-        this.Set('LineType', value);
-    }
-
-    /**
-    * * Field Name: Quantity
-    * * Display Name: Quantity
-    * * SQL Data Type: decimal(18, 4)
-    * * Default Value: 1
-    */
-    get Quantity(): number {
-        return this.Get('Quantity');
-    }
-    set Quantity(value: number) {
-        this.Set('Quantity', value);
-    }
-
-    /**
-    * * Field Name: ContractedUnitPrice
-    * * Display Name: Contracted Unit Price
-    * * SQL Data Type: decimal(19, 4)
-    * * Description: The negotiated per-unit price. NULL means RESOLVE NORMALLY — the line is covered by the agreement but priced from the catalog. A non-null value is what ContractPriceResolver returns into orders' pricing walk; escalation is applied by the resolver at billing time, not stored here.
-    */
-    get ContractedUnitPrice(): number | null {
-        return this.Get('ContractedUnitPrice');
-    }
-    set ContractedUnitPrice(value: number | null) {
-        this.Set('ContractedUnitPrice', value);
-    }
-
-    /**
-    * * Field Name: DiscountPct
-    * * Display Name: Discount Pct
-    * * SQL Data Type: decimal(7, 4)
-    */
-    get DiscountPct(): number | null {
-        return this.Get('DiscountPct');
-    }
-    set DiscountPct(value: number | null) {
-        this.Set('DiscountPct', value);
-    }
-
-    /**
-    * * Field Name: StartDate
-    * * Display Name: Start Date
-    * * SQL Data Type: date
-    */
-    get StartDate(): Date | null {
-        return this.Get('StartDate');
-    }
-    set StartDate(value: Date | null) {
-        this.Set('StartDate', value);
-    }
-
-    /**
-    * * Field Name: EndDate
-    * * Display Name: End Date
-    * * SQL Data Type: date
-    * * Description: Co-term stubs live here: a line added mid-term starts at the amendment date and ends at the TERM's end date, so the stub prorates on the next billing event. This is the capability standalone subscriptions structurally cannot provide, and the reason the contract owns the calendar.
-    */
-    get EndDate(): Date | null {
-        return this.Get('EndDate');
-    }
-    set EndDate(value: Date | null) {
-        this.Set('EndDate', value);
-    }
-
-    /**
-    * * Field Name: SubscriptionTypeID
-    * * Display Name: Subscription Type ID
-    * * SQL Data Type: uniqueidentifier
-    * * Related Entity/Foreign Key: MJ_BizApps_Orders: Subscription Types (vwSubscriptionTypes.ID)
-    */
-    get SubscriptionTypeID(): string | null {
-        return this.Get('SubscriptionTypeID');
-    }
-    set SubscriptionTypeID(value: string | null) {
-        this.Set('SubscriptionTypeID', value);
-    }
-
-    /**
-    * * Field Name: SubscriptionID
-    * * Display Name: Subscription ID
-    * * SQL Data Type: uniqueidentifier
-    * * Related Entity/Foreign Key: MJ_BizApps_Orders: Subscriptions (vwSubscriptions.ID)
-    * * Description: The materialized orders Subscription for a LineType=Subscription line. This linkage lives HERE and points up the graph: orders never learns the word "contract", only that the subscription's BillingMode is External so SpawnRenewals skips it.
-    */
-    get SubscriptionID(): string | null {
-        return this.Get('SubscriptionID');
-    }
-    set SubscriptionID(value: string | null) {
-        this.Set('SubscriptionID', value);
-    }
-
-    /**
-    * * Field Name: Description
-    * * Display Name: Description
-    * * SQL Data Type: nvarchar(MAX)
-    */
-    get Description(): string | null {
-        return this.Get('Description');
-    }
-    set Description(value: string | null) {
-        this.Set('Description', value);
-    }
-
-    /**
-    * * Field Name: DisplayOrder
-    * * Display Name: Display Order
-    * * SQL Data Type: int
-    * * Default Value: 0
-    */
-    get DisplayOrder(): number {
-        return this.Get('DisplayOrder');
-    }
-    set DisplayOrder(value: number) {
-        this.Set('DisplayOrder', value);
-    }
-
-    /**
-    * * Field Name: __mj_CreatedAt
-    * * Display Name: Created At
-    * * SQL Data Type: datetimeoffset
-    * * Default Value: getutcdate()
-    */
-    get __mj_CreatedAt(): Date {
-        return this.Get('__mj_CreatedAt');
-    }
-
-    /**
-    * * Field Name: __mj_UpdatedAt
-    * * Display Name: Updated At
-    * * SQL Data Type: datetimeoffset
-    * * Default Value: getutcdate()
-    */
-    get __mj_UpdatedAt(): Date {
-        return this.Get('__mj_UpdatedAt');
-    }
-
-    /**
-    * * Field Name: Product
-    * * Display Name: Product
-    * * SQL Data Type: nvarchar(200)
-    */
-    get Product(): string {
-        return this.Get('Product');
-    }
-
-    /**
-    * * Field Name: SubscriptionType
-    * * Display Name: Subscription Type
-    * * SQL Data Type: nvarchar(200)
-    */
-    get SubscriptionType(): string | null {
-        return this.Get('SubscriptionType');
-    }
-
-    /**
-    * * Field Name: Subscription
-    * * Display Name: Subscription
-    * * SQL Data Type: nvarchar(40)
-    */
-    get Subscription(): string | null {
-        return this.Get('Subscription');
-    }
-}
-
-
-/**
  * MJ_BizApps_Contracts: Contract Sequences - strongly typed entity sub-class
  * * Schema: __mj_BizAppsContracts
  * * Base Table: ContractSequence
  * * Base View: vwContractSequences
+ * * @description Singleton counter behind ContractNumber (CTR-{seq}), the same shape orders uses for ORD- and PAY-. Seeded in the baseline because it is a counter rather than vocabulary: it must exist before the first contract is written.
  * * Primary Key: ID
  * @extends {BaseEntity}
  * @class
@@ -2045,10 +526,60 @@ export class mjBizAppsContractsContractSequenceEntity extends BaseEntity<mjBizAp
     }
 
     /**
+    * Validate() method override for MJ_BizApps_Contracts: Contract Sequences entity. This is an auto-generated method that invokes the generated validators for this entity for the following fields:
+    * * ID: The ID of this record must be exactly 1, which restricts the table to a single configuration or system row.
+    * * NextSequenceNumber: The next sequence number must be greater than zero to ensure valid sequencing.
+    * @public
+    * @method
+    * @override
+    */
+    public override Validate(): ValidationResult {
+        const result = super.Validate();
+        this.ValidateIdIsOne(result);
+        this.ValidateNextSequenceNumberGreaterThanZero(result);
+        result.Success = result.Success && (result.Errors.length === 0);
+
+        return result;
+    }
+
+    /**
+    * The ID of this record must be exactly 1, which restricts the table to a single configuration or system row.
+    * @param result - the ValidationResult object to add any errors or warnings to
+    * @public
+    * @method
+    */
+    public ValidateIdIsOne(result: ValidationResult) {
+    	if (this.ID !== 1) {
+    		result.Errors.push(new ValidationErrorInfo(
+    			"ID",
+    			"The ID must be equal to 1.",
+    			this.ID,
+    			ValidationErrorType.Failure
+    		));
+    	}
+    }
+
+    /**
+    * The next sequence number must be greater than zero to ensure valid sequencing.
+    * @param result - the ValidationResult object to add any errors or warnings to
+    * @public
+    * @method
+    */
+    public ValidateNextSequenceNumberGreaterThanZero(result: ValidationResult) {
+    	if (this.NextSequenceNumber != null && this.NextSequenceNumber <= 0) {
+    		result.Errors.push(new ValidationErrorInfo(
+    			"NextSequenceNumber",
+    			"The next sequence number must be greater than zero.",
+    			this.NextSequenceNumber,
+    			ValidationErrorType.Failure
+    		));
+    	}
+    }
+
+    /**
     * * Field Name: ID
     * * Display Name: ID
     * * SQL Data Type: int
-    * * Default Value: 1
     */
     get ID(): number {
         return this.Get('ID');
@@ -2062,6 +593,7 @@ export class mjBizAppsContractsContractSequenceEntity extends BaseEntity<mjBizAp
     * * Display Name: Next Sequence Number
     * * SQL Data Type: int
     * * Default Value: 1
+    * * Description: The next number to hand out. Advanced server-side by ContractEntityServer.Save().
     */
     get NextSequenceNumber(): number {
         return this.Get('NextSequenceNumber');
@@ -2093,26 +625,26 @@ export class mjBizAppsContractsContractSequenceEntity extends BaseEntity<mjBizAp
 
 
 /**
- * MJ_BizApps_Contracts: Contract Terms - strongly typed entity sub-class
+ * MJ_BizApps_Contracts: Contract Template Modifications - strongly typed entity sub-class
  * * Schema: __mj_BizAppsContracts
- * * Base Table: ContractTerm
- * * Base View: vwContractTerms
- * * @description One period of an agreement. A RENEWAL creates a NEW term with RenewalOfTermID set; a mid-term change is a ContractAmendment against the existing one. Conflating those two is the most common contract-model mistake.
+ * * Base Table: ContractTemplateModification
+ * * Base View: vwContractTemplateModifications
+ * * @description What THIS contract changed about the standard agreement. Deliberately lean: it names a provision and carries what the contract says instead. Carries no ContractTemplateID — the provision belongs to exactly one template in every future, so the template derives through the provision, and a stored copy of a derivation can only agree or lie.
  * * Primary Key: ID
  * @extends {BaseEntity}
  * @class
  * @public
  */
-@RegisterClass(BaseEntity, 'MJ_BizApps_Contracts: Contract Terms')
-export class mjBizAppsContractsContractTermEntity extends BaseEntity<mjBizAppsContractsContractTermEntityType> {
+@RegisterClass(BaseEntity, 'MJ_BizApps_Contracts: Contract Template Modifications')
+export class mjBizAppsContractsContractTemplateModificationEntity extends BaseEntity<mjBizAppsContractsContractTemplateModificationEntityType> {
     /**
-    * Loads the MJ_BizApps_Contracts: Contract Terms record from the database
-    * @param ID: string - primary key value to load the MJ_BizApps_Contracts: Contract Terms record.
+    * Loads the MJ_BizApps_Contracts: Contract Template Modifications record from the database
+    * @param ID: string - primary key value to load the MJ_BizApps_Contracts: Contract Template Modifications record.
     * @param EntityRelationshipsToLoad - (optional) the relationships to load
     * @returns {Promise<boolean>} - true if successful, false otherwise
     * @public
     * @async
-    * @memberof mjBizAppsContractsContractTermEntity
+    * @memberof mjBizAppsContractsContractTemplateModificationEntity
     * @method
     * @override
     */
@@ -2137,7 +669,7 @@ export class mjBizAppsContractsContractTermEntity extends BaseEntity<mjBizAppsCo
 
     /**
     * * Field Name: ContractID
-    * * Display Name: Contract ID
+    * * Display Name: Contract
     * * SQL Data Type: uniqueidentifier
     * * Related Entity/Foreign Key: MJ_BizApps_Contracts: Contracts (vwContracts.ID)
     */
@@ -2149,217 +681,37 @@ export class mjBizAppsContractsContractTermEntity extends BaseEntity<mjBizAppsCo
     }
 
     /**
-    * * Field Name: TermNumber
-    * * Display Name: Term Number
-    * * SQL Data Type: int
-    */
-    get TermNumber(): number {
-        return this.Get('TermNumber');
-    }
-    set TermNumber(value: number) {
-        this.Set('TermNumber', value);
-    }
-
-    /**
-    * * Field Name: StartDate
-    * * Display Name: Start Date
-    * * SQL Data Type: date
-    */
-    get StartDate(): Date {
-        return this.Get('StartDate');
-    }
-    set StartDate(value: Date) {
-        this.Set('StartDate', value);
-    }
-
-    /**
-    * * Field Name: EndDate
-    * * Display Name: End Date
-    * * SQL Data Type: date
-    */
-    get EndDate(): Date {
-        return this.Get('EndDate');
-    }
-    set EndDate(value: Date) {
-        this.Set('EndDate', value);
-    }
-
-    /**
-    * * Field Name: Status
-    * * Display Name: Status
-    * * SQL Data Type: nvarchar(20)
-    * * Default Value: Pending
-    * * Value List Type: List
-    * * Possible Values 
-    *   * Active
-    *   * Completed
-    *   * Pending
-    *   * PendingSignature
-    *   * Terminated
-    */
-    get Status(): 'Active' | 'Completed' | 'Pending' | 'PendingSignature' | 'Terminated' {
-        return this.Get('Status');
-    }
-    set Status(value: 'Active' | 'Completed' | 'Pending' | 'PendingSignature' | 'Terminated') {
-        this.Set('Status', value);
-    }
-
-    /**
-    * * Field Name: RenewalOfTermID
-    * * Display Name: Renewal Of Term ID
+    * * Field Name: ContractTemplateProvisionID
+    * * Display Name: Contract Template Provision
     * * SQL Data Type: uniqueidentifier
-    * * Related Entity/Foreign Key: MJ_BizApps_Contracts: Contract Terms (vwContractTerms.ID)
-    * * Description: Self-FK chaining back to the term this one renewed, making the renewal history navigable without a separate lineage table.
+    * * Related Entity/Foreign Key: MJ_BizApps_Contracts: Contract Template Provisions (vwContractTemplateProvisions.ID)
+    * * Description: The provision being modified — the structured identifier, and the only one. A server rule enforces what this replaces: the provision must belong to a template this contract incorporates.
     */
-    get RenewalOfTermID(): string | null {
-        return this.Get('RenewalOfTermID');
+    get ContractTemplateProvisionID(): string {
+        return this.Get('ContractTemplateProvisionID');
     }
-    set RenewalOfTermID(value: string | null) {
-        this.Set('RenewalOfTermID', value);
+    set ContractTemplateProvisionID(value: string) {
+        this.Set('ContractTemplateProvisionID', value);
     }
 
     /**
-    * * Field Name: CommittedAmount
-    * * Display Name: Committed Amount
-    * * SQL Data Type: decimal(19, 4)
+    * * Field Name: ModificationText
+    * * Display Name: Modification Text
+    * * SQL Data Type: nvarchar(MAX)
+    * * Description: What this contract says INSTEAD of the standard clause. Read as a pair with ContractTemplateProvision.ProvisionText.
     */
-    get CommittedAmount(): number {
-        return this.Get('CommittedAmount');
+    get ModificationText(): string | null {
+        return this.Get('ModificationText');
     }
-    set CommittedAmount(value: number) {
-        this.Set('CommittedAmount', value);
-    }
-
-    /**
-    * * Field Name: EscalationPercent
-    * * Display Name: Escalation Percent
-    * * SQL Data Type: decimal(7, 4)
-    * * Description: The rate increase applied at renewal, per EscalationBasis. Applied BY THE RESOLVER at billing time from the term rules — never baked into stored line prices, which then go stale.
-    */
-    get EscalationPercent(): number | null {
-        return this.Get('EscalationPercent');
-    }
-    set EscalationPercent(value: number | null) {
-        this.Set('EscalationPercent', value);
-    }
-
-    /**
-    * * Field Name: EscalationBasis
-    * * Display Name: Escalation Basis
-    * * SQL Data Type: nvarchar(20)
-    * * Value List Type: List
-    * * Possible Values 
-    *   * Index
-    *   * ListPrice
-    *   * PriorTerm
-    */
-    get EscalationBasis(): 'Index' | 'ListPrice' | 'PriorTerm' | null {
-        return this.Get('EscalationBasis');
-    }
-    set EscalationBasis(value: 'Index' | 'ListPrice' | 'PriorTerm' | null) {
-        this.Set('EscalationBasis', value);
-    }
-
-    /**
-    * * Field Name: BillingFrequency
-    * * Display Name: Billing Frequency
-    * * SQL Data Type: nvarchar(20)
-    * * Value List Type: List
-    * * Possible Values 
-    *   * Annual
-    *   * Custom
-    *   * Milestone
-    *   * Monthly
-    *   * Quarterly
-    *   * SemiAnnual
-    */
-    get BillingFrequency(): 'Annual' | 'Custom' | 'Milestone' | 'Monthly' | 'Quarterly' | 'SemiAnnual' {
-        return this.Get('BillingFrequency');
-    }
-    set BillingFrequency(value: 'Annual' | 'Custom' | 'Milestone' | 'Monthly' | 'Quarterly' | 'SemiAnnual') {
-        this.Set('BillingFrequency', value);
-    }
-
-    /**
-    * * Field Name: BillingAnchorMonth
-    * * Display Name: Billing Anchor Month
-    * * SQL Data Type: tinyint
-    */
-    get BillingAnchorMonth(): number | null {
-        return this.Get('BillingAnchorMonth');
-    }
-    set BillingAnchorMonth(value: number | null) {
-        this.Set('BillingAnchorMonth', value);
-    }
-
-    /**
-    * * Field Name: BillingAnchorDay
-    * * Display Name: Billing Anchor Day
-    * * SQL Data Type: tinyint
-    */
-    get BillingAnchorDay(): number | null {
-        return this.Get('BillingAnchorDay');
-    }
-    set BillingAnchorDay(value: number | null) {
-        this.Set('BillingAnchorDay', value);
-    }
-
-    /**
-    * * Field Name: PaymentTermsTypeID
-    * * Display Name: Payment Terms Type ID
-    * * SQL Data Type: uniqueidentifier
-    * * Related Entity/Foreign Key: MJ_BizApps_Orders: Payment Terms Types (vwPaymentTermsTypes.ID)
-    */
-    get PaymentTermsTypeID(): string | null {
-        return this.Get('PaymentTermsTypeID');
-    }
-    set PaymentTermsTypeID(value: string | null) {
-        this.Set('PaymentTermsTypeID', value);
-    }
-
-    /**
-    * * Field Name: CurrencyID
-    * * Display Name: Currency ID
-    * * SQL Data Type: uniqueidentifier
-    * * Related Entity/Foreign Key: MJ_BizApps_Accounting: Currencies (vwCurrencies.ID)
-    * * Description: Recorded for forward-compatibility ONLY. Orders defers FX (D24) and nothing in this app converts between currencies. It exists so a term states the currency it was written in, rather than that being inferred from the selling company years later.
-    */
-    get CurrencyID(): string | null {
-        return this.Get('CurrencyID');
-    }
-    set CurrencyID(value: string | null) {
-        this.Set('CurrencyID', value);
-    }
-
-    /**
-    * * Field Name: EarlyTerminationDate
-    * * Display Name: Early Termination Date
-    * * SQL Data Type: date
-    */
-    get EarlyTerminationDate(): Date | null {
-        return this.Get('EarlyTerminationDate');
-    }
-    set EarlyTerminationDate(value: Date | null) {
-        this.Set('EarlyTerminationDate', value);
-    }
-
-    /**
-    * * Field Name: RenewalProbability
-    * * Display Name: Renewal Probability
-    * * SQL Data Type: decimal(5, 4)
-    * * Description: 0..1 likelihood this term renews. Exists because a renewal forecast in bizapps-sales reads it.
-    */
-    get RenewalProbability(): number | null {
-        return this.Get('RenewalProbability');
-    }
-    set RenewalProbability(value: number | null) {
-        this.Set('RenewalProbability', value);
+    set ModificationText(value: string | null) {
+        this.Set('ModificationText', value);
     }
 
     /**
     * * Field Name: Notes
     * * Display Name: Notes
     * * SQL Data Type: nvarchar(MAX)
+    * * Description: Optional working note, e.g. who negotiated it.
     */
     get Notes(): string | null {
         return this.Get('Notes');
@@ -2389,30 +741,450 @@ export class mjBizAppsContractsContractTermEntity extends BaseEntity<mjBizAppsCo
     }
 
     /**
-    * * Field Name: PaymentTermsType
-    * * Display Name: Payment Terms Type
+    * * Field Name: Contract
+    * * Display Name: Contract Reference
+    * * SQL Data Type: nvarchar(50)
+    */
+    get Contract(): string {
+        return this.Get('Contract');
+    }
+
+    /**
+    * * Field Name: ContractTemplateProvision
+    * * Display Name: Provision Reference
+    * * SQL Data Type: nvarchar(20)
+    */
+    get ContractTemplateProvision(): string {
+        return this.Get('ContractTemplateProvision');
+    }
+}
+
+
+/**
+ * MJ_BizApps_Contracts: Contract Template Provisions - strongly typed entity sub-class
+ * * Schema: __mj_BizAppsContracts
+ * * Base Table: ContractTemplateProvision
+ * * Base View: vwContractTemplateProvisions
+ * * @description The numbered clause list of a template version, and the home of all standard contract text. Hangs off ContractTemplate rather than standing alone because provision numbering belongs to a VERSION — the moment a new version renumbers, a single global list is wrong.
+ * * Primary Key: ID
+ * @extends {BaseEntity}
+ * @class
+ * @public
+ */
+@RegisterClass(BaseEntity, 'MJ_BizApps_Contracts: Contract Template Provisions')
+export class mjBizAppsContractsContractTemplateProvisionEntity extends BaseEntity<mjBizAppsContractsContractTemplateProvisionEntityType> {
+    /**
+    * Loads the MJ_BizApps_Contracts: Contract Template Provisions record from the database
+    * @param ID: string - primary key value to load the MJ_BizApps_Contracts: Contract Template Provisions record.
+    * @param EntityRelationshipsToLoad - (optional) the relationships to load
+    * @returns {Promise<boolean>} - true if successful, false otherwise
+    * @public
+    * @async
+    * @memberof mjBizAppsContractsContractTemplateProvisionEntity
+    * @method
+    * @override
+    */
+    public async Load(ID: string, EntityRelationshipsToLoad?: string[]) : Promise<boolean> {
+        const compositeKey: CompositeKey = new CompositeKey();
+        compositeKey.KeyValuePairs.push({ FieldName: 'ID', Value: ID });
+        return await super.InnerLoad(compositeKey, EntityRelationshipsToLoad);
+    }
+
+    /**
+    * * Field Name: ID
+    * * Display Name: ID
+    * * SQL Data Type: uniqueidentifier
+    * * Default Value: newsequentialid()
+    */
+    get ID(): string {
+        return this.Get('ID');
+    }
+    set ID(value: string) {
+        this.Set('ID', value);
+    }
+
+    /**
+    * * Field Name: ContractTemplateID
+    * * Display Name: Contract Template
+    * * SQL Data Type: uniqueidentifier
+    * * Related Entity/Foreign Key: MJ_BizApps_Contracts: Contract Templates (vwContractTemplates.ID)
+    */
+    get ContractTemplateID(): string {
+        return this.Get('ContractTemplateID');
+    }
+    set ContractTemplateID(value: string) {
+        this.Set('ContractTemplateID', value);
+    }
+
+    /**
+    * * Field Name: ProvisionNumber
+    * * Display Name: Provision Number
+    * * SQL Data Type: nvarchar(20)
+    * * Description: The clause number as the document writes it, e.g. "3.5(b)". Unique within its template.
+    */
+    get ProvisionNumber(): string {
+        return this.Get('ProvisionNumber');
+    }
+    set ProvisionNumber(value: string) {
+        this.Set('ProvisionNumber', value);
+    }
+
+    /**
+    * * Field Name: Title
+    * * Display Name: Title
+    * * SQL Data Type: nvarchar(200)
+    * * Description: The clause heading, e.g. "Limitation of Liability". This plus the number is what a person picks from.
+    */
+    get Title(): string {
+        return this.Get('Title');
+    }
+    set Title(value: string) {
+        this.Set('Title', value);
+    }
+
+    /**
+    * * Field Name: ProvisionText
+    * * Display Name: Provision Text
+    * * SQL Data Type: nvarchar(MAX)
+    * * Description: The STANDARD wording of this clause. Read as a pair with ContractTemplateModification.ModificationText, which holds what a given contract says instead — a dispute needs the comparison, not either half.
+    */
+    get ProvisionText(): string | null {
+        return this.Get('ProvisionText');
+    }
+    set ProvisionText(value: string | null) {
+        this.Set('ProvisionText', value);
+    }
+
+    /**
+    * * Field Name: Description
+    * * Display Name: Description
+    * * SQL Data Type: nvarchar(MAX)
+    */
+    get Description(): string | null {
+        return this.Get('Description');
+    }
+    set Description(value: string | null) {
+        this.Set('Description', value);
+    }
+
+    /**
+    * * Field Name: Sequence
+    * * Display Name: Sequence
+    * * SQL Data Type: int
+    * * Default Value: 0
+    * * Description: Display order. Earns its place because ProvisionNumber does not sort as text ("3.10" lands before "3.5") and a legal document has a canonical order.
+    */
+    get Sequence(): number {
+        return this.Get('Sequence');
+    }
+    set Sequence(value: number) {
+        this.Set('Sequence', value);
+    }
+
+    /**
+    * * Field Name: __mj_CreatedAt
+    * * Display Name: Created At
+    * * SQL Data Type: datetimeoffset
+    * * Default Value: getutcdate()
+    */
+    get __mj_CreatedAt(): Date {
+        return this.Get('__mj_CreatedAt');
+    }
+
+    /**
+    * * Field Name: __mj_UpdatedAt
+    * * Display Name: Updated At
+    * * SQL Data Type: datetimeoffset
+    * * Default Value: getutcdate()
+    */
+    get __mj_UpdatedAt(): Date {
+        return this.Get('__mj_UpdatedAt');
+    }
+
+    /**
+    * * Field Name: ContractTemplate
+    * * Display Name: Contract Template Name
     * * SQL Data Type: nvarchar(200)
     */
-    get PaymentTermsType(): string | null {
-        return this.Get('PaymentTermsType');
+    get ContractTemplate(): string {
+        return this.Get('ContractTemplate');
     }
+}
 
+
+/**
+ * MJ_BizApps_Contracts: Contract Template Types - strongly typed entity sub-class
+ * * Schema: __mj_BizAppsContracts
+ * * Base Table: ContractTemplateType
+ * * Base View: vwContractTemplateTypes
+ * * @description The kind of standard agreement (Master Agreement, Statement of Work). A lookup TABLE rather than a CHECK because the list is additive at runtime and a business user should be able to add one without a migration. Carries no behaviour.
+ * * Primary Key: ID
+ * @extends {BaseEntity}
+ * @class
+ * @public
+ */
+@RegisterClass(BaseEntity, 'MJ_BizApps_Contracts: Contract Template Types')
+export class mjBizAppsContractsContractTemplateTypeEntity extends BaseEntity<mjBizAppsContractsContractTemplateTypeEntityType> {
     /**
-    * * Field Name: Currency
-    * * Display Name: Currency
-    * * SQL Data Type: nvarchar(80)
+    * Loads the MJ_BizApps_Contracts: Contract Template Types record from the database
+    * @param ID: string - primary key value to load the MJ_BizApps_Contracts: Contract Template Types record.
+    * @param EntityRelationshipsToLoad - (optional) the relationships to load
+    * @returns {Promise<boolean>} - true if successful, false otherwise
+    * @public
+    * @async
+    * @memberof mjBizAppsContractsContractTemplateTypeEntity
+    * @method
+    * @override
     */
-    get Currency(): string | null {
-        return this.Get('Currency');
+    public async Load(ID: string, EntityRelationshipsToLoad?: string[]) : Promise<boolean> {
+        const compositeKey: CompositeKey = new CompositeKey();
+        compositeKey.KeyValuePairs.push({ FieldName: 'ID', Value: ID });
+        return await super.InnerLoad(compositeKey, EntityRelationshipsToLoad);
     }
 
     /**
-    * * Field Name: RootRenewalOfTermID
-    * * Display Name: Root Renewal Of Term ID
+    * * Field Name: ID
+    * * Display Name: ID
     * * SQL Data Type: uniqueidentifier
+    * * Default Value: newsequentialid()
     */
-    get RootRenewalOfTermID(): string | null {
-        return this.Get('RootRenewalOfTermID');
+    get ID(): string {
+        return this.Get('ID');
+    }
+    set ID(value: string) {
+        this.Set('ID', value);
+    }
+
+    /**
+    * * Field Name: Name
+    * * Display Name: Name
+    * * SQL Data Type: nvarchar(100)
+    */
+    get Name(): string {
+        return this.Get('Name');
+    }
+    set Name(value: string) {
+        this.Set('Name', value);
+    }
+
+    /**
+    * * Field Name: Description
+    * * Display Name: Description
+    * * SQL Data Type: nvarchar(MAX)
+    */
+    get Description(): string | null {
+        return this.Get('Description');
+    }
+    set Description(value: string | null) {
+        this.Set('Description', value);
+    }
+
+    /**
+    * * Field Name: Status
+    * * Display Name: Status
+    * * SQL Data Type: nvarchar(10)
+    * * Default Value: Active
+    * * Value List Type: List
+    * * Possible Values 
+    *   * Active
+    *   * Inactive
+    * * Description: Active | Inactive. Retiring a type hides it from pickers without touching the templates that used it.
+    */
+    get Status(): 'Active' | 'Inactive' {
+        return this.Get('Status');
+    }
+    set Status(value: 'Active' | 'Inactive') {
+        this.Set('Status', value);
+    }
+
+    /**
+    * * Field Name: __mj_CreatedAt
+    * * Display Name: Created At
+    * * SQL Data Type: datetimeoffset
+    * * Default Value: getutcdate()
+    */
+    get __mj_CreatedAt(): Date {
+        return this.Get('__mj_CreatedAt');
+    }
+
+    /**
+    * * Field Name: __mj_UpdatedAt
+    * * Display Name: Updated At
+    * * SQL Data Type: datetimeoffset
+    * * Default Value: getutcdate()
+    */
+    get __mj_UpdatedAt(): Date {
+        return this.Get('__mj_UpdatedAt');
+    }
+}
+
+
+/**
+ * MJ_BizApps_Contracts: Contract Templates - strongly typed entity sub-class
+ * * Schema: __mj_BizAppsContracts
+ * * Base Table: ContractTemplate
+ * * Base View: vwContractTemplates
+ * * @description One VERSION of a standard agreement — in practice the Master Agreement. Versions matter because each is published at its own dated URL that never goes away, so a customer stays bound to the text they signed. Carries no prose of its own: every clauses standard wording lives on its ContractTemplateProvision row.
+ * * Primary Key: ID
+ * @extends {BaseEntity}
+ * @class
+ * @public
+ */
+@RegisterClass(BaseEntity, 'MJ_BizApps_Contracts: Contract Templates')
+export class mjBizAppsContractsContractTemplateEntity extends BaseEntity<mjBizAppsContractsContractTemplateEntityType> {
+
+  /**
+  * Related records: MJ_BizApps_Contracts: Contract Template Provisions
+  *
+  * Loads, validates and persists as one unit with this MJ_BizApps_Contracts: Contract Templates record — see
+  * guides/TRANSACTIONS_AND_BATCHING_GUIDE.md. Declared by the RelatedRecordCollection metadata on
+  * the 'MJ_BizApps_Contracts: Contract Templates → MJ_BizApps_Contracts: Contract Template Provisions' relationship; edit that row, not this file.
+  *
+  */
+  public readonly Provisions = this.DeclareRelatedRecords<mjBizAppsContractsContractTemplateProvisionEntity>({
+      Name: 'Provisions',
+        RelatedEntity: 'MJ_BizApps_Contracts: Contract Template Provisions',
+        RelatedEntityJoinField: 'ContractTemplateID',
+        OrderBy: 'Sequence ASC',
+        Load: 'explicit',
+        OnRemove: 'delete',
+        Source: 'database',
+        Sequence: { Field: 'Sequence', From: 1 },
+  });
+
+    /**
+    * Loads the MJ_BizApps_Contracts: Contract Templates record from the database
+    * @param ID: string - primary key value to load the MJ_BizApps_Contracts: Contract Templates record.
+    * @param EntityRelationshipsToLoad - (optional) the relationships to load
+    * @returns {Promise<boolean>} - true if successful, false otherwise
+    * @public
+    * @async
+    * @memberof mjBizAppsContractsContractTemplateEntity
+    * @method
+    * @override
+    */
+    public async Load(ID: string, EntityRelationshipsToLoad?: string[]) : Promise<boolean> {
+        const compositeKey: CompositeKey = new CompositeKey();
+        compositeKey.KeyValuePairs.push({ FieldName: 'ID', Value: ID });
+        return await super.InnerLoad(compositeKey, EntityRelationshipsToLoad);
+    }
+
+    /**
+    * * Field Name: ID
+    * * Display Name: ID
+    * * SQL Data Type: uniqueidentifier
+    * * Default Value: newsequentialid()
+    */
+    get ID(): string {
+        return this.Get('ID');
+    }
+    set ID(value: string) {
+        this.Set('ID', value);
+    }
+
+    /**
+    * * Field Name: Name
+    * * Display Name: Name
+    * * SQL Data Type: nvarchar(200)
+    */
+    get Name(): string {
+        return this.Get('Name');
+    }
+    set Name(value: string) {
+        this.Set('Name', value);
+    }
+
+    /**
+    * * Field Name: ContractTemplateTypeID
+    * * Display Name: Template Type ID
+    * * SQL Data Type: uniqueidentifier
+    * * Related Entity/Foreign Key: MJ_BizApps_Contracts: Contract Template Types (vwContractTemplateTypes.ID)
+    */
+    get ContractTemplateTypeID(): string {
+        return this.Get('ContractTemplateTypeID');
+    }
+    set ContractTemplateTypeID(value: string) {
+        this.Set('ContractTemplateTypeID', value);
+    }
+
+    /**
+    * * Field Name: VersionLabel
+    * * Display Name: Version Label
+    * * SQL Data Type: nvarchar(50)
+    * * Description: The version the document names itself, e.g. "v6". Free text, because it is the documents own label rather than something we derive.
+    */
+    get VersionLabel(): string | null {
+        return this.Get('VersionLabel');
+    }
+    set VersionLabel(value: string | null) {
+        this.Set('VersionLabel', value);
+    }
+
+    /**
+    * * Field Name: IntroducedDate
+    * * Display Name: Introduced Date
+    * * SQL Data Type: date
+    * * Description: When this version started being offered. NOT an effective date: a template becomes effective for a customer when THAT customer signs it, never on a calendar date. Naming it EffectiveDate would invite exactly the wrong query.
+    */
+    get IntroducedDate(): Date | null {
+        return this.Get('IntroducedDate');
+    }
+    set IntroducedDate(value: Date | null) {
+        this.Set('IntroducedDate', value);
+    }
+
+    /**
+    * * Field Name: SourceURL
+    * * Display Name: Source URL
+    * * SQL Data Type: nvarchar(1000)
+    * * Description: The dated public URL. NOT NULL — every template we have is a published URL and it is what the executed PDF cites; a template nobody can open is not a record of anything.
+    */
+    get SourceURL(): string {
+        return this.Get('SourceURL');
+    }
+    set SourceURL(value: string) {
+        this.Set('SourceURL', value);
+    }
+
+    /**
+    * * Field Name: Description
+    * * Display Name: Description
+    * * SQL Data Type: nvarchar(MAX)
+    */
+    get Description(): string | null {
+        return this.Get('Description');
+    }
+    set Description(value: string | null) {
+        this.Set('Description', value);
+    }
+
+    /**
+    * * Field Name: __mj_CreatedAt
+    * * Display Name: Created At
+    * * SQL Data Type: datetimeoffset
+    * * Default Value: getutcdate()
+    */
+    get __mj_CreatedAt(): Date {
+        return this.Get('__mj_CreatedAt');
+    }
+
+    /**
+    * * Field Name: __mj_UpdatedAt
+    * * Display Name: Updated At
+    * * SQL Data Type: datetimeoffset
+    * * Default Value: getutcdate()
+    */
+    get __mj_UpdatedAt(): Date {
+        return this.Get('__mj_UpdatedAt');
+    }
+
+    /**
+    * * Field Name: ContractTemplateType
+    * * Display Name: Template Type
+    * * SQL Data Type: nvarchar(100)
+    */
+    get ContractTemplateType(): string {
+        return this.Get('ContractTemplateType');
     }
 }
 
@@ -2422,7 +1194,7 @@ export class mjBizAppsContractsContractTermEntity extends BaseEntity<mjBizAppsCo
  * * Schema: __mj_BizAppsContracts
  * * Base Table: ContractType
  * * Base View: vwContractTypes
- * * @description Named defaults for a class of agreement (Standard, MSA, SOW, Membership, Evergreen, Pilot). Configuration as data: the engine READS these columns rather than branching on the type name.
+ * * @description The kind of paper: Order Form, Statement of Work, Payment Link, Change Order. A lookup TABLE for the same reason as ContractTemplateType.
  * * Primary Key: ID
  * @extends {BaseEntity}
  * @class
@@ -2461,19 +1233,6 @@ export class mjBizAppsContractsContractTypeEntity extends BaseEntity<mjBizAppsCo
     }
 
     /**
-    * * Field Name: Code
-    * * Display Name: Code
-    * * SQL Data Type: nvarchar(50)
-    * * Description: Stable machine key, unique. Referenced by CloseWonPolicy in bizapps-sales, so renaming Name is safe and changing Code is not.
-    */
-    get Code(): string {
-        return this.Get('Code');
-    }
-    set Code(value: string) {
-        this.Set('Code', value);
-    }
-
-    /**
     * * Field Name: Name
     * * Display Name: Name
     * * SQL Data Type: nvarchar(100)
@@ -2498,168 +1257,35 @@ export class mjBizAppsContractsContractTypeEntity extends BaseEntity<mjBizAppsCo
     }
 
     /**
-    * * Field Name: DefaultTermMonths
-    * * Display Name: Default Term Months
-    * * SQL Data Type: int
+    * * Field Name: RequiresExecutedDocument
+    * * Display Name: Requires Executed Document
+    * * SQL Data Type: bit
+    * * Default Value: 1
+    * * Description: Whether paper is ever expected for this kind of contract. No for a Payment Link, which has an implied agreement and no signature. This is what stops such a contract asking forever for a document that will never arrive: "awaiting the document" is DERIVED as requires-it AND no-linked-file, never stored and never a status value.
     */
-    get DefaultTermMonths(): number | null {
-        return this.Get('DefaultTermMonths');
+    get RequiresExecutedDocument(): boolean {
+        return this.Get('RequiresExecutedDocument');
     }
-    set DefaultTermMonths(value: number | null) {
-        this.Set('DefaultTermMonths', value);
+    set RequiresExecutedDocument(value: boolean) {
+        this.Set('RequiresExecutedDocument', value);
     }
 
     /**
-    * * Field Name: DefaultBillingFrequency
-    * * Display Name: Default Billing Frequency
-    * * SQL Data Type: nvarchar(20)
+    * * Field Name: Status
+    * * Display Name: Status
+    * * SQL Data Type: nvarchar(10)
+    * * Default Value: Active
     * * Value List Type: List
     * * Possible Values 
-    *   * Annual
-    *   * Custom
-    *   * Milestone
-    *   * Monthly
-    *   * Quarterly
-    *   * SemiAnnual
+    *   * Active
+    *   * Inactive
+    * * Description: Active | Inactive.
     */
-    get DefaultBillingFrequency(): 'Annual' | 'Custom' | 'Milestone' | 'Monthly' | 'Quarterly' | 'SemiAnnual' | null {
-        return this.Get('DefaultBillingFrequency');
+    get Status(): 'Active' | 'Inactive' {
+        return this.Get('Status');
     }
-    set DefaultBillingFrequency(value: 'Annual' | 'Custom' | 'Milestone' | 'Monthly' | 'Quarterly' | 'SemiAnnual' | null) {
-        this.Set('DefaultBillingFrequency', value);
-    }
-
-    /**
-    * * Field Name: DefaultAutoRenew
-    * * Display Name: Default Auto Renew
-    * * SQL Data Type: bit
-    * * Default Value: 0
-    */
-    get DefaultAutoRenew(): boolean {
-        return this.Get('DefaultAutoRenew');
-    }
-    set DefaultAutoRenew(value: boolean) {
-        this.Set('DefaultAutoRenew', value);
-    }
-
-    /**
-    * * Field Name: RequiresSignature
-    * * Display Name: Requires Signature
-    * * SQL Data Type: bit
-    * * Default Value: 1
-    */
-    get RequiresSignature(): boolean {
-        return this.Get('RequiresSignature');
-    }
-    set RequiresSignature(value: boolean) {
-        this.Set('RequiresSignature', value);
-    }
-
-    /**
-    * * Field Name: DefaultEscalationPercent
-    * * Display Name: Default Escalation Percent
-    * * SQL Data Type: decimal(7, 4)
-    */
-    get DefaultEscalationPercent(): number | null {
-        return this.Get('DefaultEscalationPercent');
-    }
-    set DefaultEscalationPercent(value: number | null) {
-        this.Set('DefaultEscalationPercent', value);
-    }
-
-    /**
-    * * Field Name: DefaultMaxEscalationPercent
-    * * Display Name: Default Max Escalation Percent
-    * * SQL Data Type: decimal(7, 4)
-    */
-    get DefaultMaxEscalationPercent(): number | null {
-        return this.Get('DefaultMaxEscalationPercent');
-    }
-    set DefaultMaxEscalationPercent(value: number | null) {
-        this.Set('DefaultMaxEscalationPercent', value);
-    }
-
-    /**
-    * * Field Name: DefaultRenewalNoticeDays
-    * * Display Name: Default Renewal Notice Days
-    * * SQL Data Type: int
-    */
-    get DefaultRenewalNoticeDays(): number | null {
-        return this.Get('DefaultRenewalNoticeDays');
-    }
-    set DefaultRenewalNoticeDays(value: number | null) {
-        this.Set('DefaultRenewalNoticeDays', value);
-    }
-
-    /**
-    * * Field Name: DefaultCancellationWindowDays
-    * * Display Name: Default Cancellation Window Days
-    * * SQL Data Type: int
-    */
-    get DefaultCancellationWindowDays(): number | null {
-        return this.Get('DefaultCancellationWindowDays');
-    }
-    set DefaultCancellationWindowDays(value: number | null) {
-        this.Set('DefaultCancellationWindowDays', value);
-    }
-
-    /**
-    * * Field Name: RenewalMode
-    * * Display Name: Renewal Mode
-    * * SQL Data Type: nvarchar(20)
-    * * Default Value: Deal
-    * * Value List Type: List
-    * * Possible Values 
-    *   * Auto
-    *   * Deal
-    *   * Manual
-    * * Description: How a term of this type renews. Deal = a renewal is a deal (L-18); bizapps-sales calls Contracts.RenewTerm when a renewal deal closes, so renewal gets its own pipeline and win-rate. Auto = the Scheduled Job renews with no deal, for evergreen and B2C. Manual = a human triggers it.
-    */
-    get RenewalMode(): 'Auto' | 'Deal' | 'Manual' {
-        return this.Get('RenewalMode');
-    }
-    set RenewalMode(value: 'Auto' | 'Deal' | 'Manual') {
-        this.Set('RenewalMode', value);
-    }
-
-    /**
-    * * Field Name: AllowsCoterm
-    * * Display Name: Allows Coterm
-    * * SQL Data Type: bit
-    * * Default Value: 1
-    * * Description: Whether a term of this type may absorb a mid-term addition aligned to the term end date (co-terming).
-    */
-    get AllowsCoterm(): boolean {
-        return this.Get('AllowsCoterm');
-    }
-    set AllowsCoterm(value: boolean) {
-        this.Set('AllowsCoterm', value);
-    }
-
-    /**
-    * * Field Name: DriverClass
-    * * Display Name: Driver Class
-    * * SQL Data Type: nvarchar(255)
-    * * Description: OPTIONAL ClassFactory key for a behaviour subclass, following SubscriptionType rather than RevenueRecognitionType: the columns ARE the rules and a base class reads them. Supply a driver only when a customer needs something the columns cannot express.
-    */
-    get DriverClass(): string | null {
-        return this.Get('DriverClass');
-    }
-    set DriverClass(value: string | null) {
-        this.Set('DriverClass', value);
-    }
-
-    /**
-    * * Field Name: IsActive
-    * * Display Name: Is Active
-    * * SQL Data Type: bit
-    * * Default Value: 1
-    */
-    get IsActive(): boolean {
-        return this.Get('IsActive');
-    }
-    set IsActive(value: boolean) {
-        this.Set('IsActive', value);
+    set Status(value: 'Active' | 'Inactive') {
+        this.Set('Status', value);
     }
 
     /**
@@ -2689,7 +1315,7 @@ export class mjBizAppsContractsContractTypeEntity extends BaseEntity<mjBizAppsCo
  * * Schema: __mj_BizAppsContracts
  * * Base Table: Contract
  * * Base View: vwContracts
- * * @description The agreement. Deliberately carries NO reference to a Deal (L-15): sales sits above contracts so a reference upward inverts the dependency graph, and the cardinality is one contract to MANY deals (the original sale, every renewal, every expansion). The reverse lookup lives in sales as Deal.ContractID and returns a set.
+ * * @description The signed agreement — one row per piece of signed (or implied) paper, and the centre of the app. Carries NO hard reference to a Deal: sales creates contracts, so sales depends on this app and a reference upward would invert the dependency graph. The link is the typed polymorphic pair CreatingEntityID + CreatingRecordID.
  * * Primary Key: ID
  * @extends {BaseEntity}
  * @class
@@ -2697,6 +1323,25 @@ export class mjBizAppsContractsContractTypeEntity extends BaseEntity<mjBizAppsCo
  */
 @RegisterClass(BaseEntity, 'MJ_BizApps_Contracts: Contracts')
 export class mjBizAppsContractsContractEntity extends BaseEntity<mjBizAppsContractsContractEntityType> {
+
+  /**
+  * Related records: MJ_BizApps_Contracts: Contract Template Modifications
+  *
+  * Loads, validates and persists as one unit with this MJ_BizApps_Contracts: Contracts record — see
+  * guides/TRANSACTIONS_AND_BATCHING_GUIDE.md. Declared by the RelatedRecordCollection metadata on
+  * the 'MJ_BizApps_Contracts: Contracts → MJ_BizApps_Contracts: Contract Template Modifications' relationship; edit that row, not this file.
+  *
+  */
+  public readonly Modifications = this.DeclareRelatedRecords<mjBizAppsContractsContractTemplateModificationEntity>({
+      Name: 'Modifications',
+        RelatedEntity: 'MJ_BizApps_Contracts: Contract Template Modifications',
+        RelatedEntityJoinField: 'ContractID',
+        OrderBy: '__mj_CreatedAt ASC',
+        Load: 'explicit',
+        OnRemove: 'delete',
+        Source: 'database',
+  });
+
     /**
     * Loads the MJ_BizApps_Contracts: Contracts record from the database
     * @param ID: string - primary key value to load the MJ_BizApps_Contracts: Contracts record.
@@ -2712,6 +1357,157 @@ export class mjBizAppsContractsContractEntity extends BaseEntity<mjBizAppsContra
         const compositeKey: CompositeKey = new CompositeKey();
         compositeKey.KeyValuePairs.push({ FieldName: 'ID', Value: ID });
         return await super.InnerLoad(compositeKey, EntityRelationshipsToLoad);
+    }
+
+    /**
+    * Validate() method override for MJ_BizApps_Contracts: Contracts entity. This is an auto-generated method that invokes the generated validators for this entity for the following fields:
+    * * AnnualIncreasePercent: The annual increase percentage must be greater than or equal to 0% if it is specified.
+    * * CancellationWindowDays: The cancellation window, if specified, must be 0 days or greater.
+    * * RenewalNoticeDays: The renewal notice days must be a non-negative number (0 or greater) if it is specified.
+    * * Table-Level: Both the creating entity and the creating record must be provided together, or both must be left empty. You cannot specify one without the other.
+    * * Table-Level: The contract end date must be on or after the effective date.
+    * * Table-Level: A contract cannot be its own parent contract. This prevents circular references in the contract hierarchy.
+    * * Table-Level: A contract cannot be superseded by itself. If a superseding contract is specified, it must be a different contract.
+    * @public
+    * @method
+    * @override
+    */
+    public override Validate(): ValidationResult {
+        const result = super.Validate();
+        this.ValidateAnnualIncreasePercentGreaterThanOrEqualToZero(result);
+        this.ValidateCancellationWindowDaysMinimum(result);
+        this.ValidateRenewalNoticeDaysGreaterThanOrEqualToZero(result);
+        this.ValidateCreatingEntityAndRecordCoexistence(result);
+        this.ValidateEndDateAfterOrEqualToEffectiveDate(result);
+        this.ValidateParentContractIDNotEqualToID(result);
+        this.ValidateSupersededByContractIDNotSelf(result);
+        result.Success = result.Success && (result.Errors.length === 0);
+
+        return result;
+    }
+
+    /**
+    * The annual increase percentage must be greater than or equal to 0% if it is specified.
+    * @param result - the ValidationResult object to add any errors or warnings to
+    * @public
+    * @method
+    */
+    public ValidateAnnualIncreasePercentGreaterThanOrEqualToZero(result: ValidationResult) {
+    	if (this.AnnualIncreasePercent != null && this.AnnualIncreasePercent < 0) {
+    		result.Errors.push(new ValidationErrorInfo(
+    			"AnnualIncreasePercent",
+    			"Annual increase percentage must be greater than or equal to 0.",
+    			this.AnnualIncreasePercent,
+    			ValidationErrorType.Failure
+    		));
+    	}
+    }
+
+    /**
+    * The cancellation window, if specified, must be 0 days or greater.
+    * @param result - the ValidationResult object to add any errors or warnings to
+    * @public
+    * @method
+    */
+    public ValidateCancellationWindowDaysMinimum(result: ValidationResult) {
+    	if (this.CancellationWindowDays != null && this.CancellationWindowDays < 0) {
+    		result.Errors.push(new ValidationErrorInfo(
+    			"CancellationWindowDays",
+    			"Cancellation window days must be 0 or greater.",
+    			this.CancellationWindowDays,
+    			ValidationErrorType.Failure
+    		));
+    	}
+    }
+
+    /**
+    * The renewal notice days must be a non-negative number (0 or greater) if it is specified.
+    * @param result - the ValidationResult object to add any errors or warnings to
+    * @public
+    * @method
+    */
+    public ValidateRenewalNoticeDaysGreaterThanOrEqualToZero(result: ValidationResult) {
+    	if (this.RenewalNoticeDays != null && this.RenewalNoticeDays < 0) {
+    		result.Errors.push(new ValidationErrorInfo(
+    			"RenewalNoticeDays",
+    			"Renewal notice days must be greater than or equal to 0.",
+    			this.RenewalNoticeDays,
+    			ValidationErrorType.Failure
+    		));
+    	}
+    }
+
+    /**
+    * Both the creating entity and the creating record must be provided together, or both must be left empty. You cannot specify one without the other.
+    * @param result - the ValidationResult object to add any errors or warnings to
+    * @public
+    * @method
+    */
+    public ValidateCreatingEntityAndRecordCoexistence(result: ValidationResult) {
+    	const hasEntity = this.CreatingEntityID != null && this.CreatingEntityID !== "";
+    	const hasRecord = this.CreatingRecordID != null && this.CreatingRecordID !== "";
+    
+    	if (hasEntity !== hasRecord) {
+    		result.Errors.push(new ValidationErrorInfo(
+    			"CreatingEntityID",
+    			"Both Creating Entity and Creating Record must be provided together, or both must be left empty.",
+    			this.CreatingEntityID,
+    			ValidationErrorType.Failure
+    		));
+    	}
+    }
+
+    /**
+    * The contract end date must be on or after the effective date.
+    * @param result - the ValidationResult object to add any errors or warnings to
+    * @public
+    * @method
+    */
+    public ValidateEndDateAfterOrEqualToEffectiveDate(result: ValidationResult) {
+    	if (this.EndDate != null && this.EffectiveDate != null) {
+    		if (this.EndDate < this.EffectiveDate) {
+    			result.Errors.push(new ValidationErrorInfo(
+    				"EndDate",
+    				"The contract end date must be on or after the effective date.",
+    				this.EndDate,
+    				ValidationErrorType.Failure
+    			));
+    		}
+    	}
+    }
+
+    /**
+    * A contract cannot be its own parent contract. This prevents circular references in the contract hierarchy.
+    * @param result - the ValidationResult object to add any errors or warnings to
+    * @public
+    * @method
+    */
+    public ValidateParentContractIDNotEqualToID(result: ValidationResult) {
+    	if (this.ParentContractID != null && this.ParentContractID === this.ID) {
+    		result.Errors.push(new ValidationErrorInfo(
+    			"ParentContractID",
+    			"A contract cannot be set as its own parent contract.",
+    			this.ParentContractID,
+    			ValidationErrorType.Failure
+    		));
+    	}
+    }
+
+    /**
+    * A contract cannot be superseded by itself. If a superseding contract is specified, it must be a different contract.
+    * @param result - the ValidationResult object to add any errors or warnings to
+    * @public
+    * @method
+    */
+    public ValidateSupersededByContractIDNotSelf(result: ValidationResult) {
+        if (this.SupersededByContractID != null && this.SupersededByContractID === this.ID) {
+            result.Errors.push(new ValidationErrorInfo(
+                "SupersededByContractID",
+                "A contract cannot be superseded by itself.",
+                this.SupersededByContractID,
+                ValidationErrorType.Failure
+            ));
+        }
     }
 
     /**
@@ -2742,7 +1538,7 @@ export class mjBizAppsContractsContractEntity extends BaseEntity<mjBizAppsContra
 
     /**
     * * Field Name: ContractTypeID
-    * * Display Name: Contract Type ID
+    * * Display Name: Contract Type
     * * SQL Data Type: uniqueidentifier
     * * Related Entity/Foreign Key: MJ_BizApps_Contracts: Contract Types (vwContractTypes.ID)
     */
@@ -2755,10 +1551,10 @@ export class mjBizAppsContractsContractEntity extends BaseEntity<mjBizAppsContra
 
     /**
     * * Field Name: CompanyID
-    * * Display Name: Company ID
+    * * Display Name: Company
     * * SQL Data Type: uniqueidentifier
     * * Related Entity/Foreign Key: MJ: Companies (vwCompanies.ID)
-    * * Description: The SELLING company (__mj.Company) — which of our entities holds this agreement. Not the customer.
+    * * Description: The SELLING company (__mj.Company) — which of OUR entities holds this agreement. Not the customer. Stored rather than derived because it is not reliably recoverable from the deal.
     */
     get CompanyID(): string {
         return this.Get('CompanyID');
@@ -2769,37 +1565,24 @@ export class mjBizAppsContractsContractEntity extends BaseEntity<mjBizAppsContra
 
     /**
     * * Field Name: CustomerOrganizationID
-    * * Display Name: Customer Organization ID
+    * * Display Name: Customer Organization
     * * SQL Data Type: uniqueidentifier
     * * Related Entity/Foreign Key: MJ_BizApps_Common: Organizations (vwOrganizations.ID)
-    * * Description: The customer, when the customer is an organization. EXACTLY ONE of CustomerOrganizationID / CustomerPersonID is set, enforced by CK_Contract_CustomerXor.
+    * * Description: The customer. NOT NULL: contracts are B2B here by definition, and the individual case lives entirely in orders. v1 allowed an organization-or-person XOR; that is gone.
     */
-    get CustomerOrganizationID(): string | null {
+    get CustomerOrganizationID(): string {
         return this.Get('CustomerOrganizationID');
     }
-    set CustomerOrganizationID(value: string | null) {
+    set CustomerOrganizationID(value: string) {
         this.Set('CustomerOrganizationID', value);
     }
 
     /**
-    * * Field Name: CustomerPersonID
-    * * Display Name: Customer Person ID
-    * * SQL Data Type: uniqueidentifier
-    * * Related Entity/Foreign Key: MJ_BizApps_Common: People (vwPeople.ID)
-    * * Description: The customer, when the customer is an individual. EXACTLY ONE of CustomerOrganizationID / CustomerPersonID is set, enforced by CK_Contract_CustomerXor.
-    */
-    get CustomerPersonID(): string | null {
-        return this.Get('CustomerPersonID');
-    }
-    set CustomerPersonID(value: string | null) {
-        this.Set('CustomerPersonID', value);
-    }
-
-    /**
     * * Field Name: PrimaryContactPersonID
-    * * Display Name: Primary Contact Person ID
+    * * Display Name: Primary Contact
     * * SQL Data Type: uniqueidentifier
     * * Related Entity/Foreign Key: MJ_BizApps_Common: People (vwPeople.ID)
+    * * Description: Their named contact, optional.
     */
     get PrimaryContactPersonID(): string | null {
         return this.Get('PrimaryContactPersonID');
@@ -2809,24 +1592,52 @@ export class mjBizAppsContractsContractEntity extends BaseEntity<mjBizAppsContra
     }
 
     /**
-    * * Field Name: OwnerUserID
-    * * Display Name: Owner User ID
+    * * Field Name: ContractTemplateID
+    * * Display Name: Contract Template
     * * SQL Data Type: uniqueidentifier
-    * * Related Entity/Foreign Key: MJ: Users (vwUsers.ID)
+    * * Related Entity/Foreign Key: MJ_BizApps_Contracts: Contract Templates (vwContractTemplates.ID)
+    * * Description: The agreement version this contract incorporates. Nullable because a contract created automatically at Closed Won has none until finance reads the PDF.
     */
-    get OwnerUserID(): string | null {
-        return this.Get('OwnerUserID');
+    get ContractTemplateID(): string | null {
+        return this.Get('ContractTemplateID');
     }
-    set OwnerUserID(value: string | null) {
-        this.Set('OwnerUserID', value);
+    set ContractTemplateID(value: string | null) {
+        this.Set('ContractTemplateID', value);
+    }
+
+    /**
+    * * Field Name: CreatingEntityID
+    * * Display Name: Creating Entity ID
+    * * SQL Data Type: uniqueidentifier
+    * * Related Entity/Foreign Key: MJ: Entities (vwEntities.ID)
+    * * Description: Polymorphic reference part 1: the MJ Entity of the record that CREATED this contract, in practice Deals. A real foreign key to __mj.Entity — this is the half that is enforced, and the half that lets MJ resolve the pair generically. Same pattern accounting uses for JournalEntry provenance.
+    */
+    get CreatingEntityID(): string | null {
+        return this.Get('CreatingEntityID');
+    }
+    set CreatingEntityID(value: string | null) {
+        this.Set('CreatingEntityID', value);
+    }
+
+    /**
+    * * Field Name: CreatingRecordID
+    * * Display Name: Creating Record ID
+    * * SQL Data Type: nvarchar(450)
+    * * Description: Polymorphic reference part 2: the creating records id. Soft by nature — it points at a record owned by an app this repo has no knowledge of. Set together with CreatingEntityID or not at all.
+    */
+    get CreatingRecordID(): string | null {
+        return this.Get('CreatingRecordID');
+    }
+    set CreatingRecordID(value: string | null) {
+        this.Set('CreatingRecordID', value);
     }
 
     /**
     * * Field Name: ParentContractID
-    * * Display Name: Parent Contract ID
+    * * Display Name: Parent Contract
     * * SQL Data Type: uniqueidentifier
     * * Related Entity/Foreign Key: MJ_BizApps_Contracts: Contracts (vwContracts.ID)
-    * * Description: Self-FK for MSA -> SOW nesting (D-5). Modelled as a self-reference rather than a distinct Agreement entity until the two genuinely diverge.
+    * * Description: The contract this one amends. How a change order attaches: a change order is signed paper with its own PDF, dates and modifications, so it reuses this entity rather than getting one of its own. The original stays in force.
     */
     get ParentContractID(): string | null {
         return this.Get('ParentContractID');
@@ -2837,9 +1648,10 @@ export class mjBizAppsContractsContractEntity extends BaseEntity<mjBizAppsContra
 
     /**
     * * Field Name: SupersededByContractID
-    * * Display Name: Superseded By Contract ID
+    * * Display Name: Superseded By
     * * SQL Data Type: uniqueidentifier
     * * Related Entity/Foreign Key: MJ_BizApps_Contracts: Contracts (vwContracts.ID)
+    * * Description: The contract that REPLACED this one, where an agreement was re-papered rather than amended. Also the sole source of the derived Superseded state, which is why the old CHECK tying it to a Status column disappeared with that column.
     */
     get SupersededByContractID(): string | null {
         return this.Get('SupersededByContractID');
@@ -2849,24 +1661,135 @@ export class mjBizAppsContractsContractEntity extends BaseEntity<mjBizAppsContra
     }
 
     /**
-    * * Field Name: Status
-    * * Display Name: Status
-    * * SQL Data Type: nvarchar(30)
-    * * Default Value: Draft
-    * * Value List Type: List
-    * * Possible Values 
-    *   * Active
-    *   * Draft
-    *   * Expired
-    *   * PendingSignature
-    *   * Superseded
-    *   * Terminated
+    * * Field Name: SigningProviderURL
+    * * Display Name: Signing Provider URL
+    * * SQL Data Type: nvarchar(1000)
+    * * Description: Direct link to the document in the signing provider (PandaDoc). The fallback that works before any integration exists, and when a storage sync has broken.
     */
-    get Status(): 'Active' | 'Draft' | 'Expired' | 'PendingSignature' | 'Superseded' | 'Terminated' {
-        return this.Get('Status');
+    get SigningProviderURL(): string | null {
+        return this.Get('SigningProviderURL');
     }
-    set Status(value: 'Active' | 'Draft' | 'Expired' | 'PendingSignature' | 'Superseded' | 'Terminated') {
-        this.Set('Status', value);
+    set SigningProviderURL(value: string | null) {
+        this.Set('SigningProviderURL', value);
+    }
+
+    /**
+    * * Field Name: EffectiveDate
+    * * Display Name: Effective Date
+    * * SQL Data Type: date
+    * * Description: When the agreement takes effect.
+    */
+    get EffectiveDate(): Date | null {
+        return this.Get('EffectiveDate');
+    }
+    set EffectiveDate(value: Date | null) {
+        this.Set('EffectiveDate', value);
+    }
+
+    /**
+    * * Field Name: ExecutedDate
+    * * Display Name: Executed Date
+    * * SQL Data Type: date
+    * * Description: When it was signed. May legitimately PRECEDE EffectiveDate — sign in December for a January start is the ordinary case. There is deliberately no constraint ordering the two; v1 had one and it rejected exactly the data a correct contract produces.
+    */
+    get ExecutedDate(): Date | null {
+        return this.Get('ExecutedDate');
+    }
+    set ExecutedDate(value: Date | null) {
+        this.Set('ExecutedDate', value);
+    }
+
+    /**
+    * * Field Name: EndDate
+    * * Display Name: End Date
+    * * SQL Data Type: date
+    * * Description: When the current term ends. This is what drives the renewal watchlist and every expiry projection.
+    */
+    get EndDate(): Date | null {
+        return this.Get('EndDate');
+    }
+    set EndDate(value: Date | null) {
+        this.Set('EndDate', value);
+    }
+
+    /**
+    * * Field Name: TerminatedDate
+    * * Display Name: Terminated Date
+    * * SQL Data Type: date
+    * * Description: When the agreement ended early. Stored rather than derived: it is only recoverable from a successors effective date, and a contract can end with no successor at all when a customer simply leaves.
+    */
+    get TerminatedDate(): Date | null {
+        return this.Get('TerminatedDate');
+    }
+    set TerminatedDate(value: Date | null) {
+        this.Set('TerminatedDate', value);
+    }
+
+    /**
+    * * Field Name: AutoRenew
+    * * Display Name: Auto Renew
+    * * SQL Data Type: bit
+    * * Default Value: 0
+    * * Description: Whether the agreement auto-renews, AS THE PAPER STATES IT. True or false, no third state. Distinct from the subscriptions operational setting in orders, which someone can change later; when the two disagree that is a finding, not a bug.
+    */
+    get AutoRenew(): boolean {
+        return this.Get('AutoRenew');
+    }
+    set AutoRenew(value: boolean) {
+        this.Set('AutoRenew', value);
+    }
+
+    /**
+    * * Field Name: RenewalNoticeDays
+    * * Display Name: Renewal Notice Days
+    * * SQL Data Type: int
+    * * Description: Days of written notice we owe before a renewal price change, as stated in the agreement. NOT the same field as CancellationWindowDays even though many agreements set them equal — conflating them silently is how a notice obligation gets missed.
+    */
+    get RenewalNoticeDays(): number | null {
+        return this.Get('RenewalNoticeDays');
+    }
+    set RenewalNoticeDays(value: number | null) {
+        this.Set('RenewalNoticeDays', value);
+    }
+
+    /**
+    * * Field Name: CancellationWindowDays
+    * * Display Name: Cancellation Window Days
+    * * SQL Data Type: int
+    * * Description: Days of notice the customer owes to cancel without renewing.
+    */
+    get CancellationWindowDays(): number | null {
+        return this.Get('CancellationWindowDays');
+    }
+    set CancellationWindowDays(value: number | null) {
+        this.Set('CancellationWindowDays', value);
+    }
+
+    /**
+    * * Field Name: AnnualIncreasePercent
+    * * Display Name: Annual Increase Percent
+    * * SQL Data Type: decimal(7, 4)
+    * * Description: The negotiated year-over-year uplift. Exists here because it exists nowhere else: the orders schema has no escalation concept of any kind, which is why a two-year agreement stepping up 10% in year two is recorded in no other system.
+    */
+    get AnnualIncreasePercent(): number | null {
+        return this.Get('AnnualIncreasePercent');
+    }
+    set AnnualIncreasePercent(value: number | null) {
+        this.Set('AnnualIncreasePercent', value);
+    }
+
+    /**
+    * * Field Name: HasModifications
+    * * Display Name: Has Modifications
+    * * SQL Data Type: bit
+    * * Default Value: 0
+    * * Description: Whether the standard agreement was changed for this customer. ASSERTED by a person, not derived — its job is to say "go read the PDF" BEFORE anyone has recorded the modifications, and a derived flag would read false for every contract nobody has processed yet. One direction IS enforced server-side: if modification rows exist this must be true. It is never cleared automatically.
+    */
+    get HasModifications(): boolean {
+        return this.Get('HasModifications');
+    }
+    set HasModifications(value: boolean) {
+        this.Set('HasModifications', value);
     }
 
     /**
@@ -2882,100 +1805,16 @@ export class mjBizAppsContractsContractEntity extends BaseEntity<mjBizAppsContra
     }
 
     /**
-    * * Field Name: EffectiveDate
-    * * Display Name: Effective Date
-    * * SQL Data Type: date
-    */
-    get EffectiveDate(): Date | null {
-        return this.Get('EffectiveDate');
-    }
-    set EffectiveDate(value: Date | null) {
-        this.Set('EffectiveDate', value);
-    }
-
-    /**
-    * * Field Name: ExecutedDate
-    * * Display Name: Executed Date
-    * * SQL Data Type: date
-    */
-    get ExecutedDate(): Date | null {
-        return this.Get('ExecutedDate');
-    }
-    set ExecutedDate(value: Date | null) {
-        this.Set('ExecutedDate', value);
-    }
-
-    /**
-    * * Field Name: PricedAt
-    * * Display Name: Priced At
-    * * SQL Data Type: date
-    */
-    get PricedAt(): Date | null {
-        return this.Get('PricedAt');
-    }
-    set PricedAt(value: Date | null) {
-        this.Set('PricedAt', value);
-    }
-
-    /**
-    * * Field Name: AutoRenew
-    * * Display Name: Auto Renew
-    * * SQL Data Type: bit
-    * * Default Value: 0
-    */
-    get AutoRenew(): boolean {
-        return this.Get('AutoRenew');
-    }
-    set AutoRenew(value: boolean) {
-        this.Set('AutoRenew', value);
-    }
-
-    /**
-    * * Field Name: CancellationWindowDays
-    * * Display Name: Cancellation Window Days
-    * * SQL Data Type: int
-    */
-    get CancellationWindowDays(): number | null {
-        return this.Get('CancellationWindowDays');
-    }
-    set CancellationWindowDays(value: number | null) {
-        this.Set('CancellationWindowDays', value);
-    }
-
-    /**
-    * * Field Name: RenewalNoticeDays
-    * * Display Name: Renewal Notice Days
-    * * SQL Data Type: int
-    */
-    get RenewalNoticeDays(): number | null {
-        return this.Get('RenewalNoticeDays');
-    }
-    set RenewalNoticeDays(value: number | null) {
-        this.Set('RenewalNoticeDays', value);
-    }
-
-    /**
-    * * Field Name: TerminationPolicy
-    * * Display Name: Termination Policy
+    * * Field Name: Notes
+    * * Display Name: Notes
     * * SQL Data Type: nvarchar(MAX)
+    * * Description: Free-text working notes for whoever is processing the contract.
     */
-    get TerminationPolicy(): string | null {
-        return this.Get('TerminationPolicy');
+    get Notes(): string | null {
+        return this.Get('Notes');
     }
-    set TerminationPolicy(value: string | null) {
-        this.Set('TerminationPolicy', value);
-    }
-
-    /**
-    * * Field Name: ExternalReferenceID
-    * * Display Name: External Reference ID
-    * * SQL Data Type: nvarchar(255)
-    */
-    get ExternalReferenceID(): string | null {
-        return this.Get('ExternalReferenceID');
-    }
-    set ExternalReferenceID(value: string | null) {
-        this.Set('ExternalReferenceID', value);
+    set Notes(value: string | null) {
+        this.Set('Notes', value);
     }
 
     /**
@@ -3000,7 +1839,7 @@ export class mjBizAppsContractsContractEntity extends BaseEntity<mjBizAppsContra
 
     /**
     * * Field Name: ContractType
-    * * Display Name: Contract Type
+    * * Display Name: Contract Type Name
     * * SQL Data Type: nvarchar(100)
     */
     get ContractType(): string {
@@ -3009,7 +1848,7 @@ export class mjBizAppsContractsContractEntity extends BaseEntity<mjBizAppsContra
 
     /**
     * * Field Name: Company
-    * * Display Name: Company
+    * * Display Name: Company Name
     * * SQL Data Type: nvarchar(50)
     */
     get Company(): string {
@@ -3018,43 +1857,61 @@ export class mjBizAppsContractsContractEntity extends BaseEntity<mjBizAppsContra
 
     /**
     * * Field Name: CustomerOrganization
-    * * Display Name: Customer Organization
+    * * Display Name: Customer Name
     * * SQL Data Type: nvarchar(255)
     */
-    get CustomerOrganization(): string | null {
+    get CustomerOrganization(): string {
         return this.Get('CustomerOrganization');
     }
 
     /**
-    * * Field Name: CustomerPerson
-    * * Display Name: Customer Person
-    * * SQL Data Type: nvarchar(201)
-    */
-    get CustomerPerson(): string | null {
-        return this.Get('CustomerPerson');
-    }
-
-    /**
     * * Field Name: PrimaryContactPerson
-    * * Display Name: Primary Contact Person
-    * * SQL Data Type: nvarchar(201)
+    * * Display Name: Primary Contact Name
+    * * SQL Data Type: nvarchar(100)
     */
     get PrimaryContactPerson(): string | null {
         return this.Get('PrimaryContactPerson');
     }
 
     /**
-    * * Field Name: OwnerUser
-    * * Display Name: Owner User
-    * * SQL Data Type: nvarchar(100)
+    * * Field Name: ContractTemplate
+    * * Display Name: Contract Template Name
+    * * SQL Data Type: nvarchar(200)
     */
-    get OwnerUser(): string | null {
-        return this.Get('OwnerUser');
+    get ContractTemplate(): string | null {
+        return this.Get('ContractTemplate');
+    }
+
+    /**
+    * * Field Name: CreatingEntity
+    * * Display Name: Creating Entity
+    * * SQL Data Type: nvarchar(255)
+    */
+    get CreatingEntity(): string | null {
+        return this.Get('CreatingEntity');
+    }
+
+    /**
+    * * Field Name: ParentContract
+    * * Display Name: Parent Contract
+    * * SQL Data Type: nvarchar(50)
+    */
+    get ParentContract(): string | null {
+        return this.Get('ParentContract');
+    }
+
+    /**
+    * * Field Name: SupersededByContract
+    * * Display Name: Superseded By Contract
+    * * SQL Data Type: nvarchar(50)
+    */
+    get SupersededByContract(): string | null {
+        return this.Get('SupersededByContract');
     }
 
     /**
     * * Field Name: RootParentContractID
-    * * Display Name: Root Parent Contract ID
+    * * Display Name: Root Parent Contract
     * * SQL Data Type: uniqueidentifier
     */
     get RootParentContractID(): string | null {
@@ -3063,10 +1920,64 @@ export class mjBizAppsContractsContractEntity extends BaseEntity<mjBizAppsContra
 
     /**
     * * Field Name: RootSupersededByContractID
-    * * Display Name: Root Superseded By Contract ID
+    * * Display Name: Root Superseded By
     * * SQL Data Type: uniqueidentifier
     */
     get RootSupersededByContractID(): string | null {
         return this.Get('RootSupersededByContractID');
+    }
+
+    /**
+    * * Field Name: State
+    * * Display Name: State
+    * * SQL Data Type: varchar(10)
+    */
+    get State(): string {
+        return this.Get('State');
+    }
+
+    /**
+    * * Field Name: IsAwaitingDocument
+    * * Display Name: Is Awaiting Document
+    * * SQL Data Type: bit
+    */
+    get IsAwaitingDocument(): boolean | null {
+        return this.Get('IsAwaitingDocument');
+    }
+
+    /**
+    * * Field Name: IsChangeOrder
+    * * Display Name: Is Change Order
+    * * SQL Data Type: bit
+    */
+    get IsChangeOrder(): boolean | null {
+        return this.Get('IsChangeOrder');
+    }
+
+    /**
+    * * Field Name: DaysToEnd
+    * * Display Name: Days To End
+    * * SQL Data Type: int
+    */
+    get DaysToEnd(): number | null {
+        return this.Get('DaysToEnd');
+    }
+
+    /**
+    * * Field Name: RenewalNoticeDeadline
+    * * Display Name: Renewal Notice Deadline
+    * * SQL Data Type: date
+    */
+    get RenewalNoticeDeadline(): Date | null {
+        return this.Get('RenewalNoticeDeadline');
+    }
+
+    /**
+    * * Field Name: IsInCancellationWindow
+    * * Display Name: Is In Cancellation Window
+    * * SQL Data Type: bit
+    */
+    get IsInCancellationWindow(): boolean | null {
+        return this.Get('IsInCancellationWindow');
     }
 }

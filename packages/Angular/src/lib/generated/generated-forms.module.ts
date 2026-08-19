@@ -15,28 +15,22 @@ import { EntityViewerModule } from '@memberjunction/ng-entity-viewer';
 import { LinkDirectivesModule } from '@memberjunction/ng-link-directives';
 
 // Import Generated Components
-import { mjBizAppsContractsContractAmendmentFormComponent } from "./Entities/mjBizAppsContractsContractAmendment/mjbizappscontractscontractamendment.form.component";
-import { mjBizAppsContractsContractBillingEventFormComponent } from "./Entities/mjBizAppsContractsContractBillingEvent/mjbizappscontractscontractbillingevent.form.component";
-import { mjBizAppsContractsContractBillingScheduleFormComponent } from "./Entities/mjBizAppsContractsContractBillingSchedule/mjbizappscontractscontractbillingschedule.form.component";
-import { mjBizAppsContractsContractCommitmentFormComponent } from "./Entities/mjBizAppsContractsContractCommitment/mjbizappscontractscontractcommitment.form.component";
-import { mjBizAppsContractsContractEventFormComponent } from "./Entities/mjBizAppsContractsContractEvent/mjbizappscontractscontractevent.form.component";
-import { mjBizAppsContractsContractLineFormComponent } from "./Entities/mjBizAppsContractsContractLine/mjbizappscontractscontractline.form.component";
 import { mjBizAppsContractsContractSequenceFormComponent } from "./Entities/mjBizAppsContractsContractSequence/mjbizappscontractscontractsequence.form.component";
-import { mjBizAppsContractsContractTermFormComponent } from "./Entities/mjBizAppsContractsContractTerm/mjbizappscontractscontractterm.form.component";
+import { mjBizAppsContractsContractTemplateModificationFormComponent } from "./Entities/mjBizAppsContractsContractTemplateModification/mjbizappscontractscontracttemplatemodification.form.component";
+import { mjBizAppsContractsContractTemplateProvisionFormComponent } from "./Entities/mjBizAppsContractsContractTemplateProvision/mjbizappscontractscontracttemplateprovision.form.component";
+import { mjBizAppsContractsContractTemplateTypeFormComponent } from "./Entities/mjBizAppsContractsContractTemplateType/mjbizappscontractscontracttemplatetype.form.component";
+import { mjBizAppsContractsContractTemplateFormComponent } from "./Entities/mjBizAppsContractsContractTemplate/mjbizappscontractscontracttemplate.form.component";
 import { mjBizAppsContractsContractTypeFormComponent } from "./Entities/mjBizAppsContractsContractType/mjbizappscontractscontracttype.form.component";
 import { mjBizAppsContractsContractFormComponent } from "./Entities/mjBizAppsContractsContract/mjbizappscontractscontract.form.component";
    
 
 @NgModule({
 declarations: [
-    mjBizAppsContractsContractAmendmentFormComponent,
-    mjBizAppsContractsContractBillingEventFormComponent,
-    mjBizAppsContractsContractBillingScheduleFormComponent,
-    mjBizAppsContractsContractCommitmentFormComponent,
-    mjBizAppsContractsContractEventFormComponent,
-    mjBizAppsContractsContractLineFormComponent,
     mjBizAppsContractsContractSequenceFormComponent,
-    mjBizAppsContractsContractTermFormComponent,
+    mjBizAppsContractsContractTemplateModificationFormComponent,
+    mjBizAppsContractsContractTemplateProvisionFormComponent,
+    mjBizAppsContractsContractTemplateTypeFormComponent,
+    mjBizAppsContractsContractTemplateFormComponent,
     mjBizAppsContractsContractTypeFormComponent,
     mjBizAppsContractsContractFormComponent],
 imports: [

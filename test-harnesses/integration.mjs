@@ -8,8 +8,8 @@
  *
  * Usage:
  *   node test-harnesses/integration.mjs                          # every bundle
- *   node test-harnesses/integration.mjs contracts-composition    # one bundle
- *   node test-harnesses/integration.mjs contracts-composition.CC3  # a single check
+ *   node test-harnesses/integration.mjs contracts-graph-save     # one bundle
+ *   node test-harnesses/integration.mjs contracts-graph-save.GS3 # a single check
  *
  * Exit: 0 pass · 1 check failure · 2 bootstrap failure
  */
@@ -25,7 +25,11 @@ dotenv.config({ path: path.resolve(here, '..', '..', '..', '..', '.env'), quiet:
 dotenv.config({ path: path.resolve(here, '..', '.env'), quiet: true });
 
 /** Every bundle, in presentational order — each owns its own fixture. */
-const ALL_BUNDLES = ['contracts-composition', 'contracts-save-contract', 'contracts-billing', 'contracts-amendment'];
+// The v2 bundles (plan item 13). v1's contracts-composition / -save-contract / -billing /
+// -amendment tested the draft payload, the billing engine and term amendment — all deleted by the
+// rebuild, so the bundles went with them rather than being edited to pass against a schema they no
+// longer describe. Empty until item 13 lands: the runner then discovers them from the registry.
+const ALL_BUNDLES = ['contracts-graph-save', 'contracts-numbering', 'contracts-provisions', 'contracts-watchlist'];
 
 const args = process.argv.slice(2);
 const only = args.filter((a) => !a.startsWith('-'));

@@ -1,0 +1,10 @@
+{
+  "entity": "MJ_BizApps_Contracts: Contract Template Modifications",
+  "filePattern": "**/.*.json",
+  "pull": {
+    "createNewFileIfNotFound": false,
+    "updateExistingRecords": true,
+    "ignoreNullFields": true,
+    "ignoreVirtualFields": true
+  }
+}

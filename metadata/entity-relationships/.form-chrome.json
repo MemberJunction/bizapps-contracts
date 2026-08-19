@@ -1,0 +1,241 @@
+[
+  {
+    "_comments": [
+      "Contracts -> Contract Template Modifications: PRIMARY, so Modifications is its own rail item.",
+      "",
+      "There was no row here at all, on the reasoning that the editor panel claims the related entity",
+      "so no chrome was needed. Wrong for the same reason as ParentContractID below: claiming the",
+      "relationship suppresses the stock GRID; it does not create a rail GROUP. Omitting the row left",
+      "it Auto, and the panel folded into Details.",
+      "",
+      "DisplayName is the rail label. 'Modifications' rather than the entity's full name, which would",
+      "read 'Contract Template Modifications' in a rail on a Contract form — three words of context",
+      "the reader already has."
+    ],
+    "fields": {
+      "DisplayName": "Modifications",
+      "Configuration": {
+        "UI": {
+          "inclusion": "Primary"
+        }
+      }
+    },
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entity Relationships.Entity=MJ_BizApps_Contracts: Contracts&RelatedEntity=MJ_BizApps_Contracts: Contract Template Modifications"
+    },
+    "sync": {
+      "lastModified": "2026-08-19T15:26:20.328Z",
+      "checksum": "2b4b55719c7432c3b7034c552a5d3d1ec61fd2007c1c1ddf35e3d5998677af5f"
+    }
+  },
+  {
+    "_comments": [
+      "FORM CHROME — how OTHER apps' forms present the relationships our FKs create (plan §6.4/§7 item 11).",
+      "",
+      "Contracts owns these rows because contracts created the FKs. This file is why the 'customer view'",
+      "(item 11) is mostly metadata rather than a screen: an organisation's agreements appear on Common's",
+      "Organization form, where someone looking at a customer already is.",
+      "",
+      "Same file split as orders: collection declarations live in .entity-relationships.json, presentation",
+      "lives here. Both push to MJ: Entity Relationships; keeping them apart means a chrome tweak never",
+      "risks a collection blob.",
+      "",
+      "Organization -> Contracts is PRIMARY and renamed 'Agreements' — the word the business uses, and",
+      "the word the plan's reviewers used throughout. 'Contracts' would also collide conceptually with",
+      "the app name in a sidebar that already says Contracts."
+    ],
+    "fields": {
+      "DisplayName": "Agreements",
+      "Configuration": {
+        "UI": {
+          "inclusion": "Primary"
+        }
+      }
+    },
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entity Relationships.Entity=MJ_BizApps_Common: Organizations&RelatedEntity=MJ_BizApps_Contracts: Contracts&RelatedEntityJoinField=CustomerOrganizationID"
+    },
+    "sync": {
+      "lastModified": "2026-08-19T02:44:49.682Z",
+      "checksum": "f1f343966b7f0c3e397ff2a0fc1a629934b4b7549ca2fe2737d1f66c010d04f3"
+    }
+  },
+  {
+    "_comments": [
+      "Person -> Contracts via PrimaryContactPersonID is 'More', not Primary. A person is the CONTACT on",
+      "an agreement, not its counterparty — the counterparty is always the organisation (ERD §4.1). Real",
+      "but secondary, which is exactly what More means."
+    ],
+    "fields": {
+      "DisplayName": "Agreements",
+      "Configuration": {
+        "UI": {
+          "inclusion": "More"
+        }
+      }
+    },
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entity Relationships.Entity=MJ_BizApps_Common: People&RelatedEntity=MJ_BizApps_Contracts: Contracts&RelatedEntityJoinField=PrimaryContactPersonID"
+    },
+    "sync": {
+      "lastModified": "2026-08-19T02:44:49.753Z",
+      "checksum": "c68d7736524e847be3828282a598b8de8b366d047759868ac6a335296c3e4dd5"
+    }
+  },
+  {
+    "_comments": [
+      "Company -> Contracts: hidden. CompanyID says which of OUR legal entities is party to the",
+      "agreement, and it points at MJ CORE's Company (MJ: Companies) — not accounting's. Worth stating,",
+      "because the ERD calls it a cross-app reference and the @lookup key silently matches nothing if",
+      "you assume MJ_BizApps_Accounting: Companies (verified against __mj.EntityRelationship, 2026-08-18).",
+      "agreement — plumbing for multi-company reporting, not something a person opens a Company record",
+      "to browse. Every contract points at one, so the list is unbounded and useless as a related grid."
+    ],
+    "fields": {
+      "Configuration": {
+        "UI": {
+          "inclusion": "None"
+        }
+      },
+      "DisplayInForm": false
+    },
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entity Relationships.Entity=MJ: Companies&RelatedEntity=MJ_BizApps_Contracts: Contracts&RelatedEntityJoinField=CompanyID"
+    },
+    "sync": {
+      "lastModified": "2026-08-19T02:44:49.699Z",
+      "checksum": "674bddf1c5019995af265013cccb77fe7538a160c6b821d4dfea5b495129f68b"
+    }
+  },
+  {
+    "_comments": [
+      "Entity -> Contracts: hidden. This is the polymorphic half of the creating pair (CreatingEntityID",
+      "is a real FK to __mj.Entity). Nobody opens the metadata row for 'Deals' to see every contract a",
+      "deal ever created — the useful direction is the other one, which IX_Contract_CreatingRecord serves.",
+      "Left visible it would put a contracts grid on an MJ CORE form, which is somebody else's screen."
+    ],
+    "fields": {
+      "Configuration": {
+        "UI": {
+          "inclusion": "None"
+        }
+      },
+      "DisplayInForm": false
+    },
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entity Relationships.Entity=MJ: Entities&RelatedEntity=MJ_BizApps_Contracts: Contracts&RelatedEntityJoinField=CreatingEntityID"
+    },
+    "sync": {
+      "lastModified": "2026-08-19T02:44:49.717Z",
+      "checksum": "674bddf1c5019995af265013cccb77fe7538a160c6b821d4dfea5b495129f68b"
+    }
+  },
+  {
+    "_comments": [
+      "Contract Template Provisions -> Modifications: hidden. 'Which contracts negotiated THIS clause'",
+      "is a genuinely interesting question — and it is a report, not a grid of join rows on the provision",
+      "form. Item 7's registry shows provisions; the analysis belongs on a purpose-built surface.",
+      "",
+      "Contract -> Modifications is deliberately absent from this file: the modifications editor panel",
+      "CLAIMS that related entity (plan §6.4), which hides the stock grid without any metadata."
+    ],
+    "fields": {
+      "Configuration": {
+        "UI": {
+          "inclusion": "None"
+        }
+      },
+      "DisplayInForm": false
+    },
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entity Relationships.Entity=MJ_BizApps_Contracts: Contract Template Provisions&RelatedEntity=MJ_BizApps_Contracts: Contract Template Modifications&RelatedEntityJoinField=ContractTemplateProvisionID"
+    },
+    "sync": {
+      "lastModified": "2026-08-19T02:44:49.735Z",
+      "checksum": "674bddf1c5019995af265013cccb77fe7538a160c6b821d4dfea5b495129f68b"
+    }
+  },
+  {
+    "_comments": [
+      "Contracts -> Contracts via SupersededByContractID: hidden.",
+      "",
+      "Raised twice on review and worth the explicit row. §6.4's lineage panel claims only the",
+      "ParentContractID grid, so WITHOUT this the baked grid for the OTHER self-FK still mounts stock on",
+      "every contract form — a related list headed something like 'Contracts' that means 'contracts naming",
+      "me as their successor'. That is the supersession chain read backwards, which is a real question but",
+      "one nobody asks from this side: the useful direction is 'what replaced this?', which is the FK on",
+      "the record itself and is already on the form.",
+      "",
+      "None rather than More: a grid whose meaning has to be explained is worse than no grid."
+    ],
+    "fields": {
+      "Configuration": {
+        "UI": {
+          "inclusion": "None"
+        }
+      },
+      "DisplayInForm": false
+    },
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entity Relationships.Entity=MJ_BizApps_Contracts: Contracts&RelatedEntity=MJ_BizApps_Contracts: Contracts&RelatedEntityJoinField=SupersededByContractID"
+    },
+    "sync": {
+      "lastModified": "2026-08-19T03:18:47.370Z",
+      "checksum": "674bddf1c5019995af265013cccb77fe7538a160c6b821d4dfea5b495129f68b"
+    }
+  },
+  {
+    "_comments": [
+      "Contracts -> Contracts via ParentContractID: PRIMARY, and this was WRONG before.",
+      "",
+      "I had it as 'None' reasoning that the lineage panel claims the relationship so the stock grid",
+      "should be suppressed. But 'None' means the ranker never sees it AT ALL — so the panel claiming",
+      "it got no chrome group, and under Layout:'left-nav' a contribution with no group folds into",
+      "Details. That is why the form had exactly one section.",
+      "",
+      "Primary is what makes Lineage its own rail item. The panel still replaces the stock grid,",
+      "because that is what `relatedEntity` on the registration does — suppressing the grid and",
+      "having a rail entry are different mechanisms, and I had conflated them."
+    ],
+    "fields": {
+      "DisplayName": "Lineage",
+      "Configuration": {
+        "UI": {
+          "inclusion": "Primary"
+        }
+      }
+    },
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entity Relationships.Entity=MJ_BizApps_Contracts: Contracts&RelatedEntity=MJ_BizApps_Contracts: Contracts&RelatedEntityJoinField=ParentContractID"
+    },
+    "sync": {
+      "lastModified": "2026-08-19T15:26:20.369Z",
+      "checksum": "74b60675712ede6ae3d18863543e707d4ea37ab4a2dd515d1532ccd1da93b081"
+    }
+  },
+  {
+    "_comments": [
+      "Contract Templates -> Provisions: PRIMARY. The provisions ARE the template's content.",
+      "",
+      "Rail order on the template form is Details, then Provisions (ruled 2026-08-19). That falls out",
+      "of MJ's fixed band order — lead contributions → Details → Primary related → More — once the",
+      "Documents panel stops being a lead contribution on this entity. See the chromeGroup:'more' note",
+      "in record-files.panel.ts for why that is the only way to order Details ahead of it."
+    ],
+    "fields": {
+      "DisplayName": "Provisions",
+      "Configuration": {
+        "UI": {
+          "inclusion": "Primary"
+        }
+      }
+    },
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entity Relationships.Entity=MJ_BizApps_Contracts: Contract Templates&RelatedEntity=MJ_BizApps_Contracts: Contract Template Provisions"
+    },
+    "sync": {
+      "lastModified": "2026-08-19T15:26:20.349Z",
+      "checksum": "59e0a4c4287920d5758ce516ec1488e910a2d2bcbbfb2670771964838f93d195"
+    }
+  }
+]

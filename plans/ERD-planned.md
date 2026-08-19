@@ -13,6 +13,7 @@
 >
 > **Schema:** `__mj_BizAppsContracts` · **Entity prefix:** `MJ_BizApps_Contracts: ` · **Keys:** UUID throughout
 > **7 tables · 8 internal relationships · 4 cross-app foreign keys · 1 polymorphic pair**
+> **3 derived columns** on the app-owned layered base view: `State`, `IsAwaitingDocument`, `IsChangeOrder` (§4.5)
 >
 > **Sources, in order of authority:** Amith's rulings relayed in chat via Marcelo (2026-08-18 — R-15,
 > R-16) → Amith's written review (2026-08-18) → the 2026-08-18 meeting notes → the planning-meeting
@@ -158,7 +159,6 @@ erDiagram
         uuid ParentContractID FK "self · nullable · change orders"
         uuid SupersededByContractID FK "self · nullable"
         nvarchar SigningProviderURL "nullable"
-        nvarchar Status
         date EffectiveDate "nullable"
         date ExecutedDate "nullable"
         date EndDate "nullable"
@@ -176,6 +176,7 @@ erDiagram
         uuid ID PK
         uuid ContractID FK "Contract"
         uuid ContractTemplateProvisionID FK "ContractTemplateProvision"
+        nvarchar ModificationText "nullable · nvarchar(max) · what THIS contract says · R-17"
         nvarchar Notes "nullable"
     }
 
@@ -252,7 +253,6 @@ erDiagram
         uuid ParentContractID FK "self · nullable"
         uuid SupersededByContractID FK "self · nullable"
         nvarchar SigningProviderURL "nullable"
-        nvarchar Status
         date EffectiveDate "nullable"
         date ExecutedDate "nullable"
         date EndDate "nullable"
@@ -270,6 +270,7 @@ erDiagram
         uuid ID PK
         uuid ContractID FK "Contract"
         uuid ContractTemplateProvisionID FK "ContractTemplateProvision"
+        nvarchar ModificationText "nullable · nvarchar(max) · what THIS contract says · R-17"
         nvarchar Notes "nullable"
     }
 ```
@@ -331,7 +332,6 @@ erDiagram
         uuid ContractTemplateID FK "ContractTemplate · nullable"
         uuid ParentContractID FK "self · nullable"
         uuid SupersededByContractID FK "self · nullable"
-        nvarchar Status
         date EffectiveDate "nullable"
         date ExecutedDate "nullable"
         date EndDate "nullable"
@@ -428,14 +428,51 @@ problem: both inputs assert the same single fact — *this is not our standard p
 rule, which a T-SQL `CHECK` cannot see, so it lives in the **server-side entity subclasses**: saving a
 modification forces the parent flag true; clearing the flag is rejected while modifications exist.
 
-### 4.5 `Status` carries lifecycle only
+### 4.5 There is no `Status` column — lifecycle is derived (R-18)
 
-`Draft` · `Active` · `Expired` · `Terminated` · `Superseded`.
+An earlier draft stored `Status` as `Draft · Active · Expired · Terminated · Superseded`. **It is gone.**
+Four of those five values are projections of facts the row already holds, so a stored copy could only
+agree or lie — precisely what §7.2 forbids:
 
-"Awaiting the document" is **not** a status, because a *Payment Link* contract has an implied agreement
-and never gets a signed document — a status saying we are waiting would assert paper that is never coming.
-It is **derived** instead, from `ContractType.RequiresExecutedDocument` plus whether any document is linked
-(§7.1), and exposed as a computed column on the app-owned layered base view.
+| Value | Derived from |
+|---|---|
+| `Terminated` | `TerminatedDate IS NOT NULL` |
+| `Superseded` | `SupersededByContractID IS NOT NULL` |
+| `Expired` | `EndDate < today` |
+| `Active` | none of the above, and `EffectiveDate <= today` |
+| `Executed` | signed but not yet in force — `ExecutedDate IS NOT NULL` and `EffectiveDate` is null or in the future (**R-19**) |
+| `Draft` | everything else. *Was the only stored fact* — and it means "a person has not finished with this", which is the **finance task**, not a property of the agreement |
+
+So the layered base view (§7.2) exposes **`State`**, computed in that precedence order. Consumers filter
+and chip on it exactly as they would a column.
+
+**Why `Executed` exists (R-19, ruled 2026-08-18 on PR #9 review).** The first draft of this table had
+five values and a hole in it: a contract whose paper is signed and whose term starts next month matched
+none of the first four branches and fell through to `Draft` — indistinguishable from a record nobody has
+touched. That is not a rounding error, it is the **October 1 renewal season**, when a stack of contracts
+is signed weeks before it takes effect; the `ExecutedDate` column comment in the baseline calls exactly
+that shape *"the ordinary case, not an anomaly"*.
+
+The alternative was to let `Active` stop requiring `EffectiveDate <= today` — rejected, because `Active`
+is the word finance uses for *in force*, and a contract that has not started is not in force. Both facts
+are worth showing, so both get a name. The two states also drive different work: `Draft` is a **task**
+(finish this), `Executed` is a **wait** (nothing to do until the date arrives), and a watchlist that
+conflates them asks finance to re-triage the same rows every week.
+
+Note the branch reads `EffectiveDate IS NULL OR EffectiveDate > today` — a signed contract with no start
+date recorded is still `Executed`, not `Draft`, because the signature is the fact that moved it on.
+
+**Two consequences worth stating, because they are easy to miss:**
+
+1. **The old `CK_Contract_SupersededHasSuccessor` constraint disappears with it.** It read
+   `Status <> 'Superseded' OR SupersededByContractID IS NOT NULL` — with the status derived *from* the
+   successor FK, the constraint becomes a tautology. Nothing is lost: a contract is superseded exactly
+   when it names a successor.
+2. **"Awaiting the document" was never a status value and is not a column either.** The only stored bit
+   is `ContractType.RequiresExecutedDocument` — the *type* says whether paper is ever expected — and
+   `IsAwaitingDocument` is derived in the same view as *requires it **and** no linked file*. A Payment
+   Link contract therefore never reports as waiting, which is the whole reason this was never a status.
+
 
 ---
 
@@ -461,6 +498,7 @@ erDiagram
         uuid ID PK
         uuid ContractID FK "Contract"
         uuid ContractTemplateProvisionID FK "ContractTemplateProvision"
+        nvarchar ModificationText "nullable · nvarchar(max) · what THIS contract says · R-17"
         nvarchar Notes "nullable"
     }
 
@@ -498,7 +536,8 @@ Deliberately lean: it records **that** a provision was modified, not the new wor
 | Column | Notes |
 |---|---|
 | `ContractID` | The contract |
-| `ContractTemplateProvisionID` | **`NOT NULL`** — the structured identifier, and the only one |
+| `ContractTemplateProvisionID` | **`NOT NULL`** — the structured identifier |
+| `ModificationText` | **What this contract says instead** (nullable `nvarchar(max)`). Read as a pair with the provision's `ProvisionText`: standard on the left, negotiated on the right. R-17 |
 | `Notes` | Optional working note |
 
 `UNIQUE(ContractID, ContractTemplateProvisionID)` — a contract modifies a given provision once.
@@ -512,15 +551,23 @@ have required a server rule that the named template equals the provision's templ
 is the rule that was always implicit: **a modification's provision must belong to a template this
 contract incorporates** (§7.1). ⚠ Reverses an Amith "keep" — flagged for his nod (master plan O-3).
 
-> **There is no modification text, and that is deliberate.** The transcript settles it. Joanna, asked
-> directly whether a clause reference alone suffices: *"Even if it's just referencing what clause in the MA
-> was modified? **Yes. Yes.**"* And Amith: *"I don't even know that it would be that much more value to know
-> what was negotiated. **Just knowing that there were additional terms.**"* The wording lives in the PDF,
-> which is one click away.
+> **Both texts are stored, and reading them as a pair is the point.** `ContractTemplateProvision.ProvisionText`
+> holds the **standard** clause; `ContractTemplateModification.ModificationText` holds **what this contract
+> says instead**. A dispute needs the comparison, not either half.
+>
+> ⚠ **This reverses the earlier clause-reference-only decision** (D-4 / R-5), which rested on the transcript —
+> Joanna, asked directly: *"Even if it's just referencing what clause in the MA was modified? Yes. Yes."* and
+> Amith: *"I don't even know that it would be that much more value to know what was negotiated."* **Amith
+> overruled both on 2026-08-18** (R-17). No confirmation flag needed: he reversed himself knowingly.
+>
+> **Corollary he stated at the same time: all contract text ends up in provisions.** The template holds no
+> prose of its own (R-11 removed `ContentText`); every clause's standard wording lives on its provision row,
+> and every deviation lives on the modification. There is no third place for contract text.
 
 > **Operational consequence, and it is a real one.** With the provision FK mandatory and no free-text
 > escape hatch, **the provision list must be seeded completely from our Master Agreement before finance
-> can record a modification** — and with R-15, the seed captures each clause's `ProvisionText` too.
+> can record a modification** — and with R-15, the seed captures each clause's `ProvisionText` too, which is
+> what the editor shows beside the negotiated text (R-17).
 > That makes seeding a build prerequisite, not a nice-to-have.
 
 ---
@@ -539,7 +586,6 @@ erDiagram
         nvarchar SigningProviderURL "nullable · direct PandaDoc link"
         uuid CreatingEntityID FK "MJ_Entity · nullable"
         nvarchar CreatingRecordID "nullable · the Deal's ID"
-        nvarchar Status
     }
 
     MJ_Entity {
@@ -598,7 +644,6 @@ child contract. One deal, one contract.
 
 | Table | Column | Values |
 |---|---|---|
-| `Contract` | `Status` | `Draft` · `Active` · `Expired` · `Terminated` · `Superseded` |
 | `ContractType` | `Status` | `Active` · `Inactive` |
 | `ContractTemplateType` | `Status` | `Active` · `Inactive` |
 
@@ -632,11 +677,13 @@ Agreement, including each clause's `ProvisionText` (R-15). See §5.2.
 | `HasModifications` must be true when modification rows exist; never auto-cleared | **Shared** subclass `ContractEntity.Validate()` — a cross-row rule a `CHECK` cannot see (§4.4), and with the `Modifications` collection declared (master plan §6.1) the browser preflights it before any round trip while the server stays authoritative. `ContractTemplateModificationEntityServer` additionally forces the parent flag true on a standalone modification save |
 | A modification's provision must belong to a template this contract incorporates | Server-side `ContractTemplateModificationEntityServer` (needs a cross-entity read); the UI's provision picker only offers the contract's template's provisions. Replaces the dropped `ContractTemplateID` column — R-16 |
 | `ContractType = 'Change Order'` implies `ParentContractID IS NOT NULL` | Server-side — needs a join to the type table |
-| `Status = 'Superseded'` requires `SupersededByContractID` | `CHECK` |
+| ~~`Status = 'Superseded'` requires `SupersededByContractID`~~ | **Dropped with `Status`** (R-18) — the successor FK *is* the superseded state |
+| `EndDate >= EffectiveDate` when both are set | `CK_Contract_Dates`. `>=` deliberately permits a same-day start and end (a one-day agreement is legal, if unusual). **`TerminatedDate` is related to neither date on purpose:** termination is a *fact about what happened*, not a projection of the term, so a contract terminated after its `EndDate` was later shortened is a true record, not a violation — do not add a constraint tying them |
+| `(CreatingEntityID, CreatingRecordID)` is indexed | `IX_Contract_CreatingRecord`, non-unique. Not a rule but the reason the reverse lookup is cheap: "which contract came from this deal?" is the question the sales side asks constantly (§3), and the pair is a soft reference no FK can serve |
 | A contract cannot be its own parent or successor | `CHECK` on both self-references |
 | `ExecutedDate` may precede `EffectiveDate` | **No constraint, deliberately** — signing in December for a January start is the ordinary case |
 | **A document is never required to save a contract** | No constraint at all (2026-08-18 ruling) |
-| "Awaiting document" = `RequiresExecutedDocument` **and** no linked file | Derived in the layered base view via an `EXISTS` on `FileEntityRecordLink`. §7.2 |
+| `State`, `IsAwaitingDocument` and `IsChangeOrder` | **All derived** in the app-owned layered base view — `State` from the dates and the two self-FKs, `IsAwaitingDocument` from `ContractType.RequiresExecutedDocument` plus an `EXISTS` on `FileEntityRecordLink`, `IsChangeOrder` from `ParentContractID`. §4.5, §7.2 |
 | Approval of negotiated terms | **`bizapps-sales`, on the deal** — not here. §9 |
 | Who changed what, when | MJ **Record Changes** |
 
@@ -695,6 +742,9 @@ Recorded so that nothing looks like a silent drift, and so each reversal has an 
 | R-13 | An approval workflow "not built" | **Relocated**, not declined: it lives in `bizapps-sales` on the deal, modelling Johanna's authority levels. At current volume she may approve manually, and the contract is generated after deal approval | Amith, 2026-08-18 |
 | R-14 | `Sequence` on `ContractType` and `ContractTemplateType` | Removed — the two lists are short enough to order by name. `ContractTemplateProvision.Sequence` **stays**: provision numbers do not sort as text and a legal document has a canonical order | 2026-08-18 |
 | R-15 | `ProvisionText` deferred to a future phase (F-3, via R-11) | **In for v1** — nullable `nvarchar(max)` on `ContractTemplateProvision`, seeded from the current MA. §5.1. D-4 and D-10 are untouched | Amith via Marcelo, 2026-08-18 chat |
+| R-19 | The 5-value derived `State` | **Six values.** `Executed` added for signed-but-not-yet-effective, which previously fell through to `Draft` and hid the entire pre-October-1 signing stack behind the word for "unfinished". §4.5 carries the reasoning and the rejected alternative | Marcelo, 2026-08-18 (PR #9 review) |
+| R-18 | `Contract.Status` (5-value CHECK) | **Removed.** Four values were projections; the fifth (`Draft`) was the finance task wearing a status. Replaced by a derived `State` in the layered base view, and `CK_Contract_SupersededHasSuccessor` drops with it as a tautology | Marcelo, 2026-08-18 |
+| R-17 | Modification carried no wording (D-4 / R-5) | **`ModificationText` added** — nullable `nvarchar(max)`. Standard text on the provision, negotiated text on the modification, read as a pair. Reverses the transcript **and** Amith's own 08-18 field list; he overruled both. Corollary: *all contract text ends up in provisions* | **Amith**, 2026-08-18 |
 | R-16 | `ContractTemplateModification.ContractTemplateID` kept for the multi-template future | **Dropped** — the provision FK derives the template in every future (a provision belongs to exactly one template), and §7.2 forbids storing a projection. Replaced by the §7.1 consistency rule. ⚠ Reverses an Amith "keep" — flagged for his nod (master plan O-3) | Marcelo, 2026-08-18 |
 
 ---

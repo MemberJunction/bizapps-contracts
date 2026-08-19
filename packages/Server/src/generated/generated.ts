@@ -17,1297 +17,18 @@ import { MaxLength } from 'class-validator';
 import * as mj_core_schema_server_object_types from '@memberjunction/server'
 
 
-import { mjBizAppsContractsContractAmendmentEntity, mjBizAppsContractsContractBillingEventEntity, mjBizAppsContractsContractBillingScheduleEntity, mjBizAppsContractsContractCommitmentEntity, mjBizAppsContractsContractEventEntity, mjBizAppsContractsContractLineEntity, mjBizAppsContractsContractSequenceEntity, mjBizAppsContractsContractTermEntity, mjBizAppsContractsContractTypeEntity, mjBizAppsContractsContractEntity } from '@mj-biz-apps/contracts-entities';
+import { mjBizAppsContractsContractSequenceEntity, mjBizAppsContractsContractTemplateModificationEntity, mjBizAppsContractsContractTemplateProvisionEntity, mjBizAppsContractsContractTemplateTypeEntity, mjBizAppsContractsContractTemplateEntity, mjBizAppsContractsContractTypeEntity, mjBizAppsContractsContractEntity } from '@mj-biz-apps/contracts-entities';
     
-
-//****************************************************************************
-// ENTITY CLASS for MJ_BizApps_Contracts: Contract Amendments
-//****************************************************************************
-@ObjectType({ description: `A mid-term change to a LIVE term. Renewals do NOT come through here — they start a new ContractTerm with RenewalOfTermID set.` })
-export class mjBizAppsContractsContractAmendment_ {
-    @Field() 
-    @MaxLength(36)
-    ID: string;
-        
-    @Field() 
-    @MaxLength(36)
-    ContractTermID: string;
-        
-    @Field(() => Int) 
-    AmendmentNumber: number;
-        
-    @Field() 
-    EffectiveDate: Date;
-        
-    @Field() 
-    @MaxLength(30)
-    AmendmentType: string;
-        
-    @Field({nullable: true}) 
-    Description?: string;
-        
-    @Field() 
-    @MaxLength(20)
-    Status: string;
-        
-    @Field({nullable: true, description: `The bizapps-tasks Task gating this amendment. Raised for non-standard terms, discounts beyond a rep's SalesAuthority, and early-termination waivers; TaskType OnComplete/OnReject hooks call back into contracts to advance or reject.`}) 
-    @MaxLength(36)
-    ApprovalTaskID?: string;
-        
-    @Field() 
-    _mj__CreatedAt: Date;
-        
-    @Field() 
-    _mj__UpdatedAt: Date;
-        
-    @Field({nullable: true}) 
-    @MaxLength(255)
-    ApprovalTask?: string;
-        
-}
-
-//****************************************************************************
-// INPUT TYPE for MJ_BizApps_Contracts: Contract Amendments
-//****************************************************************************
-@InputType()
-export class CreatemjBizAppsContractsContractAmendmentInput {
-    @Field({ nullable: true })
-    ID?: string;
-
-    @Field({ nullable: true })
-    ContractTermID?: string;
-
-    @Field(() => Int, { nullable: true })
-    AmendmentNumber?: number;
-
-    @Field({ nullable: true })
-    EffectiveDate?: Date;
-
-    @Field({ nullable: true })
-    AmendmentType?: string;
-
-    @Field({ nullable: true })
-    Description: string | null;
-
-    @Field({ nullable: true })
-    Status?: string;
-
-    @Field({ nullable: true })
-    ApprovalTaskID: string | null;
-
-    @Field(() => RestoreContextInput, { nullable: true })
-    RestoreContext___?: RestoreContextInput;
-}
-    
-
-//****************************************************************************
-// INPUT TYPE for MJ_BizApps_Contracts: Contract Amendments
-//****************************************************************************
-@InputType()
-export class UpdatemjBizAppsContractsContractAmendmentInput {
-    @Field()
-    ID: string;
-
-    @Field({ nullable: true })
-    ContractTermID?: string;
-
-    @Field(() => Int, { nullable: true })
-    AmendmentNumber?: number;
-
-    @Field({ nullable: true })
-    EffectiveDate?: Date;
-
-    @Field({ nullable: true })
-    AmendmentType?: string;
-
-    @Field({ nullable: true })
-    Description?: string | null;
-
-    @Field({ nullable: true })
-    Status?: string;
-
-    @Field({ nullable: true })
-    ApprovalTaskID?: string | null;
-
-    @Field(() => [KeyValuePairInput], { nullable: true })
-    OldValues___?: KeyValuePairInput[];
-
-    @Field(() => RestoreContextInput, { nullable: true })
-    RestoreContext___?: RestoreContextInput;
-}
-    
-//****************************************************************************
-// RESOLVER for MJ_BizApps_Contracts: Contract Amendments
-//****************************************************************************
-@ObjectType()
-export class RunmjBizAppsContractsContractAmendmentViewResult {
-    @Field(() => [mjBizAppsContractsContractAmendment_])
-    Results: mjBizAppsContractsContractAmendment_[];
-
-    @Field(() => String, {nullable: true})
-    UserViewRunID?: string;
-
-    @Field(() => Int, {nullable: true})
-    RowCount: number;
-
-    @Field(() => Int, {nullable: true})
-    TotalRowCount: number;
-
-    @Field(() => Int, {nullable: true})
-    ExecutionTime: number;
-
-    @Field({nullable: true})
-    ErrorMessage?: string;
-
-    @Field(() => Boolean, {nullable: false})
-    Success: boolean;
-}
-
-@Resolver(mjBizAppsContractsContractAmendment_)
-export class mjBizAppsContractsContractAmendmentResolver extends ResolverBase {
-    @Query(() => RunmjBizAppsContractsContractAmendmentViewResult)
-    async RunmjBizAppsContractsContractAmendmentViewByID(@Arg('input', () => RunViewByIDInput) input: RunViewByIDInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
-        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
-        return super.RunViewByIDGeneric(input, provider, userPayload, pubSub);
-    }
-
-    @Query(() => RunmjBizAppsContractsContractAmendmentViewResult)
-    async RunmjBizAppsContractsContractAmendmentViewByName(@Arg('input', () => RunViewByNameInput) input: RunViewByNameInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
-        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
-        return super.RunViewByNameGeneric(input, provider, userPayload, pubSub);
-    }
-
-    @Query(() => RunmjBizAppsContractsContractAmendmentViewResult)
-    async RunmjBizAppsContractsContractAmendmentDynamicView(@Arg('input', () => RunDynamicViewInput) input: RunDynamicViewInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
-        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
-        input.EntityName = 'MJ_BizApps_Contracts: Contract Amendments';
-        return super.RunDynamicViewGeneric(input, provider, userPayload, pubSub);
-    }
-    @Query(() => mjBizAppsContractsContractAmendment_, { nullable: true })
-    async mjBizAppsContractsContractAmendment(@Arg('ID', () => String) ID: string, @Ctx() { userPayload, providers }: AppContext, @PubSub() pubSub: PubSubEngine): Promise<mjBizAppsContractsContractAmendment_ | null> {
-        this.CheckUserReadPermissions('MJ_BizApps_Contracts: Contract Amendments', userPayload);
-        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
-        const sSQL = `SELECT * FROM ${provider.QuoteSchemaAndView('__mj_BizAppsContracts', 'vwContractAmendments')} WHERE ${provider.QuoteIdentifier('ID')}=${provider.BuildParameterPlaceholder(0)} ` + this.getRowLevelSecurityWhereClause(provider, 'MJ_BizApps_Contracts: Contract Amendments', userPayload, EntityPermissionType.Read, 'AND');
-        const rows = await provider.ExecuteSQL(sSQL, [ID], undefined, this.GetUserFromPayload(userPayload));
-        const result = await this.MapFieldNamesToCodeNames('MJ_BizApps_Contracts: Contract Amendments', rows && rows.length > 0 ? rows[0] : null, this.GetUserFromPayload(userPayload));
-        return result;
-    }
-    
-    @Mutation(() => mjBizAppsContractsContractAmendment_)
-    async CreatemjBizAppsContractsContractAmendment(
-        @Arg('input', () => CreatemjBizAppsContractsContractAmendmentInput) input: CreatemjBizAppsContractsContractAmendmentInput,
-        @Ctx() { providers, userPayload }: AppContext,
-        @PubSub() pubSub: PubSubEngine
-    ) {
-        const provider = GetReadWriteProvider(providers);
-        return this.CreateRecord('MJ_BizApps_Contracts: Contract Amendments', input, provider, userPayload, pubSub)
-    }
-        
-    @Mutation(() => mjBizAppsContractsContractAmendment_)
-    async UpdatemjBizAppsContractsContractAmendment(
-        @Arg('input', () => UpdatemjBizAppsContractsContractAmendmentInput) input: UpdatemjBizAppsContractsContractAmendmentInput,
-        @Ctx() { providers, userPayload }: AppContext,
-        @PubSub() pubSub: PubSubEngine
-    ) {
-        const provider = GetReadWriteProvider(providers);
-        return this.UpdateRecord('MJ_BizApps_Contracts: Contract Amendments', input, provider, userPayload, pubSub);
-    }
-    
-    @Mutation(() => mjBizAppsContractsContractAmendment_)
-    async DeletemjBizAppsContractsContractAmendment(@Arg('ID', () => String) ID: string, @Arg('options___', () => DeleteOptionsInput) options: DeleteOptionsInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
-        const provider = GetReadWriteProvider(providers);
-        const key = new CompositeKey([{FieldName: 'ID', Value: ID}]);
-        return this.DeleteRecord('MJ_BizApps_Contracts: Contract Amendments', key, options, provider, userPayload, pubSub);
-    }
-    
-}
-
-//****************************************************************************
-// ENTITY CLASS for MJ_BizApps_Contracts: Contract Billing Events
-//****************************************************************************
-@ObjectType({ description: `Each billing occurrence AND the audit trail: the record that answers "why did the customer get this bill on this date, and what produced it". A failure stays Failed with a reason rather than retrying into a duplicate — duplicate billing is the kind of defect a customer finds before we do.` })
-export class mjBizAppsContractsContractBillingEvent_ {
-    @Field() 
-    @MaxLength(36)
-    ID: string;
-        
-    @Field({nullable: true}) 
-    @MaxLength(36)
-    ContractBillingScheduleID?: string;
-        
-    @Field() 
-    @MaxLength(36)
-    ContractTermID: string;
-        
-    @Field() 
-    ScheduledDate: Date;
-        
-    @Field() 
-    @MaxLength(20)
-    Status: string;
-        
-    @Field({nullable: true, description: `The ONE consolidated order this event produced, via Orders.CreateOrderInState. A legal downward reference: contracts sits above orders. Status=Generated requires it, which is what makes the status transition a real idempotency guard.`}) 
-    @MaxLength(36)
-    OrderID?: string;
-        
-    @Field(() => Float, {nullable: true, description: `A STAMP of the total Orders.PreviewOrder returned — never a figure computed in this app. Contracts decides WHAT to bill and never what it costs.`}) 
-    ComputedAmount?: number;
-        
-    @Field({nullable: true}) 
-    GeneratedAt?: Date;
-        
-    @Field({nullable: true}) 
-    FailureReason?: string;
-        
-    @Field({nullable: true}) 
-    Notes?: string;
-        
-    @Field() 
-    _mj__CreatedAt: Date;
-        
-    @Field() 
-    _mj__UpdatedAt: Date;
-        
-    @Field({nullable: true}) 
-    @MaxLength(40)
-    Order?: string;
-        
-}
-
-//****************************************************************************
-// INPUT TYPE for MJ_BizApps_Contracts: Contract Billing Events
-//****************************************************************************
-@InputType()
-export class CreatemjBizAppsContractsContractBillingEventInput {
-    @Field({ nullable: true })
-    ID?: string;
-
-    @Field({ nullable: true })
-    ContractBillingScheduleID: string | null;
-
-    @Field({ nullable: true })
-    ContractTermID?: string;
-
-    @Field({ nullable: true })
-    ScheduledDate?: Date;
-
-    @Field({ nullable: true })
-    Status?: string;
-
-    @Field({ nullable: true })
-    OrderID: string | null;
-
-    @Field(() => Float, { nullable: true })
-    ComputedAmount: number | null;
-
-    @Field({ nullable: true })
-    GeneratedAt: Date | null;
-
-    @Field({ nullable: true })
-    FailureReason: string | null;
-
-    @Field({ nullable: true })
-    Notes: string | null;
-
-    @Field(() => RestoreContextInput, { nullable: true })
-    RestoreContext___?: RestoreContextInput;
-}
-    
-
-//****************************************************************************
-// INPUT TYPE for MJ_BizApps_Contracts: Contract Billing Events
-//****************************************************************************
-@InputType()
-export class UpdatemjBizAppsContractsContractBillingEventInput {
-    @Field()
-    ID: string;
-
-    @Field({ nullable: true })
-    ContractBillingScheduleID?: string | null;
-
-    @Field({ nullable: true })
-    ContractTermID?: string;
-
-    @Field({ nullable: true })
-    ScheduledDate?: Date;
-
-    @Field({ nullable: true })
-    Status?: string;
-
-    @Field({ nullable: true })
-    OrderID?: string | null;
-
-    @Field(() => Float, { nullable: true })
-    ComputedAmount?: number | null;
-
-    @Field({ nullable: true })
-    GeneratedAt?: Date | null;
-
-    @Field({ nullable: true })
-    FailureReason?: string | null;
-
-    @Field({ nullable: true })
-    Notes?: string | null;
-
-    @Field(() => [KeyValuePairInput], { nullable: true })
-    OldValues___?: KeyValuePairInput[];
-
-    @Field(() => RestoreContextInput, { nullable: true })
-    RestoreContext___?: RestoreContextInput;
-}
-    
-//****************************************************************************
-// RESOLVER for MJ_BizApps_Contracts: Contract Billing Events
-//****************************************************************************
-@ObjectType()
-export class RunmjBizAppsContractsContractBillingEventViewResult {
-    @Field(() => [mjBizAppsContractsContractBillingEvent_])
-    Results: mjBizAppsContractsContractBillingEvent_[];
-
-    @Field(() => String, {nullable: true})
-    UserViewRunID?: string;
-
-    @Field(() => Int, {nullable: true})
-    RowCount: number;
-
-    @Field(() => Int, {nullable: true})
-    TotalRowCount: number;
-
-    @Field(() => Int, {nullable: true})
-    ExecutionTime: number;
-
-    @Field({nullable: true})
-    ErrorMessage?: string;
-
-    @Field(() => Boolean, {nullable: false})
-    Success: boolean;
-}
-
-@Resolver(mjBizAppsContractsContractBillingEvent_)
-export class mjBizAppsContractsContractBillingEventResolver extends ResolverBase {
-    @Query(() => RunmjBizAppsContractsContractBillingEventViewResult)
-    async RunmjBizAppsContractsContractBillingEventViewByID(@Arg('input', () => RunViewByIDInput) input: RunViewByIDInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
-        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
-        return super.RunViewByIDGeneric(input, provider, userPayload, pubSub);
-    }
-
-    @Query(() => RunmjBizAppsContractsContractBillingEventViewResult)
-    async RunmjBizAppsContractsContractBillingEventViewByName(@Arg('input', () => RunViewByNameInput) input: RunViewByNameInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
-        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
-        return super.RunViewByNameGeneric(input, provider, userPayload, pubSub);
-    }
-
-    @Query(() => RunmjBizAppsContractsContractBillingEventViewResult)
-    async RunmjBizAppsContractsContractBillingEventDynamicView(@Arg('input', () => RunDynamicViewInput) input: RunDynamicViewInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
-        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
-        input.EntityName = 'MJ_BizApps_Contracts: Contract Billing Events';
-        return super.RunDynamicViewGeneric(input, provider, userPayload, pubSub);
-    }
-    @Query(() => mjBizAppsContractsContractBillingEvent_, { nullable: true })
-    async mjBizAppsContractsContractBillingEvent(@Arg('ID', () => String) ID: string, @Ctx() { userPayload, providers }: AppContext, @PubSub() pubSub: PubSubEngine): Promise<mjBizAppsContractsContractBillingEvent_ | null> {
-        this.CheckUserReadPermissions('MJ_BizApps_Contracts: Contract Billing Events', userPayload);
-        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
-        const sSQL = `SELECT * FROM ${provider.QuoteSchemaAndView('__mj_BizAppsContracts', 'vwContractBillingEvents')} WHERE ${provider.QuoteIdentifier('ID')}=${provider.BuildParameterPlaceholder(0)} ` + this.getRowLevelSecurityWhereClause(provider, 'MJ_BizApps_Contracts: Contract Billing Events', userPayload, EntityPermissionType.Read, 'AND');
-        const rows = await provider.ExecuteSQL(sSQL, [ID], undefined, this.GetUserFromPayload(userPayload));
-        const result = await this.MapFieldNamesToCodeNames('MJ_BizApps_Contracts: Contract Billing Events', rows && rows.length > 0 ? rows[0] : null, this.GetUserFromPayload(userPayload));
-        return result;
-    }
-    
-    @Mutation(() => mjBizAppsContractsContractBillingEvent_)
-    async CreatemjBizAppsContractsContractBillingEvent(
-        @Arg('input', () => CreatemjBizAppsContractsContractBillingEventInput) input: CreatemjBizAppsContractsContractBillingEventInput,
-        @Ctx() { providers, userPayload }: AppContext,
-        @PubSub() pubSub: PubSubEngine
-    ) {
-        const provider = GetReadWriteProvider(providers);
-        return this.CreateRecord('MJ_BizApps_Contracts: Contract Billing Events', input, provider, userPayload, pubSub)
-    }
-        
-    @Mutation(() => mjBizAppsContractsContractBillingEvent_)
-    async UpdatemjBizAppsContractsContractBillingEvent(
-        @Arg('input', () => UpdatemjBizAppsContractsContractBillingEventInput) input: UpdatemjBizAppsContractsContractBillingEventInput,
-        @Ctx() { providers, userPayload }: AppContext,
-        @PubSub() pubSub: PubSubEngine
-    ) {
-        const provider = GetReadWriteProvider(providers);
-        return this.UpdateRecord('MJ_BizApps_Contracts: Contract Billing Events', input, provider, userPayload, pubSub);
-    }
-    
-    @Mutation(() => mjBizAppsContractsContractBillingEvent_)
-    async DeletemjBizAppsContractsContractBillingEvent(@Arg('ID', () => String) ID: string, @Arg('options___', () => DeleteOptionsInput) options: DeleteOptionsInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
-        const provider = GetReadWriteProvider(providers);
-        const key = new CompositeKey([{FieldName: 'ID', Value: ID}]);
-        return this.DeleteRecord('MJ_BizApps_Contracts: Contract Billing Events', key, options, provider, userPayload, pubSub);
-    }
-    
-}
-
-//****************************************************************************
-// ENTITY CLASS for MJ_BizApps_Contracts: Contract Billing Schedules
-//****************************************************************************
-@ObjectType({ description: `How a term produces bills. One term may carry MORE THAN ONE schedule — a quarterly subscription cadence AND a milestone schedule for an attached SOW.` })
-export class mjBizAppsContractsContractBillingSchedule_ {
-    @Field() 
-    @MaxLength(36)
-    ID: string;
-        
-    @Field() 
-    @MaxLength(36)
-    ContractTermID: string;
-        
-    @Field() 
-    @MaxLength(20)
-    ScheduleType: string;
-        
-    @Field({nullable: true}) 
-    @MaxLength(20)
-    Frequency?: string;
-        
-    @Field({nullable: true}) 
-    AnchorDate?: Date;
-        
-    @Field(() => Boolean) 
-    IsActive: boolean;
-        
-    @Field({nullable: true}) 
-    Notes?: string;
-        
-    @Field() 
-    _mj__CreatedAt: Date;
-        
-    @Field() 
-    _mj__UpdatedAt: Date;
-        
-    @Field(() => [mjBizAppsContractsContractBillingEvent_])
-    mjBizAppsContractsContractBillingEvents_ContractBillingScheduleIDArray: mjBizAppsContractsContractBillingEvent_[]; // Link to mjBizAppsContractsContractBillingEvents
-    
-}
-
-//****************************************************************************
-// INPUT TYPE for MJ_BizApps_Contracts: Contract Billing Schedules
-//****************************************************************************
-@InputType()
-export class CreatemjBizAppsContractsContractBillingScheduleInput {
-    @Field({ nullable: true })
-    ID?: string;
-
-    @Field({ nullable: true })
-    ContractTermID?: string;
-
-    @Field({ nullable: true })
-    ScheduleType?: string;
-
-    @Field({ nullable: true })
-    Frequency: string | null;
-
-    @Field({ nullable: true })
-    AnchorDate: Date | null;
-
-    @Field(() => Boolean, { nullable: true })
-    IsActive?: boolean;
-
-    @Field({ nullable: true })
-    Notes: string | null;
-
-    @Field(() => RestoreContextInput, { nullable: true })
-    RestoreContext___?: RestoreContextInput;
-}
-    
-
-//****************************************************************************
-// INPUT TYPE for MJ_BizApps_Contracts: Contract Billing Schedules
-//****************************************************************************
-@InputType()
-export class UpdatemjBizAppsContractsContractBillingScheduleInput {
-    @Field()
-    ID: string;
-
-    @Field({ nullable: true })
-    ContractTermID?: string;
-
-    @Field({ nullable: true })
-    ScheduleType?: string;
-
-    @Field({ nullable: true })
-    Frequency?: string | null;
-
-    @Field({ nullable: true })
-    AnchorDate?: Date | null;
-
-    @Field(() => Boolean, { nullable: true })
-    IsActive?: boolean;
-
-    @Field({ nullable: true })
-    Notes?: string | null;
-
-    @Field(() => [KeyValuePairInput], { nullable: true })
-    OldValues___?: KeyValuePairInput[];
-
-    @Field(() => RestoreContextInput, { nullable: true })
-    RestoreContext___?: RestoreContextInput;
-}
-    
-//****************************************************************************
-// RESOLVER for MJ_BizApps_Contracts: Contract Billing Schedules
-//****************************************************************************
-@ObjectType()
-export class RunmjBizAppsContractsContractBillingScheduleViewResult {
-    @Field(() => [mjBizAppsContractsContractBillingSchedule_])
-    Results: mjBizAppsContractsContractBillingSchedule_[];
-
-    @Field(() => String, {nullable: true})
-    UserViewRunID?: string;
-
-    @Field(() => Int, {nullable: true})
-    RowCount: number;
-
-    @Field(() => Int, {nullable: true})
-    TotalRowCount: number;
-
-    @Field(() => Int, {nullable: true})
-    ExecutionTime: number;
-
-    @Field({nullable: true})
-    ErrorMessage?: string;
-
-    @Field(() => Boolean, {nullable: false})
-    Success: boolean;
-}
-
-@Resolver(mjBizAppsContractsContractBillingSchedule_)
-export class mjBizAppsContractsContractBillingScheduleResolver extends ResolverBase {
-    @Query(() => RunmjBizAppsContractsContractBillingScheduleViewResult)
-    async RunmjBizAppsContractsContractBillingScheduleViewByID(@Arg('input', () => RunViewByIDInput) input: RunViewByIDInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
-        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
-        return super.RunViewByIDGeneric(input, provider, userPayload, pubSub);
-    }
-
-    @Query(() => RunmjBizAppsContractsContractBillingScheduleViewResult)
-    async RunmjBizAppsContractsContractBillingScheduleViewByName(@Arg('input', () => RunViewByNameInput) input: RunViewByNameInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
-        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
-        return super.RunViewByNameGeneric(input, provider, userPayload, pubSub);
-    }
-
-    @Query(() => RunmjBizAppsContractsContractBillingScheduleViewResult)
-    async RunmjBizAppsContractsContractBillingScheduleDynamicView(@Arg('input', () => RunDynamicViewInput) input: RunDynamicViewInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
-        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
-        input.EntityName = 'MJ_BizApps_Contracts: Contract Billing Schedules';
-        return super.RunDynamicViewGeneric(input, provider, userPayload, pubSub);
-    }
-    @Query(() => mjBizAppsContractsContractBillingSchedule_, { nullable: true })
-    async mjBizAppsContractsContractBillingSchedule(@Arg('ID', () => String) ID: string, @Ctx() { userPayload, providers }: AppContext, @PubSub() pubSub: PubSubEngine): Promise<mjBizAppsContractsContractBillingSchedule_ | null> {
-        this.CheckUserReadPermissions('MJ_BizApps_Contracts: Contract Billing Schedules', userPayload);
-        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
-        const sSQL = `SELECT * FROM ${provider.QuoteSchemaAndView('__mj_BizAppsContracts', 'vwContractBillingSchedules')} WHERE ${provider.QuoteIdentifier('ID')}=${provider.BuildParameterPlaceholder(0)} ` + this.getRowLevelSecurityWhereClause(provider, 'MJ_BizApps_Contracts: Contract Billing Schedules', userPayload, EntityPermissionType.Read, 'AND');
-        const rows = await provider.ExecuteSQL(sSQL, [ID], undefined, this.GetUserFromPayload(userPayload));
-        const result = await this.MapFieldNamesToCodeNames('MJ_BizApps_Contracts: Contract Billing Schedules', rows && rows.length > 0 ? rows[0] : null, this.GetUserFromPayload(userPayload));
-        return result;
-    }
-    
-    @FieldResolver(() => [mjBizAppsContractsContractBillingEvent_])
-    async mjBizAppsContractsContractBillingEvents_ContractBillingScheduleIDArray(@Root() mjbizappscontractscontractbillingschedule_: mjBizAppsContractsContractBillingSchedule_, @Ctx() { userPayload, providers }: AppContext, @PubSub() pubSub: PubSubEngine) {
-        this.CheckUserReadPermissions('MJ_BizApps_Contracts: Contract Billing Events', userPayload);
-        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
-        const sSQL = `SELECT * FROM ${provider.QuoteSchemaAndView('__mj_BizAppsContracts', 'vwContractBillingEvents')} WHERE ${provider.QuoteIdentifier('ContractBillingScheduleID')}=${provider.BuildParameterPlaceholder(0)} ` + this.getRowLevelSecurityWhereClause(provider, 'MJ_BizApps_Contracts: Contract Billing Events', userPayload, EntityPermissionType.Read, 'AND');
-        const rows = await provider.ExecuteSQL(sSQL, [mjbizappscontractscontractbillingschedule_.ID], undefined, this.GetUserFromPayload(userPayload));
-        const result = await this.ArrayMapFieldNamesToCodeNames('MJ_BizApps_Contracts: Contract Billing Events', rows, this.GetUserFromPayload(userPayload));
-        return result;
-    }
-        
-    @Mutation(() => mjBizAppsContractsContractBillingSchedule_)
-    async CreatemjBizAppsContractsContractBillingSchedule(
-        @Arg('input', () => CreatemjBizAppsContractsContractBillingScheduleInput) input: CreatemjBizAppsContractsContractBillingScheduleInput,
-        @Ctx() { providers, userPayload }: AppContext,
-        @PubSub() pubSub: PubSubEngine
-    ) {
-        const provider = GetReadWriteProvider(providers);
-        return this.CreateRecord('MJ_BizApps_Contracts: Contract Billing Schedules', input, provider, userPayload, pubSub)
-    }
-        
-    @Mutation(() => mjBizAppsContractsContractBillingSchedule_)
-    async UpdatemjBizAppsContractsContractBillingSchedule(
-        @Arg('input', () => UpdatemjBizAppsContractsContractBillingScheduleInput) input: UpdatemjBizAppsContractsContractBillingScheduleInput,
-        @Ctx() { providers, userPayload }: AppContext,
-        @PubSub() pubSub: PubSubEngine
-    ) {
-        const provider = GetReadWriteProvider(providers);
-        return this.UpdateRecord('MJ_BizApps_Contracts: Contract Billing Schedules', input, provider, userPayload, pubSub);
-    }
-    
-    @Mutation(() => mjBizAppsContractsContractBillingSchedule_)
-    async DeletemjBizAppsContractsContractBillingSchedule(@Arg('ID', () => String) ID: string, @Arg('options___', () => DeleteOptionsInput) options: DeleteOptionsInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
-        const provider = GetReadWriteProvider(providers);
-        const key = new CompositeKey([{FieldName: 'ID', Value: ID}]);
-        return this.DeleteRecord('MJ_BizApps_Contracts: Contract Billing Schedules', key, options, provider, userPayload, pubSub);
-    }
-    
-}
-
-//****************************************************************************
-// ENTITY CLASS for MJ_BizApps_Contracts: Contract Commitments
-//****************************************************************************
-@ObjectType({ description: `Minimums, prepaid draws and true-ups. ConsumedAmount is deliberately NOT capped at CommittedAmount: over-consumption against a minimum is a real state to record and report, not an error to reject at write time.` })
-export class mjBizAppsContractsContractCommitment_ {
-    @Field() 
-    @MaxLength(36)
-    ID: string;
-        
-    @Field() 
-    @MaxLength(36)
-    ContractTermID: string;
-        
-    @Field() 
-    @MaxLength(20)
-    CommitmentType: string;
-        
-    @Field(() => Float) 
-    CommittedAmount: number;
-        
-    @Field(() => Float) 
-    ConsumedAmount: number;
-        
-    @Field({nullable: true}) 
-    PeriodStart?: Date;
-        
-    @Field({nullable: true}) 
-    PeriodEnd?: Date;
-        
-    @Field({description: `What happens to an unconsumed minimum at period end: BillShortfall adds the gap to the next bill, Forfeit drops it, Rollover carries it forward.`}) 
-    @MaxLength(20)
-    TrueUpPolicy: string;
-        
-    @Field() 
-    @MaxLength(20)
-    Status: string;
-        
-    @Field() 
-    _mj__CreatedAt: Date;
-        
-    @Field() 
-    _mj__UpdatedAt: Date;
-        
-}
-
-//****************************************************************************
-// INPUT TYPE for MJ_BizApps_Contracts: Contract Commitments
-//****************************************************************************
-@InputType()
-export class CreatemjBizAppsContractsContractCommitmentInput {
-    @Field({ nullable: true })
-    ID?: string;
-
-    @Field({ nullable: true })
-    ContractTermID?: string;
-
-    @Field({ nullable: true })
-    CommitmentType?: string;
-
-    @Field(() => Float, { nullable: true })
-    CommittedAmount?: number;
-
-    @Field(() => Float, { nullable: true })
-    ConsumedAmount?: number;
-
-    @Field({ nullable: true })
-    PeriodStart: Date | null;
-
-    @Field({ nullable: true })
-    PeriodEnd: Date | null;
-
-    @Field({ nullable: true })
-    TrueUpPolicy?: string;
-
-    @Field({ nullable: true })
-    Status?: string;
-
-    @Field(() => RestoreContextInput, { nullable: true })
-    RestoreContext___?: RestoreContextInput;
-}
-    
-
-//****************************************************************************
-// INPUT TYPE for MJ_BizApps_Contracts: Contract Commitments
-//****************************************************************************
-@InputType()
-export class UpdatemjBizAppsContractsContractCommitmentInput {
-    @Field()
-    ID: string;
-
-    @Field({ nullable: true })
-    ContractTermID?: string;
-
-    @Field({ nullable: true })
-    CommitmentType?: string;
-
-    @Field(() => Float, { nullable: true })
-    CommittedAmount?: number;
-
-    @Field(() => Float, { nullable: true })
-    ConsumedAmount?: number;
-
-    @Field({ nullable: true })
-    PeriodStart?: Date | null;
-
-    @Field({ nullable: true })
-    PeriodEnd?: Date | null;
-
-    @Field({ nullable: true })
-    TrueUpPolicy?: string;
-
-    @Field({ nullable: true })
-    Status?: string;
-
-    @Field(() => [KeyValuePairInput], { nullable: true })
-    OldValues___?: KeyValuePairInput[];
-
-    @Field(() => RestoreContextInput, { nullable: true })
-    RestoreContext___?: RestoreContextInput;
-}
-    
-//****************************************************************************
-// RESOLVER for MJ_BizApps_Contracts: Contract Commitments
-//****************************************************************************
-@ObjectType()
-export class RunmjBizAppsContractsContractCommitmentViewResult {
-    @Field(() => [mjBizAppsContractsContractCommitment_])
-    Results: mjBizAppsContractsContractCommitment_[];
-
-    @Field(() => String, {nullable: true})
-    UserViewRunID?: string;
-
-    @Field(() => Int, {nullable: true})
-    RowCount: number;
-
-    @Field(() => Int, {nullable: true})
-    TotalRowCount: number;
-
-    @Field(() => Int, {nullable: true})
-    ExecutionTime: number;
-
-    @Field({nullable: true})
-    ErrorMessage?: string;
-
-    @Field(() => Boolean, {nullable: false})
-    Success: boolean;
-}
-
-@Resolver(mjBizAppsContractsContractCommitment_)
-export class mjBizAppsContractsContractCommitmentResolver extends ResolverBase {
-    @Query(() => RunmjBizAppsContractsContractCommitmentViewResult)
-    async RunmjBizAppsContractsContractCommitmentViewByID(@Arg('input', () => RunViewByIDInput) input: RunViewByIDInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
-        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
-        return super.RunViewByIDGeneric(input, provider, userPayload, pubSub);
-    }
-
-    @Query(() => RunmjBizAppsContractsContractCommitmentViewResult)
-    async RunmjBizAppsContractsContractCommitmentViewByName(@Arg('input', () => RunViewByNameInput) input: RunViewByNameInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
-        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
-        return super.RunViewByNameGeneric(input, provider, userPayload, pubSub);
-    }
-
-    @Query(() => RunmjBizAppsContractsContractCommitmentViewResult)
-    async RunmjBizAppsContractsContractCommitmentDynamicView(@Arg('input', () => RunDynamicViewInput) input: RunDynamicViewInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
-        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
-        input.EntityName = 'MJ_BizApps_Contracts: Contract Commitments';
-        return super.RunDynamicViewGeneric(input, provider, userPayload, pubSub);
-    }
-    @Query(() => mjBizAppsContractsContractCommitment_, { nullable: true })
-    async mjBizAppsContractsContractCommitment(@Arg('ID', () => String) ID: string, @Ctx() { userPayload, providers }: AppContext, @PubSub() pubSub: PubSubEngine): Promise<mjBizAppsContractsContractCommitment_ | null> {
-        this.CheckUserReadPermissions('MJ_BizApps_Contracts: Contract Commitments', userPayload);
-        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
-        const sSQL = `SELECT * FROM ${provider.QuoteSchemaAndView('__mj_BizAppsContracts', 'vwContractCommitments')} WHERE ${provider.QuoteIdentifier('ID')}=${provider.BuildParameterPlaceholder(0)} ` + this.getRowLevelSecurityWhereClause(provider, 'MJ_BizApps_Contracts: Contract Commitments', userPayload, EntityPermissionType.Read, 'AND');
-        const rows = await provider.ExecuteSQL(sSQL, [ID], undefined, this.GetUserFromPayload(userPayload));
-        const result = await this.MapFieldNamesToCodeNames('MJ_BizApps_Contracts: Contract Commitments', rows && rows.length > 0 ? rows[0] : null, this.GetUserFromPayload(userPayload));
-        return result;
-    }
-    
-    @Mutation(() => mjBizAppsContractsContractCommitment_)
-    async CreatemjBizAppsContractsContractCommitment(
-        @Arg('input', () => CreatemjBizAppsContractsContractCommitmentInput) input: CreatemjBizAppsContractsContractCommitmentInput,
-        @Ctx() { providers, userPayload }: AppContext,
-        @PubSub() pubSub: PubSubEngine
-    ) {
-        const provider = GetReadWriteProvider(providers);
-        return this.CreateRecord('MJ_BizApps_Contracts: Contract Commitments', input, provider, userPayload, pubSub)
-    }
-        
-    @Mutation(() => mjBizAppsContractsContractCommitment_)
-    async UpdatemjBizAppsContractsContractCommitment(
-        @Arg('input', () => UpdatemjBizAppsContractsContractCommitmentInput) input: UpdatemjBizAppsContractsContractCommitmentInput,
-        @Ctx() { providers, userPayload }: AppContext,
-        @PubSub() pubSub: PubSubEngine
-    ) {
-        const provider = GetReadWriteProvider(providers);
-        return this.UpdateRecord('MJ_BizApps_Contracts: Contract Commitments', input, provider, userPayload, pubSub);
-    }
-    
-    @Mutation(() => mjBizAppsContractsContractCommitment_)
-    async DeletemjBizAppsContractsContractCommitment(@Arg('ID', () => String) ID: string, @Arg('options___', () => DeleteOptionsInput) options: DeleteOptionsInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
-        const provider = GetReadWriteProvider(providers);
-        const key = new CompositeKey([{FieldName: 'ID', Value: ID}]);
-        return this.DeleteRecord('MJ_BizApps_Contracts: Contract Commitments', key, options, provider, userPayload, pubSub);
-    }
-    
-}
-
-//****************************************************************************
-// ENTITY CLASS for MJ_BizApps_Contracts: Contract Events
-//****************************************************************************
-@ObjectType({ description: `Immutable lifecycle log, mirroring orders\' SubscriptionEvent. Never edited, never deleted. This is the SYSTEM record; customer-visible events also write a common.Activity row so the agreement appears on the account timeline. Neither replaces the other.` })
-export class mjBizAppsContractsContractEvent_ {
-    @Field() 
-    @MaxLength(36)
-    ID: string;
-        
-    @Field() 
-    @MaxLength(36)
-    ContractID: string;
-        
-    @Field({nullable: true}) 
-    @MaxLength(36)
-    ContractTermID?: string;
-        
-    @Field() 
-    @MaxLength(50)
-    EventType: string;
-        
-    @Field() 
-    EventDate: Date;
-        
-    @Field({nullable: true}) 
-    Payload?: string;
-        
-    @Field({nullable: true}) 
-    @MaxLength(36)
-    PerformedByUserID?: string;
-        
-    @Field() 
-    _mj__CreatedAt: Date;
-        
-    @Field() 
-    _mj__UpdatedAt: Date;
-        
-    @Field({nullable: true}) 
-    @MaxLength(100)
-    PerformedByUser?: string;
-        
-}
-
-//****************************************************************************
-// INPUT TYPE for MJ_BizApps_Contracts: Contract Events
-//****************************************************************************
-@InputType()
-export class CreatemjBizAppsContractsContractEventInput {
-    @Field({ nullable: true })
-    ID?: string;
-
-    @Field({ nullable: true })
-    ContractID?: string;
-
-    @Field({ nullable: true })
-    ContractTermID: string | null;
-
-    @Field({ nullable: true })
-    EventType?: string;
-
-    @Field({ nullable: true })
-    EventDate?: Date;
-
-    @Field({ nullable: true })
-    Payload: string | null;
-
-    @Field({ nullable: true })
-    PerformedByUserID: string | null;
-
-    @Field(() => RestoreContextInput, { nullable: true })
-    RestoreContext___?: RestoreContextInput;
-}
-    
-
-//****************************************************************************
-// INPUT TYPE for MJ_BizApps_Contracts: Contract Events
-//****************************************************************************
-@InputType()
-export class UpdatemjBizAppsContractsContractEventInput {
-    @Field()
-    ID: string;
-
-    @Field({ nullable: true })
-    ContractID?: string;
-
-    @Field({ nullable: true })
-    ContractTermID?: string | null;
-
-    @Field({ nullable: true })
-    EventType?: string;
-
-    @Field({ nullable: true })
-    EventDate?: Date;
-
-    @Field({ nullable: true })
-    Payload?: string | null;
-
-    @Field({ nullable: true })
-    PerformedByUserID?: string | null;
-
-    @Field(() => [KeyValuePairInput], { nullable: true })
-    OldValues___?: KeyValuePairInput[];
-
-    @Field(() => RestoreContextInput, { nullable: true })
-    RestoreContext___?: RestoreContextInput;
-}
-    
-//****************************************************************************
-// RESOLVER for MJ_BizApps_Contracts: Contract Events
-//****************************************************************************
-@ObjectType()
-export class RunmjBizAppsContractsContractEventViewResult {
-    @Field(() => [mjBizAppsContractsContractEvent_])
-    Results: mjBizAppsContractsContractEvent_[];
-
-    @Field(() => String, {nullable: true})
-    UserViewRunID?: string;
-
-    @Field(() => Int, {nullable: true})
-    RowCount: number;
-
-    @Field(() => Int, {nullable: true})
-    TotalRowCount: number;
-
-    @Field(() => Int, {nullable: true})
-    ExecutionTime: number;
-
-    @Field({nullable: true})
-    ErrorMessage?: string;
-
-    @Field(() => Boolean, {nullable: false})
-    Success: boolean;
-}
-
-@Resolver(mjBizAppsContractsContractEvent_)
-export class mjBizAppsContractsContractEventResolver extends ResolverBase {
-    @Query(() => RunmjBizAppsContractsContractEventViewResult)
-    async RunmjBizAppsContractsContractEventViewByID(@Arg('input', () => RunViewByIDInput) input: RunViewByIDInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
-        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
-        return super.RunViewByIDGeneric(input, provider, userPayload, pubSub);
-    }
-
-    @Query(() => RunmjBizAppsContractsContractEventViewResult)
-    async RunmjBizAppsContractsContractEventViewByName(@Arg('input', () => RunViewByNameInput) input: RunViewByNameInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
-        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
-        return super.RunViewByNameGeneric(input, provider, userPayload, pubSub);
-    }
-
-    @Query(() => RunmjBizAppsContractsContractEventViewResult)
-    async RunmjBizAppsContractsContractEventDynamicView(@Arg('input', () => RunDynamicViewInput) input: RunDynamicViewInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
-        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
-        input.EntityName = 'MJ_BizApps_Contracts: Contract Events';
-        return super.RunDynamicViewGeneric(input, provider, userPayload, pubSub);
-    }
-    @Query(() => mjBizAppsContractsContractEvent_, { nullable: true })
-    async mjBizAppsContractsContractEvent(@Arg('ID', () => String) ID: string, @Ctx() { userPayload, providers }: AppContext, @PubSub() pubSub: PubSubEngine): Promise<mjBizAppsContractsContractEvent_ | null> {
-        this.CheckUserReadPermissions('MJ_BizApps_Contracts: Contract Events', userPayload);
-        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
-        const sSQL = `SELECT * FROM ${provider.QuoteSchemaAndView('__mj_BizAppsContracts', 'vwContractEvents')} WHERE ${provider.QuoteIdentifier('ID')}=${provider.BuildParameterPlaceholder(0)} ` + this.getRowLevelSecurityWhereClause(provider, 'MJ_BizApps_Contracts: Contract Events', userPayload, EntityPermissionType.Read, 'AND');
-        const rows = await provider.ExecuteSQL(sSQL, [ID], undefined, this.GetUserFromPayload(userPayload));
-        const result = await this.MapFieldNamesToCodeNames('MJ_BizApps_Contracts: Contract Events', rows && rows.length > 0 ? rows[0] : null, this.GetUserFromPayload(userPayload));
-        return result;
-    }
-    
-    @Mutation(() => mjBizAppsContractsContractEvent_)
-    async CreatemjBizAppsContractsContractEvent(
-        @Arg('input', () => CreatemjBizAppsContractsContractEventInput) input: CreatemjBizAppsContractsContractEventInput,
-        @Ctx() { providers, userPayload }: AppContext,
-        @PubSub() pubSub: PubSubEngine
-    ) {
-        const provider = GetReadWriteProvider(providers);
-        return this.CreateRecord('MJ_BizApps_Contracts: Contract Events', input, provider, userPayload, pubSub)
-    }
-        
-    @Mutation(() => mjBizAppsContractsContractEvent_)
-    async UpdatemjBizAppsContractsContractEvent(
-        @Arg('input', () => UpdatemjBizAppsContractsContractEventInput) input: UpdatemjBizAppsContractsContractEventInput,
-        @Ctx() { providers, userPayload }: AppContext,
-        @PubSub() pubSub: PubSubEngine
-    ) {
-        const provider = GetReadWriteProvider(providers);
-        return this.UpdateRecord('MJ_BizApps_Contracts: Contract Events', input, provider, userPayload, pubSub);
-    }
-    
-    @Mutation(() => mjBizAppsContractsContractEvent_)
-    async DeletemjBizAppsContractsContractEvent(@Arg('ID', () => String) ID: string, @Arg('options___', () => DeleteOptionsInput) options: DeleteOptionsInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
-        const provider = GetReadWriteProvider(providers);
-        const key = new CompositeKey([{FieldName: 'ID', Value: ID}]);
-        return this.DeleteRecord('MJ_BizApps_Contracts: Contract Events', key, options, provider, userPayload, pubSub);
-    }
-    
-}
-
-//****************************************************************************
-// ENTITY CLASS for MJ_BizApps_Contracts: Contract Lines
-//****************************************************************************
-@ObjectType({ description: `What the agreement covers. LineType is what lets ONE table serve subscriptions, one-time fees, milestone draws, usage true-ups and minimum commitments — the billing engine reads it and nothing else branches on it.` })
-export class mjBizAppsContractsContractLine_ {
-    @Field() 
-    @MaxLength(36)
-    ID: string;
-        
-    @Field() 
-    @MaxLength(36)
-    ContractTermID: string;
-        
-    @Field() 
-    @MaxLength(36)
-    ProductID: string;
-        
-    @Field({description: `Subscription | OneTime | Milestone | Usage | Minimum. Usage is present in the value list although usage metering is out of v1, so the schema need not change when metering arrives.`}) 
-    @MaxLength(20)
-    LineType: string;
-        
-    @Field(() => Float) 
-    Quantity: number;
-        
-    @Field(() => Float, {nullable: true, description: `The negotiated per-unit price. NULL means RESOLVE NORMALLY — the line is covered by the agreement but priced from the catalog. A non-null value is what ContractPriceResolver returns into orders' pricing walk; escalation is applied by the resolver at billing time, not stored here.`}) 
-    ContractedUnitPrice?: number;
-        
-    @Field(() => Float, {nullable: true}) 
-    DiscountPct?: number;
-        
-    @Field({nullable: true}) 
-    StartDate?: Date;
-        
-    @Field({nullable: true, description: `Co-term stubs live here: a line added mid-term starts at the amendment date and ends at the TERM's end date, so the stub prorates on the next billing event. This is the capability standalone subscriptions structurally cannot provide, and the reason the contract owns the calendar.`}) 
-    EndDate?: Date;
-        
-    @Field({nullable: true}) 
-    @MaxLength(36)
-    SubscriptionTypeID?: string;
-        
-    @Field({nullable: true, description: `The materialized orders Subscription for a LineType=Subscription line. This linkage lives HERE and points up the graph: orders never learns the word "contract", only that the subscription's BillingMode is External so SpawnRenewals skips it.`}) 
-    @MaxLength(36)
-    SubscriptionID?: string;
-        
-    @Field({nullable: true}) 
-    Description?: string;
-        
-    @Field(() => Int) 
-    DisplayOrder: number;
-        
-    @Field() 
-    _mj__CreatedAt: Date;
-        
-    @Field() 
-    _mj__UpdatedAt: Date;
-        
-    @Field() 
-    @MaxLength(200)
-    Product: string;
-        
-    @Field({nullable: true}) 
-    @MaxLength(200)
-    SubscriptionType?: string;
-        
-    @Field({nullable: true}) 
-    @MaxLength(40)
-    Subscription?: string;
-        
-}
-
-//****************************************************************************
-// INPUT TYPE for MJ_BizApps_Contracts: Contract Lines
-//****************************************************************************
-@InputType()
-export class CreatemjBizAppsContractsContractLineInput {
-    @Field({ nullable: true })
-    ID?: string;
-
-    @Field({ nullable: true })
-    ContractTermID?: string;
-
-    @Field({ nullable: true })
-    ProductID?: string;
-
-    @Field({ nullable: true })
-    LineType?: string;
-
-    @Field(() => Float, { nullable: true })
-    Quantity?: number;
-
-    @Field(() => Float, { nullable: true })
-    ContractedUnitPrice: number | null;
-
-    @Field(() => Float, { nullable: true })
-    DiscountPct: number | null;
-
-    @Field({ nullable: true })
-    StartDate: Date | null;
-
-    @Field({ nullable: true })
-    EndDate: Date | null;
-
-    @Field({ nullable: true })
-    SubscriptionTypeID: string | null;
-
-    @Field({ nullable: true })
-    SubscriptionID: string | null;
-
-    @Field({ nullable: true })
-    Description: string | null;
-
-    @Field(() => Int, { nullable: true })
-    DisplayOrder?: number;
-
-    @Field(() => RestoreContextInput, { nullable: true })
-    RestoreContext___?: RestoreContextInput;
-}
-    
-
-//****************************************************************************
-// INPUT TYPE for MJ_BizApps_Contracts: Contract Lines
-//****************************************************************************
-@InputType()
-export class UpdatemjBizAppsContractsContractLineInput {
-    @Field()
-    ID: string;
-
-    @Field({ nullable: true })
-    ContractTermID?: string;
-
-    @Field({ nullable: true })
-    ProductID?: string;
-
-    @Field({ nullable: true })
-    LineType?: string;
-
-    @Field(() => Float, { nullable: true })
-    Quantity?: number;
-
-    @Field(() => Float, { nullable: true })
-    ContractedUnitPrice?: number | null;
-
-    @Field(() => Float, { nullable: true })
-    DiscountPct?: number | null;
-
-    @Field({ nullable: true })
-    StartDate?: Date | null;
-
-    @Field({ nullable: true })
-    EndDate?: Date | null;
-
-    @Field({ nullable: true })
-    SubscriptionTypeID?: string | null;
-
-    @Field({ nullable: true })
-    SubscriptionID?: string | null;
-
-    @Field({ nullable: true })
-    Description?: string | null;
-
-    @Field(() => Int, { nullable: true })
-    DisplayOrder?: number;
-
-    @Field(() => [KeyValuePairInput], { nullable: true })
-    OldValues___?: KeyValuePairInput[];
-
-    @Field(() => RestoreContextInput, { nullable: true })
-    RestoreContext___?: RestoreContextInput;
-}
-    
-//****************************************************************************
-// RESOLVER for MJ_BizApps_Contracts: Contract Lines
-//****************************************************************************
-@ObjectType()
-export class RunmjBizAppsContractsContractLineViewResult {
-    @Field(() => [mjBizAppsContractsContractLine_])
-    Results: mjBizAppsContractsContractLine_[];
-
-    @Field(() => String, {nullable: true})
-    UserViewRunID?: string;
-
-    @Field(() => Int, {nullable: true})
-    RowCount: number;
-
-    @Field(() => Int, {nullable: true})
-    TotalRowCount: number;
-
-    @Field(() => Int, {nullable: true})
-    ExecutionTime: number;
-
-    @Field({nullable: true})
-    ErrorMessage?: string;
-
-    @Field(() => Boolean, {nullable: false})
-    Success: boolean;
-}
-
-@Resolver(mjBizAppsContractsContractLine_)
-export class mjBizAppsContractsContractLineResolver extends ResolverBase {
-    @Query(() => RunmjBizAppsContractsContractLineViewResult)
-    async RunmjBizAppsContractsContractLineViewByID(@Arg('input', () => RunViewByIDInput) input: RunViewByIDInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
-        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
-        return super.RunViewByIDGeneric(input, provider, userPayload, pubSub);
-    }
-
-    @Query(() => RunmjBizAppsContractsContractLineViewResult)
-    async RunmjBizAppsContractsContractLineViewByName(@Arg('input', () => RunViewByNameInput) input: RunViewByNameInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
-        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
-        return super.RunViewByNameGeneric(input, provider, userPayload, pubSub);
-    }
-
-    @Query(() => RunmjBizAppsContractsContractLineViewResult)
-    async RunmjBizAppsContractsContractLineDynamicView(@Arg('input', () => RunDynamicViewInput) input: RunDynamicViewInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
-        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
-        input.EntityName = 'MJ_BizApps_Contracts: Contract Lines';
-        return super.RunDynamicViewGeneric(input, provider, userPayload, pubSub);
-    }
-    @Query(() => mjBizAppsContractsContractLine_, { nullable: true })
-    async mjBizAppsContractsContractLine(@Arg('ID', () => String) ID: string, @Ctx() { userPayload, providers }: AppContext, @PubSub() pubSub: PubSubEngine): Promise<mjBizAppsContractsContractLine_ | null> {
-        this.CheckUserReadPermissions('MJ_BizApps_Contracts: Contract Lines', userPayload);
-        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
-        const sSQL = `SELECT * FROM ${provider.QuoteSchemaAndView('__mj_BizAppsContracts', 'vwContractLines')} WHERE ${provider.QuoteIdentifier('ID')}=${provider.BuildParameterPlaceholder(0)} ` + this.getRowLevelSecurityWhereClause(provider, 'MJ_BizApps_Contracts: Contract Lines', userPayload, EntityPermissionType.Read, 'AND');
-        const rows = await provider.ExecuteSQL(sSQL, [ID], undefined, this.GetUserFromPayload(userPayload));
-        const result = await this.MapFieldNamesToCodeNames('MJ_BizApps_Contracts: Contract Lines', rows && rows.length > 0 ? rows[0] : null, this.GetUserFromPayload(userPayload));
-        return result;
-    }
-    
-    @Mutation(() => mjBizAppsContractsContractLine_)
-    async CreatemjBizAppsContractsContractLine(
-        @Arg('input', () => CreatemjBizAppsContractsContractLineInput) input: CreatemjBizAppsContractsContractLineInput,
-        @Ctx() { providers, userPayload }: AppContext,
-        @PubSub() pubSub: PubSubEngine
-    ) {
-        const provider = GetReadWriteProvider(providers);
-        return this.CreateRecord('MJ_BizApps_Contracts: Contract Lines', input, provider, userPayload, pubSub)
-    }
-        
-    @Mutation(() => mjBizAppsContractsContractLine_)
-    async UpdatemjBizAppsContractsContractLine(
-        @Arg('input', () => UpdatemjBizAppsContractsContractLineInput) input: UpdatemjBizAppsContractsContractLineInput,
-        @Ctx() { providers, userPayload }: AppContext,
-        @PubSub() pubSub: PubSubEngine
-    ) {
-        const provider = GetReadWriteProvider(providers);
-        return this.UpdateRecord('MJ_BizApps_Contracts: Contract Lines', input, provider, userPayload, pubSub);
-    }
-    
-    @Mutation(() => mjBizAppsContractsContractLine_)
-    async DeletemjBizAppsContractsContractLine(@Arg('ID', () => String) ID: string, @Arg('options___', () => DeleteOptionsInput) options: DeleteOptionsInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
-        const provider = GetReadWriteProvider(providers);
-        const key = new CompositeKey([{FieldName: 'ID', Value: ID}]);
-        return this.DeleteRecord('MJ_BizApps_Contracts: Contract Lines', key, options, provider, userPayload, pubSub);
-    }
-    
-}
 
 //****************************************************************************
 // ENTITY CLASS for MJ_BizApps_Contracts: Contract Sequences
 //****************************************************************************
-@ObjectType()
+@ObjectType({ description: `Singleton counter behind ContractNumber (CTR-{seq}), the same shape orders uses for ORD- and PAY-. Seeded in the baseline because it is a counter rather than vocabulary: it must exist before the first contract is written.` })
 export class mjBizAppsContractsContractSequence_ {
     @Field(() => Int) 
     ID: number;
         
-    @Field(() => Int) 
+    @Field(() => Int, {description: `The next number to hand out. Advanced server-side by ContractEntityServer.Save().`}) 
     NextSequenceNumber: number;
         
     @Field() 
@@ -1439,10 +160,10 @@ export class mjBizAppsContractsContractSequenceResolver extends ResolverBase {
 }
 
 //****************************************************************************
-// ENTITY CLASS for MJ_BizApps_Contracts: Contract Terms
+// ENTITY CLASS for MJ_BizApps_Contracts: Contract Template Modifications
 //****************************************************************************
-@ObjectType({ description: `One period of an agreement. A RENEWAL creates a NEW term with RenewalOfTermID set; a mid-term change is a ContractAmendment against the existing one. Conflating those two is the most common contract-model mistake.` })
-export class mjBizAppsContractsContractTerm_ {
+@ObjectType({ description: `What THIS contract changed about the standard agreement. Deliberately lean: it names a provision and carries what the contract says instead. Carries no ContractTemplateID — the provision belongs to exactly one template in every future, so the template derives through the provision, and a stored copy of a derivation can only agree or lie.` })
+export class mjBizAppsContractsContractTemplateModification_ {
     @Field() 
     @MaxLength(36)
     ID: string;
@@ -1451,58 +172,14 @@ export class mjBizAppsContractsContractTerm_ {
     @MaxLength(36)
     ContractID: string;
         
-    @Field(() => Int) 
-    TermNumber: number;
-        
-    @Field() 
-    StartDate: Date;
-        
-    @Field() 
-    EndDate: Date;
-        
-    @Field() 
-    @MaxLength(20)
-    Status: string;
-        
-    @Field({nullable: true, description: `Self-FK chaining back to the term this one renewed, making the renewal history navigable without a separate lineage table.`}) 
+    @Field({description: `The provision being modified — the structured identifier, and the only one. A server rule enforces what this replaces: the provision must belong to a template this contract incorporates.`}) 
     @MaxLength(36)
-    RenewalOfTermID?: string;
+    ContractTemplateProvisionID: string;
         
-    @Field(() => Float) 
-    CommittedAmount: number;
+    @Field({nullable: true, description: `What this contract says INSTEAD of the standard clause. Read as a pair with ContractTemplateProvision.ProvisionText.`}) 
+    ModificationText?: string;
         
-    @Field(() => Float, {nullable: true, description: `The rate increase applied at renewal, per EscalationBasis. Applied BY THE RESOLVER at billing time from the term rules — never baked into stored line prices, which then go stale.`}) 
-    EscalationPercent?: number;
-        
-    @Field({nullable: true}) 
-    @MaxLength(20)
-    EscalationBasis?: string;
-        
-    @Field() 
-    @MaxLength(20)
-    BillingFrequency: string;
-        
-    @Field(() => Int, {nullable: true}) 
-    BillingAnchorMonth?: number;
-        
-    @Field(() => Int, {nullable: true}) 
-    BillingAnchorDay?: number;
-        
-    @Field({nullable: true}) 
-    @MaxLength(36)
-    PaymentTermsTypeID?: string;
-        
-    @Field({nullable: true, description: `Recorded for forward-compatibility ONLY. Orders defers FX (D24) and nothing in this app converts between currencies. It exists so a term states the currency it was written in, rather than that being inferred from the selling company years later.`}) 
-    @MaxLength(36)
-    CurrencyID?: string;
-        
-    @Field({nullable: true}) 
-    EarlyTerminationDate?: Date;
-        
-    @Field(() => Float, {nullable: true, description: `0..1 likelihood this term renews. Exists because a renewal forecast in bizapps-sales reads it.`}) 
-    RenewalProbability?: number;
-        
-    @Field({nullable: true}) 
+    @Field({nullable: true, description: `Optional working note, e.g. who negotiated it.`}) 
     Notes?: string;
         
     @Field() 
@@ -1511,96 +188,32 @@ export class mjBizAppsContractsContractTerm_ {
     @Field() 
     _mj__UpdatedAt: Date;
         
-    @Field({nullable: true}) 
-    @MaxLength(200)
-    PaymentTermsType?: string;
+    @Field() 
+    @MaxLength(50)
+    Contract: string;
         
-    @Field({nullable: true}) 
-    @MaxLength(80)
-    Currency?: string;
+    @Field() 
+    @MaxLength(20)
+    ContractTemplateProvision: string;
         
-    @Field({nullable: true}) 
-    @MaxLength(36)
-    RootRenewalOfTermID?: string;
-        
-    @Field(() => [mjBizAppsContractsContractLine_])
-    mjBizAppsContractsContractLines_ContractTermIDArray: mjBizAppsContractsContractLine_[]; // Link to mjBizAppsContractsContractLines
-    
-    @Field(() => [mjBizAppsContractsContractBillingEvent_])
-    mjBizAppsContractsContractBillingEvents_ContractTermIDArray: mjBizAppsContractsContractBillingEvent_[]; // Link to mjBizAppsContractsContractBillingEvents
-    
-    @Field(() => [mjBizAppsContractsContractCommitment_])
-    mjBizAppsContractsContractCommitments_ContractTermIDArray: mjBizAppsContractsContractCommitment_[]; // Link to mjBizAppsContractsContractCommitments
-    
-    @Field(() => [mjBizAppsContractsContractEvent_])
-    mjBizAppsContractsContractEvents_ContractTermIDArray: mjBizAppsContractsContractEvent_[]; // Link to mjBizAppsContractsContractEvents
-    
-    @Field(() => [mjBizAppsContractsContractBillingSchedule_])
-    mjBizAppsContractsContractBillingSchedules_ContractTermIDArray: mjBizAppsContractsContractBillingSchedule_[]; // Link to mjBizAppsContractsContractBillingSchedules
-    
-    @Field(() => [mjBizAppsContractsContractTerm_])
-    mjBizAppsContractsContractTerms_RenewalOfTermIDArray: mjBizAppsContractsContractTerm_[]; // Link to mjBizAppsContractsContractTerms
-    
-    @Field(() => [mjBizAppsContractsContractAmendment_])
-    mjBizAppsContractsContractAmendments_ContractTermIDArray: mjBizAppsContractsContractAmendment_[]; // Link to mjBizAppsContractsContractAmendments
-    
 }
 
 //****************************************************************************
-// INPUT TYPE for MJ_BizApps_Contracts: Contract Terms
+// INPUT TYPE for MJ_BizApps_Contracts: Contract Template Modifications
 //****************************************************************************
 @InputType()
-export class CreatemjBizAppsContractsContractTermInput {
+export class CreatemjBizAppsContractsContractTemplateModificationInput {
     @Field({ nullable: true })
     ID?: string;
 
     @Field({ nullable: true })
     ContractID?: string;
 
-    @Field(() => Int, { nullable: true })
-    TermNumber?: number;
+    @Field({ nullable: true })
+    ContractTemplateProvisionID?: string;
 
     @Field({ nullable: true })
-    StartDate?: Date;
-
-    @Field({ nullable: true })
-    EndDate?: Date;
-
-    @Field({ nullable: true })
-    Status?: string;
-
-    @Field({ nullable: true })
-    RenewalOfTermID: string | null;
-
-    @Field(() => Float, { nullable: true })
-    CommittedAmount?: number;
-
-    @Field(() => Float, { nullable: true })
-    EscalationPercent: number | null;
-
-    @Field({ nullable: true })
-    EscalationBasis: string | null;
-
-    @Field({ nullable: true })
-    BillingFrequency?: string;
-
-    @Field(() => Int, { nullable: true })
-    BillingAnchorMonth: number | null;
-
-    @Field(() => Int, { nullable: true })
-    BillingAnchorDay: number | null;
-
-    @Field({ nullable: true })
-    PaymentTermsTypeID: string | null;
-
-    @Field({ nullable: true })
-    CurrencyID: string | null;
-
-    @Field({ nullable: true })
-    EarlyTerminationDate: Date | null;
-
-    @Field(() => Float, { nullable: true })
-    RenewalProbability: number | null;
+    ModificationText: string | null;
 
     @Field({ nullable: true })
     Notes: string | null;
@@ -1611,60 +224,21 @@ export class CreatemjBizAppsContractsContractTermInput {
     
 
 //****************************************************************************
-// INPUT TYPE for MJ_BizApps_Contracts: Contract Terms
+// INPUT TYPE for MJ_BizApps_Contracts: Contract Template Modifications
 //****************************************************************************
 @InputType()
-export class UpdatemjBizAppsContractsContractTermInput {
+export class UpdatemjBizAppsContractsContractTemplateModificationInput {
     @Field()
     ID: string;
 
     @Field({ nullable: true })
     ContractID?: string;
 
-    @Field(() => Int, { nullable: true })
-    TermNumber?: number;
+    @Field({ nullable: true })
+    ContractTemplateProvisionID?: string;
 
     @Field({ nullable: true })
-    StartDate?: Date;
-
-    @Field({ nullable: true })
-    EndDate?: Date;
-
-    @Field({ nullable: true })
-    Status?: string;
-
-    @Field({ nullable: true })
-    RenewalOfTermID?: string | null;
-
-    @Field(() => Float, { nullable: true })
-    CommittedAmount?: number;
-
-    @Field(() => Float, { nullable: true })
-    EscalationPercent?: number | null;
-
-    @Field({ nullable: true })
-    EscalationBasis?: string | null;
-
-    @Field({ nullable: true })
-    BillingFrequency?: string;
-
-    @Field(() => Int, { nullable: true })
-    BillingAnchorMonth?: number | null;
-
-    @Field(() => Int, { nullable: true })
-    BillingAnchorDay?: number | null;
-
-    @Field({ nullable: true })
-    PaymentTermsTypeID?: string | null;
-
-    @Field({ nullable: true })
-    CurrencyID?: string | null;
-
-    @Field({ nullable: true })
-    EarlyTerminationDate?: Date | null;
-
-    @Field(() => Float, { nullable: true })
-    RenewalProbability?: number | null;
+    ModificationText?: string | null;
 
     @Field({ nullable: true })
     Notes?: string | null;
@@ -1677,12 +251,12 @@ export class UpdatemjBizAppsContractsContractTermInput {
 }
     
 //****************************************************************************
-// RESOLVER for MJ_BizApps_Contracts: Contract Terms
+// RESOLVER for MJ_BizApps_Contracts: Contract Template Modifications
 //****************************************************************************
 @ObjectType()
-export class RunmjBizAppsContractsContractTermViewResult {
-    @Field(() => [mjBizAppsContractsContractTerm_])
-    Results: mjBizAppsContractsContractTerm_[];
+export class RunmjBizAppsContractsContractTemplateModificationViewResult {
+    @Field(() => [mjBizAppsContractsContractTemplateModification_])
+    Results: mjBizAppsContractsContractTemplateModification_[];
 
     @Field(() => String, {nullable: true})
     UserViewRunID?: string;
@@ -1703,147 +277,278 @@ export class RunmjBizAppsContractsContractTermViewResult {
     Success: boolean;
 }
 
-@Resolver(mjBizAppsContractsContractTerm_)
-export class mjBizAppsContractsContractTermResolver extends ResolverBase {
-    @Query(() => RunmjBizAppsContractsContractTermViewResult)
-    async RunmjBizAppsContractsContractTermViewByID(@Arg('input', () => RunViewByIDInput) input: RunViewByIDInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
+@Resolver(mjBizAppsContractsContractTemplateModification_)
+export class mjBizAppsContractsContractTemplateModificationResolver extends ResolverBase {
+    @Query(() => RunmjBizAppsContractsContractTemplateModificationViewResult)
+    async RunmjBizAppsContractsContractTemplateModificationViewByID(@Arg('input', () => RunViewByIDInput) input: RunViewByIDInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
         const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
         return super.RunViewByIDGeneric(input, provider, userPayload, pubSub);
     }
 
-    @Query(() => RunmjBizAppsContractsContractTermViewResult)
-    async RunmjBizAppsContractsContractTermViewByName(@Arg('input', () => RunViewByNameInput) input: RunViewByNameInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
+    @Query(() => RunmjBizAppsContractsContractTemplateModificationViewResult)
+    async RunmjBizAppsContractsContractTemplateModificationViewByName(@Arg('input', () => RunViewByNameInput) input: RunViewByNameInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
         const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
         return super.RunViewByNameGeneric(input, provider, userPayload, pubSub);
     }
 
-    @Query(() => RunmjBizAppsContractsContractTermViewResult)
-    async RunmjBizAppsContractsContractTermDynamicView(@Arg('input', () => RunDynamicViewInput) input: RunDynamicViewInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
+    @Query(() => RunmjBizAppsContractsContractTemplateModificationViewResult)
+    async RunmjBizAppsContractsContractTemplateModificationDynamicView(@Arg('input', () => RunDynamicViewInput) input: RunDynamicViewInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
         const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
-        input.EntityName = 'MJ_BizApps_Contracts: Contract Terms';
+        input.EntityName = 'MJ_BizApps_Contracts: Contract Template Modifications';
         return super.RunDynamicViewGeneric(input, provider, userPayload, pubSub);
     }
-    @Query(() => mjBizAppsContractsContractTerm_, { nullable: true })
-    async mjBizAppsContractsContractTerm(@Arg('ID', () => String) ID: string, @Ctx() { userPayload, providers }: AppContext, @PubSub() pubSub: PubSubEngine): Promise<mjBizAppsContractsContractTerm_ | null> {
-        this.CheckUserReadPermissions('MJ_BizApps_Contracts: Contract Terms', userPayload);
+    @Query(() => mjBizAppsContractsContractTemplateModification_, { nullable: true })
+    async mjBizAppsContractsContractTemplateModification(@Arg('ID', () => String) ID: string, @Ctx() { userPayload, providers }: AppContext, @PubSub() pubSub: PubSubEngine): Promise<mjBizAppsContractsContractTemplateModification_ | null> {
+        this.CheckUserReadPermissions('MJ_BizApps_Contracts: Contract Template Modifications', userPayload);
         const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
-        const sSQL = `SELECT * FROM ${provider.QuoteSchemaAndView('__mj_BizAppsContracts', 'vwContractTerms')} WHERE ${provider.QuoteIdentifier('ID')}=${provider.BuildParameterPlaceholder(0)} ` + this.getRowLevelSecurityWhereClause(provider, 'MJ_BizApps_Contracts: Contract Terms', userPayload, EntityPermissionType.Read, 'AND');
+        const sSQL = `SELECT * FROM ${provider.QuoteSchemaAndView('__mj_BizAppsContracts', 'vwContractTemplateModifications')} WHERE ${provider.QuoteIdentifier('ID')}=${provider.BuildParameterPlaceholder(0)} ` + this.getRowLevelSecurityWhereClause(provider, 'MJ_BizApps_Contracts: Contract Template Modifications', userPayload, EntityPermissionType.Read, 'AND');
         const rows = await provider.ExecuteSQL(sSQL, [ID], undefined, this.GetUserFromPayload(userPayload));
-        const result = await this.MapFieldNamesToCodeNames('MJ_BizApps_Contracts: Contract Terms', rows && rows.length > 0 ? rows[0] : null, this.GetUserFromPayload(userPayload));
+        const result = await this.MapFieldNamesToCodeNames('MJ_BizApps_Contracts: Contract Template Modifications', rows && rows.length > 0 ? rows[0] : null, this.GetUserFromPayload(userPayload));
         return result;
     }
     
-    @FieldResolver(() => [mjBizAppsContractsContractLine_])
-    async mjBizAppsContractsContractLines_ContractTermIDArray(@Root() mjbizappscontractscontractterm_: mjBizAppsContractsContractTerm_, @Ctx() { userPayload, providers }: AppContext, @PubSub() pubSub: PubSubEngine) {
-        this.CheckUserReadPermissions('MJ_BizApps_Contracts: Contract Lines', userPayload);
-        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
-        const sSQL = `SELECT * FROM ${provider.QuoteSchemaAndView('__mj_BizAppsContracts', 'vwContractLines')} WHERE ${provider.QuoteIdentifier('ContractTermID')}=${provider.BuildParameterPlaceholder(0)} ` + this.getRowLevelSecurityWhereClause(provider, 'MJ_BizApps_Contracts: Contract Lines', userPayload, EntityPermissionType.Read, 'AND');
-        const rows = await provider.ExecuteSQL(sSQL, [mjbizappscontractscontractterm_.ID], undefined, this.GetUserFromPayload(userPayload));
-        const result = await this.ArrayMapFieldNamesToCodeNames('MJ_BizApps_Contracts: Contract Lines', rows, this.GetUserFromPayload(userPayload));
-        return result;
-    }
-        
-    @FieldResolver(() => [mjBizAppsContractsContractBillingEvent_])
-    async mjBizAppsContractsContractBillingEvents_ContractTermIDArray(@Root() mjbizappscontractscontractterm_: mjBizAppsContractsContractTerm_, @Ctx() { userPayload, providers }: AppContext, @PubSub() pubSub: PubSubEngine) {
-        this.CheckUserReadPermissions('MJ_BizApps_Contracts: Contract Billing Events', userPayload);
-        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
-        const sSQL = `SELECT * FROM ${provider.QuoteSchemaAndView('__mj_BizAppsContracts', 'vwContractBillingEvents')} WHERE ${provider.QuoteIdentifier('ContractTermID')}=${provider.BuildParameterPlaceholder(0)} ` + this.getRowLevelSecurityWhereClause(provider, 'MJ_BizApps_Contracts: Contract Billing Events', userPayload, EntityPermissionType.Read, 'AND');
-        const rows = await provider.ExecuteSQL(sSQL, [mjbizappscontractscontractterm_.ID], undefined, this.GetUserFromPayload(userPayload));
-        const result = await this.ArrayMapFieldNamesToCodeNames('MJ_BizApps_Contracts: Contract Billing Events', rows, this.GetUserFromPayload(userPayload));
-        return result;
-    }
-        
-    @FieldResolver(() => [mjBizAppsContractsContractCommitment_])
-    async mjBizAppsContractsContractCommitments_ContractTermIDArray(@Root() mjbizappscontractscontractterm_: mjBizAppsContractsContractTerm_, @Ctx() { userPayload, providers }: AppContext, @PubSub() pubSub: PubSubEngine) {
-        this.CheckUserReadPermissions('MJ_BizApps_Contracts: Contract Commitments', userPayload);
-        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
-        const sSQL = `SELECT * FROM ${provider.QuoteSchemaAndView('__mj_BizAppsContracts', 'vwContractCommitments')} WHERE ${provider.QuoteIdentifier('ContractTermID')}=${provider.BuildParameterPlaceholder(0)} ` + this.getRowLevelSecurityWhereClause(provider, 'MJ_BizApps_Contracts: Contract Commitments', userPayload, EntityPermissionType.Read, 'AND');
-        const rows = await provider.ExecuteSQL(sSQL, [mjbizappscontractscontractterm_.ID], undefined, this.GetUserFromPayload(userPayload));
-        const result = await this.ArrayMapFieldNamesToCodeNames('MJ_BizApps_Contracts: Contract Commitments', rows, this.GetUserFromPayload(userPayload));
-        return result;
-    }
-        
-    @FieldResolver(() => [mjBizAppsContractsContractEvent_])
-    async mjBizAppsContractsContractEvents_ContractTermIDArray(@Root() mjbizappscontractscontractterm_: mjBizAppsContractsContractTerm_, @Ctx() { userPayload, providers }: AppContext, @PubSub() pubSub: PubSubEngine) {
-        this.CheckUserReadPermissions('MJ_BizApps_Contracts: Contract Events', userPayload);
-        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
-        const sSQL = `SELECT * FROM ${provider.QuoteSchemaAndView('__mj_BizAppsContracts', 'vwContractEvents')} WHERE ${provider.QuoteIdentifier('ContractTermID')}=${provider.BuildParameterPlaceholder(0)} ` + this.getRowLevelSecurityWhereClause(provider, 'MJ_BizApps_Contracts: Contract Events', userPayload, EntityPermissionType.Read, 'AND');
-        const rows = await provider.ExecuteSQL(sSQL, [mjbizappscontractscontractterm_.ID], undefined, this.GetUserFromPayload(userPayload));
-        const result = await this.ArrayMapFieldNamesToCodeNames('MJ_BizApps_Contracts: Contract Events', rows, this.GetUserFromPayload(userPayload));
-        return result;
-    }
-        
-    @FieldResolver(() => [mjBizAppsContractsContractBillingSchedule_])
-    async mjBizAppsContractsContractBillingSchedules_ContractTermIDArray(@Root() mjbizappscontractscontractterm_: mjBizAppsContractsContractTerm_, @Ctx() { userPayload, providers }: AppContext, @PubSub() pubSub: PubSubEngine) {
-        this.CheckUserReadPermissions('MJ_BizApps_Contracts: Contract Billing Schedules', userPayload);
-        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
-        const sSQL = `SELECT * FROM ${provider.QuoteSchemaAndView('__mj_BizAppsContracts', 'vwContractBillingSchedules')} WHERE ${provider.QuoteIdentifier('ContractTermID')}=${provider.BuildParameterPlaceholder(0)} ` + this.getRowLevelSecurityWhereClause(provider, 'MJ_BizApps_Contracts: Contract Billing Schedules', userPayload, EntityPermissionType.Read, 'AND');
-        const rows = await provider.ExecuteSQL(sSQL, [mjbizappscontractscontractterm_.ID], undefined, this.GetUserFromPayload(userPayload));
-        const result = await this.ArrayMapFieldNamesToCodeNames('MJ_BizApps_Contracts: Contract Billing Schedules', rows, this.GetUserFromPayload(userPayload));
-        return result;
-    }
-        
-    @FieldResolver(() => [mjBizAppsContractsContractTerm_])
-    async mjBizAppsContractsContractTerms_RenewalOfTermIDArray(@Root() mjbizappscontractscontractterm_: mjBizAppsContractsContractTerm_, @Ctx() { userPayload, providers }: AppContext, @PubSub() pubSub: PubSubEngine) {
-        this.CheckUserReadPermissions('MJ_BizApps_Contracts: Contract Terms', userPayload);
-        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
-        const sSQL = `SELECT * FROM ${provider.QuoteSchemaAndView('__mj_BizAppsContracts', 'vwContractTerms')} WHERE ${provider.QuoteIdentifier('RenewalOfTermID')}=${provider.BuildParameterPlaceholder(0)} ` + this.getRowLevelSecurityWhereClause(provider, 'MJ_BizApps_Contracts: Contract Terms', userPayload, EntityPermissionType.Read, 'AND');
-        const rows = await provider.ExecuteSQL(sSQL, [mjbizappscontractscontractterm_.ID], undefined, this.GetUserFromPayload(userPayload));
-        const result = await this.ArrayMapFieldNamesToCodeNames('MJ_BizApps_Contracts: Contract Terms', rows, this.GetUserFromPayload(userPayload));
-        return result;
-    }
-        
-    @FieldResolver(() => [mjBizAppsContractsContractAmendment_])
-    async mjBizAppsContractsContractAmendments_ContractTermIDArray(@Root() mjbizappscontractscontractterm_: mjBizAppsContractsContractTerm_, @Ctx() { userPayload, providers }: AppContext, @PubSub() pubSub: PubSubEngine) {
-        this.CheckUserReadPermissions('MJ_BizApps_Contracts: Contract Amendments', userPayload);
-        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
-        const sSQL = `SELECT * FROM ${provider.QuoteSchemaAndView('__mj_BizAppsContracts', 'vwContractAmendments')} WHERE ${provider.QuoteIdentifier('ContractTermID')}=${provider.BuildParameterPlaceholder(0)} ` + this.getRowLevelSecurityWhereClause(provider, 'MJ_BizApps_Contracts: Contract Amendments', userPayload, EntityPermissionType.Read, 'AND');
-        const rows = await provider.ExecuteSQL(sSQL, [mjbizappscontractscontractterm_.ID], undefined, this.GetUserFromPayload(userPayload));
-        const result = await this.ArrayMapFieldNamesToCodeNames('MJ_BizApps_Contracts: Contract Amendments', rows, this.GetUserFromPayload(userPayload));
-        return result;
-    }
-        
-    @Mutation(() => mjBizAppsContractsContractTerm_)
-    async CreatemjBizAppsContractsContractTerm(
-        @Arg('input', () => CreatemjBizAppsContractsContractTermInput) input: CreatemjBizAppsContractsContractTermInput,
+    @Mutation(() => mjBizAppsContractsContractTemplateModification_)
+    async CreatemjBizAppsContractsContractTemplateModification(
+        @Arg('input', () => CreatemjBizAppsContractsContractTemplateModificationInput) input: CreatemjBizAppsContractsContractTemplateModificationInput,
         @Ctx() { providers, userPayload }: AppContext,
         @PubSub() pubSub: PubSubEngine
     ) {
         const provider = GetReadWriteProvider(providers);
-        return this.CreateRecord('MJ_BizApps_Contracts: Contract Terms', input, provider, userPayload, pubSub)
+        return this.CreateRecord('MJ_BizApps_Contracts: Contract Template Modifications', input, provider, userPayload, pubSub)
     }
         
-    @Mutation(() => mjBizAppsContractsContractTerm_)
-    async UpdatemjBizAppsContractsContractTerm(
-        @Arg('input', () => UpdatemjBizAppsContractsContractTermInput) input: UpdatemjBizAppsContractsContractTermInput,
+    @Mutation(() => mjBizAppsContractsContractTemplateModification_)
+    async UpdatemjBizAppsContractsContractTemplateModification(
+        @Arg('input', () => UpdatemjBizAppsContractsContractTemplateModificationInput) input: UpdatemjBizAppsContractsContractTemplateModificationInput,
         @Ctx() { providers, userPayload }: AppContext,
         @PubSub() pubSub: PubSubEngine
     ) {
         const provider = GetReadWriteProvider(providers);
-        return this.UpdateRecord('MJ_BizApps_Contracts: Contract Terms', input, provider, userPayload, pubSub);
+        return this.UpdateRecord('MJ_BizApps_Contracts: Contract Template Modifications', input, provider, userPayload, pubSub);
     }
     
-    @Mutation(() => mjBizAppsContractsContractTerm_)
-    async DeletemjBizAppsContractsContractTerm(@Arg('ID', () => String) ID: string, @Arg('options___', () => DeleteOptionsInput) options: DeleteOptionsInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
+    @Mutation(() => mjBizAppsContractsContractTemplateModification_)
+    async DeletemjBizAppsContractsContractTemplateModification(@Arg('ID', () => String) ID: string, @Arg('options___', () => DeleteOptionsInput) options: DeleteOptionsInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
         const provider = GetReadWriteProvider(providers);
         const key = new CompositeKey([{FieldName: 'ID', Value: ID}]);
-        return this.DeleteRecord('MJ_BizApps_Contracts: Contract Terms', key, options, provider, userPayload, pubSub);
+        return this.DeleteRecord('MJ_BizApps_Contracts: Contract Template Modifications', key, options, provider, userPayload, pubSub);
     }
     
 }
 
 //****************************************************************************
-// ENTITY CLASS for MJ_BizApps_Contracts: Contract Types
+// ENTITY CLASS for MJ_BizApps_Contracts: Contract Template Provisions
 //****************************************************************************
-@ObjectType({ description: `Named defaults for a class of agreement (Standard, MSA, SOW, Membership, Evergreen, Pilot). Configuration as data: the engine READS these columns rather than branching on the type name.` })
-export class mjBizAppsContractsContractType_ {
+@ObjectType({ description: `The numbered clause list of a template version, and the home of all standard contract text. Hangs off ContractTemplate rather than standing alone because provision numbering belongs to a VERSION — the moment a new version renumbers, a single global list is wrong.` })
+export class mjBizAppsContractsContractTemplateProvision_ {
     @Field() 
     @MaxLength(36)
     ID: string;
         
-    @Field({description: `Stable machine key, unique. Referenced by CloseWonPolicy in bizapps-sales, so renaming Name is safe and changing Code is not.`}) 
-    @MaxLength(50)
-    Code: string;
+    @Field() 
+    @MaxLength(36)
+    ContractTemplateID: string;
+        
+    @Field({description: `The clause number as the document writes it, e.g. "3.5(b)". Unique within its template.`}) 
+    @MaxLength(20)
+    ProvisionNumber: string;
+        
+    @Field({description: `The clause heading, e.g. "Limitation of Liability". This plus the number is what a person picks from.`}) 
+    @MaxLength(200)
+    Title: string;
+        
+    @Field({nullable: true, description: `The STANDARD wording of this clause. Read as a pair with ContractTemplateModification.ModificationText, which holds what a given contract says instead — a dispute needs the comparison, not either half.`}) 
+    ProvisionText?: string;
+        
+    @Field({nullable: true}) 
+    Description?: string;
+        
+    @Field(() => Int, {description: `Display order. Earns its place because ProvisionNumber does not sort as text ("3.10" lands before "3.5") and a legal document has a canonical order.`}) 
+    Sequence: number;
+        
+    @Field() 
+    _mj__CreatedAt: Date;
+        
+    @Field() 
+    _mj__UpdatedAt: Date;
+        
+    @Field() 
+    @MaxLength(200)
+    ContractTemplate: string;
+        
+    @Field(() => [mjBizAppsContractsContractTemplateModification_])
+    mjBizAppsContractsContractTemplateModifications_ContractTemplateProvisionIDArray: mjBizAppsContractsContractTemplateModification_[]; // Link to mjBizAppsContractsContractTemplateModifications
+    
+}
+
+//****************************************************************************
+// INPUT TYPE for MJ_BizApps_Contracts: Contract Template Provisions
+//****************************************************************************
+@InputType()
+export class CreatemjBizAppsContractsContractTemplateProvisionInput {
+    @Field({ nullable: true })
+    ID?: string;
+
+    @Field({ nullable: true })
+    ContractTemplateID?: string;
+
+    @Field({ nullable: true })
+    ProvisionNumber?: string;
+
+    @Field({ nullable: true })
+    Title?: string;
+
+    @Field({ nullable: true })
+    ProvisionText: string | null;
+
+    @Field({ nullable: true })
+    Description: string | null;
+
+    @Field(() => Int, { nullable: true })
+    Sequence?: number;
+
+    @Field(() => RestoreContextInput, { nullable: true })
+    RestoreContext___?: RestoreContextInput;
+}
+    
+
+//****************************************************************************
+// INPUT TYPE for MJ_BizApps_Contracts: Contract Template Provisions
+//****************************************************************************
+@InputType()
+export class UpdatemjBizAppsContractsContractTemplateProvisionInput {
+    @Field()
+    ID: string;
+
+    @Field({ nullable: true })
+    ContractTemplateID?: string;
+
+    @Field({ nullable: true })
+    ProvisionNumber?: string;
+
+    @Field({ nullable: true })
+    Title?: string;
+
+    @Field({ nullable: true })
+    ProvisionText?: string | null;
+
+    @Field({ nullable: true })
+    Description?: string | null;
+
+    @Field(() => Int, { nullable: true })
+    Sequence?: number;
+
+    @Field(() => [KeyValuePairInput], { nullable: true })
+    OldValues___?: KeyValuePairInput[];
+
+    @Field(() => RestoreContextInput, { nullable: true })
+    RestoreContext___?: RestoreContextInput;
+}
+    
+//****************************************************************************
+// RESOLVER for MJ_BizApps_Contracts: Contract Template Provisions
+//****************************************************************************
+@ObjectType()
+export class RunmjBizAppsContractsContractTemplateProvisionViewResult {
+    @Field(() => [mjBizAppsContractsContractTemplateProvision_])
+    Results: mjBizAppsContractsContractTemplateProvision_[];
+
+    @Field(() => String, {nullable: true})
+    UserViewRunID?: string;
+
+    @Field(() => Int, {nullable: true})
+    RowCount: number;
+
+    @Field(() => Int, {nullable: true})
+    TotalRowCount: number;
+
+    @Field(() => Int, {nullable: true})
+    ExecutionTime: number;
+
+    @Field({nullable: true})
+    ErrorMessage?: string;
+
+    @Field(() => Boolean, {nullable: false})
+    Success: boolean;
+}
+
+@Resolver(mjBizAppsContractsContractTemplateProvision_)
+export class mjBizAppsContractsContractTemplateProvisionResolver extends ResolverBase {
+    @Query(() => RunmjBizAppsContractsContractTemplateProvisionViewResult)
+    async RunmjBizAppsContractsContractTemplateProvisionViewByID(@Arg('input', () => RunViewByIDInput) input: RunViewByIDInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
+        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
+        return super.RunViewByIDGeneric(input, provider, userPayload, pubSub);
+    }
+
+    @Query(() => RunmjBizAppsContractsContractTemplateProvisionViewResult)
+    async RunmjBizAppsContractsContractTemplateProvisionViewByName(@Arg('input', () => RunViewByNameInput) input: RunViewByNameInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
+        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
+        return super.RunViewByNameGeneric(input, provider, userPayload, pubSub);
+    }
+
+    @Query(() => RunmjBizAppsContractsContractTemplateProvisionViewResult)
+    async RunmjBizAppsContractsContractTemplateProvisionDynamicView(@Arg('input', () => RunDynamicViewInput) input: RunDynamicViewInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
+        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
+        input.EntityName = 'MJ_BizApps_Contracts: Contract Template Provisions';
+        return super.RunDynamicViewGeneric(input, provider, userPayload, pubSub);
+    }
+    @Query(() => mjBizAppsContractsContractTemplateProvision_, { nullable: true })
+    async mjBizAppsContractsContractTemplateProvision(@Arg('ID', () => String) ID: string, @Ctx() { userPayload, providers }: AppContext, @PubSub() pubSub: PubSubEngine): Promise<mjBizAppsContractsContractTemplateProvision_ | null> {
+        this.CheckUserReadPermissions('MJ_BizApps_Contracts: Contract Template Provisions', userPayload);
+        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
+        const sSQL = `SELECT * FROM ${provider.QuoteSchemaAndView('__mj_BizAppsContracts', 'vwContractTemplateProvisions')} WHERE ${provider.QuoteIdentifier('ID')}=${provider.BuildParameterPlaceholder(0)} ` + this.getRowLevelSecurityWhereClause(provider, 'MJ_BizApps_Contracts: Contract Template Provisions', userPayload, EntityPermissionType.Read, 'AND');
+        const rows = await provider.ExecuteSQL(sSQL, [ID], undefined, this.GetUserFromPayload(userPayload));
+        const result = await this.MapFieldNamesToCodeNames('MJ_BizApps_Contracts: Contract Template Provisions', rows && rows.length > 0 ? rows[0] : null, this.GetUserFromPayload(userPayload));
+        return result;
+    }
+    
+    @FieldResolver(() => [mjBizAppsContractsContractTemplateModification_])
+    async mjBizAppsContractsContractTemplateModifications_ContractTemplateProvisionIDArray(@Root() mjbizappscontractscontracttemplateprovision_: mjBizAppsContractsContractTemplateProvision_, @Ctx() { userPayload, providers }: AppContext, @PubSub() pubSub: PubSubEngine) {
+        this.CheckUserReadPermissions('MJ_BizApps_Contracts: Contract Template Modifications', userPayload);
+        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
+        const sSQL = `SELECT * FROM ${provider.QuoteSchemaAndView('__mj_BizAppsContracts', 'vwContractTemplateModifications')} WHERE ${provider.QuoteIdentifier('ContractTemplateProvisionID')}=${provider.BuildParameterPlaceholder(0)} ` + this.getRowLevelSecurityWhereClause(provider, 'MJ_BizApps_Contracts: Contract Template Modifications', userPayload, EntityPermissionType.Read, 'AND');
+        const rows = await provider.ExecuteSQL(sSQL, [mjbizappscontractscontracttemplateprovision_.ID], undefined, this.GetUserFromPayload(userPayload));
+        const result = await this.ArrayMapFieldNamesToCodeNames('MJ_BizApps_Contracts: Contract Template Modifications', rows, this.GetUserFromPayload(userPayload));
+        return result;
+    }
+        
+    @Mutation(() => mjBizAppsContractsContractTemplateProvision_)
+    async CreatemjBizAppsContractsContractTemplateProvision(
+        @Arg('input', () => CreatemjBizAppsContractsContractTemplateProvisionInput) input: CreatemjBizAppsContractsContractTemplateProvisionInput,
+        @Ctx() { providers, userPayload }: AppContext,
+        @PubSub() pubSub: PubSubEngine
+    ) {
+        const provider = GetReadWriteProvider(providers);
+        return this.CreateRecord('MJ_BizApps_Contracts: Contract Template Provisions', input, provider, userPayload, pubSub)
+    }
+        
+    @Mutation(() => mjBizAppsContractsContractTemplateProvision_)
+    async UpdatemjBizAppsContractsContractTemplateProvision(
+        @Arg('input', () => UpdatemjBizAppsContractsContractTemplateProvisionInput) input: UpdatemjBizAppsContractsContractTemplateProvisionInput,
+        @Ctx() { providers, userPayload }: AppContext,
+        @PubSub() pubSub: PubSubEngine
+    ) {
+        const provider = GetReadWriteProvider(providers);
+        return this.UpdateRecord('MJ_BizApps_Contracts: Contract Template Provisions', input, provider, userPayload, pubSub);
+    }
+    
+    @Mutation(() => mjBizAppsContractsContractTemplateProvision_)
+    async DeletemjBizAppsContractsContractTemplateProvision(@Arg('ID', () => String) ID: string, @Arg('options___', () => DeleteOptionsInput) options: DeleteOptionsInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
+        const provider = GetReadWriteProvider(providers);
+        const key = new CompositeKey([{FieldName: 'ID', Value: ID}]);
+        return this.DeleteRecord('MJ_BizApps_Contracts: Contract Template Provisions', key, options, provider, userPayload, pubSub);
+    }
+    
+}
+
+//****************************************************************************
+// ENTITY CLASS for MJ_BizApps_Contracts: Contract Template Types
+//****************************************************************************
+@ObjectType({ description: `The kind of standard agreement (Master Agreement, Statement of Work). A lookup TABLE rather than a CHECK because the list is additive at runtime and a business user should be able to add one without a migration. Carries no behaviour.` })
+export class mjBizAppsContractsContractTemplateType_ {
+    @Field() 
+    @MaxLength(36)
+    ID: string;
         
     @Field() 
     @MaxLength(100)
@@ -1852,44 +557,404 @@ export class mjBizAppsContractsContractType_ {
     @Field({nullable: true}) 
     Description?: string;
         
-    @Field(() => Int, {nullable: true}) 
-    DefaultTermMonths?: number;
+    @Field({description: `Active | Inactive. Retiring a type hides it from pickers without touching the templates that used it.`}) 
+    @MaxLength(10)
+    Status: string;
+        
+    @Field() 
+    _mj__CreatedAt: Date;
+        
+    @Field() 
+    _mj__UpdatedAt: Date;
+        
+    @Field(() => [mjBizAppsContractsContractTemplate_])
+    mjBizAppsContractsContractTemplates_ContractTemplateTypeIDArray: mjBizAppsContractsContractTemplate_[]; // Link to mjBizAppsContractsContractTemplates
+    
+}
+
+//****************************************************************************
+// INPUT TYPE for MJ_BizApps_Contracts: Contract Template Types
+//****************************************************************************
+@InputType()
+export class CreatemjBizAppsContractsContractTemplateTypeInput {
+    @Field({ nullable: true })
+    ID?: string;
+
+    @Field({ nullable: true })
+    Name?: string;
+
+    @Field({ nullable: true })
+    Description: string | null;
+
+    @Field({ nullable: true })
+    Status?: string;
+
+    @Field(() => RestoreContextInput, { nullable: true })
+    RestoreContext___?: RestoreContextInput;
+}
+    
+
+//****************************************************************************
+// INPUT TYPE for MJ_BizApps_Contracts: Contract Template Types
+//****************************************************************************
+@InputType()
+export class UpdatemjBizAppsContractsContractTemplateTypeInput {
+    @Field()
+    ID: string;
+
+    @Field({ nullable: true })
+    Name?: string;
+
+    @Field({ nullable: true })
+    Description?: string | null;
+
+    @Field({ nullable: true })
+    Status?: string;
+
+    @Field(() => [KeyValuePairInput], { nullable: true })
+    OldValues___?: KeyValuePairInput[];
+
+    @Field(() => RestoreContextInput, { nullable: true })
+    RestoreContext___?: RestoreContextInput;
+}
+    
+//****************************************************************************
+// RESOLVER for MJ_BizApps_Contracts: Contract Template Types
+//****************************************************************************
+@ObjectType()
+export class RunmjBizAppsContractsContractTemplateTypeViewResult {
+    @Field(() => [mjBizAppsContractsContractTemplateType_])
+    Results: mjBizAppsContractsContractTemplateType_[];
+
+    @Field(() => String, {nullable: true})
+    UserViewRunID?: string;
+
+    @Field(() => Int, {nullable: true})
+    RowCount: number;
+
+    @Field(() => Int, {nullable: true})
+    TotalRowCount: number;
+
+    @Field(() => Int, {nullable: true})
+    ExecutionTime: number;
+
+    @Field({nullable: true})
+    ErrorMessage?: string;
+
+    @Field(() => Boolean, {nullable: false})
+    Success: boolean;
+}
+
+@Resolver(mjBizAppsContractsContractTemplateType_)
+export class mjBizAppsContractsContractTemplateTypeResolver extends ResolverBase {
+    @Query(() => RunmjBizAppsContractsContractTemplateTypeViewResult)
+    async RunmjBizAppsContractsContractTemplateTypeViewByID(@Arg('input', () => RunViewByIDInput) input: RunViewByIDInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
+        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
+        return super.RunViewByIDGeneric(input, provider, userPayload, pubSub);
+    }
+
+    @Query(() => RunmjBizAppsContractsContractTemplateTypeViewResult)
+    async RunmjBizAppsContractsContractTemplateTypeViewByName(@Arg('input', () => RunViewByNameInput) input: RunViewByNameInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
+        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
+        return super.RunViewByNameGeneric(input, provider, userPayload, pubSub);
+    }
+
+    @Query(() => RunmjBizAppsContractsContractTemplateTypeViewResult)
+    async RunmjBizAppsContractsContractTemplateTypeDynamicView(@Arg('input', () => RunDynamicViewInput) input: RunDynamicViewInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
+        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
+        input.EntityName = 'MJ_BizApps_Contracts: Contract Template Types';
+        return super.RunDynamicViewGeneric(input, provider, userPayload, pubSub);
+    }
+    @Query(() => mjBizAppsContractsContractTemplateType_, { nullable: true })
+    async mjBizAppsContractsContractTemplateType(@Arg('ID', () => String) ID: string, @Ctx() { userPayload, providers }: AppContext, @PubSub() pubSub: PubSubEngine): Promise<mjBizAppsContractsContractTemplateType_ | null> {
+        this.CheckUserReadPermissions('MJ_BizApps_Contracts: Contract Template Types', userPayload);
+        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
+        const sSQL = `SELECT * FROM ${provider.QuoteSchemaAndView('__mj_BizAppsContracts', 'vwContractTemplateTypes')} WHERE ${provider.QuoteIdentifier('ID')}=${provider.BuildParameterPlaceholder(0)} ` + this.getRowLevelSecurityWhereClause(provider, 'MJ_BizApps_Contracts: Contract Template Types', userPayload, EntityPermissionType.Read, 'AND');
+        const rows = await provider.ExecuteSQL(sSQL, [ID], undefined, this.GetUserFromPayload(userPayload));
+        const result = await this.MapFieldNamesToCodeNames('MJ_BizApps_Contracts: Contract Template Types', rows && rows.length > 0 ? rows[0] : null, this.GetUserFromPayload(userPayload));
+        return result;
+    }
+    
+    @FieldResolver(() => [mjBizAppsContractsContractTemplate_])
+    async mjBizAppsContractsContractTemplates_ContractTemplateTypeIDArray(@Root() mjbizappscontractscontracttemplatetype_: mjBizAppsContractsContractTemplateType_, @Ctx() { userPayload, providers }: AppContext, @PubSub() pubSub: PubSubEngine) {
+        this.CheckUserReadPermissions('MJ_BizApps_Contracts: Contract Templates', userPayload);
+        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
+        const sSQL = `SELECT * FROM ${provider.QuoteSchemaAndView('__mj_BizAppsContracts', 'vwContractTemplates')} WHERE ${provider.QuoteIdentifier('ContractTemplateTypeID')}=${provider.BuildParameterPlaceholder(0)} ` + this.getRowLevelSecurityWhereClause(provider, 'MJ_BizApps_Contracts: Contract Templates', userPayload, EntityPermissionType.Read, 'AND');
+        const rows = await provider.ExecuteSQL(sSQL, [mjbizappscontractscontracttemplatetype_.ID], undefined, this.GetUserFromPayload(userPayload));
+        const result = await this.ArrayMapFieldNamesToCodeNames('MJ_BizApps_Contracts: Contract Templates', rows, this.GetUserFromPayload(userPayload));
+        return result;
+    }
+        
+    @Mutation(() => mjBizAppsContractsContractTemplateType_)
+    async CreatemjBizAppsContractsContractTemplateType(
+        @Arg('input', () => CreatemjBizAppsContractsContractTemplateTypeInput) input: CreatemjBizAppsContractsContractTemplateTypeInput,
+        @Ctx() { providers, userPayload }: AppContext,
+        @PubSub() pubSub: PubSubEngine
+    ) {
+        const provider = GetReadWriteProvider(providers);
+        return this.CreateRecord('MJ_BizApps_Contracts: Contract Template Types', input, provider, userPayload, pubSub)
+    }
+        
+    @Mutation(() => mjBizAppsContractsContractTemplateType_)
+    async UpdatemjBizAppsContractsContractTemplateType(
+        @Arg('input', () => UpdatemjBizAppsContractsContractTemplateTypeInput) input: UpdatemjBizAppsContractsContractTemplateTypeInput,
+        @Ctx() { providers, userPayload }: AppContext,
+        @PubSub() pubSub: PubSubEngine
+    ) {
+        const provider = GetReadWriteProvider(providers);
+        return this.UpdateRecord('MJ_BizApps_Contracts: Contract Template Types', input, provider, userPayload, pubSub);
+    }
+    
+    @Mutation(() => mjBizAppsContractsContractTemplateType_)
+    async DeletemjBizAppsContractsContractTemplateType(@Arg('ID', () => String) ID: string, @Arg('options___', () => DeleteOptionsInput) options: DeleteOptionsInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
+        const provider = GetReadWriteProvider(providers);
+        const key = new CompositeKey([{FieldName: 'ID', Value: ID}]);
+        return this.DeleteRecord('MJ_BizApps_Contracts: Contract Template Types', key, options, provider, userPayload, pubSub);
+    }
+    
+}
+
+//****************************************************************************
+// ENTITY CLASS for MJ_BizApps_Contracts: Contract Templates
+//****************************************************************************
+@ObjectType({ description: `One VERSION of a standard agreement — in practice the Master Agreement. Versions matter because each is published at its own dated URL that never goes away, so a customer stays bound to the text they signed. Carries no prose of its own: every clauses standard wording lives on its ContractTemplateProvision row.` })
+export class mjBizAppsContractsContractTemplate_ {
+    @Field() 
+    @MaxLength(36)
+    ID: string;
+        
+    @Field() 
+    @MaxLength(200)
+    Name: string;
+        
+    @Field() 
+    @MaxLength(36)
+    ContractTemplateTypeID: string;
+        
+    @Field({nullable: true, description: `The version the document names itself, e.g. "v6". Free text, because it is the documents own label rather than something we derive.`}) 
+    @MaxLength(50)
+    VersionLabel?: string;
+        
+    @Field({nullable: true, description: `When this version started being offered. NOT an effective date: a template becomes effective for a customer when THAT customer signs it, never on a calendar date. Naming it EffectiveDate would invite exactly the wrong query.`}) 
+    IntroducedDate?: Date;
+        
+    @Field({description: `The dated public URL. NOT NULL — every template we have is a published URL and it is what the executed PDF cites; a template nobody can open is not a record of anything.`}) 
+    @MaxLength(1000)
+    SourceURL: string;
         
     @Field({nullable: true}) 
-    @MaxLength(20)
-    DefaultBillingFrequency?: string;
+    Description?: string;
         
-    @Field(() => Boolean) 
-    DefaultAutoRenew: boolean;
+    @Field() 
+    _mj__CreatedAt: Date;
         
-    @Field(() => Boolean) 
-    RequiresSignature: boolean;
+    @Field() 
+    _mj__UpdatedAt: Date;
         
-    @Field(() => Float, {nullable: true}) 
-    DefaultEscalationPercent?: number;
+    @Field() 
+    @MaxLength(100)
+    ContractTemplateType: string;
         
-    @Field(() => Float, {nullable: true}) 
-    DefaultMaxEscalationPercent?: number;
+    @Field(() => [mjBizAppsContractsContract_])
+    mjBizAppsContractsContracts_ContractTemplateIDArray: mjBizAppsContractsContract_[]; // Link to mjBizAppsContractsContracts
+    
+    @Field(() => [mjBizAppsContractsContractTemplateProvision_])
+    mjBizAppsContractsContractTemplateProvisions_ContractTemplateIDArray: mjBizAppsContractsContractTemplateProvision_[]; // Link to mjBizAppsContractsContractTemplateProvisions
+    
+}
+
+//****************************************************************************
+// INPUT TYPE for MJ_BizApps_Contracts: Contract Templates
+//****************************************************************************
+@InputType()
+export class CreatemjBizAppsContractsContractTemplateInput {
+    @Field({ nullable: true })
+    ID?: string;
+
+    @Field({ nullable: true })
+    Name?: string;
+
+    @Field({ nullable: true })
+    ContractTemplateTypeID?: string;
+
+    @Field({ nullable: true })
+    VersionLabel: string | null;
+
+    @Field({ nullable: true })
+    IntroducedDate: Date | null;
+
+    @Field({ nullable: true })
+    SourceURL?: string;
+
+    @Field({ nullable: true })
+    Description: string | null;
+
+    @Field(() => RestoreContextInput, { nullable: true })
+    RestoreContext___?: RestoreContextInput;
+}
+    
+
+//****************************************************************************
+// INPUT TYPE for MJ_BizApps_Contracts: Contract Templates
+//****************************************************************************
+@InputType()
+export class UpdatemjBizAppsContractsContractTemplateInput {
+    @Field()
+    ID: string;
+
+    @Field({ nullable: true })
+    Name?: string;
+
+    @Field({ nullable: true })
+    ContractTemplateTypeID?: string;
+
+    @Field({ nullable: true })
+    VersionLabel?: string | null;
+
+    @Field({ nullable: true })
+    IntroducedDate?: Date | null;
+
+    @Field({ nullable: true })
+    SourceURL?: string;
+
+    @Field({ nullable: true })
+    Description?: string | null;
+
+    @Field(() => [KeyValuePairInput], { nullable: true })
+    OldValues___?: KeyValuePairInput[];
+
+    @Field(() => RestoreContextInput, { nullable: true })
+    RestoreContext___?: RestoreContextInput;
+}
+    
+//****************************************************************************
+// RESOLVER for MJ_BizApps_Contracts: Contract Templates
+//****************************************************************************
+@ObjectType()
+export class RunmjBizAppsContractsContractTemplateViewResult {
+    @Field(() => [mjBizAppsContractsContractTemplate_])
+    Results: mjBizAppsContractsContractTemplate_[];
+
+    @Field(() => String, {nullable: true})
+    UserViewRunID?: string;
+
+    @Field(() => Int, {nullable: true})
+    RowCount: number;
+
+    @Field(() => Int, {nullable: true})
+    TotalRowCount: number;
+
+    @Field(() => Int, {nullable: true})
+    ExecutionTime: number;
+
+    @Field({nullable: true})
+    ErrorMessage?: string;
+
+    @Field(() => Boolean, {nullable: false})
+    Success: boolean;
+}
+
+@Resolver(mjBizAppsContractsContractTemplate_)
+export class mjBizAppsContractsContractTemplateResolver extends ResolverBase {
+    @Query(() => RunmjBizAppsContractsContractTemplateViewResult)
+    async RunmjBizAppsContractsContractTemplateViewByID(@Arg('input', () => RunViewByIDInput) input: RunViewByIDInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
+        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
+        return super.RunViewByIDGeneric(input, provider, userPayload, pubSub);
+    }
+
+    @Query(() => RunmjBizAppsContractsContractTemplateViewResult)
+    async RunmjBizAppsContractsContractTemplateViewByName(@Arg('input', () => RunViewByNameInput) input: RunViewByNameInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
+        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
+        return super.RunViewByNameGeneric(input, provider, userPayload, pubSub);
+    }
+
+    @Query(() => RunmjBizAppsContractsContractTemplateViewResult)
+    async RunmjBizAppsContractsContractTemplateDynamicView(@Arg('input', () => RunDynamicViewInput) input: RunDynamicViewInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
+        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
+        input.EntityName = 'MJ_BizApps_Contracts: Contract Templates';
+        return super.RunDynamicViewGeneric(input, provider, userPayload, pubSub);
+    }
+    @Query(() => mjBizAppsContractsContractTemplate_, { nullable: true })
+    async mjBizAppsContractsContractTemplate(@Arg('ID', () => String) ID: string, @Ctx() { userPayload, providers }: AppContext, @PubSub() pubSub: PubSubEngine): Promise<mjBizAppsContractsContractTemplate_ | null> {
+        this.CheckUserReadPermissions('MJ_BizApps_Contracts: Contract Templates', userPayload);
+        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
+        const sSQL = `SELECT * FROM ${provider.QuoteSchemaAndView('__mj_BizAppsContracts', 'vwContractTemplates')} WHERE ${provider.QuoteIdentifier('ID')}=${provider.BuildParameterPlaceholder(0)} ` + this.getRowLevelSecurityWhereClause(provider, 'MJ_BizApps_Contracts: Contract Templates', userPayload, EntityPermissionType.Read, 'AND');
+        const rows = await provider.ExecuteSQL(sSQL, [ID], undefined, this.GetUserFromPayload(userPayload));
+        const result = await this.MapFieldNamesToCodeNames('MJ_BizApps_Contracts: Contract Templates', rows && rows.length > 0 ? rows[0] : null, this.GetUserFromPayload(userPayload));
+        return result;
+    }
+    
+    @FieldResolver(() => [mjBizAppsContractsContract_])
+    async mjBizAppsContractsContracts_ContractTemplateIDArray(@Root() mjbizappscontractscontracttemplate_: mjBizAppsContractsContractTemplate_, @Ctx() { userPayload, providers }: AppContext, @PubSub() pubSub: PubSubEngine) {
+        this.CheckUserReadPermissions('MJ_BizApps_Contracts: Contracts', userPayload);
+        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
+        const sSQL = `SELECT * FROM ${provider.QuoteSchemaAndView('__mj_BizAppsContracts', 'vwContracts')} WHERE ${provider.QuoteIdentifier('ContractTemplateID')}=${provider.BuildParameterPlaceholder(0)} ` + this.getRowLevelSecurityWhereClause(provider, 'MJ_BizApps_Contracts: Contracts', userPayload, EntityPermissionType.Read, 'AND');
+        const rows = await provider.ExecuteSQL(sSQL, [mjbizappscontractscontracttemplate_.ID], undefined, this.GetUserFromPayload(userPayload));
+        const result = await this.ArrayMapFieldNamesToCodeNames('MJ_BizApps_Contracts: Contracts', rows, this.GetUserFromPayload(userPayload));
+        return result;
+    }
         
-    @Field(() => Int, {nullable: true}) 
-    DefaultRenewalNoticeDays?: number;
+    @FieldResolver(() => [mjBizAppsContractsContractTemplateProvision_])
+    async mjBizAppsContractsContractTemplateProvisions_ContractTemplateIDArray(@Root() mjbizappscontractscontracttemplate_: mjBizAppsContractsContractTemplate_, @Ctx() { userPayload, providers }: AppContext, @PubSub() pubSub: PubSubEngine) {
+        this.CheckUserReadPermissions('MJ_BizApps_Contracts: Contract Template Provisions', userPayload);
+        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
+        const sSQL = `SELECT * FROM ${provider.QuoteSchemaAndView('__mj_BizAppsContracts', 'vwContractTemplateProvisions')} WHERE ${provider.QuoteIdentifier('ContractTemplateID')}=${provider.BuildParameterPlaceholder(0)} ` + this.getRowLevelSecurityWhereClause(provider, 'MJ_BizApps_Contracts: Contract Template Provisions', userPayload, EntityPermissionType.Read, 'AND');
+        const rows = await provider.ExecuteSQL(sSQL, [mjbizappscontractscontracttemplate_.ID], undefined, this.GetUserFromPayload(userPayload));
+        const result = await this.ArrayMapFieldNamesToCodeNames('MJ_BizApps_Contracts: Contract Template Provisions', rows, this.GetUserFromPayload(userPayload));
+        return result;
+    }
         
-    @Field(() => Int, {nullable: true}) 
-    DefaultCancellationWindowDays?: number;
+    @Mutation(() => mjBizAppsContractsContractTemplate_)
+    async CreatemjBizAppsContractsContractTemplate(
+        @Arg('input', () => CreatemjBizAppsContractsContractTemplateInput) input: CreatemjBizAppsContractsContractTemplateInput,
+        @Ctx() { providers, userPayload }: AppContext,
+        @PubSub() pubSub: PubSubEngine
+    ) {
+        const provider = GetReadWriteProvider(providers);
+        return this.CreateRecord('MJ_BizApps_Contracts: Contract Templates', input, provider, userPayload, pubSub)
+    }
         
-    @Field({description: `How a term of this type renews. Deal = a renewal is a deal (L-18); bizapps-sales calls Contracts.RenewTerm when a renewal deal closes, so renewal gets its own pipeline and win-rate. Auto = the Scheduled Job renews with no deal, for evergreen and B2C. Manual = a human triggers it.`}) 
-    @MaxLength(20)
-    RenewalMode: string;
+    @Mutation(() => mjBizAppsContractsContractTemplate_)
+    async UpdatemjBizAppsContractsContractTemplate(
+        @Arg('input', () => UpdatemjBizAppsContractsContractTemplateInput) input: UpdatemjBizAppsContractsContractTemplateInput,
+        @Ctx() { providers, userPayload }: AppContext,
+        @PubSub() pubSub: PubSubEngine
+    ) {
+        const provider = GetReadWriteProvider(providers);
+        return this.UpdateRecord('MJ_BizApps_Contracts: Contract Templates', input, provider, userPayload, pubSub);
+    }
+    
+    @Mutation(() => mjBizAppsContractsContractTemplate_)
+    async DeletemjBizAppsContractsContractTemplate(@Arg('ID', () => String) ID: string, @Arg('options___', () => DeleteOptionsInput) options: DeleteOptionsInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
+        const provider = GetReadWriteProvider(providers);
+        const key = new CompositeKey([{FieldName: 'ID', Value: ID}]);
+        return this.DeleteRecord('MJ_BizApps_Contracts: Contract Templates', key, options, provider, userPayload, pubSub);
+    }
+    
+}
+
+//****************************************************************************
+// ENTITY CLASS for MJ_BizApps_Contracts: Contract Types
+//****************************************************************************
+@ObjectType({ description: `The kind of paper: Order Form, Statement of Work, Payment Link, Change Order. A lookup TABLE for the same reason as ContractTemplateType.` })
+export class mjBizAppsContractsContractType_ {
+    @Field() 
+    @MaxLength(36)
+    ID: string;
         
-    @Field(() => Boolean, {description: `Whether a term of this type may absorb a mid-term addition aligned to the term end date (co-terming).`}) 
-    AllowsCoterm: boolean;
+    @Field() 
+    @MaxLength(100)
+    Name: string;
         
-    @Field({nullable: true, description: `OPTIONAL ClassFactory key for a behaviour subclass, following SubscriptionType rather than RevenueRecognitionType: the columns ARE the rules and a base class reads them. Supply a driver only when a customer needs something the columns cannot express.`}) 
-    @MaxLength(255)
-    DriverClass?: string;
+    @Field({nullable: true}) 
+    Description?: string;
         
-    @Field(() => Boolean) 
-    IsActive: boolean;
+    @Field(() => Boolean, {description: `Whether paper is ever expected for this kind of contract. No for a Payment Link, which has an implied agreement and no signature. This is what stops such a contract asking forever for a document that will never arrive: "awaiting the document" is DERIVED as requires-it AND no-linked-file, never stored and never a status value.`}) 
+    RequiresExecutedDocument: boolean;
+        
+    @Field({description: `Active | Inactive.`}) 
+    @MaxLength(10)
+    Status: string;
         
     @Field() 
     _mj__CreatedAt: Date;
@@ -1911,49 +976,16 @@ export class CreatemjBizAppsContractsContractTypeInput {
     ID?: string;
 
     @Field({ nullable: true })
-    Code?: string;
-
-    @Field({ nullable: true })
     Name?: string;
 
     @Field({ nullable: true })
     Description: string | null;
 
-    @Field(() => Int, { nullable: true })
-    DefaultTermMonths: number | null;
+    @Field(() => Boolean, { nullable: true })
+    RequiresExecutedDocument?: boolean;
 
     @Field({ nullable: true })
-    DefaultBillingFrequency: string | null;
-
-    @Field(() => Boolean, { nullable: true })
-    DefaultAutoRenew?: boolean;
-
-    @Field(() => Boolean, { nullable: true })
-    RequiresSignature?: boolean;
-
-    @Field(() => Float, { nullable: true })
-    DefaultEscalationPercent: number | null;
-
-    @Field(() => Float, { nullable: true })
-    DefaultMaxEscalationPercent: number | null;
-
-    @Field(() => Int, { nullable: true })
-    DefaultRenewalNoticeDays: number | null;
-
-    @Field(() => Int, { nullable: true })
-    DefaultCancellationWindowDays: number | null;
-
-    @Field({ nullable: true })
-    RenewalMode?: string;
-
-    @Field(() => Boolean, { nullable: true })
-    AllowsCoterm?: boolean;
-
-    @Field({ nullable: true })
-    DriverClass: string | null;
-
-    @Field(() => Boolean, { nullable: true })
-    IsActive?: boolean;
+    Status?: string;
 
     @Field(() => RestoreContextInput, { nullable: true })
     RestoreContext___?: RestoreContextInput;
@@ -1969,49 +1001,16 @@ export class UpdatemjBizAppsContractsContractTypeInput {
     ID: string;
 
     @Field({ nullable: true })
-    Code?: string;
-
-    @Field({ nullable: true })
     Name?: string;
 
     @Field({ nullable: true })
     Description?: string | null;
 
-    @Field(() => Int, { nullable: true })
-    DefaultTermMonths?: number | null;
+    @Field(() => Boolean, { nullable: true })
+    RequiresExecutedDocument?: boolean;
 
     @Field({ nullable: true })
-    DefaultBillingFrequency?: string | null;
-
-    @Field(() => Boolean, { nullable: true })
-    DefaultAutoRenew?: boolean;
-
-    @Field(() => Boolean, { nullable: true })
-    RequiresSignature?: boolean;
-
-    @Field(() => Float, { nullable: true })
-    DefaultEscalationPercent?: number | null;
-
-    @Field(() => Float, { nullable: true })
-    DefaultMaxEscalationPercent?: number | null;
-
-    @Field(() => Int, { nullable: true })
-    DefaultRenewalNoticeDays?: number | null;
-
-    @Field(() => Int, { nullable: true })
-    DefaultCancellationWindowDays?: number | null;
-
-    @Field({ nullable: true })
-    RenewalMode?: string;
-
-    @Field(() => Boolean, { nullable: true })
-    AllowsCoterm?: boolean;
-
-    @Field({ nullable: true })
-    DriverClass?: string | null;
-
-    @Field(() => Boolean, { nullable: true })
-    IsActive?: boolean;
+    Status?: string;
 
     @Field(() => [KeyValuePairInput], { nullable: true })
     OldValues___?: KeyValuePairInput[];
@@ -2119,7 +1118,7 @@ export class mjBizAppsContractsContractTypeResolver extends ResolverBase {
 //****************************************************************************
 // ENTITY CLASS for MJ_BizApps_Contracts: Contracts
 //****************************************************************************
-@ObjectType({ description: `The agreement. Deliberately carries NO reference to a Deal (L-15): sales sits above contracts so a reference upward inverts the dependency graph, and the cardinality is one contract to MANY deals (the original sale, every renewal, every expansion). The reverse lookup lives in sales as Deal.ContractID and returns a set.` })
+@ObjectType({ description: `The signed agreement — one row per piece of signed (or implied) paper, and the centre of the app. Carries NO hard reference to a Deal: sales creates contracts, so sales depends on this app and a reference upward would invert the dependency graph. The link is the typed polymorphic pair CreatingEntityID + CreatingRecordID.` })
 export class mjBizAppsContractsContract_ {
     @Field() 
     @MaxLength(36)
@@ -2133,65 +1132,74 @@ export class mjBizAppsContractsContract_ {
     @MaxLength(36)
     ContractTypeID: string;
         
-    @Field({description: `The SELLING company (__mj.Company) — which of our entities holds this agreement. Not the customer.`}) 
+    @Field({description: `The SELLING company (__mj.Company) — which of OUR entities holds this agreement. Not the customer. Stored rather than derived because it is not reliably recoverable from the deal.`}) 
     @MaxLength(36)
     CompanyID: string;
         
-    @Field({nullable: true, description: `The customer, when the customer is an organization. EXACTLY ONE of CustomerOrganizationID / CustomerPersonID is set, enforced by CK_Contract_CustomerXor.`}) 
+    @Field({description: `The customer. NOT NULL: contracts are B2B here by definition, and the individual case lives entirely in orders. v1 allowed an organization-or-person XOR; that is gone.`}) 
     @MaxLength(36)
-    CustomerOrganizationID?: string;
+    CustomerOrganizationID: string;
         
-    @Field({nullable: true, description: `The customer, when the customer is an individual. EXACTLY ONE of CustomerOrganizationID / CustomerPersonID is set, enforced by CK_Contract_CustomerXor.`}) 
-    @MaxLength(36)
-    CustomerPersonID?: string;
-        
-    @Field({nullable: true}) 
+    @Field({nullable: true, description: `Their named contact, optional.`}) 
     @MaxLength(36)
     PrimaryContactPersonID?: string;
         
-    @Field({nullable: true}) 
+    @Field({nullable: true, description: `The agreement version this contract incorporates. Nullable because a contract created automatically at Closed Won has none until finance reads the PDF.`}) 
     @MaxLength(36)
-    OwnerUserID?: string;
+    ContractTemplateID?: string;
         
-    @Field({nullable: true, description: `Self-FK for MSA -> SOW nesting (D-5). Modelled as a self-reference rather than a distinct Agreement entity until the two genuinely diverge.`}) 
+    @Field({nullable: true, description: `Polymorphic reference part 1: the MJ Entity of the record that CREATED this contract, in practice Deals. A real foreign key to __mj.Entity — this is the half that is enforced, and the half that lets MJ resolve the pair generically. Same pattern accounting uses for JournalEntry provenance.`}) 
+    @MaxLength(36)
+    CreatingEntityID?: string;
+        
+    @Field({nullable: true, description: `Polymorphic reference part 2: the creating records id. Soft by nature — it points at a record owned by an app this repo has no knowledge of. Set together with CreatingEntityID or not at all.`}) 
+    @MaxLength(450)
+    CreatingRecordID?: string;
+        
+    @Field({nullable: true, description: `The contract this one amends. How a change order attaches: a change order is signed paper with its own PDF, dates and modifications, so it reuses this entity rather than getting one of its own. The original stays in force.`}) 
     @MaxLength(36)
     ParentContractID?: string;
         
-    @Field({nullable: true}) 
+    @Field({nullable: true, description: `The contract that REPLACED this one, where an agreement was re-papered rather than amended. Also the sole source of the derived Superseded state, which is why the old CHECK tying it to a Status column disappeared with that column.`}) 
     @MaxLength(36)
     SupersededByContractID?: string;
         
-    @Field() 
-    @MaxLength(30)
-    Status: string;
+    @Field({nullable: true, description: `Direct link to the document in the signing provider (PandaDoc). The fallback that works before any integration exists, and when a storage sync has broken.`}) 
+    @MaxLength(1000)
+    SigningProviderURL?: string;
+        
+    @Field({nullable: true, description: `When the agreement takes effect.`}) 
+    EffectiveDate?: Date;
+        
+    @Field({nullable: true, description: `When it was signed. May legitimately PRECEDE EffectiveDate — sign in December for a January start is the ordinary case. There is deliberately no constraint ordering the two; v1 had one and it rejected exactly the data a correct contract produces.`}) 
+    ExecutedDate?: Date;
+        
+    @Field({nullable: true, description: `When the current term ends. This is what drives the renewal watchlist and every expiry projection.`}) 
+    EndDate?: Date;
+        
+    @Field({nullable: true, description: `When the agreement ended early. Stored rather than derived: it is only recoverable from a successors effective date, and a contract can end with no successor at all when a customer simply leaves.`}) 
+    TerminatedDate?: Date;
+        
+    @Field(() => Boolean, {description: `Whether the agreement auto-renews, AS THE PAPER STATES IT. True or false, no third state. Distinct from the subscriptions operational setting in orders, which someone can change later; when the two disagree that is a finding, not a bug.`}) 
+    AutoRenew: boolean;
+        
+    @Field(() => Int, {nullable: true, description: `Days of written notice we owe before a renewal price change, as stated in the agreement. NOT the same field as CancellationWindowDays even though many agreements set them equal — conflating them silently is how a notice obligation gets missed.`}) 
+    RenewalNoticeDays?: number;
+        
+    @Field(() => Int, {nullable: true, description: `Days of notice the customer owes to cancel without renewing.`}) 
+    CancellationWindowDays?: number;
+        
+    @Field(() => Float, {nullable: true, description: `The negotiated year-over-year uplift. Exists here because it exists nowhere else: the orders schema has no escalation concept of any kind, which is why a two-year agreement stepping up 10% in year two is recorded in no other system.`}) 
+    AnnualIncreasePercent?: number;
+        
+    @Field(() => Boolean, {description: `Whether the standard agreement was changed for this customer. ASSERTED by a person, not derived — its job is to say "go read the PDF" BEFORE anyone has recorded the modifications, and a derived flag would read false for every contract nobody has processed yet. One direction IS enforced server-side: if modification rows exist this must be true. It is never cleared automatically.`}) 
+    HasModifications: boolean;
         
     @Field({nullable: true}) 
     Description?: string;
         
-    @Field({nullable: true}) 
-    EffectiveDate?: Date;
-        
-    @Field({nullable: true}) 
-    ExecutedDate?: Date;
-        
-    @Field({nullable: true}) 
-    PricedAt?: Date;
-        
-    @Field(() => Boolean) 
-    AutoRenew: boolean;
-        
-    @Field(() => Int, {nullable: true}) 
-    CancellationWindowDays?: number;
-        
-    @Field(() => Int, {nullable: true}) 
-    RenewalNoticeDays?: number;
-        
-    @Field({nullable: true}) 
-    TerminationPolicy?: string;
-        
-    @Field({nullable: true}) 
-    @MaxLength(255)
-    ExternalReferenceID?: string;
+    @Field({nullable: true, description: `Free-text working notes for whoever is processing the contract.`}) 
+    Notes?: string;
         
     @Field() 
     _mj__CreatedAt: Date;
@@ -2207,21 +1215,29 @@ export class mjBizAppsContractsContract_ {
     @MaxLength(50)
     Company: string;
         
-    @Field({nullable: true}) 
+    @Field() 
     @MaxLength(255)
-    CustomerOrganization?: string;
-        
-    @Field({nullable: true}) 
-    @MaxLength(201)
-    CustomerPerson?: string;
-        
-    @Field({nullable: true}) 
-    @MaxLength(201)
-    PrimaryContactPerson?: string;
+    CustomerOrganization: string;
         
     @Field({nullable: true}) 
     @MaxLength(100)
-    OwnerUser?: string;
+    PrimaryContactPerson?: string;
+        
+    @Field({nullable: true}) 
+    @MaxLength(200)
+    ContractTemplate?: string;
+        
+    @Field({nullable: true}) 
+    @MaxLength(255)
+    CreatingEntity?: string;
+        
+    @Field({nullable: true}) 
+    @MaxLength(50)
+    ParentContract?: string;
+        
+    @Field({nullable: true}) 
+    @MaxLength(50)
+    SupersededByContract?: string;
         
     @Field({nullable: true}) 
     @MaxLength(36)
@@ -2231,17 +1247,33 @@ export class mjBizAppsContractsContract_ {
     @MaxLength(36)
     RootSupersededByContractID?: string;
         
+    @Field() 
+    @MaxLength(10)
+    State: string;
+        
+    @Field(() => Boolean, {nullable: true}) 
+    IsAwaitingDocument?: boolean;
+        
+    @Field(() => Boolean, {nullable: true}) 
+    IsChangeOrder?: boolean;
+        
+    @Field(() => Int, {nullable: true}) 
+    DaysToEnd?: number;
+        
+    @Field({nullable: true}) 
+    RenewalNoticeDeadline?: Date;
+        
+    @Field(() => Boolean, {nullable: true}) 
+    IsInCancellationWindow?: boolean;
+        
     @Field(() => [mjBizAppsContractsContract_])
     mjBizAppsContractsContracts_SupersededByContractIDArray: mjBizAppsContractsContract_[]; // Link to mjBizAppsContractsContracts
     
     @Field(() => [mjBizAppsContractsContract_])
     mjBizAppsContractsContracts_ParentContractIDArray: mjBizAppsContractsContract_[]; // Link to mjBizAppsContractsContracts
     
-    @Field(() => [mjBizAppsContractsContractEvent_])
-    mjBizAppsContractsContractEvents_ContractIDArray: mjBizAppsContractsContractEvent_[]; // Link to mjBizAppsContractsContractEvents
-    
-    @Field(() => [mjBizAppsContractsContractTerm_])
-    mjBizAppsContractsContractTerms_ContractIDArray: mjBizAppsContractsContractTerm_[]; // Link to mjBizAppsContractsContractTerms
+    @Field(() => [mjBizAppsContractsContractTemplateModification_])
+    mjBizAppsContractsContractTemplateModifications_ContractIDArray: mjBizAppsContractsContractTemplateModification_[]; // Link to mjBizAppsContractsContractTemplateModifications
     
 }
 
@@ -2263,16 +1295,19 @@ export class CreatemjBizAppsContractsContractInput {
     CompanyID?: string;
 
     @Field({ nullable: true })
-    CustomerOrganizationID: string | null;
-
-    @Field({ nullable: true })
-    CustomerPersonID: string | null;
+    CustomerOrganizationID?: string;
 
     @Field({ nullable: true })
     PrimaryContactPersonID: string | null;
 
     @Field({ nullable: true })
-    OwnerUserID: string | null;
+    ContractTemplateID: string | null;
+
+    @Field({ nullable: true })
+    CreatingEntityID: string | null;
+
+    @Field({ nullable: true })
+    CreatingRecordID: string | null;
 
     @Field({ nullable: true })
     ParentContractID: string | null;
@@ -2281,10 +1316,7 @@ export class CreatemjBizAppsContractsContractInput {
     SupersededByContractID: string | null;
 
     @Field({ nullable: true })
-    Status?: string;
-
-    @Field({ nullable: true })
-    Description: string | null;
+    SigningProviderURL: string | null;
 
     @Field({ nullable: true })
     EffectiveDate: Date | null;
@@ -2293,22 +1325,31 @@ export class CreatemjBizAppsContractsContractInput {
     ExecutedDate: Date | null;
 
     @Field({ nullable: true })
-    PricedAt: Date | null;
+    EndDate: Date | null;
+
+    @Field({ nullable: true })
+    TerminatedDate: Date | null;
 
     @Field(() => Boolean, { nullable: true })
     AutoRenew?: boolean;
 
     @Field(() => Int, { nullable: true })
-    CancellationWindowDays: number | null;
-
-    @Field(() => Int, { nullable: true })
     RenewalNoticeDays: number | null;
 
-    @Field({ nullable: true })
-    TerminationPolicy: string | null;
+    @Field(() => Int, { nullable: true })
+    CancellationWindowDays: number | null;
+
+    @Field(() => Float, { nullable: true })
+    AnnualIncreasePercent: number | null;
+
+    @Field(() => Boolean, { nullable: true })
+    HasModifications?: boolean;
 
     @Field({ nullable: true })
-    ExternalReferenceID: string | null;
+    Description: string | null;
+
+    @Field({ nullable: true })
+    Notes: string | null;
 
     @Field(() => RestoreContextInput, { nullable: true })
     RestoreContext___?: RestoreContextInput;
@@ -2333,16 +1374,19 @@ export class UpdatemjBizAppsContractsContractInput {
     CompanyID?: string;
 
     @Field({ nullable: true })
-    CustomerOrganizationID?: string | null;
-
-    @Field({ nullable: true })
-    CustomerPersonID?: string | null;
+    CustomerOrganizationID?: string;
 
     @Field({ nullable: true })
     PrimaryContactPersonID?: string | null;
 
     @Field({ nullable: true })
-    OwnerUserID?: string | null;
+    ContractTemplateID?: string | null;
+
+    @Field({ nullable: true })
+    CreatingEntityID?: string | null;
+
+    @Field({ nullable: true })
+    CreatingRecordID?: string | null;
 
     @Field({ nullable: true })
     ParentContractID?: string | null;
@@ -2351,10 +1395,7 @@ export class UpdatemjBizAppsContractsContractInput {
     SupersededByContractID?: string | null;
 
     @Field({ nullable: true })
-    Status?: string;
-
-    @Field({ nullable: true })
-    Description?: string | null;
+    SigningProviderURL?: string | null;
 
     @Field({ nullable: true })
     EffectiveDate?: Date | null;
@@ -2363,22 +1404,31 @@ export class UpdatemjBizAppsContractsContractInput {
     ExecutedDate?: Date | null;
 
     @Field({ nullable: true })
-    PricedAt?: Date | null;
+    EndDate?: Date | null;
+
+    @Field({ nullable: true })
+    TerminatedDate?: Date | null;
 
     @Field(() => Boolean, { nullable: true })
     AutoRenew?: boolean;
 
     @Field(() => Int, { nullable: true })
-    CancellationWindowDays?: number | null;
-
-    @Field(() => Int, { nullable: true })
     RenewalNoticeDays?: number | null;
 
-    @Field({ nullable: true })
-    TerminationPolicy?: string | null;
+    @Field(() => Int, { nullable: true })
+    CancellationWindowDays?: number | null;
+
+    @Field(() => Float, { nullable: true })
+    AnnualIncreasePercent?: number | null;
+
+    @Field(() => Boolean, { nullable: true })
+    HasModifications?: boolean;
 
     @Field({ nullable: true })
-    ExternalReferenceID?: string | null;
+    Description?: string | null;
+
+    @Field({ nullable: true })
+    Notes?: string | null;
 
     @Field(() => [KeyValuePairInput], { nullable: true })
     OldValues___?: KeyValuePairInput[];
@@ -2464,23 +1514,13 @@ export class mjBizAppsContractsContractResolver extends ResolverBase {
         return result;
     }
         
-    @FieldResolver(() => [mjBizAppsContractsContractEvent_])
-    async mjBizAppsContractsContractEvents_ContractIDArray(@Root() mjbizappscontractscontract_: mjBizAppsContractsContract_, @Ctx() { userPayload, providers }: AppContext, @PubSub() pubSub: PubSubEngine) {
-        this.CheckUserReadPermissions('MJ_BizApps_Contracts: Contract Events', userPayload);
+    @FieldResolver(() => [mjBizAppsContractsContractTemplateModification_])
+    async mjBizAppsContractsContractTemplateModifications_ContractIDArray(@Root() mjbizappscontractscontract_: mjBizAppsContractsContract_, @Ctx() { userPayload, providers }: AppContext, @PubSub() pubSub: PubSubEngine) {
+        this.CheckUserReadPermissions('MJ_BizApps_Contracts: Contract Template Modifications', userPayload);
         const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
-        const sSQL = `SELECT * FROM ${provider.QuoteSchemaAndView('__mj_BizAppsContracts', 'vwContractEvents')} WHERE ${provider.QuoteIdentifier('ContractID')}=${provider.BuildParameterPlaceholder(0)} ` + this.getRowLevelSecurityWhereClause(provider, 'MJ_BizApps_Contracts: Contract Events', userPayload, EntityPermissionType.Read, 'AND');
+        const sSQL = `SELECT * FROM ${provider.QuoteSchemaAndView('__mj_BizAppsContracts', 'vwContractTemplateModifications')} WHERE ${provider.QuoteIdentifier('ContractID')}=${provider.BuildParameterPlaceholder(0)} ` + this.getRowLevelSecurityWhereClause(provider, 'MJ_BizApps_Contracts: Contract Template Modifications', userPayload, EntityPermissionType.Read, 'AND');
         const rows = await provider.ExecuteSQL(sSQL, [mjbizappscontractscontract_.ID], undefined, this.GetUserFromPayload(userPayload));
-        const result = await this.ArrayMapFieldNamesToCodeNames('MJ_BizApps_Contracts: Contract Events', rows, this.GetUserFromPayload(userPayload));
-        return result;
-    }
-        
-    @FieldResolver(() => [mjBizAppsContractsContractTerm_])
-    async mjBizAppsContractsContractTerms_ContractIDArray(@Root() mjbizappscontractscontract_: mjBizAppsContractsContract_, @Ctx() { userPayload, providers }: AppContext, @PubSub() pubSub: PubSubEngine) {
-        this.CheckUserReadPermissions('MJ_BizApps_Contracts: Contract Terms', userPayload);
-        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
-        const sSQL = `SELECT * FROM ${provider.QuoteSchemaAndView('__mj_BizAppsContracts', 'vwContractTerms')} WHERE ${provider.QuoteIdentifier('ContractID')}=${provider.BuildParameterPlaceholder(0)} ` + this.getRowLevelSecurityWhereClause(provider, 'MJ_BizApps_Contracts: Contract Terms', userPayload, EntityPermissionType.Read, 'AND');
-        const rows = await provider.ExecuteSQL(sSQL, [mjbizappscontractscontract_.ID], undefined, this.GetUserFromPayload(userPayload));
-        const result = await this.ArrayMapFieldNamesToCodeNames('MJ_BizApps_Contracts: Contract Terms', rows, this.GetUserFromPayload(userPayload));
+        const result = await this.ArrayMapFieldNamesToCodeNames('MJ_BizApps_Contracts: Contract Template Modifications', rows, this.GetUserFromPayload(userPayload));
         return result;
     }
         
