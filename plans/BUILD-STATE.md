@@ -55,7 +55,16 @@ fields rendering as names, the renewal panel with its "as stated in the agreemen
 DERIVED notice deadline, and the modifications panel showing provision 9.1's standard clause in its
 original ALL CAPS beside the negotiated language. Zero console errors.
 
-**Still NOT proven:** item 9's document actions (register/open need a configured storage account, which
+**Also proven:** the New-record flow — the toolbar's New opens a blank contract form; the hero derives
+`Draft` and shows "Unnumbered" with its numbering explanation; the renewal and documents panels render
+their EMPTY states (including "no storage account is configured"); and **saving without the required
+foreign keys is refused with per-field messages** — validation rung 1, observed, with nothing written
+and the sequence NOT consumed.
+
+**Still NOT proven:** a SUCCESSFUL save. Filling the three FK lookups through Playwright was not
+attempted; the remaining gap is one create with two modifications, then a SQL check that header + rows
+share the transaction's outcome and `ContractNumber` minted exactly once. Also unproven: item 9's
+document actions (register/open need a configured storage account, which
 needs an Azure AD app registration — an IT task), item 11's Organization panel, and **no WRITE path has
 been executed through the UI**: nothing has created or saved a contract in the browser, so the
 one-transaction graph save (D-15) and the CTR numbering remain runtime-unverified. That is item 13's

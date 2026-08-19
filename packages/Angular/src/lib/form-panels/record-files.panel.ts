@@ -218,10 +218,13 @@ export class RecordFilesPanelBase extends BaseFormPanel implements OnInit {
      */
     public get CanDownload(): boolean {
         try {
+            // D-25 all the way down: the provider answers BOTH questions — who the user is and what
+            // the entity's permissions are. An earlier version had the provider in hand and then asked
+            // a bare `new Metadata()` for the entity anyway, which is the exact pattern the rule bans.
             const provider = this.FormComponent?.ProviderToUse ?? Metadata.Provider;
             const user = provider?.CurrentUser;
             if (!user) return false;
-            const files = new Metadata().EntityByName(ENTITY_FILES);
+            const files = provider?.EntityByName(ENTITY_FILES);
             return files?.GetUserPermisions(user)?.CanRead === true;
         } catch {
             return false;
@@ -400,7 +403,9 @@ export class RecordFilesPanelBase extends BaseFormPanel implements OnInit {
                 return;
             }
 
-            const md = new Metadata();
+            // Constructed through the HOST FORM's provider (D-25), so the file and link rows are
+            // written wherever the record being annotated came from.
+            const md = this.FormComponent?.ProviderToUse ?? Metadata.Provider;
             const file = await md.GetEntityObject<BaseEntity>(ENTITY_FILES);
             file.NewRecord();
             file.Set('Name', path.split('/').pop() || path);

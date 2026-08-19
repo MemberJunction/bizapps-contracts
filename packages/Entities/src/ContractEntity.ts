@@ -44,6 +44,7 @@ export class ContractEntity extends mjBizAppsContractsContractEntity {
      */
     public override Validate(): ValidationResult {
         const result = super.Validate();
+        this.dropSavePopulatedFieldErrors(result);
 
         if (this.HasModifications === false && this.modificationsKnownToExist()) {
             result.Success = false;
@@ -60,6 +61,34 @@ export class ContractEntity extends mjBizAppsContractsContractEntity {
         }
 
         return result;
+    }
+
+    /**
+     * Drop generated NOT-NULL errors for fields the SAVE ITSELF fills in.
+     *
+     * `ContractNumber` is NOT NULL in metadata and is minted by `ContractEntityServer.Save()` from the
+     * sequence counter, under a lock. So on a record that has not been saved yet it is legitimately
+     * empty — and the generated check reported "Contract Number cannot be null", which the form
+     * surfaced as a refusal.
+     *
+     * That made the create path IMPOSSIBLE: every attempt to save a new contract through the UI was
+     * rejected for a field the user cannot fill and the server was about to. Measured in a browser, not
+     * reasoned about — the form refused with four errors and only three of them were real.
+     *
+     * After the first save the value exists, so an empty `ContractNumber` on a SAVED record is a
+     * genuine failure and is kept. That asymmetry is the whole rule, and it is why this cannot simply
+     * be "ignore ContractNumber".
+     *
+     * Same shape as orders' `IsSavePopulatedFieldError`, narrowed: contracts has exactly one
+     * save-populated field, because nothing here prepares child rows the way orders stamps line
+     * numbers and prices.
+     */
+    private dropSavePopulatedFieldErrors(result: ValidationResult): void {
+        if (this.IsSaved) return;
+        const kept = result.Errors.filter((error) => (error.Source ?? '') !== 'ContractNumber');
+        if (kept.length === result.Errors.length) return;
+        result.Errors = kept;
+        result.Success = kept.every((error) => error.Type !== ValidationErrorType.Failure);
     }
 
     /**

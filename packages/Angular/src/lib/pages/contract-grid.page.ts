@@ -79,9 +79,30 @@ export abstract class MJCContractGridPageBase implements OnInit {
      * host wires this for generated forms; a page hosting the grid inside a BaseResourceComponent must
      * do it itself.
      */
-    public OnNavigate(event: { Kind?: string; EntityName?: string; PrimaryKey?: CompositeKey }): void {
-        if (event?.Kind !== 'record' || !event.EntityName || !event.PrimaryKey) return;
-        this.navigation.OpenEntityRecord(event.EntityName, event.PrimaryKey);
+    public OnNavigate(event: {
+        Kind?: string;
+        EntityName?: string;
+        PrimaryKey?: CompositeKey;
+        DefaultValues?: Record<string, unknown>;
+    }): void {
+        if (!event?.EntityName) return;
+        if (event.Kind === 'record' && event.PrimaryKey) {
+            this.navigation.OpenEntityRecord(event.EntityName, event.PrimaryKey);
+            return;
+        }
+        if (event.Kind === 'new-record') {
+            // TWO kinds, and missing this one meant the toolbar's New button did NOTHING on every grid
+            // page — found in the browser, after the double-click bug had already taught me the same
+            // lesson about this component. Handling only 'record' silently dropped it.
+            //
+            // ⚠ `event.DefaultValues` is DISCARDED here, and it has nowhere to go: NavigationOptions
+            // carries no default-values field, so `OpenNewEntityRecord` cannot pre-populate. Harmless on
+            // these pages (nothing sets NewRecordValues), but it means the Organization agreements
+            // panel's pre-linking to the customer will NOT survive a New click routed through here —
+            // that panel needs its own affordance, or MJ needs the option. Written down rather than
+            // discovered later as "New forgets the customer".
+            this.navigation.OpenNewEntityRecord(event.EntityName);
+        }
     }
 
     protected abstract get pills(): MJCFilterPill[];

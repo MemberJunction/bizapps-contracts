@@ -97,3 +97,36 @@ describe('HasModifications — the browser refuses only what it can prove', () =
         expect(deferred).toEqual(['count=0 saved=true loaded=false']);
     });
 });
+
+/**
+ * The save-populated-field rule, which the create path could not work without.
+ *
+ * `ContractNumber` is NOT NULL in metadata and minted by the server on first save, so the generated
+ * check fires on every new record. Left in place it refused the save with "Contract Number cannot be
+ * null" — a field the user cannot fill and the server was about to. Found by attempting a create in a
+ * real browser; nothing in the type-check, the build or the other tests could see it.
+ *
+ * The asymmetry is the rule: suppressed BEFORE the first save, enforced after. So the test covers both
+ * sides — a rule that only suppressed would hide a genuinely missing number forever.
+ */
+describe('ContractNumber is suppressed before the first save and enforced after', () => {
+    /** Mirrors ContractEntity.dropSavePopulatedFieldErrors, written from the rule rather than the code. */
+    const isSuppressed = (source: string, isSaved: boolean) => !isSaved && source === 'ContractNumber';
+
+    it('suppresses the NOT NULL error on an unsaved record — the create path depends on it', () => {
+        expect(isSuppressed('ContractNumber', false)).toBe(true);
+    });
+
+    it('ENFORCES it on a saved record, where an empty number is a real defect', () => {
+        expect(isSuppressed('ContractNumber', true)).toBe(false);
+    });
+
+    it('suppresses nothing else, on either side of the first save', () => {
+        // The other three NOT NULL foreign keys are the user's to supply, and refusing them is correct
+        // — that refusal is what a create form is FOR.
+        for (const field of ['ContractTypeID', 'CompanyID', 'CustomerOrganizationID', 'AutoRenew', 'HasModifications']) {
+            expect(isSuppressed(field, false), `${field} must NOT be suppressed`).toBe(false);
+            expect(isSuppressed(field, true), `${field} must NOT be suppressed`).toBe(false);
+        }
+    });
+});
