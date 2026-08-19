@@ -21,7 +21,13 @@
     "                            @lookup:MJ: Entity Relationships rows, which CodeGen mints when it",
     "                            registers the entities — so these can only resolve once every entity",
     "                            on both sides of every relationship exists.",
-    "  applications            — the nav row; independent, but conventionally last (orders does the same)"
+    "  applications            — the nav row; independent, but conventionally last (orders does the same)",
+    "",
+    "contract-templates and contract-provisions are wired but hold NO records yet: item 4's Master",
+    "Agreement clause list is real legal wording and is not being invented (QUESTIONS.md Q-5). The",
+    "folders are ordered now so dropping the real list in is one file and no config change. See",
+    "contract-templates/README.md for the exact shape, including why Sequence rather than",
+    "ProvisionNumber is what orders them."
   ],
   "directoryOrder": [
     "schema-info",
