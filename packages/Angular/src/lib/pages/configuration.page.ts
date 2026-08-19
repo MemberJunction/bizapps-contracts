@@ -37,9 +37,11 @@ abstract class MJCConfigPageBase implements OnInit {
 }
 
 const CONFIG_TEMPLATE = `
-    <div class="mjc-page">
+    <div class="mjc-page mjc-page--grid">
         <p class="mjc-page__intro"><ng-content /></p>
-        <mj-explorer-entity-data-grid [Params]="Params" [ShowToolbar]="true" [NavigateOnDoubleClick]="true" />
+        <div class="mjc-grid-fill">
+            <mj-explorer-entity-data-grid [Params]="Params" [ShowToolbar]="true" [NavigateOnDoubleClick]="true" />
+        </div>
     </div>
 `;
 
@@ -49,7 +51,7 @@ const CONFIG_TEMPLATE = `
     encapsulation: ViewEncapsulation.None,
     imports: [CommonModule, BaseFormsModule],
     template: `
-        <div class="mjc-page">
+        <div class="mjc-page mjc-page--grid">
             <p class="mjc-page__intro">
                 What kind of document a contract is. One column here carries a rule:
                 <strong>Requires Executed Document</strong> is what makes a contract appear on the
@@ -61,7 +63,9 @@ const CONFIG_TEMPLATE = `
                 deleting it: it stops being offered for new contracts, and every contract already
                 referencing it keeps resolving.
             </p>
-            <mj-explorer-entity-data-grid [Params]="Params" [ShowToolbar]="true" [NavigateOnDoubleClick]="true" />
+            <div class="mjc-grid-fill">
+                <mj-explorer-entity-data-grid [Params]="Params" [ShowToolbar]="true" [NavigateOnDoubleClick]="true" />
+            </div>
         </div>
     `,
 })
@@ -77,7 +81,7 @@ export class MJCContractTypesPageComponent extends MJCConfigPageBase {
     encapsulation: ViewEncapsulation.None,
     imports: [CommonModule, BaseFormsModule],
     template: `
-        <div class="mjc-page">
+        <div class="mjc-page mjc-page--grid">
             <p class="mjc-page__intro">
                 What kind of standard-terms document a version belongs to. Two rows today, and only one
                 has a real template behind it: <strong>Master Agreement</strong> is the versioned,
@@ -86,7 +90,9 @@ export class MJCContractTypesPageComponent extends MJCConfigPageBase {
                 standard SOW language but does not version it, so no template is registered against it.
                 That absence is a fact about the business, not a gap in the data.
             </p>
-            <mj-explorer-entity-data-grid [Params]="Params" [ShowToolbar]="true" [NavigateOnDoubleClick]="true" />
+            <div class="mjc-grid-fill">
+                <mj-explorer-entity-data-grid [Params]="Params" [ShowToolbar]="true" [NavigateOnDoubleClick]="true" />
+            </div>
         </div>
     `,
 })
@@ -111,7 +117,7 @@ export class MJCTemplateTypesPageComponent extends MJCConfigPageBase {
     encapsulation: ViewEncapsulation.None,
     imports: [CommonModule, BaseFormsModule],
     template: `
-        <div class="mjc-page">
+        <div class="mjc-page mjc-page--grid">
             <p class="mjc-page__intro">
                 Contract numbers are minted <code>CTR-000001</code> from a single counter, taken under a
                 lock inside the save that uses it. The next value is below.
@@ -128,7 +134,9 @@ export class MJCTemplateTypesPageComponent extends MJCConfigPageBase {
                     <p>CTR-{{ PaddedNext }}</p>
                 </div>
             }
-            <mj-explorer-entity-data-grid [Params]="Params" [ShowToolbar]="false" />
+            <div class="mjc-grid-fill">
+                <mj-explorer-entity-data-grid [Params]="Params" [ShowToolbar]="false" />
+            </div>
         </div>
     `,
 })

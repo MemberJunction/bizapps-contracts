@@ -31,6 +31,30 @@
   max-width: 78ch; /* Prose stops being readable past roughly this width. */
 }
 
+/* A page whose main content is a GRID must be full-height, and this is not cosmetic.
+   `mj-explorer-entity-data-grid` renders at `height: 100%` outside a related-entity panel, so its
+   parent needs a DEFINITE height — otherwise 100% of an auto-height parent resolves to zero and AG
+   Grid's viewport collapses while the toolbar still reports "N rows". MJ's own source documents that
+   exact symptom. Measured here: the list said "7 rows" above a completely empty table.
+
+   The shell wraps every page in `mj-page-body-interior`, which is a flex item in a fixed-height
+   column, so ITS height is definite — which is what makes `height: 100%` here resolve to something
+   real. `min-height: 0` on the fill slot is mandatory, not defensive: a flex child defaults to
+   `min-height: auto` and refuses to shrink below its content, so without it the grid pushes the page
+   taller instead of scrolling inside itself. */
+
+.mjc-page--grid {
+  height: 100%;
+  min-height: 0;
+}
+
+.mjc-grid-fill {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
 /* ── Cards ──────────────────────────────────────────────────────────────────── */
 
 .mjc-card {

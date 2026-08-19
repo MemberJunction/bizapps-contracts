@@ -35,7 +35,7 @@ interface ProvisionTally {
     encapsulation: ViewEncapsulation.None,
     imports: [CommonModule, BaseFormsModule],
     template: `
-        <div class="mjc-page">
+        <div class="mjc-page mjc-page--grid">
             <p class="mjc-page__intro">
                 Every deviation from standard terms that has been recorded, across all contracts. The
                 clauses at the top are the ones the business negotiates away most often — which is the
@@ -61,10 +61,15 @@ interface ProvisionTally {
                 </div>
             }
 
-            <mj-explorer-entity-data-grid
-                [Params]="Params"
-                [ShowToolbar]="true"
-                [NavigateOnDoubleClick]="true" />
+            <div class="mjc-grid-fill">
+
+                <mj-explorer-entity-data-grid
+
+                    [Params]="Params"
+                        [ShowToolbar]="true"
+                        [NavigateOnDoubleClick]="true" />
+
+            </div>
         </div>
     `,
 })

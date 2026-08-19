@@ -25,17 +25,19 @@ import { MJC_ENTITIES } from '../data/entity-names';
     encapsulation: ViewEncapsulation.None,
     imports: [CommonModule, BaseFormsModule],
     template: `
-        <div class="mjc-page">
+        <div class="mjc-page mjc-page--grid">
             <p class="mjc-page__intro">
                 Every published version of the standard terms. Open one to read and curate its
                 provisions. A new edition is a <strong>new row</strong> — an existing version is never
                 rewritten, because contracts already signed against it say they incorporate exactly
                 what it said at the time.
             </p>
-            <mj-explorer-entity-data-grid
-                [Params]="Params"
-                [ShowToolbar]="true"
-                [NavigateOnDoubleClick]="true" />
+            <div class="mjc-grid-fill">
+                <mj-explorer-entity-data-grid
+                    [Params]="Params"
+                        [ShowToolbar]="true"
+                        [NavigateOnDoubleClick]="true" />
+            </div>
         </div>
     `,
 })
@@ -60,17 +62,19 @@ export class MJCAgreementVersionsPageComponent implements OnInit {
     encapsulation: ViewEncapsulation.None,
     imports: [CommonModule, BaseFormsModule],
     template: `
-        <div class="mjc-page">
+        <div class="mjc-page mjc-page--grid">
             <p class="mjc-page__intro">
                 Every numbered clause across every agreement version, in document order. Ordered by
                 <code>Sequence</code>, not by provision number — <code>1.10</code> sorts before
                 <code>1.2</code> as text, and the Master Agreement's two longest sections are exactly
                 the ones that breaks.
             </p>
-            <mj-explorer-entity-data-grid
-                [Params]="Params"
-                [ShowToolbar]="true"
-                [NavigateOnDoubleClick]="true" />
+            <div class="mjc-grid-fill">
+                <mj-explorer-entity-data-grid
+                    [Params]="Params"
+                        [ShowToolbar]="true"
+                        [NavigateOnDoubleClick]="true" />
+            </div>
         </div>
     `,
 })

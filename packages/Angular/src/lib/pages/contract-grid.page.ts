@@ -162,7 +162,7 @@ export abstract class MJCContractGridPageBase implements OnInit {
 
 /** Markup shared by all three. Hoisted so a column or a pill row is styled in one place. */
 const GRID_TEMPLATE = `
-    <div class="mjc-page">
+    <div class="mjc-page mjc-page--grid">
         <p class="mjc-page__intro">{{ Intro }}</p>
 
         <div class="mjc-pills">
@@ -180,10 +180,12 @@ const GRID_TEMPLATE = `
             }
         </div>
 
-        <mj-explorer-entity-data-grid
-            [Params]="Params"
-            [ShowToolbar]="true"
-            [NavigateOnDoubleClick]="true" />
+        <div class="mjc-grid-fill">
+            <mj-explorer-entity-data-grid
+                [Params]="Params"
+                [ShowToolbar]="true"
+                [NavigateOnDoubleClick]="true" />
+        </div>
     </div>
 `;
 
