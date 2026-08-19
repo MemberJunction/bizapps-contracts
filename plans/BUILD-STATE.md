@@ -61,10 +61,25 @@ their EMPTY states (including "no storage account is configured"); and **saving 
 foreign keys is refused with per-field messages** — validation rung 1, observed, with nothing written
 and the sequence NOT consumed.
 
-**Still NOT proven:** a SUCCESSFUL save. Filling the three FK lookups through Playwright was not
-attempted; the remaining gap is one create with two modifications, then a SQL check that header + rows
-share the transaction's outcome and `ContractNumber` minted exactly once. Also unproven: item 9's
-document actions (register/open need a configured storage account, which
+**Still NOT proven — a SUCCESSFUL save, and here is exactly how far the attempts got** so the next one
+does not start over:
+
+1. **Through the form:** blocked only by FK dropdown automation. The form opens, refuses correctly, and
+   the create-path blocker is fixed — so a HUMAN can now do this in the UI. Try that first; it is
+   probably five minutes by hand and it is the truest proof.
+2. **Through MJAPI GraphQL** (mutation `CreatemjBizAppsContractsContract`, input type confirmed, no
+   `ContractNumber` supplied — the right shape for testing the minting): blocked by
+   **API key scopes**. `mjdev key` mints a key without `entity:create`, the mutation returns
+   `Access denied … requires the 'entity:create' scope`, and mjdev exposes no command to grant it.
+   Granting it means editing MJ's key-scope rules directly. That is the blocker to solve, and it is
+   worth solving once because it unlocks scripted write tests generally.
+3. **Through metadata sync:** cannot test minting at all — `ContractEntityServer` is not loaded in the
+   CLI process, which is why `demo-data/` supplies explicit numbers.
+
+What remains unobserved, precisely: `ContractNumber` minted by the server, and D-15's header + rows
+committing in one transaction. Everything about the READ path and the refusal path is observed.
+
+Also unproven: item 9's document actions (register/open need a configured storage account, which
 needs an Azure AD app registration — an IT task), item 11's Organization panel, and **no WRITE path has
 been executed through the UI**: nothing has created or saved a contract in the browser, so the
 one-transaction graph save (D-15) and the CTR numbering remain runtime-unverified. That is item 13's
