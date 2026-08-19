@@ -4,8 +4,10 @@ The running record of what is covered, what is not, and what needs a person. Cov
 against the **matrix**, not against the tests that happen to exist — an empty box is a gap even when
 every written test is green.
 
-> **Last run:** 2026-08-18, branch `build/contracts-v2`, instance `contracts-mj6`.
-> **Totals: 44 unit assertions (2 files), all passing.** Every number below was observed, not
+> **Last run:** 2026-08-19, branch `build/contracts-v2`, instance `contracts-mj6`.
+> **Totals: 64 unit assertions (4 files), all passing.** Plus a **live render check** in system
+> Chrome against a running Explorer: three sections, the full rail, the dashboard and its counts, with
+> **zero console errors and zero pageerrors** (screenshot in `design-docs/ui-design/`). Every number below was observed, not
 > estimated. Where something was not run, it says so.
 >
 > ⚠ **This ledger was reset with the v2 rebuild.** The previous version claimed *296 assertions
@@ -52,11 +54,20 @@ node test-harnesses/integration.mjs            # will report zero known bundles 
 | Derived columns on the base view | ⚠ half | ✗ | `State` is covered above; `IsAwaitingDocument`, `IsChangeOrder`, `DaysToEnd`, `RenewalNoticeDeadline`, `IsInCancellationWindow` are **verified present and typed** but their VALUES are untested — `contracts-watchlist`, item 13 |
 | Migration installs from zero | ✅ manual | — | measured on a wiped DB: 8 views, 21 sprocs, 7 entities, 77 fields, 6 derived columns, flags set. **Not yet automated** |
 | Metadata push | ✅ manual | — | `errorCount: 0`, 7 created / 9 updated, twice from zero. Not automated |
-| Screens (list, form, watchlist, editors) | ✗ | ✗ | not built yet — items 5/6/7/8/11/12 |
+| Screens render at all | ✅ manual | — | driven in system Chrome: 3 sections, 5 rail items, dashboard tiles, 0 console errors. **Not automated** |
+| Screen BEHAVIOUR (filter, open, edit, save) | ✗ | ✗ | nothing clicks through a create → filter → open → edit → save cycle yet. This is the biggest single gap |
+| Documents: register / open / gating | ✗ | ✗ | item 9 code lands unexercised — needs a configured storage account, which needs an Azure AD app registration (an IT task) |
+| Modification editor (the D-15 acceptance test) | ✗ | ✗ | `contracts-graph-save`, item 13. Compiles and renders; the one-transaction claim is **unproven at runtime** |
 
-**Honest reading of that table:** the cheap tier is real and the expensive tiers are empty. Everything
-in the `✗` rows needs either an entity instance or a live database, which is `mj test`'s job, and no
-bundle exists yet. Do not read "44 passing" as the app being tested.
+**Honest reading of that table:** the cheap tier is real, the expensive tiers are empty, and the UI has
+been proven to RENDER but not to WORK. Everything in the `✗` rows needs either an entity instance or a
+live database, which is `mj test`'s job, and no bundle exists yet. Do not read "64 passing" as the app
+being tested.
+
+**The one thing a reader should take from this file:** the schema, the metadata, the entity rules and
+the seeded data are verified from zero, repeatedly. The screens are verified to compile and to appear.
+**No user journey has been executed end to end.** That is the honest state, and it is what item 13's
+integration bundles exist to close.
 
 ---
 
@@ -81,3 +92,11 @@ is **Q-4** (Andrew's migration data), which gates item 13's demo/migration cover
 - **Migration-from-zero is verified but manual.** It is the single most valuable thing to automate
   next, because it is the check that caught the missing CodeGen capture, and it caught it on review
   rather than in CI.
+- **The render check found a bug nothing else could**, which is the argument for automating it:
+  `super.ngOnDestroy?.()` type-checks, builds clean, and produces a bundle esbuild cannot parse —
+  killing every `@RegisterClass` in the package so the app rendered no nav tab at all. A unit test
+  cannot see that; only running the app can.
+- **Do not verify builds by grepping their output.** Turbo caches tasks, so a package that once built
+  reports nothing on a later broken run, and Angular's NG-prefixed template errors do not all match a
+  `error TS` pattern. Use the exit code: `pnpm run build; echo "EXIT=$?"`. A filter that can only
+  produce a false green is not a check — this was learned by making the claim and being wrong.
