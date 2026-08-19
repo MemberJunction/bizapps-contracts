@@ -23,6 +23,8 @@
  */
 import { ChangeDetectorRef, Component, OnInit, ViewEncapsulation, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { NavigationService } from '@memberjunction/ng-shared';
+import type { CompositeKey } from '@memberjunction/core';
 import type { RunViewParams } from '@memberjunction/core';
 import { BaseFormsModule } from '@memberjunction/ng-base-forms';
 import { MJC_ENTITIES } from '../data/entity-names';
@@ -49,6 +51,8 @@ export interface MJCFilterPill {
 @Component({ template: '' })
 export abstract class MJCContractGridPageBase implements OnInit {
     protected readonly cdr = inject(ChangeDetectorRef);
+    protected readonly navigation = inject(NavigationService);
+
 
     /** Pills for this page, in display order. The first is the default. */
     public Pills: MJCFilterPill[] = [];
@@ -64,6 +68,21 @@ export abstract class MJCContractGridPageBase implements OnInit {
 
     /** Free-text restriction the user typed, ANDed with the pill. */
     public SearchText = '';
+
+
+    /**
+     * Open the double-clicked record.
+     *
+     * THE GRID DOES NOT NAVIGATE ITSELF. `NavigateOnDoubleClick` only controls whether it EMITS
+     * `Navigate`; acting on it is the HOST's job. Without this, a double-click merely selected the row
+     * — measured in a real browser, where it looked exactly like the grid being broken. Explorer's own
+     * host wires this for generated forms; a page hosting the grid inside a BaseResourceComponent must
+     * do it itself.
+     */
+    public OnNavigate(event: { Kind?: string; EntityName?: string; PrimaryKey?: CompositeKey }): void {
+        if (event?.Kind !== 'record' || !event.EntityName || !event.PrimaryKey) return;
+        this.navigation.OpenEntityRecord(event.EntityName, event.PrimaryKey);
+    }
 
     protected abstract get pills(): MJCFilterPill[];
 
@@ -184,7 +203,8 @@ const GRID_TEMPLATE = `
             <mj-explorer-entity-data-grid
                 [Params]="Params"
                 [ShowToolbar]="true"
-                [NavigateOnDoubleClick]="true" />
+                [NavigateOnDoubleClick]="true"
+                (Navigate)="OnNavigate($event)" />
         </div>
     </div>
 `;
