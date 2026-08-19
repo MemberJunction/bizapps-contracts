@@ -22,7 +22,10 @@ import { Component, ViewEncapsulation } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RegisterClass } from '@memberjunction/global';
 import { BaseFormComponent, BaseFormsModule } from '@memberjunction/ng-base-forms';
-import type { ContractEntity } from '@mj-biz-apps/contracts-entities';
+import type {
+    ContractEntity,
+    mjBizAppsContractsContractTemplateModificationEntity,
+} from '@mj-biz-apps/contracts-entities';
 import { MJC_ENTITIES } from '../data/entity-names';
 import { MJCModificationEditorComponent } from './modification-editor.component';
 
@@ -61,6 +64,13 @@ import { MJCModificationEditorComponent } from './modification-editor.component'
     `,
 })
 export class MJCModificationFormComponent extends BaseFormComponent {
+    /**
+     * `BaseFormComponent` declares `record` abstract, so every form must name its entity type — that is
+     * how the base gets typed access to the row it is editing. Same declaration the generated form
+     * makes; this class replaces that form, so it inherits the obligation.
+     */
+    public record!: mjBizAppsContractsContractTemplateModificationEntity;
+
     public Contract: ContractEntity | null = null;
     public LoadError: string | null = null;
     public ModificationID: string | null = null;
@@ -81,8 +91,8 @@ export class MJCModificationFormComponent extends BaseFormComponent {
         if (this.loadStarted) return;
         this.loadStarted = true;
 
-        const contractID = this.record?.Get?.('ContractID');
-        this.ModificationID = String(this.record?.Get?.('ID') ?? '') || null;
+        const contractID = this.record?.ContractID;
+        this.ModificationID = this.record?.ID ?? null;
         if (!contractID) {
             this.LoadError = 'This modification names no contract, which should not be possible — ContractID is NOT NULL.';
             return;
@@ -92,12 +102,12 @@ export class MJCModificationFormComponent extends BaseFormComponent {
             // D-25: construct through the FORM's provider, so the parent contract is loaded from the
             // same place this modification was.
             const contract = await this.ProviderToUse.GetEntityObject<ContractEntity>(MJC_ENTITIES.Contract);
-            if (await contract.Load(String(contractID))) {
+            if (await contract.Load(contractID)) {
                 // Load the collection so the editor finds this row in it rather than fetching again.
                 await contract.Modifications.Load();
                 this.Contract = contract;
             } else {
-                this.LoadError = `Could not load contract ${String(contractID)}.`;
+                this.LoadError = `Could not load contract ${contractID}.`;
             }
         } catch (err) {
             this.LoadError = `Could not load the parent contract: ${String(err)}`;

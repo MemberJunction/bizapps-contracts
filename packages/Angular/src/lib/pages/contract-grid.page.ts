@@ -24,7 +24,7 @@
 import { ChangeDetectorRef, Component, OnInit, ViewEncapsulation, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import type { RunViewParams } from '@memberjunction/core';
-import { ExplorerEntityDataGridComponent } from '@memberjunction/ng-base-forms';
+import { BaseFormsModule } from '@memberjunction/ng-base-forms';
 import { MJC_ENTITIES } from '../data/entity-names';
 import { ScopedRunView } from '../data/provider';
 
@@ -192,7 +192,7 @@ const GRID_TEMPLATE = `
     selector: 'mjc-all-contracts-page',
     standalone: true,
     encapsulation: ViewEncapsulation.None,
-    imports: [CommonModule, ExplorerEntityDataGridComponent],
+    imports: [CommonModule, BaseFormsModule],
     template: GRID_TEMPLATE,
 })
 export class MJCAllContractsPageComponent extends MJCContractGridPageBase {
@@ -223,7 +223,7 @@ export class MJCAllContractsPageComponent extends MJCContractGridPageBase {
     selector: 'mjc-renewals-page',
     standalone: true,
     encapsulation: ViewEncapsulation.None,
-    imports: [CommonModule, ExplorerEntityDataGridComponent],
+    imports: [CommonModule, BaseFormsModule],
     template: GRID_TEMPLATE,
 })
 export class MJCRenewalsPageComponent extends MJCContractGridPageBase {
@@ -279,7 +279,7 @@ export class MJCRenewalsPageComponent extends MJCContractGridPageBase {
     selector: 'mjc-awaiting-documents-page',
     standalone: true,
     encapsulation: ViewEncapsulation.None,
-    imports: [CommonModule, ExplorerEntityDataGridComponent],
+    imports: [CommonModule, BaseFormsModule],
     template: GRID_TEMPLATE,
 })
 export class MJCAwaitingDocumentsPageComponent extends MJCContractGridPageBase {

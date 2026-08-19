@@ -15,7 +15,7 @@
 import { ChangeDetectorRef, Component, OnInit, ViewEncapsulation, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import type { RunViewParams } from '@memberjunction/core';
-import { ExplorerEntityDataGridComponent } from '@memberjunction/ng-base-forms';
+import { BaseFormsModule } from '@memberjunction/ng-base-forms';
 import { MJC_ENTITIES } from '../data/entity-names';
 import { ScopedRunView } from '../data/provider';
 
@@ -47,7 +47,7 @@ const CONFIG_TEMPLATE = `
     selector: 'mjc-contract-types-page',
     standalone: true,
     encapsulation: ViewEncapsulation.None,
-    imports: [CommonModule, ExplorerEntityDataGridComponent],
+    imports: [CommonModule, BaseFormsModule],
     template: `
         <div class="mjc-page">
             <p class="mjc-page__intro">
@@ -75,7 +75,7 @@ export class MJCContractTypesPageComponent extends MJCConfigPageBase {
     selector: 'mjc-template-types-page',
     standalone: true,
     encapsulation: ViewEncapsulation.None,
-    imports: [CommonModule, ExplorerEntityDataGridComponent],
+    imports: [CommonModule, BaseFormsModule],
     template: `
         <div class="mjc-page">
             <p class="mjc-page__intro">
@@ -109,7 +109,7 @@ export class MJCTemplateTypesPageComponent extends MJCConfigPageBase {
     selector: 'mjc-numbering-page',
     standalone: true,
     encapsulation: ViewEncapsulation.None,
-    imports: [CommonModule, ExplorerEntityDataGridComponent],
+    imports: [CommonModule, BaseFormsModule],
     template: `
         <div class="mjc-page">
             <p class="mjc-page__intro">

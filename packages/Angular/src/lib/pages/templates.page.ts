@@ -15,7 +15,7 @@
 import { ChangeDetectorRef, Component, OnInit, ViewEncapsulation, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import type { RunViewParams } from '@memberjunction/core';
-import { ExplorerEntityDataGridComponent } from '@memberjunction/ng-base-forms';
+import { BaseFormsModule } from '@memberjunction/ng-base-forms';
 import { MJC_ENTITIES } from '../data/entity-names';
 
 /** One row per published agreement version. */
@@ -23,7 +23,7 @@ import { MJC_ENTITIES } from '../data/entity-names';
     selector: 'mjc-agreement-versions-page',
     standalone: true,
     encapsulation: ViewEncapsulation.None,
-    imports: [CommonModule, ExplorerEntityDataGridComponent],
+    imports: [CommonModule, BaseFormsModule],
     template: `
         <div class="mjc-page">
             <p class="mjc-page__intro">
@@ -58,7 +58,7 @@ export class MJCAgreementVersionsPageComponent implements OnInit {
     selector: 'mjc-all-provisions-page',
     standalone: true,
     encapsulation: ViewEncapsulation.None,
-    imports: [CommonModule, ExplorerEntityDataGridComponent],
+    imports: [CommonModule, BaseFormsModule],
     template: `
         <div class="mjc-page">
             <p class="mjc-page__intro">

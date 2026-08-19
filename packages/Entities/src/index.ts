@@ -24,6 +24,12 @@ export * from './generated/entity_subclasses';
  * refuses before the round trip and the server refuses regardless (plan §6.3). */
 export * from './ContractEntity';
 
+/* The lifecycle rule, stated once and rendered two ways (D-19 / R-19). Exported because the UI needs
+ * DeriveContractState to show a state that tracks UNSAVED edits — reading the view's stored column
+ * would contradict the form on screen — and because StateSQL() is what the migration's CASE is checked
+ * against by contract-state.test.ts. */
+export * from './contract-state';
+
 /* NOTE on `src/generated/remote_operations.ts`: CodeGen writes it, and it is deliberately NOT
  * re-exported. v2 ships zero remote operations (plan §6.3), so every symbol in that file is an
  * MJ-CORE operation (AISkill, PredictiveStudio, TaskGraph, …) emitted into every app's file

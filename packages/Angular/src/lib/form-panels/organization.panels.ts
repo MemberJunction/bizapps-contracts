@@ -16,7 +16,7 @@
 import { Component, ViewEncapsulation } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RegisterClassEx } from '@memberjunction/global';
-import { BaseFormPanel, BaseFormsModule, ExplorerEntityDataGridComponent } from '@memberjunction/ng-base-forms';
+import { BaseFormPanel, BaseFormsModule } from '@memberjunction/ng-base-forms';
 import type { BaseEntity, RunViewParams } from '@memberjunction/core';
 import { MJC_ENTITIES, MJC_FOREIGN_ENTITIES } from '../data/entity-names';
 
@@ -36,7 +36,7 @@ import { MJC_ENTITIES, MJC_FOREIGN_ENTITIES } from '../data/entity-names';
     selector: 'mjc-organization-agreements-panel',
     standalone: true,
     encapsulation: ViewEncapsulation.None,
-    imports: [CommonModule, BaseFormsModule, ExplorerEntityDataGridComponent],
+    imports: [CommonModule, BaseFormsModule],
     template: `
         <div class="mjc-card">
             <h3 class="mjc-card__title">Agreements</h3>
