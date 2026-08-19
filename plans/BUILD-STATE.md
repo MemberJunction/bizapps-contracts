@@ -23,27 +23,39 @@ Both plan docs are already merged to `next` (PR #6), so `build/contracts-v2` bui
 
 ---
 
-## 2. Work items — status (updated 2026-08-19, after items 1–7 + 11–12)
+## 2. Work items — status (updated 2026-08-19 late, all requested items done in code)
 
 | Item | State | Evidence |
 |---|---|---|
-| 1 Retire v1 + baseline | **DONE** | from-zero: 8 views, 21 sprocs, 7 entities, 77 fields, 6 derived cols |
-| 2 Metadata | **DONE** | `mj sync push` errorCount 0; collections emit `DeclareRelatedRecords` |
-| 3 CodeGen + entity classes | **DONE** | 3 hand-written classes; 64 unit tests |
-| 4 Provision seed | **DONE** | 71 provisions, 0 missing text, Sequence 1..71 contiguous |
-| 5 List + detail | **DONE (code)** | 3 grid pages + 4 contract panels; NOT yet rendered in a browser |
-| 6 Entity CRUD | **DONE (code)** | 3 configuration pages over generated base views |
-| 7 Version registry | **DONE (code)** | versions + all-provisions pages, provisions editor panel |
-| 11 Customer view | **DONE (code)** | Organization agreements panel + chrome metadata |
-| 12 Watchlist | **DONE (code)** | layered view + 6 derived cols + renewals page |
-| 8 Modification capture | **DONE (code)** | shared editor, 2 hosts (D-22); inline panel + custom form |
-| 9 Document handling | **NOT STARTED** | `record-files.panel.ts` carried forward, upload/register unfinished |
-| 14 README | **NOT STARTED** | last by design |
-| 10, 13 | **SKIPPED** | ruled out of scope by Marcelo |
+| 1 Retire v1 + baseline | **DONE** | from-zero: 8 views, 21 sprocs, 7 entities, 77 fields |
+| 2 Metadata | **DONE** | push errorCount 0; collections emit accessors |
+| 3 CodeGen + entity classes | **DONE** | 3 classes; 72 unit tests |
+| 4 Provision seed | **DONE** | 71 provisions verbatim, 0 missing text |
+| 5 List + detail | **DONE**, list PROVEN in browser | 7 rows, names not UUIDs, State column |
+| 6 Entity CRUD | **DONE**, proven | configuration pages render |
+| 7 Version registry | **DONE**, proven | versions + provisions pages render |
+| 8 Modification capture | **DONE (code)** | editor + 2 hosts; **panel not yet seen rendering** |
+| 9 Documents | **DONE (code)** | register/open/D-9 gate; **unexercised — needs a storage account** |
+| 11 Customer view | **DONE (code)** | Organization panel; **not yet seen rendering** |
+| 12 Watchlist | **DONE**, proven | renewals page + all 6 derived columns verified against data |
+| 14 README | **DONE** | 658 v1 lines → 227 describing what shipped |
+| 10, 13 | **SKIPPED** | ruled out of scope |
 
-**The honest gap:** everything marked DONE (code) compiles and is committed; **as of this
-line nothing has been confirmed rendering in a browser.** Explorer was starting when this
-was written. Do not describe the UI as working until you have seen it.
+### What is PROVEN in a browser vs only compiled
+
+**Proven** (system Chrome, logged in, zero console errors): all three sections; the Contracts rail
+with badges; the dashboard with non-zero counts; the contract LIST with 7 rows showing names and the
+derived `State`; renewals; awaiting-documents (and the Payment Link correctly ABSENT from it); the
+modifications page; templates; all-provisions; configuration. **The contract FORM opens** (after the
+`(Navigate)` fix).
+
+**NOT proven:** the form's PANELS — hero/renewal/modifications/lineage/documents were never confirmed
+rendering, because the form could not open until late and then MJAPI needed a restart. **This is the
+top open item.** Item 9's document actions and item 11's Organization panel are likewise unexercised.
+
+⚠ **Two of my own passing assertions were false positives**, both from matching text present for the
+wrong reason: "form opened" matched a grid row, and 11/11 checks passed while the grid rendered ZERO
+rows. **Text assertions cannot see layout or context.** Look at the screenshots.
 
 ## 3. THE CRITICAL ENVIRONMENT FACT
 
@@ -234,3 +246,53 @@ vitest is invoked through the Angular package's binary.
 D-24 (validation ladder), D-25 (provider scoping — bare `new RunView()`/`new Metadata()` is a
 defect; helpers in `packages/Angular/src/lib/data/provider.ts`), D-26 (correlated writes share
 one transaction), R-19 (`State` has SIX values; `Executed` = signed-not-yet-effective).
+
+---
+
+## 13. Running the app (the exact sequence, all of it hard-won)
+
+```bash
+# 1. services
+cd ~/MJDev && ./bin/mjdev run contracts-mj6 api --wait
+./bin/mjdev run contracts-mj6 explorer          # ~5 min first compile
+
+# 2. a logged-in URL
+./bin/mjdev explorer-url contracts-mj6 | grep -oE 'http://localhost:[0-9]+/#token=\S+' > /tmp/mjcurl.txt
+
+# 3. render check (needs both services up)
+cd instances/contracts-mj6/bizapps-contracts && node test-harnesses/render-check.mjs
+```
+
+**MJAPI must be restarted after any change to `mj/mj.config.cjs` `dynamicPackages`** — otherwise its
+GraphQL schema has no contracts resolvers and the form fails with
+`Cannot query field "mjBizAppsContractsContract" on type "Query"`. Use `mjdev restart`, never `run`
+(on a live target `run` is a no-op). MJAPI's **prestart regenerates its own manifest and may ADD
+dependencies to its package.json**, printing "run npm install at repo root" — when it does, run
+`pnpm install` at the INSTANCE dir and restart again, or the API crashes with an opaque
+`[Object: null prototype] {}`.
+
+## 14. Demo data
+
+`demo-data/` (outside `metadata/`, never shipped). Push it with:
+
+```bash
+DOTENV_CONFIG_PATH=../mj/.env pnpm exec mj sync push --dir demo-data --format=json
+```
+
+8 contracts + 4 orgs + 1 company + 2 modifications, chosen so every derived `State` and every worklist
+has content. Verified: CTR-900001 Active(+2 mods) · 900002 Active(notice passed) · 900003 **Executed**
+· 900004 Active(awaiting doc) · 900005 Active(Payment Link, NOT awaiting) · 900006 Expired ·
+900007 Draft · 900008 Active(Change Order).
+
+**Dates are absolute around 2026-08-19.** Read much later the states drift — that is the derivation
+working, not the data rotting.
+
+## 15. If you are picking this up cold — do these first
+
+1. **Confirm the contract form's panels render.** Open CTR-900001 (double-click in All contracts) and
+   check the hero, renewal ("as stated in the agreement"), modifications (standard clause beside the
+   negotiated text), lineage (the change order), documents. This is the last unproven surface.
+2. If a panel is missing, suspect the **left-nav layout** first (D-17 routes: only the active rail
+   section renders) before suspecting registration.
+3. `mjdev app register` DESTROYS the app worktree on failure (MJDev#29). **Commit before any mjdev app
+   command.**
