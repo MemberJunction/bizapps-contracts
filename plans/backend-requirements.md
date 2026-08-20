@@ -995,12 +995,11 @@ that is stated, every new link gets its own ad-hoc answer and they will not agre
 principle and the per-link table it implies, with each existing rule cited as an instance. Whichever
 gaps it exposes then become their own items.
 
-> ⚠ **Two readings of "chain of permissions", and this item takes the first.** As written it means
-> *permission to change* — the lock/immutability cascade along the reference chain. It could instead
-> have meant **MJ entity permissions** (roles, who may read or write which entity, how the contracts app
-> should configure them). That area is **genuinely uncovered** — nothing in this document or the master
-> plan addresses role configuration — and if that is what was meant it wants its own item rather than
-> being folded in here, because it shares no mechanism with the above. **Flagged for Marcelo.**
+> ✅ **Scope settled 2026-08-20 (Marcelo): this is the lock/immutability cascade.** The alternative
+> reading — **MJ entity permissions**, roles, who may read or write which entity — is **explicitly out
+> of scope for this item and for this document.** It is still genuinely uncovered anywhere in the
+> repo's planning, so if it ever needs doing it starts as a new item rather than being folded in here;
+> the two share no mechanism, and merging them would produce a section that answers neither well.
 
 ## Suggested order
 
@@ -1043,8 +1042,8 @@ in full first, several carry a warning that costs a rebuild if skipped.
 - **R-14:** the frozen field set, and specifically whether renewal-terms fields are transcription
   (correctable) or terms (frozen). **Now also carries** R-12's lifecycle half — what happens to an
   existing contract whose template later becomes unusable.
-- **R-15:** does "the chain of permissions" mean the lock/immutability cascade (what the item assumes),
-  or MJ entity permissions and role configuration (uncovered, and would want its own item)?
+- ~~**R-15:** lock/immutability cascade, or MJ entity permissions?~~ — **ANSWERED 2026-08-20
+  (Marcelo): the cascade.** Entity permissions are out of scope for this document.
 - **R-3:** build `RootParentContractID` / `RootSupersededByContractID`, or delete the metadata rows
   that describe fields nothing returns?
 - **R-7:** who files the accounting + orders sequence issues, and against which repos?
