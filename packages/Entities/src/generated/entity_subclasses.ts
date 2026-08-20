@@ -172,7 +172,7 @@ export const mjBizAppsContractsContractTemplateSchema = z.object({
         * * SQL Data Type: nvarchar(200)`),
     ContractTemplateTypeID: z.string().describe(`
         * * Field Name: ContractTemplateTypeID
-        * * Display Name: Template Type ID
+        * * Display Name: Contract Template Type
         * * SQL Data Type: uniqueidentifier
         * * Related Entity/Foreign Key: MJ_BizApps_Contracts: Contract Template Types (vwContractTemplateTypes.ID)`),
     VersionLabel: z.string().nullable().describe(`
@@ -204,6 +204,16 @@ export const mjBizAppsContractsContractTemplateSchema = z.object({
         * * Display Name: Updated At
         * * SQL Data Type: datetimeoffset
         * * Default Value: getutcdate()`),
+    Status: z.union([z.literal('Draft'), z.literal('Published')]).describe(`
+        * * Field Name: Status
+        * * Display Name: Status
+        * * SQL Data Type: nvarchar(20)
+        * * Default Value: Draft
+    * * Value List Type: List
+    * * Possible Values 
+    *   * Draft
+    *   * Published
+        * * Description: Publication lifecycle. 'Draft' — freely editable, provisions may be added, changed and removed, and a contract may not NEWLY reference it. 'Published' — the provisions are frozen against INSERT, UPDATE and DELETE by trg_ContractTemplateProvision_Immutability, and contracts may reference it. Publishing is ONE-WAY (enforced in ContractTemplateEntity): to change published terms, publish a new version — that is what VersionLabel exists for. Existing references are never invalidated by this column; only new ones are policed, the same way ContractType.Status works.`),
     ContractTemplateType: z.string().describe(`
         * * Field Name: ContractTemplateType
         * * Display Name: Contract Template Type
@@ -1015,7 +1025,7 @@ export class mjBizAppsContractsContractTemplateEntity extends BaseEntity<mjBizAp
 
     /**
     * * Field Name: ContractTemplateTypeID
-    * * Display Name: Template Type ID
+    * * Display Name: Contract Template Type
     * * SQL Data Type: uniqueidentifier
     * * Related Entity/Foreign Key: MJ_BizApps_Contracts: Contract Template Types (vwContractTemplateTypes.ID)
     */
@@ -1095,6 +1105,24 @@ export class mjBizAppsContractsContractTemplateEntity extends BaseEntity<mjBizAp
     */
     get __mj_UpdatedAt(): Date {
         return this.Get('__mj_UpdatedAt');
+    }
+
+    /**
+    * * Field Name: Status
+    * * Display Name: Status
+    * * SQL Data Type: nvarchar(20)
+    * * Default Value: Draft
+    * * Value List Type: List
+    * * Possible Values 
+    *   * Draft
+    *   * Published
+    * * Description: Publication lifecycle. 'Draft' — freely editable, provisions may be added, changed and removed, and a contract may not NEWLY reference it. 'Published' — the provisions are frozen against INSERT, UPDATE and DELETE by trg_ContractTemplateProvision_Immutability, and contracts may reference it. Publishing is ONE-WAY (enforced in ContractTemplateEntity): to change published terms, publish a new version — that is what VersionLabel exists for. Existing references are never invalidated by this column; only new ones are policed, the same way ContractType.Status works.
+    */
+    get Status(): 'Draft' | 'Published' {
+        return this.Get('Status');
+    }
+    set Status(value: 'Draft' | 'Published') {
+        this.Set('Status', value);
     }
 
     /**

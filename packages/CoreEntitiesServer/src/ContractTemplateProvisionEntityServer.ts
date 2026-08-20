@@ -32,8 +32,8 @@ import {
     ValidationResult,
 } from '@memberjunction/core';
 import { RegisterClass } from '@memberjunction/global';
-import { ContractTemplateProvisionEntity } from '@mj-biz-apps/contracts-entities';
-import { GuardedDelete, plural } from './delete-guard.js';
+import { ContractTemplateProvisionEntity, TEMPLATE_PUBLISHED } from '@mj-biz-apps/contracts-entities';
+import { GuardedDelete, RefuseDelete, plural } from './delete-guard.js';
 
 /**
  * The columns that ARE the terms. `Description` and `Sequence` are deliberately absent: ordering a
@@ -67,25 +67,43 @@ export class ContractTemplateProvisionEntityServer extends ContractTemplateProvi
      */
     public override async ValidateAsync(): Promise<ValidationResult> {
         const result = await super.ValidateAsync();
-        if (!this.IsSaved) return result;
+
+        // CREATE on a published version. The trigger is the floor here too, but it cannot explain
+        // itself on this path at all: MJ calls the generated sproc as `INSERT ... EXEC`, inside which
+        // SQL Server forbids a trigger from issuing ROLLBACK, so the refusal arrived as
+        // "Cannot use the ROLLBACK statement within an INSERT-EXEC statement" — a message about the
+        // mechanism, naming neither the rule nor the field. This is the sentence a user should get.
+        if (!this.IsSaved) {
+            if (this.ContractTemplateID && (await this.templateIsPublished())) {
+                result.Success = false;
+                result.Errors.push(
+                    new ValidationErrorInfo(
+                        'ContractTemplateID',
+                        `This agreement version is published, so a clause cannot be added to it — that would ` +
+                            `silently grow the terms of every contract already referencing it. Publish a new ` +
+                            `version instead.`,
+                        this.ContractTemplateID,
+                        ValidationErrorType.Failure,
+                    ),
+                );
+            }
+            return result;
+        }
 
         const changed = FROZEN_TERM_FIELDS.filter((f) => this.fieldChanged(f.Name));
         if (changed.length === 0) return result;
 
         // Only now is a read worth doing.
-        const contracts = await this.contractsUsingThisTemplate();
-        if (contracts === 0) return result;
+        if (!(await this.templateIsPublished())) return result;
 
         for (const field of changed) {
             result.Success = false;
             result.Errors.push(
                 new ValidationErrorInfo(
                     field.Name,
-                    `${plural(contracts, 'contract')} already ${contracts === 1 ? 'incorporates' : 'incorporate'} ` +
-                        `this agreement version, so ${field.Label} cannot change — editing it would rewrite what ` +
-                        `${contracts === 1 ? 'that customer' : 'those customers'} agreed to. Publish a new template ` +
-                        `version instead; a referenced version is a historical record. (The description and the ` +
-                        `display order are still editable.)`,
+                    `This agreement version is published, so ${field.Label} cannot change — editing it would ` +
+                        `rewrite what any customer who signed against it agreed to. Publish a new version instead; ` +
+                        `a published version is a historical record. (The description is still editable.)`,
                     this.Get(field.Name),
                     ValidationErrorType.Failure,
                 ),
@@ -101,19 +119,22 @@ export class ContractTemplateProvisionEntityServer extends ContractTemplateProvi
      * Reported together rather than first-wins, so someone is not refused twice for two reasons.
      */
     public override async Delete(options?: EntityDeleteOptions): Promise<boolean> {
+        // The published check first, and separately from the dependency list, because it is not a
+        // dependency — nothing points at this row, the VERSION is simply closed. Pre-empting the
+        // trigger here is what turns its raw SQL error into a sentence (the whole point of R-8).
+        if (await this.templateIsPublished()) {
+            return RefuseDelete(
+                this,
+                `Provision ${this.ProvisionNumber ?? ''} cannot be deleted: this agreement version is published, ` +
+                    `and removing a clause from an agreement someone signed is the same act as rewriting it. ` +
+                    `Publish a new version instead.`,
+            );
+        }
         return GuardedDelete(
             this,
             options,
             `Provision ${this.ProvisionNumber ?? ''} cannot be deleted.`,
             [
-                {
-                    EntityName: 'MJ_BizApps_Contracts: Contracts',
-                    Filter: `ContractTemplateID = '${this.ContractTemplateID}'`,
-                    Describe: (n) =>
-                        `${plural(n, 'contract')} ${n === 1 ? 'incorporates' : 'incorporate'} this agreement version, ` +
-                        `and removing a clause from an agreement someone signed is the same act as rewriting it. ` +
-                        `Publish a new template version instead.`,
-                },
                 {
                     EntityName: 'MJ_BizApps_Contracts: Contract Template Modifications',
                     Filter: `ContractTemplateProvisionID = '${this.ID}'`,
@@ -145,24 +166,34 @@ export class ContractTemplateProvisionEntityServer extends ContractTemplateProvi
         return String(before ?? '').trim() !== String(after ?? '').trim();
     }
 
-    /** How many contracts incorporate this provision's template. */
-    private async contractsUsingThisTemplate(): Promise<number> {
-        const result = await this.RunViewProviderToUse.RunView(
+    /**
+     * Whether this provision's template is PUBLISHED.
+     *
+     * ⚠ THIS USED TO ASK "do any contracts reference the template", and that gate was wrong in BOTH
+     * directions (V202608200900). Too strict: a provision added after a contract referenced the
+     * template was never part of what anyone signed, yet became immediately unremovable — and the live
+     * data had referenced templates still being authored, which the rule stranded with no way to
+     * finish. Too loose: it said nothing about INSERT, so a clause could be ADDED to a signed version.
+     * Publication is now an explicit act and the gate reads it directly.
+     */
+    private async templateIsPublished(): Promise<boolean> {
+        const result = await this.RunViewProviderToUse.RunView<{ Status: string }>(
             {
-                EntityName: 'MJ_BizApps_Contracts: Contracts',
-                ExtraFilter: `ContractTemplateID = '${this.ContractTemplateID}'`,
-                ResultType: 'count_only',
+                EntityName: 'MJ_BizApps_Contracts: Contract Templates',
+                ExtraFilter: `ID = '${this.ContractTemplateID}'`,
+                Fields: ['Status'],
+                ResultType: 'simple',
             },
             this.ContextCurrentUser,
         );
         if (!result?.Success) {
-            // Must not read as "unreferenced" — that would wave through the very edit this guards.
+            // Must not read as "draft" — that would wave through the very edit this guards.
             throw new Error(
-                `Could not determine whether any contract references this provision's template: ` +
+                `Could not read the publication status of this provision's agreement version: ` +
                     `${result?.ErrorMessage ?? 'unknown error'}. The save was not attempted.`,
             );
         }
-        return result.TotalRowCount ?? 0;
+        return result.Results?.[0]?.Status === TEMPLATE_PUBLISHED;
     }
 }
 

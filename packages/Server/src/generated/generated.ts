@@ -607,6 +607,10 @@ export class mjBizAppsContractsContractTemplate_ {
     @Field() 
     _mj__UpdatedAt: Date;
         
+    @Field({description: `Publication lifecycle. 'Draft' — freely editable, provisions may be added, changed and removed, and a contract may not NEWLY reference it. 'Published' — the provisions are frozen against INSERT, UPDATE and DELETE by trg_ContractTemplateProvision_Immutability, and contracts may reference it. Publishing is ONE-WAY (enforced in ContractTemplateEntity): to change published terms, publish a new version — that is what VersionLabel exists for. Existing references are never invalidated by this column; only new ones are policed, the same way ContractType.Status works.`}) 
+    @MaxLength(20)
+    Status: string;
+        
     @Field() 
     @MaxLength(100)
     ContractTemplateType: string;
@@ -648,6 +652,9 @@ export class CreatemjBizAppsContractsContractTemplateInput {
     @Field({ nullable: true })
     Description: string | null;
 
+    @Field({ nullable: true })
+    Status?: string;
+
     @Field(() => RestoreContextInput, { nullable: true })
     RestoreContext___?: RestoreContextInput;
 }
@@ -678,6 +685,9 @@ export class UpdatemjBizAppsContractsContractTemplateInput {
 
     @Field({ nullable: true })
     Description?: string | null;
+
+    @Field({ nullable: true })
+    Status?: string;
 
     @Field(() => [KeyValuePairInput], { nullable: true })
     OldValues___?: KeyValuePairInput[];

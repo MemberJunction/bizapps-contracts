@@ -31,6 +31,10 @@ export * from './ContractTemplateModificationEntity';
 /* The provision's required fields, re-explained. Same shape and the same shared mechanism as the
  * modification's — `ProvisionText` became required in V202608200800. */
 export * from './ContractTemplateProvisionEntity';
+
+/* The template's publication lifecycle. Draft is editable and unreferenceable; Published is frozen by
+ * a trigger. The subclass carries the transition rule the trigger cannot see: publishing is one-way. */
+export * from './ContractTemplateEntity';
 export * from './required-field-prose';
 
 /* The two lookup entities, which exist ONLY to validate their value-list columns — a rule MJ does not

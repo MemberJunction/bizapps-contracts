@@ -569,30 +569,55 @@ export class ContractEntityServer extends ContractEntity {
         if (!this.ContractTemplateID) return;
         if (!this.isNewlySelected('ContractTemplateID')) return;
 
-        const template = await this.RunViewProviderToUse.RunView<{ Name: string; IsUsable: boolean; SourceURL: string | null }>(
+        const template = await this.RunViewProviderToUse.RunView<{ Name: string; IsUsable: boolean; Status: string }>(
             {
                 EntityName: 'MJ_BizApps_Contracts: Contract Templates',
                 ExtraFilter: `ID = '${this.ContractTemplateID}'`,
-                Fields: ['Name', 'IsUsable', 'SourceURL'],
+                Fields: ['Name', 'IsUsable', 'Status'],
                 ResultType: 'simple',
             },
             this.ContextCurrentUser,
         );
         const row = template?.Results?.[0];
-        // A template we cannot read is not a template we can call unusable — the FK stays the floor.
-        if (!row || row.IsUsable) return;
+        // A template we cannot read is not one we can call unusable — the FK stays the floor.
+        if (!row) return;
 
-        result.Success = false;
-        result.Errors.push(
-            new ValidationErrorInfo(
-                'ContractTemplateID',
-                `"${row.Name}" has no source URL and no attached document, so nobody can read the standard ` +
-                    `terms it names — a contract cannot incorporate terms that are not available. Add a URL or ` +
-                    `attach the agreement document to that template first.`,
-                this.ContractTemplateID,
-                ValidationErrorType.Failure,
-            ),
-        );
+        // R-12 — the terms must be readable.
+        if (!row.IsUsable) {
+            result.Success = false;
+            result.Errors.push(
+                new ValidationErrorInfo(
+                    'ContractTemplateID',
+                    `"${row.Name}" has no source URL and no attached document, so nobody can read the standard ` +
+                        `terms it names — a contract cannot incorporate terms that are not available. Add a URL or ` +
+                        `attach the agreement document to that template first.`,
+                    this.ContractTemplateID,
+                    ValidationErrorType.Failure,
+                ),
+            );
+        }
+
+        // V202608200900 — and the version must be PUBLISHED. A draft is still being authored: its
+        // provisions can be added to, edited and removed freely, so a contract pointing at one would
+        // have its standard terms change underneath it. This is the other half of what makes the
+        // publication freeze meaningful — the freeze protects referenced versions, and this ensures a
+        // referenced version is a frozen one.
+        //
+        // Only NEW references are policed (the isNewlySelected gate above), which is what keeps the
+        // contracts that already point at now-Draft templates valid. Same shape as R-5's retired types.
+        if (row.Status !== 'Published') {
+            result.Success = false;
+            result.Errors.push(
+                new ValidationErrorInfo(
+                    'ContractTemplateID',
+                    `"${row.Name}" is still a draft, so its clauses can change at any time — a contract cannot ` +
+                        `incorporate terms that are not settled. Publish that version first, or choose one that ` +
+                        `is already published.`,
+                    this.ContractTemplateID,
+                    ValidationErrorType.Failure,
+                ),
+            );
+        }
     }
 
     /**
