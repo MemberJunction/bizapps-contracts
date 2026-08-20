@@ -121,7 +121,24 @@ it there:
 > `CreatingEntityID = NULL` with `CreatingRecordID = ''` passes in TypeScript and is refused by the
 > database. TypeScript is the more permissive of the two, which is the safe direction for a
 > divergence — the floor still holds — and the case needs someone to write an empty string into a
-> polymorphic record id. Noted, not filed.
+> polymorphic record id.
+>
+> **Whose problem is that divergence? Neither ours nor a filed MJ bug, and the reason generalises.**
+> These validators are written by CodeGen's `ParseCheckConstraints` **AI** pass — which is on in this
+> instance (`enableAdvancedGeneration: true`) and is visible in the generated prose itself
+> (*"This prevents circular references in the contract hierarchy"* is not something a T-SQL parser
+> writes). So a generated validator is an **AI interpretation of the constraint, not a mechanical
+> translation of it**. Treating `''` as absent is a defensible reading a careful human would also
+> likely write; it simply is not identical to `IS NULL`.
+>
+> The durable consequence, which is worth more than the specific case: **do not assume a generated
+> validator is exactly equivalent to its `CHECK`.** The constraint remains the floor — that is why it
+> is still in the database — and the validator is there to produce a good message before you reach it.
+> Where an exact rule matters more than a friendly message, write it explicitly rather than relying on
+> what was generated. Not filed upstream: non-equivalence is inherent to an AI-authored translation
+> rather than a defect in it, and there is no bug report that would change the design. Worth revisiting
+> only if a divergence is ever found in the UNSAFE direction — TypeScript accepting what the database
+> would reject in a case a user can actually reach.
 
 The original text follows, struck through, so the reasoning is not lost:
 
@@ -345,16 +362,38 @@ in one move, and the sproc keeps its name and signature so no application code c
 
 Asked directly (Marcelo, 2026-08-20). Yes to all three, but each needs something specific:
 
-**Fresh server → starts at the beginning.** `CREATE SEQUENCE … AS INT START WITH 1 INCREMENT BY 1`.
-Note `1`, not `0`: the existing format is `CTR-000001`, so starting at 0 would mint `CTR-000000` as
-the first contract. Say so explicitly if 0 is genuinely wanted.
+**Fresh server → starts at the beginning. RULED: `START WITH 1`** (Marcelo, 2026-08-20) — the
+existing format is `CTR-000001`, and starting at 0 would mint `CTR-000000` as the first contract.
 
-**Server restart → recovers, never reuses.** A sequence's current value lives in the database
-catalog, not in memory, so a restart cannot hand out a number twice. What it *can* do is SKIP: SQL
-Server caches a block of values, and an unclean shutdown discards the unused remainder, so the next
-value jumps forward. `NO CACHE` removes the skip entirely at the cost of a catalog write per call —
-which for a handful of contracts a day is free. **Recommend `NO CACHE`**: gap-conscious matters more
-here than throughput, and it makes the numbering easier to explain to finance.
+**Server restart → recovers, never reuses; may skip. RULED: skips are fine here, keep the default
+cache.** (Marcelo, 2026-08-20.)
+
+The mechanism, in full, because it is finicky and the plan should not require re-deriving it:
+
+- A sequence's **current value is persisted in the database catalog** (`sys.sequences.current_value`),
+  not held in memory. So a restart — clean or not — can never hand the same number out twice. That is
+  the guarantee that matters, and it holds unconditionally.
+- For throughput, SQL Server **hands out values in cached blocks**. It writes the *end* of the block
+  to the catalog once, then serves values from memory without touching disk again. Default cache size
+  is engine-chosen (commonly 50).
+- On a **clean** shutdown the unused remainder is written back, so nothing is lost. On an **unclean**
+  one (crash, container kill, `docker stop -t 0`) the in-memory position is gone and the engine
+  resumes from the catalog value — which is the END of the block it had reserved. Everything between
+  the last number actually issued and that boundary is **skipped**: never used, never reused.
+- So a hard restart after minting `CTR-000031` out of a block reserved to 50 makes the next contract
+  `CTR-000051`. Numbers are still unique and still ascending; the sequence just has a hole.
+- **`NO CACHE`** writes the catalog on every call, which removes the hole entirely at the cost of one
+  extra write per contract.
+
+**Why the default is right for contracts:** the numbering has never promised gap-free — the sproc it
+replaces already burns a number on any failed save, and `UQ_Contract_ContractNumber` is the real
+guard. A hole after a crash is cosmetic here.
+
+**Where `NO CACHE` probably IS worth it — accounting's journal entries** (Marcelo's note). A JE number
+is an audit artifact reviewers reconcile in sequence, and accounting's own sproc comment claims
+gap-free numbering ("plan D19: gap-free, per company, per fiscal year"). If those ever move to
+sequences, `NO CACHE` is the option that keeps that promise true. **Not our change to make** — worth
+raising with the accounting owners alongside the R-7 sequence-table issue.
 
 **Upgrade over an existing database → must be seeded from the data.** `CREATE SEQUENCE` cannot take a
 subquery in `START WITH`, so the migration does it in two steps:
@@ -362,7 +401,7 @@ subquery in `START WITH`, so the migration does it in two steps:
 ```sql
 -- 1. create it low, unconditionally and idempotently
 IF NOT EXISTS (SELECT 1 FROM sys.sequences WHERE name = 'seq_ContractNumber' …)
-    CREATE SEQUENCE …seq_ContractNumber AS INT START WITH 1 INCREMENT BY 1 NO CACHE;
+    CREATE SEQUENCE …seq_ContractNumber AS INT START WITH 1 INCREMENT BY 1;  -- default cache: skips OK
 
 -- 2. then RESTART it above whatever has already been minted
 DECLARE @next INT = (
@@ -544,7 +583,7 @@ its FK-dropdown `ExtraFilter` from the typed search query alone. A metadata-decl
 an FK picker does not exist. Ours is a bespoke component that owns its own read, so we can simply do
 it — but a `RelatedEntityFilter` on `EntityField` is a reasonable MJ feature request if this recurs.
 
-## R-11 · Delete `ContractTemplateProvision.Sequence`; order from `ProvisionNumber` in the view — ✅ READY
+## R-11 · Delete `ContractTemplateProvision.Sequence`; order from `ProvisionNumber` — ✅ READY
 
 > Marked ready 2026-08-19 (Marcelo). Two things unblocked it. **The design question** — maintained
 > column vs. derived — is answered below and measured against all 73 real provision rows. **The
@@ -626,100 +665,144 @@ same offset in both keys once the digits are padded, so `000001.000001` < `00000
 `000001.000002` — `1.1`, `1.1A`, `1.2`. This is a **collation key** (a.k.a. sort key), a completely
 standard technique; it is what ICU builds internally to make `Intl.Collator` fast.
 
-### Derive it in a LAYERED VIEW — no column, no maintenance
+### Store it as a PERSISTED COMPUTED COLUMN — indexable, and no layered view at all
 
-Marcelo's question, and it is the better design: put the key in the app-owned layered base view rather
-than in a stored column. `vwContracts` already establishes the pattern here.
+The first draft of this item proposed a layered view. **Testing beat that answer**, and the result is
+both simpler and faster. All three of the following were run against SQL Server before this was
+written:
 
-**Proven against the real table.** The expression below was run over all 73 seeded provisions and its
-`ORDER BY` produced a sequence **identical** to `Intl.Collator`'s, row for row:
+**1. The expression is deterministic, so `PERSISTED` is accepted.** It uses only `CHARINDEX`,
+`PATINDEX`, `LEFT`, `SUBSTRING`, `RIGHT`, `UPPER` and concatenation. A computed column is only allowed
+to persist if SQL Server can prove the value cannot change on its own; it accepted this one.
 
-```sql
--- split on the single dot, then split each segment into its leading digits + trailing letters
-RIGHT('000000' + n1, 6) + UPPER(a1) + '.' + RIGHT('000000' + n2, 6) + UPPER(a2) AS ProvisionSortKey
+**2. It is INDEXABLE.** `CREATE INDEX … ON (SortKey)` succeeded on the persisted column. That answers
+the real question directly: the all-provisions grid can sort by index rather than sorting rows at
+query time, so the concern about the cross-template view disappears and no sort option has to be
+turned off anywhere.
+
+**3. It reaches the entity and the grid for free.** The CodeGen-generated base view is
+`SELECT c.*, …` (`vwContractTemplateProvisions`, baseline line 6472), so a new column on the table
+appears in the view automatically. **No layered view is needed** — which also means BUILD-STATE §5
+gotcha 6 (a layered view needs two migrations with the entity flags set before the first CodeGen, or
+CodeGen DROP/CREATEs over the wrapper) **does not apply to this item at all.** That trap is avoided by
+not building a wrapper, not by being careful around one.
+
+Verified ordering, on a persisted+indexed column over the boundary cases:
+
+```
+0 | 1 | 1.1 | 1.1A | 1.9 | 1.10 | 2.1 | 10.1
 ```
 
-Result: `0, 1, 1.1, 1.2, … 1.9, 1.10, 1.11, … 16.15, 16.16, 16.17, 16.18`.
+**And CodeGen already handles computed columns correctly.** `vwSQLColumnsAndEntityFields` marks any
+column with a `computed_columns.definition` as `IsVirtual=1, IsComputed=1`;
+`EntityFieldInfo.IsSPParameter()` returns false for both, and `generateInsertFieldString` skips
+`IsVirtual` — so `spCreate`/`spUpdate` never pass it and inserts cannot fail on it. It surfaces as a
+read-only field on the generated entity, which is exactly right: nobody should be able to set a sort
+key.
 
-**Efficiency — less efficient in theory, irrelevant in practice, and the right trade.** A view
-expression cannot be indexed, so SQL sorts at query time instead of walking an index. The set being
-sorted is **one template's provisions — 71 rows**. A sort of 71 rows is free; it does not appear in a
-query plan as anything but a rounding error. Against that, a stored column costs a migration, an
-`ALTER`, a maintenance path in the subclass, and a permanent opportunity to drift — which is the
-failure this item exists to remove. Buying an index we do not need with a drift risk we do not want is
-the wrong direction. **If this table ever grew by orders of magnitude**, the escape hatch is a
-`PERSISTED` computed column with the same expression, which IS indexable because the expression is
-deterministic — so nothing about this choice is a dead end.
+**Why this beats the alternatives, now that it is measured:**
 
-**Depth: the current data has at most two segments** (`MAX` dots = 1, max length 5). The two-segment
-expression above therefore covers everything that exists. A third segment would sort as though its
-tail were part of segment two — wrong but not silent, since the numbers are visible on screen. The
-implementer should either generalise to a deterministic scalar UDF (arbitrary depth, still fine at
-this scale) **or** add a guard that refuses a `ProvisionNumber` with more than two segments, and say
-in the migration which was chosen and why.
+| | maintained `int` (today) | layered view | **persisted computed column** |
+|---|---|---|---|
+| Can drift | **yes — already has** | no | no |
+| Indexable | yes | **no** | **yes** |
+| Needs maintenance code | yes | no | no |
+| Extra migration complexity | — | two migrations + flags before CodeGen | one `ALTER TABLE` |
+
+**A layered view is NOT indexable here, and that is worth stating plainly** since it was asked: an
+indexed (materialised) view in SQL Server requires `WITH SCHEMABINDING` and **cannot reference another
+view** — ours would sit on top of the CodeGen-generated inner view, which disqualifies it outright.
+Being committed in a migration makes a view *permanent*; it does not make it *materialised*. Those are
+different properties, and only the second one gives you an index.
+
+### Depth
+
+The current data has at most two segments (`MAX` dots = 1, max length 5), so the two-segment expression
+covers everything that exists. A third segment would sort as though its tail were part of segment two
+— wrong, but visible on screen rather than silent. The implementer should either generalise via a
+deterministic scalar UDF (still fine at this scale, and still persistable) **or** add a `CHECK` that
+refuses a `ProvisionNumber` with more than two segments, and say in the migration which was chosen.
 
 ### The work
 
-1. Migration: add `ProvisionSortKey` to the app-owned layered view over `ContractTemplateProvision`
-   — **two migrations and the entity flags set before the first CodeGen**, per BUILD-STATE §5 gotcha
-   6, or CodeGen will DROP/CREATE the public view name over the wrapper.
-2. Drop `Sequence` (a `CHECK`-free int nothing else reads once step 3 lands).
-3. Repoint every reader: `ORDER BY Sequence ASC` in the modifications editor and the provisions page,
+1. Migration: `ALTER TABLE ContractTemplateProvision ADD ProvisionSortKey AS (<expression>) PERSISTED`,
+   then `CREATE INDEX IX_ContractTemplateProvision_SortKey ON … (ContractTemplateID, ProvisionSortKey)`
+   — composite, because every real query is scoped to one template.
+2. Drop `Sequence` in the same migration.
+3. Re-run CodeGen so the entity picks the column up as read-only, and the `Sequence` field row goes.
+4. Repoint every reader: `ORDER BY Sequence ASC` in the modifications editor and the provisions page,
    and `directoryOrder` in the metadata seed.
-4. A test that pins the ORDER over a fixture including `1`, `1.1`, `1.9`, `1.10`, `1.1A`, `2.1` —
+5. A test that pins the ORDER over a fixture including `1`, `1.1`, `1.9`, `1.10`, `1.1A`, `2.1` —
    written from the expected order, not from what the expression returns.
 
-## R-12 · `ContractTemplate.SourceURL` — make it nullable — ✅ READY (with one open question)
+## R-12 · `ContractTemplate.SourceURL` nullable, plus a derived `IsUsable` — ✅ READY
 
-> **Ruled 2026-08-19 (Marcelo): NOT NULL is wrong for now.** The column becomes nullable. The
-> conditional rule people actually want — *a URL **or** an attached file* — is described below with an
-> honest account of what can and cannot enforce it.
+> **Ruled 2026-08-19 (Marcelo).** `SourceURL` becomes nullable. The "URL or file" requirement is
+> surfaced as a **derived usability flag the UI can show**, rather than as a save-time refusal —
+> because a refusal at the wrong moment is confusing, and this is a state a person should be able to
+> SEE and fix rather than discover by being blocked.
 
-**Reachability is not enforceable, by anything.** The ERD asks for *"a public URL that never goes
-away"*. Whether a URL still resolves is a fact about the outside world: no `CHECK`, trigger, subclass
-or remote operation can assert it, and format validation (`https://…`) is weak because a well-formed
-dead link passes it. Nothing below tries.
+**Reachability is not enforceable, by anything.** Whether a URL still resolves is a fact about the
+outside world: no `CHECK`, trigger, subclass or remote operation can assert it, and format validation
+(`https://…`) is weak because a well-formed dead link passes. Nothing below tries.
 
-### Why a remotable operation is NOT the answer here
+### Why a remotable operation is not the answer
 
-It was worth asking, and it is easy to build — but it buys nothing, because the obstacle is **ordering,
-not verdicts**. A file attaches through `__mj.FileEntityRecordLink`, which is keyed on `RecordID`. **A
-file cannot be linked to a record that does not exist yet.** So on CREATE the file half of "URL or
-file" is unsatisfiable in principle, and no amount of pre-save checking — by a remote op or anything
-else — changes that. On UPDATE the check needs one `count_only` `RunView`, which `ValidateAsync`
-already does cheaply and whose verdict now reaches the user legibly (R-13). A remote op would be a
-second statement of a rule the save channel already carries, which D-24 rung 4 explicitly warns
-against.
+Easy to build, and it buys nothing, because the obstacle is **ordering, not verdicts**. A file attaches
+through `__mj.FileEntityRecordLink`, keyed on `RecordID` — **it cannot be linked to a record that does
+not exist yet.** So on CREATE the file half of "URL or file" is unsatisfiable in principle and no
+pre-save check of any kind changes that. On UPDATE the check is one `count_only` read that
+`ValidateAsync` already does cheaply. A remote op would restate a rule the save channel already
+carries, which D-24 rung 4 warns against.
 
-### Three ways to have the rule, in preference order
+### The design: derive `IsUsable`, do not refuse
 
-1. **Enforce at the point of REFERENCE, not at entry — recommended.** The business harm is not a bare
-   template row; it is *a contract citing standard terms nobody can read*. So put the rule on the
-   **contract**: `ContractEntityServer.ValidateAsync()` refuses a save whose `ContractTemplateID`
-   names a template with neither a `SourceURL` nor a linked file. This has **no ordering problem at
-   all** — by the time a contract references a template, the template exists and has had every chance
-   to acquire its file — it is one read on a path that already reads the type row, and it puts the
-   message where someone can act on it. It also leaves template *authoring* free, which is what
-   Marcelo asked for.
-2. **Deferred enforcement on the template itself.** `ContractTemplateEntityServer.ValidateAsync()`
-   refuses an UPDATE (`IsSaved`) with neither. A template can be created bare and cannot be *left*
-   bare once edited. Correct but slightly odd to explain, and it still cannot catch a bare template
-   nobody edits again.
-3. **Bespoke UI.** The template form grows an explicit "where does this version's text live?" control
-   offering URL or file, so the either/or is visible rather than inferred. Worth doing **alongside**
-   option 1 as an affordance; it is not enforcement, since it only covers the form path.
+A template with neither a URL nor a linked file is not *invalid* — it is **incomplete**, which is an
+ordinary state to pass through while authoring one. The right expression of that is a status the UI
+renders, not an error that stops a save. So:
+
+**`IsUsable` (bit) derived in an app-owned layered base view over `ContractTemplate`:**
+
+```
+IsUsable = 1 when SourceURL IS NOT NULL AND LEN(LTRIM(SourceURL)) > 0
+        OR an __mj.FileEntityRecordLink row exists for this template
+```
+
+This is the **exact shape `Contract.IsAwaitingDocument` already uses** — a flag combining a column with
+an `EXISTS` over `FileEntityRecordLink`, with the `Entity` id looked up BY NAME rather than hardcoded
+so it survives a from-zero rebuild. Precedent, not invention; copy that CASE expression.
+
+**It has to be a view, and this is the contrast with R-11.** R-11's sort key is a pure function of one
+column in one row, so it is a computed column and needs no view. `IsUsable` reads **another table**, and
+a computed column cannot do that. This is exactly where the layered-view pattern earns its keep — and
+therefore **BUILD-STATE §5 gotcha 6 applies to THIS item**: a layered base view needs two migrations,
+with the entity flags set before the first CodeGen, or CodeGen DROP/CREATEs the public view name over
+the wrapper. Read `V202608182000` and `V202608182001` (the `vwContracts` pair) as the worked example
+before writing either file.
+
+**A bit, flavoured in the UI.** The view returns the boolean; the template form and the templates grid
+render it — a red "Unusable" chip until a URL or a file exists, with the reason. Keeping the semantics
+in one bit and the presentation in the UI means a later third state (say, "URL recorded but unreachable"
+once something checks) is a view change and a chip colour, not a schema migration.
+
+### What about the contract that cites an unusable template?
+
+Left as a **question, not built**. `IsUsable` makes the state visible, which was the actual ask; whether
+a contract should additionally be REFUSED for referencing an unusable template is a separate product
+call, and it is now cheap to add because the flag exists — `ContractEntityServer.ValidateAsync()` would
+read one bit. Recommend shipping the flag first and seeing whether anyone ever cites an unusable
+template; a block nobody needs is a block that will eventually be in someone's way.
 
 ### The work
 
-1. Migration: `ALTER COLUMN SourceURL … NULL`. Re-run CodeGen so the generated entity and its
-   validation reflect nullable — the current NOT NULL is what makes the generated form mark it
-   required.
-2. Option 1's rule on `ContractEntityServer.ValidateAsync()`, with a message naming the template.
-3. `plans/QUESTIONS.md` Q-6 records this; update it with the ruling.
+1. Migration: `ALTER COLUMN SourceURL … NULL`, then re-run CodeGen — the current NOT NULL is what makes
+   the generated form mark it required.
+2. The layered view pair adding `IsUsable`, following `vwContracts` and gotcha 6.
+3. UI: the chip on the template form and the templates grid.
+4. `plans/QUESTIONS.md` Q-6 records the ruling; update it to match this design.
 
-**Open:** confirm option 1 is the wanted semantic — it means a template can exist with no readable
-text and is only refused when a contract tries to cite it. That is deliberate, and it is a product
-call rather than a technical one.
+**Open (not blocking):** should a contract be refused for referencing an unusable template, or is the
+visible flag enough?
 
 ## R-13 · The message plumbing that made all of the above invisible — FIXED UPSTREAM
 
@@ -807,9 +890,11 @@ input; ⏸ and 🗣 items need the named answer first.
    Reworks shipped code (`ParentStatusRequirement`), so it wants a clear run rather than being
    squeezed between other items. Its deferred half rides with R-14.
 8. **R-10** ✅ — uniqueness: the picker preflight plus the staged-rows rule.
-9. **R-11** ✅ — the sort key in the layered view, then drop `Sequence`. Two migrations and the
-   entity flags BEFORE the first CodeGen (BUILD-STATE §5 gotcha 6), so it wants its own run.
-10. **R-12** ✅ — `SourceURL` nullable, plus the reference-time rule on the contract.
+9. **R-11** ✅ — a PERSISTED computed column plus its index, then drop `Sequence`. One `ALTER TABLE`
+   and a CodeGen run; no layered view, so gotcha 6 does not apply here.
+10. **R-12** ✅ — `SourceURL` nullable, plus a derived `IsUsable` in a layered view. This one DOES
+    need two migrations with the entity flags set before the first CodeGen (gotcha 6) — read the
+    `vwContracts` pair first.
 11. **R-14** 🗣 — the post-execution lock. Needs the frozen-set ruling, especially renewal terms.
 
 R-2 is **withdrawn** (premise false — the correction was re-checked at Marcelo's request on
@@ -823,11 +908,10 @@ in full first, several carry a warning that costs a rebuild if skipped.
 
 - ~~**R-11:** dropping `ContractTemplateProvision.Sequence` reverses ERD R-14~~ — **ANSWERED
   2026-08-19 (Marcelo): drop it.** Logged as ERD R-20.
-- **R-12 (not blocking):** confirm that enforcing "a template has a URL or a file" at the point a
-  CONTRACT references it — rather than when the template is saved — is the wanted semantic. It means a
-  bare template can exist and is refused only when cited.
-- **R-11 (not blocking):** generalise the sort key to arbitrary segment depth via a scalar UDF, or
-  guard against a third segment? Current data has at most two.
+- **R-12 (not blocking):** ship the visible `IsUsable` flag only, or ALSO refuse a contract that
+  references an unusable template? Recommendation: flag first.
+- **R-11 (not blocking):** generalise the sort key to arbitrary segment depth via a scalar UDF, or add
+  a `CHECK` refusing a third segment? Current data has at most two.
 - **R-14:** the frozen field set, and specifically whether renewal-terms fields are transcription
   (correctable) or terms (frozen).
 - **R-3:** build `RootParentContractID` / `RootSupersededByContractID`, or delete the metadata rows

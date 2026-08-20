@@ -104,10 +104,15 @@ expensive to reverse.
   `RecordID`, so **it cannot be attached to a record that does not exist yet**. A remotable operation
   was considered and rejected for the same reason — it would restate a rule the save channel already
   carries (D-24 rung 4) without solving the create-ordering problem.
-- **Routed to** `plans/backend-requirements.md` **R-12**, which now carries the migration plus the
-  recommended enforcement point: refuse a **contract** that references a template with neither a URL
-  nor a file. That has no ordering problem, puts the message where someone can act on it, and leaves
-  template authoring free.
+- **Refined the same day (Marcelo):** refusing the referencing contract would work, but reads as
+  confusing to a user. A template with neither is **incomplete, not invalid** — an ordinary state to
+  pass through while authoring one. So the requirement becomes a **derived `IsUsable` bit** in an
+  app-owned layered view (the same shape as `Contract.IsAwaitingDocument`: a column plus an `EXISTS`
+  over `FileEntityRecordLink`), which the UI renders as a red "Unusable" chip until a URL or a file
+  exists. Visible and fixable, rather than discovered by being blocked.
+- **Routed to** `plans/backend-requirements.md` **R-12**, which carries the migration, the view pair
+  and the UI work. Whether a contract should ALSO be refused for citing an unusable template is left
+  open there — cheap to add once the flag exists, and recommended only if it turns out to happen.
 
 
 ## Answered
