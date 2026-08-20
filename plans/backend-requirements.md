@@ -815,7 +815,7 @@ whether it is safe:
 
 Put it where it can be deleted in one commit when MJ#3969 lands, and say so in the file header.
 
-## R-10 · Uniqueness is enforced nowhere above the database — **IMPLEMENTED 2026-08-20**
+## R-10 · One modification per provision × contract combo — **IMPLEMENTED 2026-08-20**
 
 > ✅ **DONE 2026-08-20.** All three layers the item asks for, and none of the five it says to leave
 > alone:
@@ -1373,7 +1373,7 @@ input; ⏸ and 🗣 items need the named answer first.
 7. ~~**R-4**~~ — **DONE 2026-08-20** except the deferred half. The two-boolean rework, the type
    retirements, and the tree-scoped modification rule all landed; the change-order modification case
    now works, which it did not before.
-8. ~~**R-10**~~ — **DONE 2026-08-20.** Picker preflight + staged-rows rule + the saved-rows server check.
+8. ~~**R-10**~~ — **DONE 2026-08-20.** One modification per provision × contract combo: picker preflight + staged-rows rule + the saved-rows server check.
 9. **R-11** ✅ — a PERSISTED computed column plus its index, then drop `Sequence`. One `ALTER TABLE`
    and a CodeGen run; no layered view, so gotcha 6 does not apply here.
 10. **R-12** ✅ — `SourceURL` nullable, plus a derived `IsUsable` in a layered view. This one DOES

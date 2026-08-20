@@ -30,8 +30,9 @@ the point is a message a person can act on.
   so the entity, the grid and the hole all disappear together.
 - **R-8** deletes explain themselves instead of surfacing a foreign-key constraint name, counting what
   blocks them.
-- **R-10** a contract cannot modify the same provision twice, caught in the picker, among staged rows,
-  and against saved rows.
+- **R-10** one modification per provision × contract combo. `UQ_ContractTemplateModification_Contract_Provision`
+  already made this the rule; it now explains itself instead of surfacing a raw unique-index violation.
+  Caught in the picker, among staged rows, and against saved rows.
 
 Four migrations, all idempotent and written for a database that already has data.
 - **R-11** provision ordering comes from `ProvisionNumber` via a derived, indexed collation key. The
