@@ -86,12 +86,22 @@ export interface ProvisionOption {
                                             @if (EditMode) {
                                                 <textarea
                                                     class="mjc-clause mjc-clause--mod"
+                                                    [class.mjc-invalid]="IsTextMissing(row.mod)"
                                                     rows="7"
                                                     style="width:100%"
                                                     [ngModel]="row.mod.ModificationText"
                                                     (ngModelChange)="SetText(row.mod, $event)"
                                                     (click)="$event.stopPropagation()"
-                                                    aria-label="The negotiated language"></textarea>
+                                                    [attr.aria-invalid]="IsTextMissing(row.mod) ? 'true' : null"
+                                                    [attr.aria-describedby]="IsTextMissing(row.mod) ? 'mjc-mod-required-' + row.mod.ID : null"
+                                                    aria-label="The negotiated language (required)"></textarea>
+                                                @if (IsTextMissing(row.mod)) {
+                                                    <div class="mjc-flag" [id]="'mjc-mod-required-' + row.mod.ID">
+                                                        Required — say what this contract states instead of the
+                                                        standard clause. A modification with no text asserts that the
+                                                        paper differs without saying how, and the save will be refused.
+                                                    </div>
+                                                }
                                             } @else {
                                                 <p class="mjc-clause mjc-clause--mod">{{ row.mod.ModificationText || '(not recorded)' }}</p>
                                             }
@@ -433,6 +443,28 @@ export class MJCModificationEditorComponent implements OnInit {
     public SetText(mod: mjBizAppsContractsContractTemplateModificationEntity, text: string): void {
         mod.ModificationText = text;
         this.Changed.emit();
+    }
+
+    /**
+     * Whether this row's negotiated text is missing — R-6, surfaced WHERE THE EDIT HAPPENS.
+     *
+     * The rule is enforced at three rungs already: `NOT NULL` plus
+     * `CK_ContractTemplateModification_TextNotBlank` in the database, CodeGen's
+     * `ValidateModificationTextNotEmpty` derived from that CHECK, and the shared subclass's prose. None
+     * of them helped a user in THIS textarea. The ADD path was guarded — "Add to list" is disabled until
+     * there is non-whitespace text — but the inline edit was not, so clearing an existing modification
+     * looked accepted and failed at save.
+     *
+     * That is worse than it sounds while MJ's update-path resolver reads `LatestResult.Message` instead
+     * of `CompleteMessage` (see STOPGAPS S-1): the refusal arrives as the literal string "Unknown error",
+     * so the feedback was both late and useless. Marking it here means the requirement is visible at the
+     * moment it is violated, which is the only place a required-field marker is worth anything.
+     *
+     * NOT a minimum length — the same `> 0` threshold as the CHECK, so one character satisfies it.
+     * Deliberately: an arbitrary minimum would be a rule the user cannot discover and we cannot justify.
+     */
+    public IsTextMissing(mod: mjBizAppsContractsContractTemplateModificationEntity): boolean {
+        return !String(mod.ModificationText ?? '').trim();
     }
 
     public SetNotes(mod: mjBizAppsContractsContractTemplateModificationEntity, notes: string): void {

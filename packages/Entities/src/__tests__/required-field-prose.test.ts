@@ -231,3 +231,46 @@ describe('ExplainMissingRequiredFields', () => {
         expect(result.Errors).toHaveLength(0);
     });
 });
+
+/**
+ * The UI-side predicate for R-6, restated here as the CONTRACT it must satisfy.
+ *
+ * `IsTextMissing` in the modification editor decides whether a row's textarea gets a required marker.
+ * It lives in an Angular component, so it is not importable here without pulling in the whole Angular
+ * package — but the property that matters is agreement with the DATABASE, and that is testable as a
+ * statement about thresholds:
+ *
+ *   the CHECK is `LEN(LTRIM(RTRIM(ModificationText))) > 0`
+ *   the marker must appear for exactly the values that CHECK rejects — no more, no fewer
+ *
+ * Too strict and the UI flags text the database would accept (a minimum length nobody was told about).
+ * Too loose and the marker is absent on a row that will fail at save, which is the gap this closed.
+ */
+describe('the UI required-marker threshold matches the database CHECK', () => {
+    /** What `IsTextMissing` does: `!String(value ?? '').trim()`. */
+    const markerShows = (value: unknown) => !String(value ?? '').trim();
+
+    /** What the CHECK does: reject null, and reject when the trimmed length is 0. */
+    const databaseRejects = (value: unknown) =>
+        value === null || value === undefined || String(value).trim().length === 0;
+
+    const CASES: unknown[] = [null, undefined, '', ' ', '   ', '\t', '\n', 'x', ' x ', 'a full clause', '0'];
+
+    for (const value of CASES) {
+        it(`agrees on ${JSON.stringify(value)}`, () => {
+            expect(markerShows(value)).toBe(databaseRejects(value));
+        });
+    }
+
+    it('one character is enough — there is no minimum length', () => {
+        // An arbitrary minimum would be a rule the user cannot discover and we cannot justify.
+        expect(markerShows('x')).toBe(false);
+        expect(databaseRejects('x')).toBe(false);
+    });
+
+    it("'0' is text, not emptiness", () => {
+        // The falsy-string trap: `!'0'` is false in JS, but a naive `Number()`-based or truthiness
+        // check elsewhere could treat it as absent. A clause numbered or worded "0" is real text.
+        expect(markerShows('0')).toBe(false);
+    });
+});
