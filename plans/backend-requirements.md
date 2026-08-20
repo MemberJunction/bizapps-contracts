@@ -293,7 +293,37 @@ dirty-check shape as everything else, with one `count_only` when the FK changes.
 This also makes the Configuration page honest — it currently promises that an Inactive type "stops
 being offered for new contracts", which today nothing enforces.
 
-## R-6 · A modification must say what was agreed — ✅ READY
+## R-6 · A modification must say what was agreed — **IMPLEMENTED 2026-08-20**
+
+> ✅ **DONE 2026-08-20 (third agent), branch `build/backend-requirements`, instance `contracts-mj6`.**
+> `V202608192340__ModificationText_required.sql` (backfill → `NOT NULL` → `CK_..._TextNotBlank`, plus
+> the CodeGen capture of the two regenerated CRUD procedures) and a new shared
+> `ContractTemplateModificationEntity`. 85/85 unit tests (14 new, red-proven), build `exit 0` on 6
+> packages, and the CREATE path driven through live GraphQL. Two things the spec did not anticipate:
+>
+> 1. **`NOT NULL` was not enough, and this was measured.** With only the `ALTER` applied, a GraphQL
+>    update setting `ModificationText = ''` was **accepted** — SQL Server's `NOT NULL` permits the
+>    empty string and MJ's nullability check tests null/undefined only. So the item's own goal was
+>    still unmet. Closed with a `CHECK (LEN(LTRIM(RTRIM(...))) > 0)` — a same-row rule, so the CHECK
+>    is the right tier — and CodeGen turned it into `ValidateModificationTextNotEmpty` for free, which
+>    is why no blank check was hand-written (the R-2 trap).
+> 2. **The two absence errors have to be collapsed.** The generated CHECK validator fires on null as
+>    well as blank, so a create with no text produced **two** errors for one mistake. The shared class
+>    rewords *and* de-duplicates per field. Both halves are pinned by tests.
+>
+> The shared class **adds no rule** — the NOT NULL and the CHECK are the rules. It only replaces MJ's
+> `"<field> cannot be null"` with a sentence that says what to do, for the three required fields. The
+> server subclass now extends it (it extended the generated class, so the API tier was the one place
+> the shared rules did not run).
+>
+> ⚠ **One half is blocked upstream, and it is not an app bug.** On the **UPDATE** path the refusal is
+> correct but reaches the user as `"Unknown error"`: `ResolverBase.ts:1335` reads
+> `LatestResult.Message` where the create path (`:1248`) reads `CompleteMessage`. This is the
+> unfound other half of **R-13** — that fix repaired `CompleteMessage` itself, and update/delete never
+> called it. One word in each of two throws. Logged in `MJ-UPSTREAM.md`; likely affects accounting's
+> identity-lock and immutability messages too, since those refuse on updates.
+
+The original specification follows.
 
 - **`ModificationText` becomes NOT NULL** (migration + validation). A modification that asserts "this
   provision was negotiated" without recording the negotiated language is the one row in this schema
@@ -715,6 +745,46 @@ view** — ours would sit on top of the CodeGen-generated inner view, which disq
 Being committed in a migration makes a view *permanent*; it does not make it *materialised*. Those are
 different properties, and only the second one gives you an index.
 
+### What a computed column costs, and why a layered view was right elsewhere
+
+Both worth stating, because "use the other tool" is only useful if you know what you gave up.
+
+**We lose nothing in metadata.** CodeGen discovers a computed column like any other
+(`vwSQLColumnsAndEntityFields` flags it `IsVirtual=1, IsComputed=1`), registers an `EntityField` row
+for it, and it appears on the generated entity as an ordinary strongly-typed property — read-only,
+which is exactly right for a sort key. It is in the base view (`SELECT c.*`), so views, grids and
+`RunView` filters see it like any column. **Nothing is second-class about it.**
+
+**What it actually costs:**
+
+- **The expression lives in the table DDL**, so changing it is `DROP` + re-`ADD` the column, and any
+  index on it has to be dropped first. A view definition is a one-line `CREATE OR ALTER`. This is the
+  real trade: cheaper to read, more ceremony to change.
+- **Storage and write cost.** `PERSISTED` stores the value and recomputes it on every insert or update
+  of `ProvisionNumber`. Irrelevant at this size; worth knowing it is not free.
+- **It is SQL Server syntax.** The PostgreSQL port needs `GENERATED ALWAYS AS (…) STORED`, which is the
+  direct equivalent but is not the same text. A view is closer to portable, though not identical either.
+
+**Why the layered view exists at all, which is the question underneath.** Not preference — a computed
+column is *categorically* incapable of the thing `vwContracts` needs. Measured:
+
+```
+CREATE TABLE #sub (ID int, HasOther AS (CASE WHEN EXISTS (SELECT 1 FROM #other o WHERE o.ID = ID)
+                                             THEN 1 ELSE 0 END));
+-> Subqueries are not allowed in this context. Only scalar expressions are allowed.
+```
+
+A computed column may only be a **scalar expression over columns of its own row**. `IsAwaitingDocument`
+has to ask whether a row exists in `__mj.FileEntityRecordLink` — another table — so it can never be a
+computed column, and a view is the only tool that can express it. Once a wrapper exists for that one
+column, putting `State` and the countdowns beside it is natural rather than necessary. (`State` itself
+*could* be a computed column: a **non-persisted** one may use `GETUTCDATE()`, which was also measured —
+it just cannot be persisted or indexed, because SQL Server will not store a value that changes on its
+own.)
+
+So the rule of thumb: **row-local scalar → computed column. Reads another table → layered view.**
+R-11 is the first; R-12 is the second.
+
 ### Depth
 
 The current data has at most two segments (`MAX` dots = 1, max length 5), so the two-segment expression
@@ -785,13 +855,21 @@ render it — a red "Unusable" chip until a URL or a file exists, with the reaso
 in one bit and the presentation in the UI means a later third state (say, "URL recorded but unreachable"
 once something checks) is a view change and a chip colour, not a schema migration.
 
-### What about the contract that cites an unusable template?
+### A contract may NOT be created against an unusable template — ruled
 
-Left as a **question, not built**. `IsUsable` makes the state visible, which was the actual ask; whether
-a contract should additionally be REFUSED for referencing an unusable template is a separate product
-call, and it is now cheap to add because the flag exists — `ContractEntityServer.ValidateAsync()` would
-read one bit. Recommend shipping the flag first and seeing whether anyone ever cites an unusable
-template; a block nobody needs is a block that will eventually be in someone's way.
+**Decided 2026-08-20 (Marcelo): refuse it.** `ContractEntityServer.ValidateAsync()` rejects a save
+whose `ContractTemplateID` names a template with `IsUsable = 0`, with a message naming the template and
+saying what it is missing. This is one bit read on a path that already reads the type row, and it costs
+nothing now that the flag exists.
+
+The two halves are doing different jobs and both are needed. **The flag is the affordance** — a person
+authoring a template sees the red chip and fixes it, rather than being blocked by something they cannot
+see. **The refusal is the floor** — a contract citing terms nobody can read is the actual harm, and it
+is worth stopping at the moment it would happen. Shipping only the flag would leave the harm
+unprevented; shipping only the refusal is the confusing version this item started as.
+
+**Scope note:** this refuses NEW references. Whether an EXISTING contract should be affected when its
+template later becomes unusable is a lifecycle question, not this one — see R-15.
 
 ### The work
 
@@ -801,8 +879,8 @@ template; a block nobody needs is a block that will eventually be in someone's w
 3. UI: the chip on the template form and the templates grid.
 4. `plans/QUESTIONS.md` Q-6 records the ruling; update it to match this design.
 
-**Open (not blocking):** should a contract be refused for referencing an unusable template, or is the
-visible flag enough?
+**No open questions.** The lifecycle half — what happens to a contract whose template goes unusable
+after the fact — is R-15.
 
 ## R-13 · The message plumbing that made all of the above invisible — FIXED UPSTREAM
 
@@ -874,12 +952,62 @@ leave users with no legal way to record a change.
 we decide the floor matters. Accounting has both for JE immutability; whether contracts need the floor
 depends on whether anything other than our own UI will ever write these rows.
 
+---
+
+## R-15 · The chain of permission to change — 🗣 DISCUSSION, sequence LAST
+
+> Raised 2026-08-20 (Marcelo), while ruling R-12. **This is the umbrella the individual locking rules
+> hang from**, and it is deliberately last: several items above each answer one slice, and writing the
+> general rule after they are built is cheaper than deriving it in the abstract now. Do not start this
+> until they are in.
+
+**The question.** This schema is a chain — `ContractTemplateType → ContractTemplate →
+ContractTemplateProvision → Contract → ContractTemplateModification`, plus `Contract → Contract` twice
+over (change orders, supersession). Every item so far has answered *one link* of it in isolation:
+
+| Item | The one link it answers |
+|---|---|
+| R-1 | a provision may not change once a contract references its template |
+| R-12 | a contract may not be created against an unusable template |
+| R-14 | a contract may not change once executed |
+
+Each is defensible alone. Together they imply a general rule nobody has written down: **what does
+locking one record mean for the records it points at, and for the records that point at it?** Until
+that is stated, every new link gets its own ad-hoc answer and they will not agree with each other.
+
+**The cases with no answer today:**
+
+- **Backwards along the chain.** An executed contract references a template version. R-1 freezes that
+  template's provisions once *any* contract references it — but should executing a contract freeze
+  anything more, e.g. the template's `SourceURL` or its `ContractTemplateTypeID`?
+- **A dependency degrading after the fact.** R-12 refuses a NEW contract against an unusable template.
+  What about one already signed against a template whose file is later unlinked? The contract's terms
+  did not change; its *evidence* did. Probably nothing should break — but "probably" is what this item
+  replaces, and `IsUsable` makes it visible, which means someone will ask.
+- **Forwards, to change orders.** A change order amends a locked parent. It is a separate contract, so
+  R-14's lock does not stop it — that is the intended escape hatch. May it reference a DIFFERENT
+  template than its parent? Nothing says.
+- **Retirement vs deletion.** R-5 and R-8 both land on "retire a type by setting Status, do not delete
+  it". That is the same idea one link further up: an in-use record may be withdrawn from future use but
+  not removed from past use. Worth stating once rather than three times.
+
+**Deliverable:** one short section in `plans/ERD-planned.md` §7, where the rules live, stating the
+principle and the per-link table it implies, with each existing rule cited as an instance. Whichever
+gaps it exposes then become their own items.
+
+> ⚠ **Two readings of "chain of permissions", and this item takes the first.** As written it means
+> *permission to change* — the lock/immutability cascade along the reference chain. It could instead
+> have meant **MJ entity permissions** (roles, who may read or write which entity, how the contracts app
+> should configure them). That area is **genuinely uncovered** — nothing in this document or the master
+> plan addresses role configuration — and if that is what was meant it wants its own item rather than
+> being folded in here, because it shares no mechanism with the above. **Flagged for Marcelo.**
+
 ## Suggested order
 
 Marked from the 2026-08-20 review. An agent may pick up anything marked ✅ READY without further
 input; ⏸ and 🗣 items need the named answer first.
 
-1. **R-6** ✅ — backfill, then NOT NULL, then CodeGen. Smallest closed loop.
+1. ~~**R-6**~~ — **DONE 2026-08-20.** Backfill → NOT NULL → CHECK → CodeGen. Not the smallest closed loop it looked like: see the two notes on the item.
 2. **R-5** ✅ — Inactive-type modification check. Code only, no schema.
 3. **R-8** ✅ — delete messages. Creates three server subclasses the later items also need.
 4. **R-1** ✅ — provision immutability. Trigger + code, and read the value-comparison warning first;
@@ -896,6 +1024,8 @@ input; ⏸ and 🗣 items need the named answer first.
     need two migrations with the entity flags set before the first CodeGen (gotcha 6) — read the
     `vwContracts` pair first.
 11. **R-14** 🗣 — the post-execution lock. Needs the frozen-set ruling, especially renewal terms.
+12. **R-15** 🗣 — **LAST, deliberately.** The general permission-to-change chain. It generalises R-1,
+    R-12 and R-14, so it is cheaper to write once those exist than to derive in the abstract.
 
 R-2 is **withdrawn** (premise false — the correction was re-checked at Marcelo's request on
 2026-08-20 and holds, with one narrow empty-string divergence noted). R-9 is **implemented**; R-13 is
@@ -908,12 +1038,13 @@ in full first, several carry a warning that costs a rebuild if skipped.
 
 - ~~**R-11:** dropping `ContractTemplateProvision.Sequence` reverses ERD R-14~~ — **ANSWERED
   2026-08-19 (Marcelo): drop it.** Logged as ERD R-20.
-- **R-12 (not blocking):** ship the visible `IsUsable` flag only, or ALSO refuse a contract that
-  references an unusable template? Recommendation: flag first.
 - **R-11 (not blocking):** generalise the sort key to arbitrary segment depth via a scalar UDF, or add
   a `CHECK` refusing a third segment? Current data has at most two.
 - **R-14:** the frozen field set, and specifically whether renewal-terms fields are transcription
-  (correctable) or terms (frozen).
+  (correctable) or terms (frozen). **Now also carries** R-12's lifecycle half — what happens to an
+  existing contract whose template later becomes unusable.
+- **R-15:** does "the chain of permissions" mean the lock/immutability cascade (what the item assumes),
+  or MJ entity permissions and role configuration (uncovered, and would want its own item)?
 - **R-3:** build `RootParentContractID` / `RootSupersededByContractID`, or delete the metadata rows
   that describe fields nothing returns?
 - **R-7:** who files the accounting + orders sequence issues, and against which repos?
