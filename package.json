@@ -23,8 +23,9 @@
     "mergemain": "node ci/merge_main.mjs",
     "mergemain:update-lock": "node ci/merge_main_and_update_lock.mjs",
     "test:unit": "vitest run",
-    "test:state": "node test-harnesses/state-equivalence.mjs",
-    "test:integration": "node test-harnesses/integration.mjs"
+    "test:state": "node test-harnesses/state-derivation.mjs",
+    "test:integration": "node test-harnesses/integration.mjs",
+    "test:parent-rule": "node test-harnesses/parent-requirement.mjs"
   },
   "repository": {
     "type": "git",
@@ -43,6 +44,7 @@
     "@memberjunction/cli": "^6.1.0-edge.2",
     "@memberjunction/core": "^6.1.0-edge.2",
     "@memberjunction/core-entities": "^6.1.0-edge.2",
+    "@memberjunction/generic-database-provider": "^6.1.0-edge.2",
     "@memberjunction/global": "^6.1.0-edge.2",
     "@memberjunction/graphql-dataprovider": "^6.1.0-edge.2",
     "@memberjunction/ng-base-forms": "^6.1.0-edge.2",

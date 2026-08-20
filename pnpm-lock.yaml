@@ -58,6 +58,9 @@ importers:
       '@memberjunction/core-entities':
         specifier: ^6.1.0-edge.2
         version: 6.1.0-edge.2
+      '@memberjunction/generic-database-provider':
+        specifier: ^6.1.0-edge.2
+        version: 6.1.0-edge.2(@aws-sdk/credential-provider-node@3.972.80)(@modelcontextprotocol/sdk@1.30.0(zod@3.25.76))(@smithy/signature-v4@5.7.0)(chokidar@3.6.0)(debug@4.4.3)(encoding@0.1.13)(typescript@5.9.3)(ws@8.21.3)(zod@3.25.76)
       '@memberjunction/global':
         specifier: ^6.1.0-edge.2
         version: 6.1.0-edge.2
