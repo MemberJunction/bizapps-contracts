@@ -882,7 +882,60 @@ its FK-dropdown `ExtraFilter` from the typed search query alone. A metadata-decl
 an FK picker does not exist. Ours is a bespoke component that owns its own read, so we can simply do
 it — but a `RelatedEntityFilter` on `EntityField` is a reasonable MJ feature request if this recurs.
 
-## R-11 · Delete `ContractTemplateProvision.Sequence`; order from `ProvisionNumber` — ✅ READY
+## R-11 · Delete `ContractTemplateProvision.Sequence`; order from `ProvisionNumber` — **IMPLEMENTED 2026-08-20**
+
+> ✅ **DONE 2026-08-20.** `V202608200400`: `fnProvisionSortKey` + `ProvisionSortKey` as a **PERSISTED**
+> computed column + `IX_ContractTemplateProvision_SortKey (ContractTemplateID, ProvisionSortKey)`, and
+> `Sequence` dropped. The item's two measured claims both hold: **PERSISTED was accepted and the column
+> is INDEXABLE.**
+>
+> **Verified through the live API**, ordered by the key: `0, 1, 1.1, 1.2 … 1.9, 1.10, 1.11, 1.12` across
+> all 73 provisions. Boundary cases through the function directly:
+> `1 · 1.1 · 1.1A · 1.1B · 1.2 · 1.2.3 · 1.9 · 1.10 · 1.11 · 2.1 · 2.1D · 2.10B · 10.1 · 12.3`.
+>
+> ### The depth decision the item asks the implementer to make: **the UDF, generalised to any depth**
+>
+> The alternative was an inline two-segment expression plus a `CHECK` refusing a `ProvisionNumber` with
+> more than two segments. Both work on today's data (max 1 dot, max length 5). The UDF was chosen
+> because **that CHECK is a product restriction, not a technical one** — a legal document plausibly
+> numbers clauses `1.2.3`, and forbidding it to keep a sort expression short would be the schema
+> dictating drafting conventions. `1.2.3` sorts correctly today as a result. The function is
+> `WITH SCHEMABINDING` and touches no table, so it stays deterministic, persistable and indexable.
+>
+> One detail worth keeping: digit runs are padded to six **but never truncated**. `RIGHT(pad + digits, 6)`
+> on a seven-digit run drops its LEADING digit and sorts it wildly wrong rather than merely imprecisely.
+>
+> ### What the item's step 4 undercounts: there was a WRITER, not just readers
+>
+> "Repoint every reader" covers three `OrderBy`s. It misses that
+> `metadata/entity-relationships/provisions-collection.json` also declared
+> **`"Sequence": {"Field": "Sequence", "From": 1}`** — gap-free auto-numbering on every save. That
+> cannot be repointed, it has to be **deleted**: a persisted computed column is read-only, so a
+> collection trying to number it would fail on every template save. The template panel's `Add()` was
+> written around that auto-numbering and its doc comment described it, so both changed too — a new
+> provision now sorts by the number the user types, and one with no number sorts to the top until it has
+> one (visible and self-correcting, unlike a duplicate position).
+>
+> Also missed: the 71-record provision **seed** carried `Sequence` values, so `mj sync push` failed
+> validation with *"Field Sequence does not exist"* until they were stripped.
+>
+> ### An unrelated blocker worth recording: the unnamed default constraint
+>
+> `DROP COLUMN Sequence` failed with *"one or more objects access this column"*. The baseline wrote
+> `Sequence INT NOT NULL DEFAULT 0` **without naming the constraint**, so SQL Server generated
+> `DF__ContractT__Seque__58B461E8`. Auto-generated names embed an object id and therefore **differ per
+> database**, so the migration drops it by LOOKUP against `sys.default_constraints`. Hardcoding the name
+> from this instance would have worked here and failed on every other install — the kind of migration bug
+> that only shows up on someone else's machine.
+>
+> ### A bonus proof of R-1, stronger than R-1's own
+>
+> Pushing the stripped seed **UPDATED 71 provision rows** on a template that 8 contracts reference —
+> with R-1's immutability trigger live — at `errorCount: 0`. R-1's own evidence was a push where
+> everything was unchanged; this one actually wrote to every row and still passed, because the trigger
+> compares values rather than detecting that an UPDATE happened.
+>
+> The original specification follows.
 
 > Marked ready 2026-08-19 (Marcelo). Two things unblocked it. **The design question** — maintained
 > column vs. derived — is answered below and measured against all 73 real provision rows. **The
@@ -1074,7 +1127,41 @@ refuses a `ProvisionNumber` with more than two segments, and say in the migratio
 5. A test that pins the ORDER over a fixture including `1`, `1.1`, `1.9`, `1.10`, `1.1A`, `2.1` —
    written from the expected order, not from what the expression returns.
 
-## R-12 · `ContractTemplate.SourceURL` nullable, plus a derived `IsUsable` — ✅ READY
+## R-12 · `ContractTemplate.SourceURL` nullable, plus a derived `IsUsable` — **IMPLEMENTED 2026-08-20**
+
+> ✅ **DONE 2026-08-20.** `V202608200500` (nullable `SourceURL` + the layering flags + the renamed inner
+> view) and `V202608200600` (the wrapper deriving `IsUsable` + its `EntityField` row), plus the chip on
+> the template panel and the refusal on `ContractEntityServer`.
+>
+> **The whole loop verified through live GraphQL, in order:** create a template with **no** `SourceURL`
+> (previously impossible — the column was `NOT NULL`) → `IsUsable: false` → pointing a contract at it is
+> **refused**, naming the template and what it is missing → add a URL → `IsUsable: true` → the same
+> contract reference is **accepted**. Probe data removed.
+>
+> **Gotcha 6 was handled and PROVEN, not merely followed.** After both migrations, CodeGen was run and
+> the wrapper survived: `vwContractTemplates` still carries `IsUsable`, `vwContractTemplatesGenerated`
+> exists, and the `EntityField` row is intact. That is the check that matters — the trap is CodeGen
+> silently DROP/CREATE-ing the public view name over the wrapper, and the only way to know the flags
+> landed in time is to run it and look.
+>
+> Two implementation notes:
+>
+> - **The inner view is created by the migration, not left to CodeGen.** Part 2's wrapper selects from
+>   `vwContractTemplatesGenerated`, so it has to exist for that migration to compile — and on a fresh
+>   install CodeGen has not run yet. Same as the `vwContracts` pair.
+> - **The `EntityField` `Sequence` is computed at apply time**, per MJ's rule: a literal is a placeholder
+>   that only a *repeatable* script renumbers, and Flyway runs every versioned migration first, so on a
+>   from-scratch database it collides on `UQ_EntityField_EntityID_Sequence` and reports itself as an
+>   unrelated foreign-key error. It cannot fail on a working dev database — only on fresh installs.
+>
+> **The grid half came free.** `IsUsable` ships with `DefaultInView = 1`, so any templates grid picks it
+> up as a column from metadata with no component change.
+>
+> Scope held as ruled: the refusal fires on a **new** reference only (same `isNewlySelected` gate as
+> R-5). What happens to an existing contract whose template later becomes unusable is R-15's lifecycle
+> question, not this one.
+>
+> The original specification follows.
 
 > **Ruled 2026-08-19 (Marcelo).** `SourceURL` becomes nullable. The "URL or file" requirement is
 > surfaced as a **derived usability flag the UI can show**, rather than as a save-time refusal —

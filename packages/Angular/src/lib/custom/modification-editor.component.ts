@@ -44,7 +44,8 @@ export interface ProvisionOption {
     ProvisionNumber: string;
     Title: string;
     ProvisionText: string | null;
-    Sequence: number;
+    /** The derived collation key — natural order, so '1.9' precedes '1.10' (R-11). */
+    ProvisionSortKey: string;
 }
 
 @Component({
@@ -471,7 +472,7 @@ export class MJCModificationEditorComponent implements OnInit {
             const result = await ScopedRunView(this.Provider).RunView<mjBizAppsContractsContractTemplateProvisionEntity>({
                 EntityName: MJC_ENTITIES.ContractTemplateProvision,
                 ExtraFilter: `ContractTemplateID = '${templateID}'`,
-                OrderBy: 'Sequence ASC',
+                OrderBy: 'ProvisionSortKey ASC',
                 ResultType: 'simple',
             });
             this.Provisions = ((result?.Results ?? []) as unknown as Array<Record<string, unknown>>).map((r) => ({
@@ -479,7 +480,7 @@ export class MJCModificationEditorComponent implements OnInit {
                 ProvisionNumber: String(r['ProvisionNumber'] ?? ''),
                 Title: String(r['Title'] ?? ''),
                 ProvisionText: (r['ProvisionText'] as string | null) ?? null,
-                Sequence: Number(r['Sequence'] ?? 0),
+                ProvisionSortKey: String(r['ProvisionSortKey'] ?? ''),
             }));
         } catch (err) {
             this.LoadError = `Could not read the agreement's provisions: ${String(err)}`;

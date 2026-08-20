@@ -26,8 +26,10 @@
     "contract-templates and contract-provisions are wired but hold NO records yet: item 4's Master",
     "Agreement clause list is real legal wording and is not being invented (QUESTIONS.md Q-5). The",
     "folders are ordered now so dropping the real list in is one file and no config change. See",
-    "contract-templates/README.md for the exact shape, including why Sequence rather than",
-    "ProvisionNumber is what orders them."
+    "contract-templates/README.md for the exact shape. NOTE: provisions are ordered by the DERIVED",
+    "ProvisionSortKey, a collation key computed from ProvisionNumber (R-11, V202608200400). The",
+    "hand-maintained Sequence column that used to order them is gone — it was a second copy of an",
+    "order the provision number already stated, and the two had already disagreed in this seed."
   ],
   "directoryOrder": [
     "schema-info",

@@ -197,6 +197,7 @@ export class ContractEntityServer extends ContractEntity {
         }
 
         await this.refuseClearingAReferencedTemplate(result);
+        await this.refuseUnusableTemplate(result);
 
         await this.refuseRetiredSelections(result);
         await this.refuseLineageCycles(result);
@@ -542,6 +543,57 @@ export class ContractEntityServer extends ContractEntity {
      * database on the next validation because a new entity instance is what a new save uses.
      */
     private cachedTypeRule: ContractTypeRule | null | undefined = undefined;
+
+
+    /**
+     * R-12 — a contract may not reference a template nobody can read.
+     *
+     * `IsUsable` is derived in `vwContractTemplates`: 1 when the template records a `SourceURL` **or**
+     * has a file attached, 0 when it has neither. The flag and this refusal do different jobs and both
+     * are needed (ruled 2026-08-20):
+     *
+     *   · **the flag is the affordance** — someone authoring a template sees the red "Unusable" chip and
+     *     fixes it, rather than being blocked by a condition they cannot see;
+     *   · **this refusal is the floor** — a contract citing standard terms nobody can read is the actual
+     *     harm, and it is worth stopping at the moment it would happen.
+     *
+     * Shipping only the flag leaves the harm unprevented; shipping only the refusal is the confusing
+     * version this item started as, where a person is refused for something invisible.
+     *
+     * ONLY ON A NEW REFERENCE. Whether an EXISTING contract should be affected when its template later
+     * becomes unusable is a lifecycle question, and it is R-15's — not this one. So this fires on the
+     * same `isNewlySelected` gate as R-5, which also means an ordinary re-save of an existing contract
+     * costs nothing.
+     */
+    private async refuseUnusableTemplate(result: ValidationResult): Promise<void> {
+        if (!this.ContractTemplateID) return;
+        if (!this.isNewlySelected('ContractTemplateID')) return;
+
+        const template = await this.RunViewProviderToUse.RunView<{ Name: string; IsUsable: boolean; SourceURL: string | null }>(
+            {
+                EntityName: 'MJ_BizApps_Contracts: Contract Templates',
+                ExtraFilter: `ID = '${this.ContractTemplateID}'`,
+                Fields: ['Name', 'IsUsable', 'SourceURL'],
+                ResultType: 'simple',
+            },
+            this.ContextCurrentUser,
+        );
+        const row = template?.Results?.[0];
+        // A template we cannot read is not a template we can call unusable — the FK stays the floor.
+        if (!row || row.IsUsable) return;
+
+        result.Success = false;
+        result.Errors.push(
+            new ValidationErrorInfo(
+                'ContractTemplateID',
+                `"${row.Name}" has no source URL and no attached document, so nobody can read the standard ` +
+                    `terms it names — a contract cannot incorporate terms that are not available. Add a URL or ` +
+                    `attach the agreement document to that template first.`,
+                this.ContractTemplateID,
+                ValidationErrorType.Failure,
+            ),
+        );
+    }
 
     /**
      * R-4 (certain half) — do not clear `ContractTemplateID` while modifications on THIS contract point

@@ -224,14 +224,15 @@ export class mjBizAppsContractsContractTemplateProvision_ {
     @Field({nullable: true}) 
     Description?: string;
         
-    @Field(() => Int, {description: `Display order. Earns its place because ProvisionNumber does not sort as text ("3.10" lands before "3.5") and a legal document has a canonical order.`}) 
-    Sequence: number;
-        
     @Field() 
     _mj__CreatedAt: Date;
         
     @Field() 
     _mj__UpdatedAt: Date;
+        
+    @Field({nullable: true, description: `Collation key derived from ProvisionNumber: every run of digits zero-padded to six places, everything else upper-cased. Makes a plain SQL ORDER BY produce natural order ("1.9" before "1.10"), which ordering by ProvisionNumber cannot. READ-ONLY — a persisted computed column; nobody should be able to set a sort key. Replaced the hand-maintained Sequence column, which had already collided in the seeded data.`}) 
+    @MaxLength(200)
+    ProvisionSortKey?: string;
         
     @Field() 
     @MaxLength(200)
@@ -265,9 +266,6 @@ export class CreatemjBizAppsContractsContractTemplateProvisionInput {
     @Field({ nullable: true })
     Description: string | null;
 
-    @Field(() => Int, { nullable: true })
-    Sequence?: number;
-
     @Field(() => RestoreContextInput, { nullable: true })
     RestoreContext___?: RestoreContextInput;
 }
@@ -295,9 +293,6 @@ export class UpdatemjBizAppsContractsContractTemplateProvisionInput {
 
     @Field({ nullable: true })
     Description?: string | null;
-
-    @Field(() => Int, { nullable: true })
-    Sequence?: number;
 
     @Field(() => [KeyValuePairInput], { nullable: true })
     OldValues___?: KeyValuePairInput[];
@@ -599,9 +594,9 @@ export class mjBizAppsContractsContractTemplate_ {
     @Field({nullable: true, description: `When this version started being offered. NOT an effective date: a template becomes effective for a customer when THAT customer signs it, never on a calendar date. Naming it EffectiveDate would invite exactly the wrong query.`}) 
     IntroducedDate?: Date;
         
-    @Field({description: `The dated public URL. NOT NULL — every template we have is a published URL and it is what the executed PDF cites; a template nobody can open is not a record of anything.`}) 
+    @Field({nullable: true, description: `The dated public URL. NOT NULL — every template we have is a published URL and it is what the executed PDF cites; a template nobody can open is not a record of anything.`}) 
     @MaxLength(1000)
-    SourceURL: string;
+    SourceURL?: string;
         
     @Field({nullable: true}) 
     Description?: string;
@@ -615,6 +610,9 @@ export class mjBizAppsContractsContractTemplate_ {
     @Field() 
     @MaxLength(100)
     ContractTemplateType: string;
+        
+    @Field(() => Boolean, {nullable: true}) 
+    IsUsable?: boolean;
         
     @Field(() => [mjBizAppsContractsContract_])
     mjBizAppsContractsContracts_ContractTemplateIDArray: mjBizAppsContractsContract_[]; // Link to mjBizAppsContractsContracts
@@ -645,7 +643,7 @@ export class CreatemjBizAppsContractsContractTemplateInput {
     IntroducedDate: Date | null;
 
     @Field({ nullable: true })
-    SourceURL?: string;
+    SourceURL: string | null;
 
     @Field({ nullable: true })
     Description: string | null;
@@ -676,7 +674,7 @@ export class UpdatemjBizAppsContractsContractTemplateInput {
     IntroducedDate?: Date | null;
 
     @Field({ nullable: true })
-    SourceURL?: string;
+    SourceURL?: string | null;
 
     @Field({ nullable: true })
     Description?: string | null;

@@ -8,7 +8,7 @@
  * WRITES THROUGH THE SAME COLLECTION THE SEED USES. `template.Provisions` is declared in metadata, so
  * item 4's seeded list and a version typed in here by finance travel identical code paths — which is why
  * "there is no machine-readable source" is not a blocker for a new edition. One `Save()` writes the
- * template and every provision in one transaction, and `Sequence` is renumbered gap-free by the
+ * template and every provision in one transaction. (`Sequence` and its gap-free renumbering were removed by R-11; ordering is derived from `ProvisionNumber` — the trailing text of this sentence is kept below for history.) Formerly: `Sequence` is renumbered gap-free by the
  * collection rather than by hand.
  *
  * @module @mj-biz-apps/contracts-ng
@@ -55,6 +55,16 @@ import { MJC_ENTITIES } from '../data/entity-names';
             [FormContext]="FormContext">
 
             @if (LoadError) { <div class="mjc-body"><div class="mjc-flag">{{ LoadError }}</div></div> }
+            @if (!IsUsable) {
+                <div class="mjc-body">
+                    <div class="mjc-flag">
+                        <span class="mjc-chip mjc-chip--error">Unusable</span>
+                        This version records no source URL and has no document attached, so nobody can read
+                        the standard terms it names. Add a URL or attach the agreement document — until then a
+                        contract cannot incorporate this version.
+                    </div>
+                </div>
+            }
 
             @if (Provisions.length) {
                 <table class="mjc-grid">
@@ -107,8 +117,9 @@ import { MJC_ENTITIES } from '../data/entity-names';
             } @else {
                 <div class="mjc-body">
                     <div class="mjc-empty">
-                        No provisions yet. Add them in document order — <code>Sequence</code> is what orders the
-                        list, because provision numbers do not sort as text.
+                        No provisions yet. Add them and give each a provision number — the number is what
+                        orders the list, via a derived sort key that makes <code>1.9</code> come before
+                        <code>1.10</code>.
                     </div>
                 </div>
             }
@@ -130,6 +141,26 @@ import { MJC_ENTITIES } from '../data/entity-names';
     `,
 })
 export class MJCTemplateProvisionsPanel extends BaseFormPanel<mjBizAppsContractsContractTemplateEntity> {
+    /**
+     * R-12 — whether the standard terms this version names can actually be READ.
+     *
+     * Derived in `vwContractTemplates` (a URL, or a file linked through `__mj.FileEntityRecordLink`), so
+     * this reads the flag rather than recomputing it — the rule lives in one place and the UI renders it.
+     *
+     * WHY A CHIP AND NOT A REFUSAL, here. A template with neither is INCOMPLETE, not invalid: it is an
+     * ordinary state to pass through while authoring one, and on CREATE the "or a file" half is
+     * unsatisfiable in principle because a file cannot be linked to a record that does not exist yet. So
+     * the template form says so and lets the work continue. The refusal lives one step downstream, where
+     * the actual harm is — `ContractEntityServer` rejects a CONTRACT that references an unusable version.
+     *
+     * Defaults to TRUE while the record is loading, so the warning appears only when it is known to
+     * apply. A chip that flashes on every form open teaches people to ignore it.
+     */
+    public get IsUsable(): boolean {
+        const value = this.Record?.Get('IsUsable');
+        return value === undefined || value === null ? true : value === true || value === 1;
+    }
+
     private readonly cdr = inject(ChangeDetectorRef);
     public LoadError: string | null = null;
     private loadStarted = false;
@@ -164,9 +195,18 @@ export class MJCTemplateProvisionsPanel extends BaseFormPanel<mjBizAppsContracts
     }
 
     /**
-     * Add a clause at the end. `Sequence` is left to the collection: the declaration carries
-     * `{"Field":"Sequence","From":1}`, so it numbers gap-free on save across adds AND removals. Setting
-     * it here would fight that and produce duplicates the moment a row is deleted.
+     * Add a clause. THERE IS NO POSITION TO SET ANY MORE — R-11 removed `Sequence` and the collection's
+     * `{"Field":"Sequence","From":1}` auto-numbering with it.
+     *
+     * The order now comes from `ProvisionNumber` via the derived `ProvisionSortKey`, so a new row lands
+     * wherever its number says it belongs the moment the number is typed. That is the point of the
+     * change: the previous design maintained a second, hand-numbered copy of an order the provision
+     * number already stated, and the two had ALREADY disagreed in the seeded data ('1' and '1.1' both
+     * claiming position 1).
+     *
+     * Practical consequence for this panel: a provision with no number sorts to the top (its key is the
+     * empty string) until one is entered. That is visible and self-correcting, unlike a duplicate
+     * position, which was neither.
      */
     public async Add(): Promise<void> {
         await this.Record?.Provisions?.Create();

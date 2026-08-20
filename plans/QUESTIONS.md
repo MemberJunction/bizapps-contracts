@@ -83,6 +83,23 @@ expensive to reverse.
 
 ## Q-6 · `ContractTemplate.SourceURL` is NOT NULL — which forecloses a file-only template version
 
+> ✅ **ANSWERED and IMPLEMENTED 2026-08-20.** Ruled by Marcelo 2026-08-19: `SourceURL` becomes
+> **nullable**, and the "URL or file" requirement is surfaced as a **derived `IsUsable` flag the UI
+> shows** rather than a save-time refusal — because a template with neither is *incomplete*, not
+> invalid, and that is an ordinary state to pass through while authoring one.
+>
+> Shipped as R-12 (`V202608200500` + `V202608200600`): nullable column, `IsUsable` derived in a layered
+> `vwContractTemplates`, a red "Unusable" chip on the template panel, and — ruled 2026-08-20 — a
+> **refusal one step downstream**, where the actual harm is: `ContractEntityServer` rejects a CONTRACT
+> that newly references an unusable version. The flag is the affordance; the refusal is the floor.
+>
+> The reachability half of the original question stands as unanswerable and is no longer attempted:
+> nothing can assert that a URL still resolves. What happens to an existing contract whose template
+> later becomes unusable is **R-15**, not this.
+>
+> The original entry follows, unedited.
+
+
 - **Proposed solution / what I am doing:** leaving the column NOT NULL and changing nothing. The
   primary case is a Blue Cypress-hosted URL we maintain, which the current shape suits exactly, and
   loosening a NOT NULL later is additive and cheap while tightening one is a data migration.

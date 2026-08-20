@@ -134,9 +134,9 @@ export class MJCAgreementVersionsPageComponent implements OnInit {
         <div class="mjc-page mjc-page--grid">
             <p class="mjc-page__intro">
                 Every numbered clause across every agreement version, in document order. Ordered by
-                <code>Sequence</code>, not by provision number — <code>1.10</code> sorts before
-                <code>1.2</code> as text, and the Master Agreement's two longest sections are exactly
-                the ones that breaks.
+                <code>ProvisionSortKey</code>, a collation key derived from the provision number —
+                sorting on the number itself would put <code>1.10</code> before <code>1.2</code>,
+                and the Master Agreement's two longest sections are exactly the ones that breaks.
             </p>
             <div class="mjc-grid-fill">
                 <mj-explorer-entity-data-grid mjcFkNavigate
@@ -222,7 +222,7 @@ export class MJCAllProvisionsPageComponent implements OnInit {
             EntityName: MJC_ENTITIES.ContractTemplateProvision,
             // Group by version, then document order within it. The base view carries the template's
             // name column, so grouping by it reads as a name (D-23).
-            OrderBy: 'ContractTemplate ASC, Sequence ASC',
+            OrderBy: 'ContractTemplate ASC, ProvisionSortKey ASC',
         };
         this.cdr.detectChanges();
     }

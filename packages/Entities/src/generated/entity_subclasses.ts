@@ -71,7 +71,7 @@ export const mjBizAppsContractsContractTemplateProvisionSchema = z.object({
         * * Default Value: newsequentialid()`),
     ContractTemplateID: z.string().describe(`
         * * Field Name: ContractTemplateID
-        * * Display Name: Contract Template
+        * * Display Name: Contract Template ID
         * * SQL Data Type: uniqueidentifier
         * * Related Entity/Foreign Key: MJ_BizApps_Contracts: Contract Templates (vwContractTemplates.ID)`),
     ProvisionNumber: z.string().describe(`
@@ -93,12 +93,6 @@ export const mjBizAppsContractsContractTemplateProvisionSchema = z.object({
         * * Field Name: Description
         * * Display Name: Description
         * * SQL Data Type: nvarchar(MAX)`),
-    Sequence: z.number().describe(`
-        * * Field Name: Sequence
-        * * Display Name: Sequence
-        * * SQL Data Type: int
-        * * Default Value: 0
-        * * Description: Display order. Earns its place because ProvisionNumber does not sort as text ("3.10" lands before "3.5") and a legal document has a canonical order.`),
     __mj_CreatedAt: z.date().describe(`
         * * Field Name: __mj_CreatedAt
         * * Display Name: Created At
@@ -109,9 +103,14 @@ export const mjBizAppsContractsContractTemplateProvisionSchema = z.object({
         * * Display Name: Updated At
         * * SQL Data Type: datetimeoffset
         * * Default Value: getutcdate()`),
+    ProvisionSortKey: z.string().nullable().describe(`
+        * * Field Name: ProvisionSortKey
+        * * Display Name: Provision Sort Key
+        * * SQL Data Type: nvarchar(200)
+        * * Description: Collation key derived from ProvisionNumber: every run of digits zero-padded to six places, everything else upper-cased. Makes a plain SQL ORDER BY produce natural order ("1.9" before "1.10"), which ordering by ProvisionNumber cannot. READ-ONLY — a persisted computed column; nobody should be able to set a sort key. Replaced the hand-maintained Sequence column, which had already collided in the seeded data.`),
     ContractTemplate: z.string().describe(`
         * * Field Name: ContractTemplate
-        * * Display Name: Contract Template Name
+        * * Display Name: Contract Template
         * * SQL Data Type: nvarchar(200)`),
 });
 
@@ -186,7 +185,7 @@ export const mjBizAppsContractsContractTemplateSchema = z.object({
         * * Display Name: Introduced Date
         * * SQL Data Type: date
         * * Description: When this version started being offered. NOT an effective date: a template becomes effective for a customer when THAT customer signs it, never on a calendar date. Naming it EffectiveDate would invite exactly the wrong query.`),
-    SourceURL: z.string().describe(`
+    SourceURL: z.string().nullable().describe(`
         * * Field Name: SourceURL
         * * Display Name: Source URL
         * * SQL Data Type: nvarchar(1000)
@@ -207,8 +206,12 @@ export const mjBizAppsContractsContractTemplateSchema = z.object({
         * * Default Value: getutcdate()`),
     ContractTemplateType: z.string().describe(`
         * * Field Name: ContractTemplateType
-        * * Display Name: Template Type
+        * * Display Name: Contract Template Type
         * * SQL Data Type: nvarchar(100)`),
+    IsUsable: z.boolean().nullable().describe(`
+        * * Field Name: IsUsable
+        * * Display Name: Is Usable
+        * * SQL Data Type: bit`),
 });
 
 export type mjBizAppsContractsContractTemplateEntityType = z.infer<typeof mjBizAppsContractsContractTemplateSchema>;
@@ -694,7 +697,7 @@ export class mjBizAppsContractsContractTemplateProvisionEntity extends BaseEntit
 
     /**
     * * Field Name: ContractTemplateID
-    * * Display Name: Contract Template
+    * * Display Name: Contract Template ID
     * * SQL Data Type: uniqueidentifier
     * * Related Entity/Foreign Key: MJ_BizApps_Contracts: Contract Templates (vwContractTemplates.ID)
     */
@@ -757,20 +760,6 @@ export class mjBizAppsContractsContractTemplateProvisionEntity extends BaseEntit
     }
 
     /**
-    * * Field Name: Sequence
-    * * Display Name: Sequence
-    * * SQL Data Type: int
-    * * Default Value: 0
-    * * Description: Display order. Earns its place because ProvisionNumber does not sort as text ("3.10" lands before "3.5") and a legal document has a canonical order.
-    */
-    get Sequence(): number {
-        return this.Get('Sequence');
-    }
-    set Sequence(value: number) {
-        this.Set('Sequence', value);
-    }
-
-    /**
     * * Field Name: __mj_CreatedAt
     * * Display Name: Created At
     * * SQL Data Type: datetimeoffset
@@ -791,8 +780,18 @@ export class mjBizAppsContractsContractTemplateProvisionEntity extends BaseEntit
     }
 
     /**
+    * * Field Name: ProvisionSortKey
+    * * Display Name: Provision Sort Key
+    * * SQL Data Type: nvarchar(200)
+    * * Description: Collation key derived from ProvisionNumber: every run of digits zero-padded to six places, everything else upper-cased. Makes a plain SQL ORDER BY produce natural order ("1.9" before "1.10"), which ordering by ProvisionNumber cannot. READ-ONLY — a persisted computed column; nobody should be able to set a sort key. Replaced the hand-maintained Sequence column, which had already collided in the seeded data.
+    */
+    get ProvisionSortKey(): string | null {
+        return this.Get('ProvisionSortKey');
+    }
+
+    /**
     * * Field Name: ContractTemplate
-    * * Display Name: Contract Template Name
+    * * Display Name: Contract Template
     * * SQL Data Type: nvarchar(200)
     */
     get ContractTemplate(): string {
@@ -934,11 +933,10 @@ export class mjBizAppsContractsContractTemplateEntity extends BaseEntity<mjBizAp
       Name: 'Provisions',
         RelatedEntity: 'MJ_BizApps_Contracts: Contract Template Provisions',
         RelatedEntityJoinField: 'ContractTemplateID',
-        OrderBy: 'Sequence ASC',
+        OrderBy: 'ProvisionSortKey ASC',
         Load: 'explicit',
         OnRemove: 'delete',
         Source: 'database',
-        Sequence: { Field: 'Sequence', From: 1 },
   });
 
     /**
@@ -1028,10 +1026,10 @@ export class mjBizAppsContractsContractTemplateEntity extends BaseEntity<mjBizAp
     * * SQL Data Type: nvarchar(1000)
     * * Description: The dated public URL. NOT NULL — every template we have is a published URL and it is what the executed PDF cites; a template nobody can open is not a record of anything.
     */
-    get SourceURL(): string {
+    get SourceURL(): string | null {
         return this.Get('SourceURL');
     }
-    set SourceURL(value: string) {
+    set SourceURL(value: string | null) {
         this.Set('SourceURL', value);
     }
 
@@ -1069,11 +1067,20 @@ export class mjBizAppsContractsContractTemplateEntity extends BaseEntity<mjBizAp
 
     /**
     * * Field Name: ContractTemplateType
-    * * Display Name: Template Type
+    * * Display Name: Contract Template Type
     * * SQL Data Type: nvarchar(100)
     */
     get ContractTemplateType(): string {
         return this.Get('ContractTemplateType');
+    }
+
+    /**
+    * * Field Name: IsUsable
+    * * Display Name: Is Usable
+    * * SQL Data Type: bit
+    */
+    get IsUsable(): boolean | null {
+        return this.Get('IsUsable');
     }
 }
 

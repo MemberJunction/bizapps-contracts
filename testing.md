@@ -5,7 +5,7 @@ against the **matrix**, not against the tests that happen to exist — an empty 
 every written test is green.
 
 > **Last run:** 2026-08-20, branch `build/backend-requirements`, instance `contracts-mj6`.
-> **Totals: 117 unit assertions (10 files), all passing.** Build `exit 0` on all 6 packages (real `tsc`,
+> **Totals: 127 unit assertions (11 files), all passing.** Build `exit 0` on all 6 packages (real `tsc`,
 > not a grep). Plus a **live GraphQL check** against a restarted MJAPI for R-6 — create with no text,
 > with `''`, with whitespace, and a valid create — each observed, and the probe rows deleted after.
 > **Totals: 64 unit assertions (4 files), all passing.** Plus a **live render check** in system
@@ -59,6 +59,8 @@ node test-harnesses/integration.mjs            # will report zero known bundles 
 | Lineage cycle prevention (R-3) | — | ✅ manual | 7 live probes across both FKs: 2-node ring refused, 3-node ring refused with the full chain, legal parent + legal supersession accepted, superseded ring refused. No unit test — the logic is a recursive CTE and a TS restatement is not an oracle for SQL |
 | Modification uniqueness (R-10) | ✅ 8 | ✅ manual | staged-duplicate counting unit-covered incl. UUID casing / blanks / triplicates (red-proven); live probes confirm a saved duplicate is refused with prose and an ordinary re-save is not |
 | Tree placement + template rules (R-4) | ✅ (generated CHECK validator) | ✅ manual | live probes: MustBeChild refused a parentless change order; MustBeRoot + TemplateRequired both refused in one response; **a modification on a change order citing the parent's template is now accepted** (previously impossible); an out-of-tree provision still refused |
+| Provision natural ordering (R-11) | ✅ 10 | ✅ manual | live API returns 73 provisions in natural order (`1.9` → `1.10` → `1.11`); boundary cases incl. `1.2.3`, `1.1A`, `2.10B`, `10.1` verified through the function. The unit tests guard the READERS (a reader drifting back to `Sequence` fails only at the provider, on one grid) and the migration's invariants — the ordering itself is SQL, and a TS restatement would not be an oracle for it |
+| Template usability (R-12) | — | ✅ manual | full loop through live GraphQL: template with no URL → `IsUsable: false` → contract reference refused → URL added → `IsUsable: true` → reference accepted. **Gotcha 6 proven** by running CodeGen afterwards and confirming the wrapper, the inner view and the EntityField all survived |
 | Migration re-runnability (V202608192340) | ✅ manual | — | history row deleted and the migration re-applied twice from scratch; the CodeGen capture's `DROP`/`CREATE PROCEDURE` observed executing (sproc `modify_date` moved to the migration's own timestamp, not CodeGen's) |
 | `ContractNumber` minting under concurrency | ✗ | ✗ | `contracts-numbering` bundle, item 13. Lock behaviour is only observable against a real DB |
 | Graph save: header + modifications atomicity | ✗ | ✗ | `contracts-graph-save`, item 13 — the acceptance test for D-15 itself |
