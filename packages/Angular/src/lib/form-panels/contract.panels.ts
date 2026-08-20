@@ -38,7 +38,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RegisterClassEx } from '@memberjunction/global';
 import { BaseFormPanel, BaseFormsModule } from '@memberjunction/ng-base-forms';
-import { ContractEntity, DeriveContractState, type ContractState } from '@mj-biz-apps/contracts-entities';
+import { ContractEntity, type ContractState } from '@mj-biz-apps/contracts-entities';
 import { MJC_ENTITIES } from '../data/entity-names';
 import { MJCModificationEditorComponent } from '../custom/modification-editor.component';
 
@@ -153,19 +153,22 @@ export class MJCContractHeroPanel extends BaseFormPanel<ContractEntity> {
     }
 
     /**
-     * Derived in the BROWSER from the live field values, not read from the view's stored column.
+     * READ from the view's derived column. Application code does not re-derive state (Marcelo,
+     * 2026-08-19) — the view is the single authority, and `DeriveContractState()` is now for tests
+     * and the equivalence harness only.
      *
-     * A record being edited has unsaved dates, so the stored column would contradict the form on screen.
-     * Both renderings come from `contract-state.ts`, so they cannot disagree about the rule.
+     * This panel used to re-derive it in the browser so the chip tracked UNSAVED date edits. That
+     * bought a live-updating chip and cost the thing worth more: a second implementation that could
+     * disagree with the view, which is exactly what happened — the two diverged on the termination
+     * boundary and no test could see it. The chip now shows what is PERSISTED, which is also the
+     * more honest claim: a state chip that reacts to an unsaved date is asserting something no
+     * query would agree with until the record is saved.
+     *
+     * A never-saved record has no column value, and `Draft` is not a guess there — it is what the
+     * view's own `ELSE` branch returns for a row with no dates, which is every new contract.
      */
     public get State(): ContractState {
-        return DeriveContractState({
-            TerminatedDate: this.Record?.TerminatedDate ?? null,
-            SupersededByContractID: this.Record?.SupersededByContractID ?? null,
-            EndDate: this.Record?.EndDate ?? null,
-            EffectiveDate: this.Record?.EffectiveDate ?? null,
-            ExecutedDate: this.Record?.ExecutedDate ?? null,
-        });
+        return (this.Record?.State as ContractState) || 'Draft';
     }
 
     public get StateChipClass(): string { return chipClassFor(this.State); }
@@ -202,7 +205,7 @@ export class MJCContractHeroPanel extends BaseFormPanel<ContractEntity> {
     metadata: {
         entity: MJC_ENTITIES.Contract,
         slot: 'after-fields',
-        sortKey: 80,
+        sortKey: 85,
         contributionKey: 'renewal',
         // REPLACES the generated `renewalTerms` section rather than sitting beside it. Two reasons, and
         // the second is the one that makes the rail work:
@@ -213,7 +216,22 @@ export class MJCContractHeroPanel extends BaseFormPanel<ContractEntity> {
         //     rail entry. That is the mechanism behind the mockup's rail, and without the replacement
         //     this panel folded into Details and the form read as one long page.
         replacesSectionKey: 'renewalTerms',
-        inclusion: 'Primary',
+        // NO `inclusion: 'Primary'` — and that omission is what puts Details FIRST.
+        //
+        // The rail is assembled as fixed BANDS, not from a sortable flat list:
+        // `spec.Groups = [...leads, ...details, ...related, ...more]`
+        // (`resolve-form-chrome.ts:761`). A panel joins the LEAD band purely by declaring
+        // `inclusion: 'Primary'` (`isLeadContribution`, `:313`), and every lead therefore renders
+        // BEFORE Details. With all of these marked Primary, Details sat fourth.
+        //
+        // Reordering `spec.Groups` from a `BaseFormPolicy.DecorateChrome` cannot fix that:
+        // `StabilizeFirstClassGroupOrder` re-imposes the bands, and its own comment says it moves
+        // groups "into the lead band before Details" — so the reorder is silently undone. Only a
+        // user's drag order (`OrderChromeGroups`) outranks the bands, and that is a per-user
+        // preference an app cannot ship.
+        //
+        // Dropping Primary moves these into the `related` band, which sorts DESCENDING by sortKey
+        // (`:753`), so the numbers below are the running order after Details.
     },
 })
 @Component({
@@ -336,7 +354,22 @@ export class MJCContractRenewalPanel extends BaseFormPanel<ContractEntity> {
         sortKey: 90,
         contributionKey: 'dates',
         replacesSectionKey: 'datesAndTerms',
-        inclusion: 'Primary',
+        // NO `inclusion: 'Primary'` — and that omission is what puts Details FIRST.
+        //
+        // The rail is assembled as fixed BANDS, not from a sortable flat list:
+        // `spec.Groups = [...leads, ...details, ...related, ...more]`
+        // (`resolve-form-chrome.ts:761`). A panel joins the LEAD band purely by declaring
+        // `inclusion: 'Primary'` (`isLeadContribution`, `:313`), and every lead therefore renders
+        // BEFORE Details. With all of these marked Primary, Details sat fourth.
+        //
+        // Reordering `spec.Groups` from a `BaseFormPolicy.DecorateChrome` cannot fix that:
+        // `StabilizeFirstClassGroupOrder` re-imposes the bands, and its own comment says it moves
+        // groups "into the lead band before Details" — so the reorder is silently undone. Only a
+        // user's drag order (`OrderChromeGroups`) outranks the bands, and that is a per-user
+        // preference an app cannot ship.
+        //
+        // Dropping Primary moves these into the `related` band, which sorts DESCENDING by sortKey
+        // (`:753`), so the numbers below are the running order after Details.
     },
 })
 @Component({
@@ -436,10 +469,25 @@ export class MJCContractDatesPanel extends BaseFormPanel<ContractEntity> {
     metadata: {
         entity: MJC_ENTITIES.Contract,
         slot: 'after-related',
-        sortKey: 90,
+        sortKey: 75,
         contributionKey: 'modifications',
         relatedEntity: MJC_ENTITIES.ContractTemplateModification,
-        inclusion: 'Primary',
+        // NO `inclusion: 'Primary'` — and that omission is what puts Details FIRST.
+        //
+        // The rail is assembled as fixed BANDS, not from a sortable flat list:
+        // `spec.Groups = [...leads, ...details, ...related, ...more]`
+        // (`resolve-form-chrome.ts:761`). A panel joins the LEAD band purely by declaring
+        // `inclusion: 'Primary'` (`isLeadContribution`, `:313`), and every lead therefore renders
+        // BEFORE Details. With all of these marked Primary, Details sat fourth.
+        //
+        // Reordering `spec.Groups` from a `BaseFormPolicy.DecorateChrome` cannot fix that:
+        // `StabilizeFirstClassGroupOrder` re-imposes the bands, and its own comment says it moves
+        // groups "into the lead band before Details" — so the reorder is silently undone. Only a
+        // user's drag order (`OrderChromeGroups`) outranks the bands, and that is a per-user
+        // preference an app cannot ship.
+        //
+        // Dropping Primary moves these into the `related` band, which sorts DESCENDING by sortKey
+        // (`:753`), so the numbers below are the running order after Details.
     },
 })
 @Component({
@@ -489,11 +537,26 @@ export class MJCContractModificationsPanel extends BaseFormPanel<ContractEntity>
     metadata: {
         entity: MJC_ENTITIES.Contract,
         slot: 'after-related',
-        sortKey: 70,
+        sortKey: 65,
         contributionKey: 'lineage',
         relatedEntity: MJC_ENTITIES.Contract,
         relatedJoinField: 'ParentContractID',
-        inclusion: 'Primary',
+        // NO `inclusion: 'Primary'` — and that omission is what puts Details FIRST.
+        //
+        // The rail is assembled as fixed BANDS, not from a sortable flat list:
+        // `spec.Groups = [...leads, ...details, ...related, ...more]`
+        // (`resolve-form-chrome.ts:761`). A panel joins the LEAD band purely by declaring
+        // `inclusion: 'Primary'` (`isLeadContribution`, `:313`), and every lead therefore renders
+        // BEFORE Details. With all of these marked Primary, Details sat fourth.
+        //
+        // Reordering `spec.Groups` from a `BaseFormPolicy.DecorateChrome` cannot fix that:
+        // `StabilizeFirstClassGroupOrder` re-imposes the bands, and its own comment says it moves
+        // groups "into the lead band before Details" — so the reorder is silently undone. Only a
+        // user's drag order (`OrderChromeGroups`) outranks the bands, and that is a per-user
+        // preference an app cannot ship.
+        //
+        // Dropping Primary moves these into the `related` band, which sorts DESCENDING by sortKey
+        // (`:753`), so the numbers below are the running order after Details.
     },
 })
 @Component({
@@ -604,3 +667,7 @@ export class MJCContractLineagePanel extends BaseFormPanel<ContractEntity> {
         this.cdr.detectChanges();
     }
 }
+
+/* ────────────────────────────────────────────────────────────────────────────
+ * 5 · Policy — moves Details to the top of the left-nav rail
+ * ──────────────────────────────────────────────────────────────────────────── */

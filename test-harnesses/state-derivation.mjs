@@ -1,37 +1,31 @@
 /**
- * Does the VIEW agree with the TYPESCRIPT about contract state?
+ * Does the VIEW derive the contract lifecycle correctly?
  *
- * WHY THIS EXISTS. Contract state is derived twice — a T-SQL `CASE` in the layered base view
- * (`V202608182001`) and `DeriveContractState()` in `@mj-biz-apps/contracts-entities`. The unit test
- * guards them with `StateSQL()`, which asserts the migration still CONTAINS the text TypeScript
- * renders. That is a text comparison, and on 2026-08-19 it proved insufficient in the most direct way
- * possible: the TypeScript `Terminated` branch was changed from "any termination date" to
- * "terminated before today", the view was not, and all 77 unit tests stayed green while the two
- * implementations disagreed for every contract terminated today or later.
+ * WHY THIS IS THE ONLY SEMANTIC TEST OF THE RULE. `State` is derived in exactly one place — the `CASE`
+ * in `V202608182001` — because the rule is time-dependent (`Expired` and `Active` turn over at
+ * midnight with no write to trigger them), so it has to be evaluated at READ time. There is no
+ * TypeScript copy to compare against, on purpose: the previous design rendered the rule in both
+ * languages from one module, the two drifted anyway on the termination boundary, and the guard missed
+ * it because it compared the renderings as TEXT.
  *
- * Text cannot catch that. Only running both against the same facts can. MJ has no metadata mechanism
- * for "one rule, two runtimes" (no `EntityField` formula/expression support), so equivalence has to
- * be TESTED rather than declared — this script is that test.
+ * So the oracle here is not another implementation — it is the `expect` column below, written from what
+ * a person says the answer should be. `contract-state.test.ts` covers the same rule DB-free by checking
+ * the migration text against a hand-written statement of it; this file is what proves the SQL actually
+ * EVALUATES that way, which no amount of text matching can.
  *
- * WHAT IT DOES. Reads every contract through `vwContracts` (the deployed view, not a copy of its
- * source) and through `DeriveContractState()`, and exits non-zero on any disagreement. It reads only;
- * it writes nothing and creates no fixtures, so it is safe to run against any instance.
+ * FIXTURE DISCIPLINE. Rows are created under a per-run token, never touch the shared demo contracts,
+ * and are deleted in a `finally` so a failure mid-run still cleans up. They are written with raw SQL
+ * rather than through `BaseEntity` on purpose: this asks "given these field values, what does the view
+ * say", so the save path would add number minting and audit rows — and audit rows would then block the
+ * cleanup DELETE behind a foreign key.
  *
- * IT RUNS IN TWO PASSES. First over whatever contracts already exist, which catches regressions on
- * real data. Then over ITS OWN FIXTURES, because live data cannot be relied on to contain the
- * interesting cases — the nine rows in this instance cover Draft / Executed / Active / Expired and
- * NOT Terminated or Superseded, which is precisely the branch that broke. The fixture pass covers
- * every state plus the three-way termination boundary (yesterday / today / tomorrow).
+ * Date arithmetic is done in SQL against `GETUTCDATE()` so that "today" means the same thing to the
+ * fixture and to the view. Computing it in Node would introduce the machine's timezone into a
+ * comparison the view makes in UTC — which is the exact class of bug that made a stored `date` render
+ * as the previous day in the UI.
  *
- * FIXTURE DISCIPLINE. It creates its own rows under a per-run token, never touches the shared demo
- * contracts, and deletes them in a `finally` so a failure mid-run still cleans up. Rows are written
- * with raw SQL rather than through BaseEntity ON PURPOSE: this compares a view expression against a
- * TypeScript function for given field values, so going through the save path would add the server
- * subclass's minting and audit rows to something that is purely a data-in / state-out comparison —
- * and audit rows would then block the cleanup DELETE behind an FK.
- *
- * Usage:  node test-harnesses/state-equivalence.mjs
- * Exit:   0 agree · 1 mismatch · 2 bootstrap failure
+ * Usage:  npm run test:state
+ * Exit:   0 all fixtures correct · 1 a fixture disagrees · 2 bootstrap failure
  */
 import sql from 'mssql';
 import { loadEnvFrom } from './load-env.mjs';
@@ -41,11 +35,8 @@ loadEnvFrom(import.meta.url);
 const { DB_HOST, DB_PORT, DB_DATABASE, DB_USERNAME, DB_PASSWORD, MJ_CONTRACTS_SCHEMA } = process.env;
 const schema = MJ_CONTRACTS_SCHEMA || '__mj_BizAppsContracts';
 
-let DeriveContractState;
-try {
-    ({ DeriveContractState } = await import('@mj-biz-apps/contracts-entities'));
-} catch (e) {
-    console.error(`BOOTSTRAP: cannot import @mj-biz-apps/contracts-entities — build it first (${e.message})`);
+if (!DB_DATABASE) {
+    console.error('BOOTSTRAP: no DB_DATABASE — the instance .env was not found (see load-env.mjs)');
     process.exit(2);
 }
 
@@ -61,109 +52,66 @@ const pool = await new sql.ConnectionPool({
     process.exit(2);
 });
 
-// Dates come back as `varchar` on purpose: the column type is `date`, and letting the driver hand
-// back a Date object would render midnight UTC — which is exactly the ambiguity `asDate()` exists to
-// remove. Passing the calendar date as text means both sides compare the same calendar day.
-const { recordset } = await pool.request().query(`
-    SELECT c.ContractNumber,
-           CONVERT(varchar(10), c.TerminatedDate, 23)   AS TerminatedDate,
-           CONVERT(varchar(10), c.EffectiveDate, 23)    AS EffectiveDate,
-           CONVERT(varchar(10), c.ExecutedDate, 23)     AS ExecutedDate,
-           CONVERT(varchar(10), c.EndDate, 23)          AS EndDate,
-           CAST(c.SupersededByContractID AS varchar(50)) AS SupersededByContractID,
-           v.[State]                                     AS SqlState
-      FROM [${schema}].[Contract] c
-      JOIN [${schema}].[vwContracts] v ON v.ID = c.ID
-     ORDER BY c.ContractNumber`);
-
-const mismatches = [];
-const seen = new Set();
-for (const row of recordset) {
-    const ts = DeriveContractState({
-        TerminatedDate: row.TerminatedDate,
-        EffectiveDate: row.EffectiveDate,
-        ExecutedDate: row.ExecutedDate,
-        EndDate: row.EndDate,
-        SupersededByContractID: row.SupersededByContractID,
-    });
-    seen.add(row.SqlState);
-    if (ts !== row.SqlState) mismatches.push({ Contract: row.ContractNumber, SQL: row.SqlState, TS: ts });
-}
-
-console.log(`Pass 1 — existing data: compared ${recordset.length} contract(s). ` +
-    `States present: ${[...seen].sort().join(', ') || 'none'}`);
-
-// ── Pass 2: our own fixtures, so the branches live data misses are still covered ────────────────
-// `date` arithmetic is done in SQL against GETUTCDATE() so "today" means the same thing to the view
-// and to the fixtures. The token makes every row of this run identifiable for cleanup even if the
-// process is killed between insert and delete.
-const token = `ZZTEST-${process.pid}-${Date.now().toString(36).toUpperCase()}`;
+/**
+ * Day offsets from today, and the state the view must return.
+ *
+ * The three termination rows are the reason this file exists. The rule was wrong in BOTH directions at
+ * different times — first `TerminatedDate IS NOT NULL` (so a termination scheduled for next year made a
+ * live contract read Terminated), then briefly an unreachable branch asserting the opposite — and
+ * nothing caught either, because nothing tested the boundary.
+ */
 const FIXTURES = [
-    { label: 'terminated yesterday',            terminated: -1,   effective: -200, end: 200, superseded: false, expect: 'Terminated' },
-    { label: 'terminated today',                terminated: 0,    effective: -200, end: 200, superseded: false, expect: 'Active' },
-    { label: 'terminated tomorrow',             terminated: 1,    effective: -200, end: 200, superseded: false, expect: 'Active' },
-    { label: 'superseded',                      terminated: null, effective: -200, end: 200, superseded: true,  expect: 'Superseded' },
-    { label: 'expired — term ended yesterday',  terminated: null, effective: -200, end: -1,  superseded: false, expect: 'Expired' },
-    { label: 'term ends today — still Active',  terminated: null, effective: -200, end: 0,   superseded: false, expect: 'Active' },
-    { label: 'effective today — Active',        terminated: null, effective: 0,    end: 200, superseded: false, expect: 'Active' },
-    { label: 'executed, not yet effective',     terminated: null, effective: 5,    end: 200, superseded: false, expect: 'Executed' },
+    { label: 'terminated yesterday — the termination has taken effect', terminated: -1, effective: -200, end: 200, superseded: false, expect: 'Terminated' },
+    { label: 'terminated TODAY — in force through the end of the day',  terminated: 0,  effective: -200, end: 200, superseded: false, expect: 'Active' },
+    { label: 'terminated TOMORROW — notice served, not yet effective',  terminated: 1,  effective: -200, end: 200, superseded: false, expect: 'Active' },
+    { label: 'superseded — the successor FK is the state',              terminated: null, effective: -200, end: 200, superseded: true,  expect: 'Superseded' },
+    { label: 'expired — the term ended yesterday',                      terminated: null, effective: -200, end: -1,  superseded: false, expect: 'Expired' },
+    { label: 'term ends TODAY — still Active through the day',          terminated: null, effective: -200, end: 0,   superseded: false, expect: 'Active' },
+    { label: 'effective TODAY — Active from today',                     terminated: null, effective: 0,    end: 200, superseded: false, expect: 'Active' },
+    { label: 'executed, effective later — a WAIT, not a Draft (R-19)',  terminated: null, effective: 5,    end: 200, superseded: false, expect: 'Executed' },
 ];
 
-let fixtureFailures = 0;
+const token = `ZZTEST-${process.pid}-${Date.now().toString(36).toUpperCase()}`;
+let failures = 0;
+
 try {
     const ids = await pool.request().query(`
         SELECT TOP 1
-            (SELECT TOP 1 ID FROM [${schema}].[ContractType])              AS TypeID,
-            (SELECT TOP 1 CompanyID FROM [${schema}].[Contract])           AS CompanyID,
+            (SELECT TOP 1 ID FROM [${schema}].[ContractType])                 AS TypeID,
+            (SELECT TOP 1 CompanyID FROM [${schema}].[Contract])              AS CompanyID,
             (SELECT TOP 1 CustomerOrganizationID FROM [${schema}].[Contract]) AS OrgID`);
     const { TypeID, CompanyID, OrgID } = ids.recordset[0] ?? {};
     if (!TypeID || !CompanyID || !OrgID) {
-        console.log('SKIP pass 2 — no existing type/company/organisation to borrow FK values from.');
-    } else {
-        for (const [i, f] of FIXTURES.entries()) {
-            // ExecutedDate is always set and always in the past so 'Executed' is reachable; the
-            // CK_Contract_Dates constraint only requires EndDate >= EffectiveDate.
-            const r = await pool.request()
-                .input('num', `${token}-${i}`).input('type', TypeID).input('co', CompanyID).input('org', OrgID)
-                .query(`
-                DECLARE @id uniqueidentifier = NEWID();
-                INSERT INTO [${schema}].[Contract]
-                    (ID, ContractNumber, ContractTypeID, CompanyID, CustomerOrganizationID,
-                     AutoRenew, HasModifications, ExecutedDate, EffectiveDate, EndDate, TerminatedDate,
-                     SupersededByContractID)
-                VALUES
-                    (@id, @num, @type, @co, @org, 0, 0,
-                     DATEADD(day, -300, CAST(GETUTCDATE() AS date)),
-                     DATEADD(day, ${f.effective}, CAST(GETUTCDATE() AS date)),
-                     DATEADD(day, ${f.end}, CAST(GETUTCDATE() AS date)),
-                     ${f.terminated === null ? 'NULL' : `DATEADD(day, ${f.terminated}, CAST(GETUTCDATE() AS date))`},
-                     ${f.superseded ? `(SELECT TOP 1 ID FROM [${schema}].[Contract] WHERE ContractNumber <> @num)` : 'NULL'});
-                SELECT CONVERT(varchar(10), c.TerminatedDate, 23) AS TerminatedDate,
-                       CONVERT(varchar(10), c.EffectiveDate, 23)  AS EffectiveDate,
-                       CONVERT(varchar(10), c.ExecutedDate, 23)   AS ExecutedDate,
-                       CONVERT(varchar(10), c.EndDate, 23)        AS EndDate,
-                       CAST(c.SupersededByContractID AS varchar(50)) AS SupersededByContractID,
-                       v.[State] AS SqlState
-                  FROM [${schema}].[Contract] c
-                  JOIN [${schema}].[vwContracts] v ON v.ID = c.ID
-                 WHERE c.ID = @id;`);
-            const row = r.recordset[0];
-            const ts = DeriveContractState({
-                TerminatedDate: row.TerminatedDate, EffectiveDate: row.EffectiveDate,
-                ExecutedDate: row.ExecutedDate, EndDate: row.EndDate,
-                SupersededByContractID: row.SupersededByContractID,
-            });
-            // Three-way check: the view, the function, AND what a person says the answer is. Two
-            // implementations agreeing on the WRONG answer is the failure this catches — text
-            // comparison of the two never could.
-            const agree = ts === row.SqlState;
-            const correct = row.SqlState === f.expect;
-            if (!agree || !correct) {
-                fixtureFailures++;
-                console.log(`  ✖ ${f.label}: expected ${f.expect}, view says ${row.SqlState}, TypeScript says ${ts}`);
-            } else {
-                console.log(`  ✔ ${f.label} → ${row.SqlState}`);
-            }
+        console.error('BOOTSTRAP: no existing type/company/organisation to borrow FK values from.');
+        process.exit(2);
+    }
+
+    for (const [i, f] of FIXTURES.entries()) {
+        // ExecutedDate is always set and in the past so 'Executed' is reachable; CK_Contract_Dates
+        // only requires EndDate >= EffectiveDate.
+        const r = await pool.request()
+            .input('num', `${token}-${i}`).input('type', TypeID).input('co', CompanyID).input('org', OrgID)
+            .query(`
+            DECLARE @id uniqueidentifier = NEWID();
+            INSERT INTO [${schema}].[Contract]
+                (ID, ContractNumber, ContractTypeID, CompanyID, CustomerOrganizationID,
+                 AutoRenew, HasModifications, ExecutedDate, EffectiveDate, EndDate, TerminatedDate,
+                 SupersededByContractID)
+            VALUES
+                (@id, @num, @type, @co, @org, 0, 0,
+                 DATEADD(day, -300, CAST(GETUTCDATE() AS date)),
+                 DATEADD(day, ${f.effective}, CAST(GETUTCDATE() AS date)),
+                 DATEADD(day, ${f.end}, CAST(GETUTCDATE() AS date)),
+                 ${f.terminated === null ? 'NULL' : `DATEADD(day, ${f.terminated}, CAST(GETUTCDATE() AS date))`},
+                 ${f.superseded ? `(SELECT TOP 1 ID FROM [${schema}].[Contract] WHERE ContractNumber <> @num)` : 'NULL'});
+            SELECT v.[State] AS SqlState FROM [${schema}].[vwContracts] v WHERE v.ID = @id;`);
+
+        const actual = r.recordset[0]?.SqlState;
+        if (actual === f.expect) {
+            console.log(`  ✔ ${f.label} → ${actual}`);
+        } else {
+            failures++;
+            console.log(`  ✖ ${f.label}\n      expected ${f.expect}, the view returned ${actual}`);
         }
     }
 } finally {
@@ -172,14 +120,9 @@ try {
     console.log(`Fixture cleanup: removed ${cleanup.rowsAffected[0]} row(s).`);
 }
 
-const failed = mismatches.length + fixtureFailures;
-if (mismatches.length) {
-    console.log(`\nPass 1 FAILED — the view and DeriveContractState() disagree on ${mismatches.length} row(s):`);
-    for (const m of mismatches) console.log(`  · ${m.Contract}: view says ${m.SQL}, TypeScript says ${m.TS}`);
-}
-console.log(failed === 0
-    ? `\nPASS — view and TypeScript agree, and both match the expected state on all ${FIXTURES.length} boundary fixtures.`
-    : `\nFAIL — ${failed} problem(s) above.`);
+console.log(failures === 0
+    ? `\nPASS — the view returned the expected state for all ${FIXTURES.length} fixtures.`
+    : `\nFAIL — ${failures} of ${FIXTURES.length} fixtures disagreed with the expected state.`);
 
 void pool.close().catch(() => undefined);
-process.exit(failed ? 1 : 0);
+process.exit(failures ? 1 : 0);
