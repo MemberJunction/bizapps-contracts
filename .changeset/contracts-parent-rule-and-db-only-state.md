@@ -1,7 +1,7 @@
 ---
-'@mj-biz-apps/contracts-entities': minor
-'@mj-biz-apps/contracts-core-entities-server': minor
-'@mj-biz-apps/contracts-ng': minor
+'@mj-biz-apps/contracts-entities': patch
+'@mj-biz-apps/contracts-core-entities-server': patch
+'@mj-biz-apps/contracts-ng': patch
 ---
 
 Contract types decide whether a parent is allowed, lifecycle state is derived in one place, and Details leads the rail.
