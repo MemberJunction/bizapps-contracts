@@ -17,7 +17,9 @@
  */
 import { describe, expect, it } from 'vitest';
 import { BaseEntity, ValidationErrorInfo, ValidationErrorType, ValidationResult } from '@memberjunction/core';
-import { ExplainMissingRequiredFields, MODIFICATION_REQUIRED_FIELD_PROSE } from '../ContractTemplateModificationEntity';
+import { MODIFICATION_REQUIRED_FIELD_PROSE } from '../ContractTemplateModificationEntity';
+import { PROVISION_REQUIRED_FIELD_PROSE } from '../ContractTemplateProvisionEntity';
+import { ExplainMissingRequiredFields } from '../required-field-prose';
 
 /** A record shaped as much of `BaseEntity` as the function actually touches. */
 function record(fields: Record<string, unknown>): BaseEntity {
@@ -46,7 +48,7 @@ describe('ExplainMissingRequiredFields', () => {
         const entity = record({ ContractID: 'c1', ContractTemplateProvisionID: null, ModificationText: 'x' });
         const result = resultWith(nullError('ContractTemplateProvisionID', 'Contract Template Provision'));
 
-        ExplainMissingRequiredFields(entity, result);
+        ExplainMissingRequiredFields(entity, result, MODIFICATION_REQUIRED_FIELD_PROSE);
 
         expect(result.Errors[0].Message).toBe(MODIFICATION_REQUIRED_FIELD_PROSE.ContractTemplateProvisionID);
         expect(result.Errors[0].Message).not.toContain('cannot be null');
@@ -58,7 +60,7 @@ describe('ExplainMissingRequiredFields', () => {
         const entity = record({ ContractID: 'c1', ContractTemplateProvisionID: null, ModificationText: 'x' });
         const result = resultWith(nullError('ContractTemplateProvisionID', 'Contract Template Provision'));
 
-        ExplainMissingRequiredFields(entity, result);
+        ExplainMissingRequiredFields(entity, result, MODIFICATION_REQUIRED_FIELD_PROSE);
 
         expect(result.Errors).toHaveLength(1);
     });
@@ -71,7 +73,7 @@ describe('ExplainMissingRequiredFields', () => {
             nullError('ModificationText', 'Modification Text'),
         );
 
-        ExplainMissingRequiredFields(entity, result);
+        ExplainMissingRequiredFields(entity, result, MODIFICATION_REQUIRED_FIELD_PROSE);
 
         expect(result.Errors.map((e) => e.Source)).toEqual([
             'ContractID',
@@ -92,7 +94,7 @@ describe('ExplainMissingRequiredFields', () => {
         const original = nullError('ModificationText', 'Modification Text');
         const result = resultWith(original);
 
-        ExplainMissingRequiredFields(entity, result);
+        ExplainMissingRequiredFields(entity, result, MODIFICATION_REQUIRED_FIELD_PROSE);
 
         expect(result.Errors[0]).toBe(original);
         expect(result.Errors[0].Source).toBe('ModificationText');
@@ -104,7 +106,7 @@ describe('ExplainMissingRequiredFields', () => {
         const entity = record({ ModificationText: null });
         const result = resultWith(nullError('ModificationText', 'Modification Text'));
 
-        ExplainMissingRequiredFields(entity, result);
+        ExplainMissingRequiredFields(entity, result, MODIFICATION_REQUIRED_FIELD_PROSE);
 
         expect(result.Success).toBe(false);
     });
@@ -121,7 +123,7 @@ describe('ExplainMissingRequiredFields', () => {
         );
         const result = resultWith(tooLong);
 
-        ExplainMissingRequiredFields(entity, result);
+        ExplainMissingRequiredFields(entity, result, MODIFICATION_REQUIRED_FIELD_PROSE);
 
         expect(result.Errors[0].Message).toContain('cannot be longer than');
     });
@@ -130,7 +132,7 @@ describe('ExplainMissingRequiredFields', () => {
         const entity = record({ ModificationText: '   ' });
         const result = resultWith(nullError('ModificationText', 'Modification Text'));
 
-        ExplainMissingRequiredFields(entity, result);
+        ExplainMissingRequiredFields(entity, result, MODIFICATION_REQUIRED_FIELD_PROSE);
 
         expect(result.Errors[0].Message).toBe(MODIFICATION_REQUIRED_FIELD_PROSE.ModificationText);
     });
@@ -139,7 +141,7 @@ describe('ExplainMissingRequiredFields', () => {
         const entity = record({ Notes: null });
         const result = resultWith(nullError('Notes', 'Notes'));
 
-        ExplainMissingRequiredFields(entity, result);
+        ExplainMissingRequiredFields(entity, result, MODIFICATION_REQUIRED_FIELD_PROSE);
 
         expect(result.Errors[0].Message).toBe('Notes cannot be null');
     });
@@ -150,7 +152,7 @@ describe('ExplainMissingRequiredFields', () => {
         const entity = record({ ContractID: 'c1' });
         const result = resultWith(nullError('ModificationText', 'Modification Text'));
 
-        ExplainMissingRequiredFields(entity, result);
+        ExplainMissingRequiredFields(entity, result, MODIFICATION_REQUIRED_FIELD_PROSE);
 
         expect(result.Errors[0].Message).toBe('Modification Text cannot be null');
     });
@@ -174,7 +176,7 @@ describe('ExplainMissingRequiredFields', () => {
             ),
         );
 
-        ExplainMissingRequiredFields(entity, result);
+        ExplainMissingRequiredFields(entity, result, MODIFICATION_REQUIRED_FIELD_PROSE);
 
         expect(result.Errors).toHaveLength(1);
         expect(result.Errors[0].Message).toBe(MODIFICATION_REQUIRED_FIELD_PROSE.ModificationText);
@@ -188,7 +190,7 @@ describe('ExplainMissingRequiredFields', () => {
             new ValidationErrorInfo('ModificationText', 'blank', null, ValidationErrorType.Failure),
         );
 
-        ExplainMissingRequiredFields(entity, result);
+        ExplainMissingRequiredFields(entity, result, MODIFICATION_REQUIRED_FIELD_PROSE);
 
         expect(result.Success).toBe(false);
         expect(result.Errors.length).toBeGreaterThan(0);
@@ -202,7 +204,7 @@ describe('ExplainMissingRequiredFields', () => {
             new ValidationErrorInfo('ModificationText', 'blank', null, ValidationErrorType.Failure),
         );
 
-        ExplainMissingRequiredFields(entity, result);
+        ExplainMissingRequiredFields(entity, result, MODIFICATION_REQUIRED_FIELD_PROSE);
 
         expect(result.Errors.map((e) => e.Source)).toEqual(['ContractID', 'ModificationText']);
     });
@@ -216,7 +218,7 @@ describe('ExplainMissingRequiredFields', () => {
         const c = nullError('Notes', 'Notes');
         const result = resultWith(a, b, c);
 
-        ExplainMissingRequiredFields(entity, result);
+        ExplainMissingRequiredFields(entity, result, MODIFICATION_REQUIRED_FIELD_PROSE);
 
         expect(result.Errors).toEqual([a, b, c]);
     });
@@ -225,7 +227,7 @@ describe('ExplainMissingRequiredFields', () => {
         const entity = record({ ContractID: 'c1', ContractTemplateProvisionID: 'p1', ModificationText: 'agreed' });
         const result = resultWith();
 
-        ExplainMissingRequiredFields(entity, result);
+        ExplainMissingRequiredFields(entity, result, MODIFICATION_REQUIRED_FIELD_PROSE);
 
         expect(result.Success).toBe(true);
         expect(result.Errors).toHaveLength(0);
@@ -272,5 +274,76 @@ describe('the UI required-marker threshold matches the database CHECK', () => {
         // The falsy-string trap: `!'0'` is false in JS, but a naive `Number()`-based or truthiness
         // check elsewhere could treat it as absent. A clause numbered or worded "0" is real text.
         expect(markerShows('0')).toBe(false);
+    });
+});
+
+/**
+ * The same mechanism, driven by the PROVISION map — because the mechanism is now shared and a second
+ * caller is exactly where a shared helper starts quietly not working for one of them.
+ *
+ * `ProvisionText` became required in V202608200800 (`NOT NULL` plus
+ * `CK_ContractTemplateProvision_TextNotBlank`), for a reason worth restating: a provision is the
+ * STANDARD wording, and a modification is only meaningful read as a pair against it. A provision with
+ * no text leaves every modification citing it comparing against nothing.
+ */
+describe('ExplainMissingRequiredFields — provisions', () => {
+    it('replaces the flat message for missing provision text', () => {
+        const entity = record({ ContractTemplateID: 't1', ProvisionNumber: '1.1', Title: 'T', ProvisionText: null });
+        const result = resultWith(nullError('ProvisionText', 'Provision Text'));
+
+        ExplainMissingRequiredFields(entity, result, PROVISION_REQUIRED_FIELD_PROSE);
+
+        expect(result.Errors[0].Message).toBe(PROVISION_REQUIRED_FIELD_PROSE.ProvisionText);
+        expect(result.Errors[0].Message).not.toContain('cannot be null');
+    });
+
+    it('collapses the two absence errors ProvisionText really produces', () => {
+        // Same pair as ModificationText: MJ's nullability check plus CodeGen's
+        // ValidateProvisionTextNotEmpty, derived from the CHECK, which must cover null as well as blank.
+        const entity = record({ ProvisionText: null });
+        const result = resultWith(
+            nullError('ProvisionText', 'Provision Text'),
+            new ValidationErrorInfo('ProvisionText', 'Provision text cannot be empty.', null, ValidationErrorType.Failure),
+        );
+
+        ExplainMissingRequiredFields(entity, result, PROVISION_REQUIRED_FIELD_PROSE);
+
+        expect(result.Errors).toHaveLength(1);
+        expect(result.Errors[0].Message).toBe(PROVISION_REQUIRED_FIELD_PROSE.ProvisionText);
+    });
+
+    it('rewords each required provision field with its OWN sentence', () => {
+        const entity = record({ ContractTemplateID: null, ProvisionNumber: null, Title: null, ProvisionText: null });
+        const result = resultWith(
+            nullError('ContractTemplateID', 'Contract Template'),
+            nullError('ProvisionNumber', 'Provision Number'),
+            nullError('Title', 'Title'),
+            nullError('ProvisionText', 'Provision Text'),
+        );
+
+        ExplainMissingRequiredFields(entity, result, PROVISION_REQUIRED_FIELD_PROSE);
+
+        expect(result.Errors.map((e) => e.Message)).toEqual([
+            PROVISION_REQUIRED_FIELD_PROSE.ContractTemplateID,
+            PROVISION_REQUIRED_FIELD_PROSE.ProvisionNumber,
+            PROVISION_REQUIRED_FIELD_PROSE.Title,
+            PROVISION_REQUIRED_FIELD_PROSE.ProvisionText,
+        ]);
+    });
+
+    it('says nothing about ProvisionSortKey — it is read-only and cannot be missing', () => {
+        // A persisted computed column. Naming it in the map would describe a failure that cannot happen.
+        expect(PROVISION_REQUIRED_FIELD_PROSE.ProvisionSortKey).toBeUndefined();
+    });
+
+    it('the two maps do not leak into each other', () => {
+        // The shared mechanism must stay driven by the map it is handed. A provision error reworded with
+        // the modification map — or vice versa — would produce a confidently wrong sentence.
+        const entity = record({ ProvisionText: null });
+        const result = resultWith(nullError('ProvisionText', 'Provision Text'));
+
+        ExplainMissingRequiredFields(entity, result, MODIFICATION_REQUIRED_FIELD_PROSE);
+
+        expect(result.Errors[0].Message).toBe('Provision Text cannot be null');
     });
 });

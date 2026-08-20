@@ -32,7 +32,7 @@ import {
     ValidationResult,
 } from '@memberjunction/core';
 import { RegisterClass } from '@memberjunction/global';
-import { mjBizAppsContractsContractTemplateProvisionEntity } from '@mj-biz-apps/contracts-entities';
+import { ContractTemplateProvisionEntity } from '@mj-biz-apps/contracts-entities';
 import { GuardedDelete, plural } from './delete-guard.js';
 
 /**
@@ -47,8 +47,12 @@ const FROZEN_TERM_FIELDS: ReadonlyArray<{ Name: string; Label: string }> = [
     { Name: 'ProvisionText', Label: 'the standard wording' },
 ];
 
+/*
+ * EXTENDS THE SHARED SUBCLASS, not the generated one — so an API caller gets the required-field prose
+ * too, not just a browser. Same reason `ContractEntityServer extends ContractEntity`.
+ */
 @RegisterClass(BaseEntity, 'MJ_BizApps_Contracts: Contract Template Provisions')
-export class ContractTemplateProvisionEntityServer extends mjBizAppsContractsContractTemplateProvisionEntity {
+export class ContractTemplateProvisionEntityServer extends ContractTemplateProvisionEntity {
     /**
      * R-1 — refuse an edit to the terms of a provision whose template is referenced.
      *

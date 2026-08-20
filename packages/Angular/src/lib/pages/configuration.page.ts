@@ -177,58 +177,16 @@ export class MJCTemplateTypesPageComponent extends MJCConfigPageBase {
     }
 }
 
-/**
- * How contract numbers are minted.
+/*
+ * THE NUMBERING PAGE IS GONE (Marcelo, 2026-08-20), and this note is why rather than a gap.
  *
- * NO GRID, AND NOTHING TO EDIT — that is the change R-7 made, and it is the point rather than a
- * regression. This page used to render `MJ_BizApps_Contracts: Contract Sequences` in an editable grid
- * plus a card reading the counter row. That entity existed only because the counter lived in a TABLE,
- * which made CodeGen register it with `AllowUpdateAPI = true` — and `spAssignNextContractNumber` never
- * used the entity at all, so the only thing the writable surface could do was let someone wind the
- * counter backwards and mint duplicate numbers until the unique index started refusing saves. The
- * counter is now a SQL SEQUENCE, which is not a table, so there is no entity, no grid and no field to
- * wind back.
+ * It existed to display and edit the contract-number counter. R-7 replaced that counter table with a
+ * SQL SEQUENCE, which removed the entity, the grid and the editable field — leaving a page whose only
+ * content was an explanation that there was nothing to configure. A configuration section that
+ * configures nothing is a nav item people click once.
  *
- * WHY THE NEXT NUMBER IS NO LONGER SHOWN. A sequence's position lives in `sys.sequences`, and this app
- * ships zero remote operations by design (plan §6.3), so there is no client-reachable path to it short
- * of adding one or defining an MJ Query. Neither is worth it here: the number was only ever displayed
- * to answer "why is the next contract CTR-000412?", and the honest answer — gaps are normal and the
- * unique index is the guarantee — is text, not a number. If someone genuinely needs the live value,
- * an MJ Query over `sys.sequences` is the cheap way in and does not reintroduce a writable surface.
- *
- * It no longer extends `MJCConfigPageBase`: that base exists to bind a grid to an entity, and this page
- * has neither.
+ * The facts it carried are not lost, they moved to where they are actually needed: the numbering
+ * scheme and the "gaps are normal, do not try to close them" warning are on
+ * `Contract.ContractNumber`'s own field description (V202608200200), so they surface as the field's
+ * help text on the form where a contract number is actually looked at.
  */
-@Component({
-    selector: 'mjc-numbering-page',
-    standalone: true,
-    encapsulation: ViewEncapsulation.None,
-    imports: [CommonModule],
-    template: `
-        <div class="mjc-page">
-            <p class="mjc-page__intro">
-                Contract numbers are minted <code>CTR-000001</code>, <code>CTR-000002</code>, … by the
-                database itself — a SQL <code>SEQUENCE</code> read inside the save that uses the number.
-                There is nothing here to configure, and that is deliberate.
-            </p>
-            <div class="mjc-card">
-                <h3 class="mjc-card__title">Gaps in the numbering are normal</h3>
-                <p>
-                    A save that fails after taking a number leaves that number behind, and nothing
-                    reissues it. This is expected. What guarantees that no two contracts share a number
-                    is the unique index on the column — not the counter.
-                </p>
-            </div>
-            <div class="mjc-card">
-                <h3 class="mjc-card__title">There is no counter to correct</h3>
-                <p>
-                    The sequence used to be an ordinary table, which meant it appeared here as an
-                    editable row. Winding such a counter backwards to "close a gap" is precisely how you
-                    get two contracts with the same number, so the editable surface was removed rather
-                    than labelled. A sequence cannot be edited through the application at all.
-                </p>
-            </div>
-        </div>
-    `,
-})
-export class MJCNumberingPageComponent {}

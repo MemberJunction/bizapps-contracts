@@ -218,8 +218,8 @@ export class mjBizAppsContractsContractTemplateProvision_ {
     @MaxLength(200)
     Title: string;
         
-    @Field({nullable: true, description: `The STANDARD wording of this clause. Read as a pair with ContractTemplateModification.ModificationText, which holds what a given contract says instead — a dispute needs the comparison, not either half.`}) 
-    ProvisionText?: string;
+    @Field({description: `The STANDARD wording of this clause. Read as a pair with ContractTemplateModification.ModificationText, which holds what a given contract says instead — a dispute needs the comparison, not either half.`}) 
+    ProvisionText: string;
         
     @Field({nullable: true}) 
     Description?: string;
@@ -261,7 +261,7 @@ export class CreatemjBizAppsContractsContractTemplateProvisionInput {
     Title?: string;
 
     @Field({ nullable: true })
-    ProvisionText: string | null;
+    ProvisionText?: string;
 
     @Field({ nullable: true })
     Description: string | null;
@@ -289,7 +289,7 @@ export class UpdatemjBizAppsContractsContractTemplateProvisionInput {
     Title?: string;
 
     @Field({ nullable: true })
-    ProvisionText?: string | null;
+    ProvisionText?: string;
 
     @Field({ nullable: true })
     Description?: string | null;

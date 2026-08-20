@@ -112,7 +112,6 @@ export { MJCAgreementVersionsPageComponent, MJCAllProvisionsPageComponent } from
 export {
     MJCContractTypesPageComponent,
     MJCTemplateTypesPageComponent,
-    MJCNumberingPageComponent,
 } from './lib/pages/configuration.page';
 
 export function LoadMjBizappsContractsClient(): void {

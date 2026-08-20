@@ -16,22 +16,15 @@
  * cannot be null" does not tell anyone to pick a clause. So this class REPLACES those three messages
  * and adds none.
  *
- * WHY REPLACE AND NOT APPEND. One mistake must produce one error. Appending would leave the flat
- * message beside the useful one, so a single empty field would mark itself twice and the form would
- * show a banner of duplicates — the same reasoning that makes `ValidateValueLists` leave null alone
- * and defer to the nullability rung.
- *
- * WHY MATCH ON EMPTINESS RATHER THAN ON MJ'S WORDING. The obvious implementation greps the message
- * text, which couples this file to a string in MJ core that it does not own and cannot see change.
- * Matching on `Source` plus "the value really is absent" is stable across any rewording, and it
- * cannot capture the wrong error: the only other check MJ runs on these fields is `MaxLength`, which
- * by construction fires only when a value is present.
+ * The mechanism — replace rather than append, collapse the duplicate absence errors, match on
+ * emptiness rather than on MJ's wording — lives in `required-field-prose.ts`, shared with provisions.
  *
  * @module @mj-biz-apps/contracts-entities
  */
-import { BaseEntity, ValidationErrorInfo, ValidationResult } from '@memberjunction/core';
+import { BaseEntity, ValidationResult } from '@memberjunction/core';
 import { RegisterClass } from '@memberjunction/global';
 import { mjBizAppsContractsContractTemplateModificationEntity } from './generated/entity_subclasses';
+import { ExplainMissingRequiredFields } from './required-field-prose';
 
 /**
  * The prose each required field gets instead of "<Display Name> cannot be null".
@@ -56,76 +49,11 @@ export const MODIFICATION_REQUIRED_FIELD_PROSE: Readonly<Record<string, string>>
         'state this record cannot usefully be in.',
 };
 
-/**
- * Swap MJ's flat nullability prose for something actionable, in place.
- *
- * A FREE FUNCTION over the entity, not a private method, and for the reason `ValidateValueLists` is
- * one: it reads only `entity.Fields[].Value` and the errors already in hand, so a duck-typed record
- * is enough to test the REAL code. A private method would need a provider to instantiate, which would
- * push a pure-logic rule into the tier that costs a database — and the alternative, a restatement of
- * the logic in the test, is exactly how an exclusion gets tested right and implemented wrong.
- *
- * It REWORDS in place and COLLAPSES duplicates. The surviving `ValidationErrorInfo` objects are
- * mutated rather than rebuilt, so `Source`, `Value` and `Type` are untouched and relative order is
- * preserved — the form marks the same field in the same place, and only the sentence changes. The
- * array itself is rebuilt only to DROP the second and later absence errors for one field (see the
- * comment at the collapse), never to reorder or replace what stays.
- *
- * `result.Success` is deliberately not recomputed. Rewording cannot change a verdict, and collapsing
- * cannot either — dropping a duplicate leaves at least one error standing for the same field, so a
- * failing result still fails. A function about how a refusal READS has no business deciding whether a
- * save proceeds.
- */
-export function ExplainMissingRequiredFields(entity: BaseEntity, result: ValidationResult): void {
-    const explained = new Set<string>();
-    const kept: ValidationErrorInfo[] = [];
-
-    for (const error of result.Errors) {
-        const source = error.Source ?? '';
-        const prose = MODIFICATION_REQUIRED_FIELD_PROSE[source];
-        if (!prose || !fieldIsAbsent(entity, source)) {
-            kept.push(error);
-            continue;
-        }
-        // COLLAPSE. `ModificationText` genuinely produces TWO absence errors on a create, and both
-        // are correct: MJ's nullability check refuses the null, and CodeGen's generated
-        // `ValidateModificationTextNotEmpty` -- derived from CK_ContractTemplateModification_TextNotBlank
-        // -- refuses null, empty AND whitespace, because the CHECK has to cover all three. Neither is
-        // wrong and neither should be removed at its source; they are two rungs of the ladder saying
-        // the same thing about the same field, and the user needs to be told once.
-        if (explained.has(source)) continue;
-        explained.add(source);
-        error.Message = prose;
-        kept.push(error);
-    }
-
-    result.Errors = kept;
-}
-
-/**
- * Whether the named field is genuinely empty — the condition MJ's nullability check fires on, plus the
- * blank-string case.
- *
- * A whitespace-only `ModificationText` passes MJ's null check and passes the database's NOT NULL, so
- * it is not what produced the error being reworded; it is accepted here anyway because it is the same
- * user mistake, and if a future rule rejects blank text this predicate is already right.
- *
- * A field the entity does not have returns FALSE, not true. That direction matters: an unknown field
- * name means this map has drifted from the schema, and rewording an error for a field that does not
- * exist would hide the drift behind a friendly sentence.
- */
-function fieldIsAbsent(entity: BaseEntity, fieldName: string): boolean {
-    const field = entity.Fields.find((f) => f.EntityFieldInfo.Name === fieldName);
-    if (!field) return false;
-    const value: unknown = field.Value;
-    return value === null || value === undefined || (typeof value === 'string' && value.trim().length === 0);
-}
-
 @RegisterClass(BaseEntity, 'MJ_BizApps_Contracts: Contract Template Modifications')
 export class ContractTemplateModificationEntity extends mjBizAppsContractsContractTemplateModificationEntity {
     public override Validate(): ValidationResult {
         const result = super.Validate();
-        ExplainMissingRequiredFields(this, result);
+        ExplainMissingRequiredFields(this, result, MODIFICATION_REQUIRED_FIELD_PROSE);
         return result;
     }
 }

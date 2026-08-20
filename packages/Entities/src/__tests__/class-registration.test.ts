@@ -31,6 +31,8 @@ const EXPECTED: ReadonlyArray<{ entity: string; className: string }> = [
     //   Contracts             — the HasModifications guard and Supersede().
     //   the two lookup tables — the value-list guard standing in for MJ#3969, without which their
     //                           IN(...) CHECK constraints have no TypeScript representation at all.
+    //   Contract Template Provisions   — the same required-field prose, once ProvisionText became
+    //                           required (V202608200800). Shares the mechanism via required-field-prose.ts.
     //   Contract Template Modifications — the required-field prose (R-6). It carries no RULE, so
     //                           losing the registration would not fail a save; it would quietly
     //                           restore MJ's "<field> cannot be null", which nothing else detects.
@@ -38,11 +40,11 @@ const EXPECTED: ReadonlyArray<{ entity: string; className: string }> = [
     { entity: 'MJ_BizApps_Contracts: Contract Types', className: 'ContractTypeEntity' },
     { entity: 'MJ_BizApps_Contracts: Contract Template Types', className: 'ContractTemplateTypeEntity' },
     { entity: 'MJ_BizApps_Contracts: Contract Template Modifications', className: 'ContractTemplateModificationEntity' },
+    { entity: 'MJ_BizApps_Contracts: Contract Template Provisions', className: 'ContractTemplateProvisionEntity' },
     // The rest have no hand-written subclass yet, so the GENERATED class is the correct answer.
     // Asserting that is not redundant: it is what fails if someone adds a subclass without adding it
     // to this list, or re-registers one of v1's deleted classes.
     { entity: 'MJ_BizApps_Contracts: Contract Templates', className: 'mjBizAppsContractsContractTemplateEntity' },
-    { entity: 'MJ_BizApps_Contracts: Contract Template Provisions', className: 'mjBizAppsContractsContractTemplateProvisionEntity' },
 ];
 
 /** v1 entity names. Nothing may still register for them — the tables are gone. */

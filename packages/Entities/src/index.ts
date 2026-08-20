@@ -28,6 +28,11 @@ export * from './ContractEntity';
  * the rule — it only replaces MJ's "<field> cannot be null" with a sentence that says what to do. */
 export * from './ContractTemplateModificationEntity';
 
+/* The provision's required fields, re-explained. Same shape and the same shared mechanism as the
+ * modification's — `ProvisionText` became required in V202608200800. */
+export * from './ContractTemplateProvisionEntity';
+export * from './required-field-prose';
+
 /* The two lookup entities, which exist ONLY to validate their value-list columns — a rule MJ does not
  * yet provide (MJ#3969). Deleted wholesale when it lands; see value-list-validation.ts. */
 export * from './ContractTypeEntity';

@@ -84,7 +84,7 @@ export const mjBizAppsContractsContractTemplateProvisionSchema = z.object({
         * * Display Name: Title
         * * SQL Data Type: nvarchar(200)
         * * Description: The clause heading, e.g. "Limitation of Liability". This plus the number is what a person picks from.`),
-    ProvisionText: z.string().nullable().describe(`
+    ProvisionText: z.string().describe(`
         * * Field Name: ProvisionText
         * * Display Name: Provision Text
         * * SQL Data Type: nvarchar(MAX)
@@ -683,6 +683,38 @@ export class mjBizAppsContractsContractTemplateProvisionEntity extends BaseEntit
     }
 
     /**
+    * Validate() method override for MJ_BizApps_Contracts: Contract Template Provisions entity. This is an auto-generated method that invokes the generated validators for this entity for the following fields:
+    * * ProvisionText: Provision Text must contain actual text and cannot be empty or consist only of spaces.
+    * @public
+    * @method
+    * @override
+    */
+    public override Validate(): ValidationResult {
+        const result = super.Validate();
+        this.ValidateProvisionTextNotEmpty(result);
+        result.Success = result.Success && (result.Errors.length === 0);
+
+        return result;
+    }
+
+    /**
+    * Provision Text must contain actual text and cannot be empty or consist only of spaces.
+    * @param result - the ValidationResult object to add any errors or warnings to
+    * @public
+    * @method
+    */
+    public ValidateProvisionTextNotEmpty(result: ValidationResult) {
+    	if (this.ProvisionText == null || this.ProvisionText.trim().length === 0) {
+    		result.Errors.push(new ValidationErrorInfo(
+    			"ProvisionText",
+    			"Provision Text cannot be empty or consist only of spaces.",
+    			this.ProvisionText,
+    			ValidationErrorType.Failure
+    		));
+    	}
+    }
+
+    /**
     * * Field Name: ID
     * * Display Name: ID
     * * SQL Data Type: uniqueidentifier
@@ -740,10 +772,10 @@ export class mjBizAppsContractsContractTemplateProvisionEntity extends BaseEntit
     * * SQL Data Type: nvarchar(MAX)
     * * Description: The STANDARD wording of this clause. Read as a pair with ContractTemplateModification.ModificationText, which holds what a given contract says instead — a dispute needs the comparison, not either half.
     */
-    get ProvisionText(): string | null {
+    get ProvisionText(): string {
         return this.Get('ProvisionText');
     }
-    set ProvisionText(value: string | null) {
+    set ProvisionText(value: string) {
         this.Set('ProvisionText', value);
     }
 

@@ -95,11 +95,22 @@ import { MJC_ENTITIES } from '../data/entity-names';
                                 </td>
                                 <td>
                                     @if (EditMode) {
-                                        <textarea class="mjc-clause" rows="4" style="width:100%"
+                                        <textarea class="mjc-clause"
+                                                  [class.mjc-invalid]="IsProvisionTextMissing(p)"
+                                                  rows="4" style="width:100%"
                                                   [ngModel]="p.ProvisionText"
                                                   (ngModelChange)="Set(p, 'ProvisionText', $event)"
                                                   placeholder="The clause text, verbatim."
-                                                  aria-label="Provision text"></textarea>
+                                                  [attr.aria-invalid]="IsProvisionTextMissing(p) ? 'true' : null"
+                                                  [attr.aria-describedby]="IsProvisionTextMissing(p) ? 'mjc-prov-required-' + p.ID : null"
+                                                  aria-label="Provision text (required)"></textarea>
+                                        @if (IsProvisionTextMissing(p)) {
+                                            <div class="mjc-flag" [id]="'mjc-prov-required-' + p.ID">
+                                                Required — the standard wording of this clause. A provision
+                                                with no text leaves every modification that negotiates it
+                                                comparing against nothing.
+                                            </div>
+                                        }
                                     } @else {
                                         <p class="mjc-clause">{{ p.ProvisionText || '(no text captured)' }}</p>
                                     }
@@ -156,6 +167,20 @@ export class MJCTemplateProvisionsPanel extends BaseFormPanel<mjBizAppsContracts
      * Defaults to TRUE while the record is loading, so the warning appears only when it is known to
      * apply. A chip that flashes on every form open teaches people to ignore it.
      */
+    /**
+     * Whether this provision's standard wording is missing — V202608200800, surfaced WHERE THE EDIT IS.
+     *
+     * Same threshold as the database (`CK_ContractTemplateProvision_TextNotBlank`, trimmed length > 0)
+     * and the same reasoning as the modification editor's marker: the rule was enforced at every rung
+     * that refuses a save and absent from the textarea a person actually types in, so the first signal
+     * was a failed save. Marcelo saved an empty provision through this very panel on 2026-08-20.
+     *
+     * Not a minimum length. One character satisfies it, deliberately.
+     */
+    public IsProvisionTextMissing(p: mjBizAppsContractsContractTemplateProvisionEntity): boolean {
+        return !String(p.ProvisionText ?? '').trim();
+    }
+
     public get IsUsable(): boolean {
         const value = this.Record?.Get('IsUsable');
         return value === undefined || value === null ? true : value === true || value === 1;
