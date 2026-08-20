@@ -23,11 +23,8 @@ export class mjBizAppsContractsContractFormComponent extends BaseFormComponent {
             { sectionKey: 'datesAndTerms', sectionName: 'Dates and Terms', isExpanded: true },
             { sectionKey: 'renewalTerms', sectionName: 'Renewal Terms', isExpanded: true },
             { sectionKey: 'notesAndDetails', sectionName: 'Notes and Details', isExpanded: true },
-            { sectionKey: 'details', sectionName: 'Details', isExpanded: true },
             { sectionKey: 'systemMetadata', sectionName: 'System Metadata', isExpanded: false },
-            { sectionKey: 'mJBizAppsContractsContractsSupersededByContractID', sectionName: 'Contracts (Superseded By)', isExpanded: false },
-            { sectionKey: 'mJBizAppsContractsContractsParentContractID', sectionName: 'Contracts (Parent Contract)', isExpanded: false },
-            { sectionKey: 'mJBizAppsContractsContractTemplateModifications', sectionName: 'Contract Template Modifications', isExpanded: false }
+            { sectionKey: 'mJBizAppsContractsContractTemplateModifications', sectionName: 'Modifications', isExpanded: false }
         ]);
     }
 }

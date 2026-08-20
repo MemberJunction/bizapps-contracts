@@ -100,7 +100,6 @@ SELECT
     -- first-class contract that names what it amends; the ContractType row is how a
     -- person labels it, ParentContractID is the structural fact. Keeping the
     -- derivation on the FK means a mislabelled type cannot make the lineage lie.
-    CAST(CASE WHEN g.ParentContractID IS NOT NULL THEN 1 ELSE 0 END AS bit) AS [IsChangeOrder],
 
     -- DAYS TO END — signed, so an expired contract reads negative rather than
     -- clamping to zero and looking like it ends today.

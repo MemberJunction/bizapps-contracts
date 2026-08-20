@@ -68,18 +68,6 @@
       "IncludeInGeneratedForm": false
     },
     "primaryKey": {
-      "ID": "@lookup:MJ: Entity Fields.Entity=MJ_BizApps_Contracts: Contracts&Name=IsChangeOrder"
-    },
-    "sync": {
-      "lastModified": "2026-08-19T15:43:07.181Z",
-      "checksum": "5283c8e4b3a87060e900ad1ff782a3aafd78870958321ed4f943f9a91a8e2f3e"
-    }
-  },
-  {
-    "fields": {
-      "IncludeInGeneratedForm": false
-    },
-    "primaryKey": {
       "ID": "@lookup:MJ: Entity Fields.Entity=MJ_BizApps_Contracts: Contracts&Name=DaysToEnd"
     },
     "sync": {

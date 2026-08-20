@@ -284,6 +284,15 @@ export const mjBizAppsContractsContractTypeSchema = z.object({
         * * Display Name: Updated At
         * * SQL Data Type: datetimeoffset
         * * Default Value: getutcdate()`),
+    ParentStatusRequirement: z.union([z.literal('Prohibited'), z.literal('Required')]).nullable().describe(`
+        * * Field Name: ParentStatusRequirement
+        * * Display Name: Parent Status Requirement
+        * * SQL Data Type: nvarchar(20)
+    * * Value List Type: List
+    * * Possible Values 
+    *   * Prohibited
+    *   * Required
+        * * Description: Whether a contract of this type must, must not, or may name a ParentContractID: 'Required' (a Change Order amends something, so it has to say what), 'Prohibited' (a root agreement), or NULL for no restriction. Enforced in ContractEntityServer.ValidateAsync. Replaced a comparison against this row's NAME, which stopped working the moment anyone renamed it.`),
 });
 
 export type mjBizAppsContractsContractTypeEntityType = z.infer<typeof mjBizAppsContractsContractTypeSchema>;
@@ -309,7 +318,7 @@ export const mjBizAppsContractsContractSchema = z.object({
         * * Related Entity/Foreign Key: MJ_BizApps_Contracts: Contract Types (vwContractTypes.ID)`),
     CompanyID: z.string().describe(`
         * * Field Name: CompanyID
-        * * Display Name: Company
+        * * Display Name: Selling Company
         * * SQL Data Type: uniqueidentifier
         * * Related Entity/Foreign Key: MJ: Companies (vwCompanies.ID)
         * * Description: The SELLING company (__mj.Company) — which of OUR entities holds this agreement. Not the customer. Stored rather than derived because it is not reliably recoverable from the deal.`),
@@ -333,7 +342,7 @@ export const mjBizAppsContractsContractSchema = z.object({
         * * Description: The agreement version this contract incorporates. Nullable because a contract created automatically at Closed Won has none until finance reads the PDF.`),
     CreatingEntityID: z.string().nullable().describe(`
         * * Field Name: CreatingEntityID
-        * * Display Name: Creating Entity ID
+        * * Display Name: Creating Entity
         * * SQL Data Type: uniqueidentifier
         * * Related Entity/Foreign Key: MJ: Entities (vwEntities.ID)
         * * Description: Polymorphic reference part 1: the MJ Entity of the record that CREATED this contract, in practice Deals. A real foreign key to __mj.Entity — this is the half that is enforced, and the half that lets MJ resolve the pair generically. Same pattern accounting uses for JournalEntry provenance.`),
@@ -435,7 +444,7 @@ export const mjBizAppsContractsContractSchema = z.object({
         * * SQL Data Type: nvarchar(50)`),
     CustomerOrganization: z.string().describe(`
         * * Field Name: CustomerOrganization
-        * * Display Name: Customer Name
+        * * Display Name: Customer Organization Name
         * * SQL Data Type: nvarchar(255)`),
     PrimaryContactPerson: z.string().nullable().describe(`
         * * Field Name: PrimaryContactPerson
@@ -447,15 +456,15 @@ export const mjBizAppsContractsContractSchema = z.object({
         * * SQL Data Type: nvarchar(200)`),
     CreatingEntity: z.string().nullable().describe(`
         * * Field Name: CreatingEntity
-        * * Display Name: Creating Entity
+        * * Display Name: Creating Entity Name
         * * SQL Data Type: nvarchar(255)`),
     ParentContract: z.string().nullable().describe(`
         * * Field Name: ParentContract
-        * * Display Name: Parent Contract
+        * * Display Name: Parent Contract Name
         * * SQL Data Type: nvarchar(50)`),
     SupersededByContract: z.string().nullable().describe(`
         * * Field Name: SupersededByContract
-        * * Display Name: Superseded By Contract
+        * * Display Name: Superseded By Name
         * * SQL Data Type: nvarchar(50)`),
     RootParentContractID: z.string().nullable().describe(`
         * * Field Name: RootParentContractID
@@ -467,15 +476,11 @@ export const mjBizAppsContractsContractSchema = z.object({
         * * SQL Data Type: uniqueidentifier`),
     State: z.string().describe(`
         * * Field Name: State
-        * * Display Name: State
+        * * Display Name: Contract State
         * * SQL Data Type: varchar(10)`),
     IsAwaitingDocument: z.boolean().nullable().describe(`
         * * Field Name: IsAwaitingDocument
         * * Display Name: Is Awaiting Document
-        * * SQL Data Type: bit`),
-    IsChangeOrder: z.boolean().nullable().describe(`
-        * * Field Name: IsChangeOrder
-        * * Display Name: Is Change Order
         * * SQL Data Type: bit`),
     DaysToEnd: z.number().nullable().describe(`
         * * Field Name: DaysToEnd
@@ -1307,6 +1312,23 @@ export class mjBizAppsContractsContractTypeEntity extends BaseEntity<mjBizAppsCo
     get __mj_UpdatedAt(): Date {
         return this.Get('__mj_UpdatedAt');
     }
+
+    /**
+    * * Field Name: ParentStatusRequirement
+    * * Display Name: Parent Status Requirement
+    * * SQL Data Type: nvarchar(20)
+    * * Value List Type: List
+    * * Possible Values 
+    *   * Prohibited
+    *   * Required
+    * * Description: Whether a contract of this type must, must not, or may name a ParentContractID: 'Required' (a Change Order amends something, so it has to say what), 'Prohibited' (a root agreement), or NULL for no restriction. Enforced in ContractEntityServer.ValidateAsync. Replaced a comparison against this row's NAME, which stopped working the moment anyone renamed it.
+    */
+    get ParentStatusRequirement(): 'Prohibited' | 'Required' | null {
+        return this.Get('ParentStatusRequirement');
+    }
+    set ParentStatusRequirement(value: 'Prohibited' | 'Required' | null) {
+        this.Set('ParentStatusRequirement', value);
+    }
 }
 
 
@@ -1551,7 +1573,7 @@ export class mjBizAppsContractsContractEntity extends BaseEntity<mjBizAppsContra
 
     /**
     * * Field Name: CompanyID
-    * * Display Name: Company
+    * * Display Name: Selling Company
     * * SQL Data Type: uniqueidentifier
     * * Related Entity/Foreign Key: MJ: Companies (vwCompanies.ID)
     * * Description: The SELLING company (__mj.Company) — which of OUR entities holds this agreement. Not the customer. Stored rather than derived because it is not reliably recoverable from the deal.
@@ -1607,7 +1629,7 @@ export class mjBizAppsContractsContractEntity extends BaseEntity<mjBizAppsContra
 
     /**
     * * Field Name: CreatingEntityID
-    * * Display Name: Creating Entity ID
+    * * Display Name: Creating Entity
     * * SQL Data Type: uniqueidentifier
     * * Related Entity/Foreign Key: MJ: Entities (vwEntities.ID)
     * * Description: Polymorphic reference part 1: the MJ Entity of the record that CREATED this contract, in practice Deals. A real foreign key to __mj.Entity — this is the half that is enforced, and the half that lets MJ resolve the pair generically. Same pattern accounting uses for JournalEntry provenance.
@@ -1857,7 +1879,7 @@ export class mjBizAppsContractsContractEntity extends BaseEntity<mjBizAppsContra
 
     /**
     * * Field Name: CustomerOrganization
-    * * Display Name: Customer Name
+    * * Display Name: Customer Organization Name
     * * SQL Data Type: nvarchar(255)
     */
     get CustomerOrganization(): string {
@@ -1884,7 +1906,7 @@ export class mjBizAppsContractsContractEntity extends BaseEntity<mjBizAppsContra
 
     /**
     * * Field Name: CreatingEntity
-    * * Display Name: Creating Entity
+    * * Display Name: Creating Entity Name
     * * SQL Data Type: nvarchar(255)
     */
     get CreatingEntity(): string | null {
@@ -1893,7 +1915,7 @@ export class mjBizAppsContractsContractEntity extends BaseEntity<mjBizAppsContra
 
     /**
     * * Field Name: ParentContract
-    * * Display Name: Parent Contract
+    * * Display Name: Parent Contract Name
     * * SQL Data Type: nvarchar(50)
     */
     get ParentContract(): string | null {
@@ -1902,7 +1924,7 @@ export class mjBizAppsContractsContractEntity extends BaseEntity<mjBizAppsContra
 
     /**
     * * Field Name: SupersededByContract
-    * * Display Name: Superseded By Contract
+    * * Display Name: Superseded By Name
     * * SQL Data Type: nvarchar(50)
     */
     get SupersededByContract(): string | null {
@@ -1929,7 +1951,7 @@ export class mjBizAppsContractsContractEntity extends BaseEntity<mjBizAppsContra
 
     /**
     * * Field Name: State
-    * * Display Name: State
+    * * Display Name: Contract State
     * * SQL Data Type: varchar(10)
     */
     get State(): string {
@@ -1943,15 +1965,6 @@ export class mjBizAppsContractsContractEntity extends BaseEntity<mjBizAppsContra
     */
     get IsAwaitingDocument(): boolean | null {
         return this.Get('IsAwaitingDocument');
-    }
-
-    /**
-    * * Field Name: IsChangeOrder
-    * * Display Name: Is Change Order
-    * * SQL Data Type: bit
-    */
-    get IsChangeOrder(): boolean | null {
-        return this.Get('IsChangeOrder');
     }
 
     /**

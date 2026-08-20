@@ -962,6 +962,10 @@ export class mjBizAppsContractsContractType_ {
     @Field() 
     _mj__UpdatedAt: Date;
         
+    @Field({nullable: true, description: `Whether a contract of this type must, must not, or may name a ParentContractID: 'Required' (a Change Order amends something, so it has to say what), 'Prohibited' (a root agreement), or NULL for no restriction. Enforced in ContractEntityServer.ValidateAsync. Replaced a comparison against this row's NAME, which stopped working the moment anyone renamed it.`}) 
+    @MaxLength(20)
+    ParentStatusRequirement?: string;
+        
     @Field(() => [mjBizAppsContractsContract_])
     mjBizAppsContractsContracts_ContractTypeIDArray: mjBizAppsContractsContract_[]; // Link to mjBizAppsContractsContracts
     
@@ -987,6 +991,9 @@ export class CreatemjBizAppsContractsContractTypeInput {
     @Field({ nullable: true })
     Status?: string;
 
+    @Field({ nullable: true })
+    ParentStatusRequirement: string | null;
+
     @Field(() => RestoreContextInput, { nullable: true })
     RestoreContext___?: RestoreContextInput;
 }
@@ -1011,6 +1018,9 @@ export class UpdatemjBizAppsContractsContractTypeInput {
 
     @Field({ nullable: true })
     Status?: string;
+
+    @Field({ nullable: true })
+    ParentStatusRequirement?: string | null;
 
     @Field(() => [KeyValuePairInput], { nullable: true })
     OldValues___?: KeyValuePairInput[];
@@ -1253,9 +1263,6 @@ export class mjBizAppsContractsContract_ {
         
     @Field(() => Boolean, {nullable: true}) 
     IsAwaitingDocument?: boolean;
-        
-    @Field(() => Boolean, {nullable: true}) 
-    IsChangeOrder?: boolean;
         
     @Field(() => Int, {nullable: true}) 
     DaysToEnd?: number;

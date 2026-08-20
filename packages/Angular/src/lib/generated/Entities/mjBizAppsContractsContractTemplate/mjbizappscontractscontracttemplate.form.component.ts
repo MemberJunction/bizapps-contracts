@@ -19,7 +19,7 @@ export class mjBizAppsContractsContractTemplateFormComponent extends BaseFormCom
             { sectionKey: 'templateDetails', sectionName: 'Template Details', isExpanded: true },
             { sectionKey: 'systemMetadata', sectionName: 'System Metadata', isExpanded: false },
             { sectionKey: 'mJBizAppsContractsContracts', sectionName: 'Contracts', isExpanded: false },
-            { sectionKey: 'mJBizAppsContractsContractTemplateProvisions', sectionName: 'Contract Template Provisions', isExpanded: false }
+            { sectionKey: 'mJBizAppsContractsContractTemplateProvisions', sectionName: 'Provisions', isExpanded: false }
         ]);
     }
 }

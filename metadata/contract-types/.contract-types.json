@@ -2,8 +2,10 @@
   {
     "_comments": [
       "The four seeded contract types (plan §7 / ERD §7). CONFIGURATION-AS-DATA in the narrow sense",
-      "that survived the rebuild: exactly ONE column carries a rule — RequiresExecutedDocument — and",
-      "it is read by the derived IsAwaitingDocument, never branched on by name.",
+      "that survived the rebuild: TWO columns carry a rule — RequiresExecutedDocument, read by the",
+      "derived IsAwaitingDocument, and ParentStatusRequirement, read by ContractEntityServer to decide",
+      "whether a contract of this type must, must not, or may name a ParentContractID. Neither is ever",
+      "branched on by NAME — that was the defect this column replaced.",
       "",
       "v1 seeded six types with fourteen columns of billing defaults (term months, billing frequency,",
       "escalation percents, renewal mode, coterm). All of it is gone: v2 does not bill, does not renew",
@@ -21,14 +23,15 @@
       "Name": "Order Form",
       "Description": "The commercial document a customer signs to buy — the ordinary agreement. Sits beneath a Master Agreement whose provisions it incorporates by reference, which is why the Order Form carries the ContractTemplateID rather than the MA carrying anything about it.",
       "RequiresExecutedDocument": true,
+      "ParentStatusRequirement": null,
       "Status": "Active"
     },
     "primaryKey": {
       "ID": "33333333-0000-4000-8000-000000001001"
     },
     "sync": {
-      "lastModified": "2026-08-19T02:44:49.554Z",
-      "checksum": "39b8f2fcd4224961b5e68e03012c93a976119aa8f50d74d63f6e7dde323e1d87"
+      "lastModified": "2026-08-19T23:07:39.470Z",
+      "checksum": "41a6cbef3aa681218b0346e4f4e789ccd7fef2adea12e9cae8224bf13a0428c3"
     }
   },
   {
@@ -36,14 +39,15 @@
       "Name": "Statement of Work",
       "Description": "Scoped services with a defined end. Amith, 2026-08-18: SOWs have standard language but no versioned template — so an SOW contract may have no ContractTemplateID, and that is not a gap to fill. Paper is still expected.",
       "RequiresExecutedDocument": true,
+      "ParentStatusRequirement": null,
       "Status": "Active"
     },
     "primaryKey": {
       "ID": "33333333-0000-4000-8000-000000001002"
     },
     "sync": {
-      "lastModified": "2026-08-19T02:44:49.566Z",
-      "checksum": "f850e6e241af863051bd3033435b819162fe11a37e770777498d3c25494c8d1b"
+      "lastModified": "2026-08-19T23:07:39.470Z",
+      "checksum": "9a800a6490ac487374edf5faa29dce1a65f34ca8f6c84993aad1ae74ced3211d"
     }
   },
   {
@@ -51,29 +55,31 @@
       "Name": "Payment Link",
       "Description": "The sub-$10k self-serve case: finance sends a HubSpot payment link that references the Master Agreement, and nobody signs anything. There is an implied contract, so it IS a contract — it has a ContractTemplateID and no document. This is the one type where RequiresExecutedDocument is false, and the reason that column exists at all.",
       "RequiresExecutedDocument": false,
+      "ParentStatusRequirement": null,
       "Status": "Active"
     },
     "primaryKey": {
       "ID": "33333333-0000-4000-8000-000000001003"
     },
     "sync": {
-      "lastModified": "2026-08-19T02:44:49.577Z",
-      "checksum": "c0adf70557c7ddb637d32b7991354acdfdfa762dff639494397221696cdc2491"
+      "lastModified": "2026-08-19T23:07:39.472Z",
+      "checksum": "e4dc8f64da700be0d50883a6f3a4458f5c55e0a93adf11bcd0541cfe11d51cf7"
     }
   },
   {
     "fields": {
       "Name": "Change Order",
-      "Description": "Amends an existing agreement rather than replacing it: signed paper of its own, its own dates, and a ParentContractID naming what it changes. A change order must name a parent (enforced in the server subclass, which needs the type join to know it is one) — the derived IsChangeOrder reads the FK, not this row.",
+      "Description": "Amends an existing agreement rather than replacing it: signed paper of its own, its own dates, and a ParentContractID naming what it changes. ParentStatusRequirement = 'Required' is what enforces that parent — the server subclass reads this column, where it used to compare this row's NAME to the string 'Change Order' and silently stopped working if anyone renamed it.",
       "RequiresExecutedDocument": true,
+      "ParentStatusRequirement": "Required",
       "Status": "Active"
     },
     "primaryKey": {
       "ID": "33333333-0000-4000-8000-000000001004"
     },
     "sync": {
-      "lastModified": "2026-08-19T02:44:49.588Z",
-      "checksum": "f22005c152cb8423b7388ee61cf12752d027f7161b108c6e4f99073e180f6c21"
+      "lastModified": "2026-08-19T23:07:40.175Z",
+      "checksum": "ae818c323464610fc77536116de2a6cf97426bfa5900e97ebb4eb42d05e1cbd3"
     }
   }
 ]
