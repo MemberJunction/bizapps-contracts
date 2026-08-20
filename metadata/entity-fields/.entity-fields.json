@@ -1,45 +1,5 @@
 [
   {
-    "_comments": [
-      "Fields hidden from the generated form. Two kinds, both of which showed up as noise on screen.",
-      "",
-      "RootParentContractID / RootSupersededByContractID are OUTER APPLY outputs of the",
-      "fnContract*_GetRootID functions CodeGen adds to the base view for self-referencing FKs. They are",
-      "real and useful in a query; on a form they render as a raw UUID under a label a user cannot",
-      "interpret, which is exactly what was on screen.",
-      "",
-      "The derived lifecycle columns are hidden because our own panels present them WITH their meaning:",
-      "State is the hero's chip, IsAwaitingDocument is a hero warning, RenewalNoticeDeadline is the",
-      "renewal panel's deadline line, DaysToEnd is 'in 4 months' on the hero. Left in the field list they",
-      "appear a second time as bare values — 'DAYS TO END 487' tells a reader less than 'in 16 months'.",
-      "",
-      "IncludeInGeneratedForm is the flag; it does NOT affect the base view, the API or a RunView — the",
-      "columns stay fully available to code and to grids."
-    ],
-    "fields": {
-      "IncludeInGeneratedForm": false
-    },
-    "primaryKey": {
-      "ID": "@lookup:MJ: Entity Fields.Entity=MJ_BizApps_Contracts: Contracts&Name=RootParentContractID"
-    },
-    "sync": {
-      "lastModified": "2026-08-19T15:43:07.073Z",
-      "checksum": "5283c8e4b3a87060e900ad1ff782a3aafd78870958321ed4f943f9a91a8e2f3e"
-    }
-  },
-  {
-    "fields": {
-      "IncludeInGeneratedForm": false
-    },
-    "primaryKey": {
-      "ID": "@lookup:MJ: Entity Fields.Entity=MJ_BizApps_Contracts: Contracts&Name=RootSupersededByContractID"
-    },
-    "sync": {
-      "lastModified": "2026-08-19T15:43:07.100Z",
-      "checksum": "5283c8e4b3a87060e900ad1ff782a3aafd78870958321ed4f943f9a91a8e2f3e"
-    }
-  },
-  {
     "fields": {
       "IncludeInGeneratedForm": false
     },
