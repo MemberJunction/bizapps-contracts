@@ -29,9 +29,10 @@
  * READ-ONLY — it opens one connection and runs one SELECT.
  */
 import sql from 'mssql';
-import dotenv from 'dotenv';
 import path from 'node:path';
 import fs from 'node:fs';
+// @ts-expect-error — load-env.mjs is plain JS with JSDoc types, shared with the .mjs harnesses on purpose.
+import { loadEnvFrom } from './load-env.mjs';
 
 const SCHEMA = '__mj_BizAppsContracts';
 const ERD = path.resolve(process.cwd(), 'docs/ERD.md');
@@ -82,8 +83,14 @@ function parseErd(markdown: string): Map<string, Set<string>> {
 }
 
 async function main(): Promise<void> {
-    dotenv.config({ path: path.resolve(process.cwd(), '../../../.env'), quiet: true });
-    dotenv.config({ path: path.resolve(process.cwd(), '.env'), quiet: true });
+    // Use the SHARED resolver, which walks up and asks the filesystem. This file used to count
+    // three directories up, which was right for the pre-6.x nested layout (mj/packages/dev-apps/<app>)
+    // and resolves to ~/MJDev under the parent-workspace topology. dotenv does not error on a missing
+    // path, so DB_PORT simply stayed undefined and this died with "Failed to connect to
+    // localhost:1433" — which reads like Docker being down, not like a path bug. The .mjs harnesses
+    // were moved onto load-env.mjs when that bit us there; this one was missed, which is why the ERD
+    // drift below went unnoticed for as long as it did.
+    loadEnvFrom(import.meta.url);
 
     if (!fs.existsSync(ERD)) {
         console.error(`docs/ERD.md not found at ${ERD} — run this from the app root.`);

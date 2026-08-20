@@ -81,6 +81,35 @@ expensive to reverse.
   check to re-run is in `.contract-provisions.json`'s comment block.
 
 
+## Q-6 · `ContractTemplate.SourceURL` is NOT NULL — which forecloses a file-only template version
+
+- **Proposed solution / what I am doing:** leaving the column NOT NULL and changing nothing. The
+  primary case is a Blue Cypress-hosted URL we maintain, which the current shape suits exactly, and
+  loosening a NOT NULL later is additive and cheap while tightening one is a data migration.
+- **The question:** the ERD asks a template version to record *"a public URL that never goes away"*.
+  Two parts, and only one is answerable in the schema. **Reachability cannot be enforced at all** —
+  whether a URL still resolves is a fact about the outside world, so no `CHECK`, trigger or subclass
+  can assert it, and format validation (`https://…`) is weak because a well-formed dead link passes.
+  What IS a real decision is whether NOT NULL is right: it forecloses a template version that exists
+  only as an **attached file**, which is a supported shape everywhere else here — documents attach
+  through `__mj.FileEntityRecordLink` and this schema ships no named file column on purpose (R-8).
+- **The options, if it matters:** (a) keep NOT NULL and accept that a file-only version records the
+  file's URL; (b) make it nullable plus a rule that a template has *either* a `SourceURL` or a linked
+  file — the both-or-neither shape of `CK_Contract_CreatingPairBothOrNeither`, but cross-table, so
+  subclass-tier rather than a `CHECK`.
+- **Reviewer:** Marcelo · **Raised:** 2026-08-19 · **Status:** ANSWERED 2026-08-19
+- **Answer (Marcelo):** *"NOT NULL is wrong for now."* The column becomes nullable. The conditional
+  rule — a URL **or** an attached file — is wanted but cannot be enforced at entry time, and the
+  reason is ordering rather than verdicts: a file links through `__mj.FileEntityRecordLink` keyed on
+  `RecordID`, so **it cannot be attached to a record that does not exist yet**. A remotable operation
+  was considered and rejected for the same reason — it would restate a rule the save channel already
+  carries (D-24 rung 4) without solving the create-ordering problem.
+- **Routed to** `plans/backend-requirements.md` **R-12**, which now carries the migration plus the
+  recommended enforcement point: refuse a **contract** that references a template with neither a URL
+  nor a file. That has no ordering problem, puts the message where someone can act on it, and leaves
+  template authoring free.
+
+
 ## Answered
 
 *(none yet)*

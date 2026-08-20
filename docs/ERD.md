@@ -1,920 +1,207 @@
-# `bizapps-contracts` — ERD
-
-> ## ⚠ THIS DESCRIBES THE **v1** SCHEMA, WHICH IS BEING RETIRED
->
-> As of **2026-08-18** the app is being rebuilt from a clean sheet: 10 tables become 7, and the billing
-> engine, pricing resolver, commitment tracking and amendment approval workflow are all removed. **The
-> schema to build is [`plans/ERD-planned.md`](../plans/ERD-planned.md)**; the governing document is
-> [`plans/bizapps-contracts-master.md`](../plans/bizapps-contracts-master.md).
->
-> This file stays as-is because it is generated from the live database and still describes it accurately.
-> Regenerate it from `sys.tables` once the new baseline migration has been applied.
-
-EffectiveDate · ExecutedDate · EndDate · TerminatedDate
-AutoRenew · RenewalNoticeDays · CancellationWindowDays
-AnnualIncreasePercent · EscalationBasis
-TerminationPolicy
-
+# `bizapps-contracts` — ERD (as built)
 
 > **This is the AS-BUILT ERD — a reflection of the implementation, not a plan.** Intended-but-unbuilt
 > schema changes belong in [`plans/ERD-planned.md`](../plans/ERD-planned.md), never here; this file
-> must always describe what the database actually contains.
+> must always describe what the database actually contains. The *reasoning* behind the shape — every
+> decision, and the R-1…R-19 reversal log — lives there too. This file answers "what is there", that
+> one answers "why".
 >
-> **GENERATED FROM THE LIVE SCHEMA**, not from prose — every table, column, nullability and foreign
-> key below was read out of `sys.tables`/`sys.foreign_keys` on a database built by
-> `migrations/B202608040001…` + `V202608040002…`. Regenerate it after any migration change; do not
-> hand-edit the diagrams.
+> **GENERATED FROM THE LIVE SCHEMA.** Every table, column, nullability, foreign key, `CHECK` and
+> unique index below was read out of `sys.tables` / `sys.columns` / `sys.foreign_keys` /
+> `sys.check_constraints` / `sys.indexes` on a database built by `migrations/B202608040001…` through
+> `V202608192200…`.
 >
-> **Schema:** `__mj_BizAppsContracts` · **Entity prefix:** `MJ_BizApps_Contracts: ` · **Keys:** UUID throughout
-> **Re-verified:** 2026-08-05 (evening) against the live database · **10 tables · 13 internal
-> relationships · 13 cross-app foreign keys · 54 CHECK constraints · 6 unique indexes** beyond the
-> primary keys.
->
-> **The table shape DID change on 2026-08-05 (evening)** — four columns, no new table:
-> `ContractTerm.CommittedAmount` became **NOT NULL** (a term states what was committed for its
-> period; zero is a legitimate answer and says so, null said nothing);
-> `ContractTerm.MaxEscalationPercent` was **removed**, so the escalation ceiling now lives only on
-> `ContractType.DefaultMaxEscalationPercent`; `RenewalNoticeDays` **moved up** from `ContractTerm` to
-> `Contract`, because notice before a renewal price change is a provision of the AGREEMENT rather
-> than of a period; and `ContractTerm.ExecutedDate` was **removed** (the contract's own execution
-> date carries it; per-term paper still attaches through `__mj.FileEntityRecordLink`). The CHECK
-> count fell 55 → 54 accordingly: two term-level CHECKs went, one contract-level CHECK arrived, and
-> `CK_ContractTerm_CommittedAmount` lost its null branch.
->
-> Every count above was read back out of `sys.tables`, `sys.columns`,
-> `sys.foreign_keys`, `sys.check_constraints` and `sys.indexes` rather than taken on trust, and each
-> table's column list here matches the live table exactly once the two CodeGen-managed audit columns
-> (`__mj_CreatedAt`, `__mj_UpdatedAt`) are allowed for.
->
-> (Ten is the app's own tables. `sys.tables` reports eleven in this schema because Flyway keeps its
-> `flyway_schema_history` there; an earlier edit of this header counted it and said eleven, which was
-> wrong — that table belongs to the migration tool, not to the model.)
->
-> **How to read this document.** §1 is the master map (names and connections, no columns). §2 is
-> every column with no lines; **§2.1 is every column WITH every line** — the complete picture, and
-> wide enough that it is an orientation tool rather than a working one. §4–§6 are the per-area
-> diagrams to actually work from: full column lists, small enough to read. §7.2 and §7.3 are the
-> parts no diagram can carry.
->
-> **What DID change on 2026-08-05 (afternoon) is where the rules live, not what the tables are.**
-> Five entities that had CHECK constraints and no server subclass now have one, so the schema is no
-> longer the only thing enforcing them — see **§7.2**, which replaces the two-line footnote this
-> header used to carry. An ERD that shows only the tables now under-describes the model by a fair
-> margin: read §7.1 and §7.2 together, because a constraint you cannot find in `sys.check_constraints`
-> is not necessarily absent.
+> **It is checked, not trusted.** `npx tsx test-harnesses/erd-schema-diff.ts` diffs this document
+> against the live schema and exits non-zero on drift. Run it after any migration. The previous
+> revision of this file described the **v1** schema for a day after v1 was retired, and nothing about
+> reading it revealed that — which is why the check exists.
+
+**7 tables** · 8 internal
+> relationships · 4 cross-app foreign keys · 12 CHECK constraints · 6 unique indexes.
+
+Schema: `__mj_BizAppsContracts`. Entity name prefix: `MJ_BizApps_Contracts: `.
 
 ---
 
-## 0. The two rules that explain most of this schema
-
-**1 — Every reference is a real foreign key. There are no soft keys, ever.** Not a preference, a
-mandate (Amith, 2026-08-04): *"No such thing as soft. Please eradicate the idea of a 'soft' key."*
-The only acceptable non-FK reference in MJ is a genuine **polymorphic pair** (`EntityID` +
-`RecordID`), used when the target entity is not knowable in advance. That is a typed polymorphic
-link, not a soft key. Cross-app FKs are safe here because BizApps install in dependency order, so
-`common`, `tasks`, `accounting` and `orders` are all present before this migration runs — and §4.A
-of the baseline fails loudly if they are not, which is the dependency check.
-
-**2 — Two things you would expect as columns are deliberately absent**, because MJ already models
-them polymorphically and pointing *at* us:
-
-| Not a column here | MJ's model | Why it is better |
-|---|---|---|
-| A document / `DocumentFileID` | `__mj.FileEntityRecordLink` (`EntityID` + `RecordID`) | One record carries the signed PDF *and* its exhibits *and* a countersigned amendment. A column caps it at one, and every future table that acquires paper needs its own. |
-| A signature / envelope link | `__mj.SignatureRequest` (`EntityID` + `RecordID`) | Already carries `Status`, `SentAt`, `CompletedAt`, `VoidReason`, `ExternalEnvelopeID`, plus recipients, documents and logs — provider-agnostic across DocuSign, Dropbox Sign and PandaDoc. Costs us zero columns and zero migration. |
-
-Both point **down** into this schema, so the dependency graph stays correct: MJ core references our
-records; we add nothing to reference it.
-
----
-
-## 1. Master map — every entity, every connection
+## 1. The whole model
 
 ```mermaid
 erDiagram
-    Contract ||--o{ Contract : "ParentContractID"
-    Contract ||--o{ Contract : "SupersededByContractID"
-    Contract ||--o{ ContractEvent : "ContractID"
-    Contract ||--o{ ContractTerm : "ContractID"
-    ContractBillingSchedule ||--o{ ContractBillingEvent : "ContractBillingScheduleID"
-    ContractTerm ||--o{ ContractAmendment : "ContractTermID"
-    ContractTerm ||--o{ ContractBillingEvent : "ContractTermID"
-    ContractTerm ||--o{ ContractBillingSchedule : "ContractTermID"
-    ContractTerm ||--o{ ContractCommitment : "ContractTermID"
-    ContractTerm ||--o{ ContractEvent : "ContractTermID"
-    ContractTerm ||--o{ ContractLine : "ContractTermID"
-    ContractTerm ||--o{ ContractTerm : "RenewalOfTermID"
-    ContractType ||--o{ Contract : "ContractTypeID"
+    ContractTemplateType {
+        uuid ID PK
+        nvarchar Name "unique"
+        nvarchar Description "nullable"
+        nvarchar Status "Active or Inactive"
+    }
 
-    MJ_Company ||--o{ Contract : "CompanyID"
-    MJ_User ||--o{ Contract : "OwnerUserID"
-    MJ_User ||--o{ ContractEvent : "PerformedByUserID"
-    acct_Currency ||--o{ ContractTerm : "CurrencyID"
-    common_Organization ||--o{ Contract : "CustomerOrganizationID"
-    common_Person ||--o{ Contract : "CustomerPersonID"
-    common_Person ||--o{ Contract : "PrimaryContactPersonID"
-    orders_OrderHeader ||--o{ ContractBillingEvent : "OrderID"
-    orders_PaymentTermsType ||--o{ ContractTerm : "PaymentTermsTypeID"
-    orders_Product ||--o{ ContractLine : "ProductID"
-    orders_Subscription ||--o{ ContractLine : "SubscriptionID"
-    orders_SubscriptionType ||--o{ ContractLine : "SubscriptionTypeID"
-    tasks_Task ||--o{ ContractAmendment : "ApprovalTaskID"
-```
+    ContractTemplate {
+        uuid ID PK
+        nvarchar Name "unique"
+        uuid ContractTemplateTypeID FK "ContractTemplateType"
+        nvarchar VersionLabel "nullable"
+        date IntroducedDate "nullable"
+        nvarchar SourceURL "where the text of this version lives"
+        nvarchar Description "nullable"
+    }
 
-**Reading the shape.** The spine is three deep — `Contract → ContractTerm → everything else`.
-`ContractTerm` is the hub: six tables hang off it, because **the term is the unit the billing engine
-operates on**, not the contract. Two self-references carry the two kinds of history: `RenewalOfTermID`
-is *continuity* (this term renews that one) and `SupersededByContractID` is *rupture* (this contract
-was replaced by new paper). `ContractSequence` stands alone — it is a singleton counter for
-`CTR-{seq}`, not part of the graph.
+    ContractTemplateProvision {
+        uuid ID PK
+        uuid ContractTemplateID FK "ContractTemplate"
+        nvarchar ProvisionNumber "unique within the template"
+        nvarchar Title "the clause heading"
+        nvarchar ProvisionText "nullable · nvarchar-max · the standard clause"
+        nvarchar Description "nullable"
+        int Sequence "display order"
+    }
 
-**Deliberately absent: `Contract.DealID`.** One contract, many deals — the original sale is a deal and
-every renewal is another — so a single column could only ever name one and would decay into
-"whichever deal we wrote last." The link lives in `bizapps-sales` as `Deal.ContractID`, pointing down.
-
----
-
-## 2. Full detail — every column, as built
-
-Columns only, with no relationship lines. This is the version to read when you want the shape of the
-tables and nothing competing for attention; **§2.1 is the same tables with every connection drawn.**
-
-```mermaid
-erDiagram
     ContractType {
         uuid ID PK
-        nvarchar Code
-        nvarchar Name
+        nvarchar Name "unique"
         nvarchar Description "nullable"
-        int DefaultTermMonths "nullable"
-        nvarchar DefaultBillingFrequency "nullable"
-        bit DefaultAutoRenew
-        bit RequiresSignature
-        decimal DefaultEscalationPercent "nullable"
-        decimal DefaultMaxEscalationPercent "nullable"
-        int DefaultRenewalNoticeDays "nullable"
-        int DefaultCancellationWindowDays "nullable"
-        nvarchar RenewalMode
-        bit AllowsCoterm
-        nvarchar DriverClass "nullable"
-        bit IsActive
+        bit RequiresExecutedDocument "drives IsAwaitingDocument"
+        nvarchar Status "Active or Inactive"
+        nvarchar ParentStatusRequirement "nullable · Required or Prohibited"
     }
 
     Contract {
         uuid ID PK
-        nvarchar ContractNumber
+        nvarchar ContractNumber "unique · CTR-nnnnnn · minted server-side"
         uuid ContractTypeID FK "ContractType"
-        uuid CompanyID FK "__mj.Company"
-        uuid CustomerOrganizationID FK "__mj_BizAppsCommon.Organization · nullable"
-        uuid CustomerPersonID FK "__mj_BizAppsCommon.Person · nullable"
+        uuid CompanyID FK "__mj.Company · the SELLING entity"
+        uuid CustomerOrganizationID FK "__mj_BizAppsCommon.Organization"
         uuid PrimaryContactPersonID FK "__mj_BizAppsCommon.Person · nullable"
-        uuid OwnerUserID FK "__mj.User · nullable"
-        uuid ParentContractID FK "self · nullable"
-        uuid SupersededByContractID FK "self · nullable"
-        nvarchar Status
-        nvarchar Description "nullable"
+        uuid ContractTemplateID FK "ContractTemplate · nullable"
+        uuid CreatingEntityID FK "__mj.Entity · nullable"
+        nvarchar CreatingRecordID "nvarchar450 · nullable · the Deal"
+        uuid ParentContractID FK "self · nullable · change orders"
+        uuid SupersededByContractID FK "self · nullable · re-papering"
+        nvarchar SigningProviderURL "nullable · direct PandaDoc link"
         date EffectiveDate "nullable"
         date ExecutedDate "nullable"
-        date PricedAt "nullable"
-        bit AutoRenew
-        int CancellationWindowDays "nullable"
-        int RenewalNoticeDays "nullable"
-        nvarchar TerminationPolicy "nullable"
-        nvarchar ExternalReferenceID "nullable"
-    }
-
-    ContractTerm {
-        uuid ID PK
-        uuid ContractID FK "Contract"
-        int TermNumber
-        date StartDate
-        date EndDate
-        nvarchar Status
-        uuid RenewalOfTermID FK "self · nullable"
-        decimal CommittedAmount
-        decimal EscalationPercent "nullable"
-        nvarchar EscalationBasis "nullable"
-        nvarchar BillingFrequency
-        tinyint BillingAnchorMonth "nullable"
-        tinyint BillingAnchorDay "nullable"
-        uuid PaymentTermsTypeID FK "__mj_BizAppsOrders.PaymentTermsType · nullable"
-        uuid CurrencyID FK "__mj_BizAppsAccounting.Currency · nullable"
-        date EarlyTerminationDate "nullable"
-        decimal RenewalProbability "nullable"
-        nvarchar Notes "nullable"
-    }
-
-    ContractLine {
-        uuid ID PK
-        uuid ContractTermID FK "ContractTerm"
-        uuid ProductID FK "__mj_BizAppsOrders.Product"
-        nvarchar LineType
-        decimal Quantity
-        decimal ContractedUnitPrice "nullable"
-        decimal DiscountPct "nullable"
-        date StartDate "nullable"
         date EndDate "nullable"
-        uuid SubscriptionTypeID FK "__mj_BizAppsOrders.SubscriptionType · nullable"
-        uuid SubscriptionID FK "__mj_BizAppsOrders.Subscription · nullable"
+        date TerminatedDate "nullable"
+        bit AutoRenew "default 0"
+        int RenewalNoticeDays "nullable"
+        int CancellationWindowDays "nullable"
+        decimal AnnualIncreasePercent "nullable"
+        bit HasModifications "default 0 · monotonic"
         nvarchar Description "nullable"
-        int DisplayOrder
-    }
-
-    ContractBillingSchedule {
-        uuid ID PK
-        uuid ContractTermID FK "ContractTerm"
-        nvarchar ScheduleType
-        nvarchar Frequency "nullable"
-        date AnchorDate "nullable"
-        bit IsActive
         nvarchar Notes "nullable"
     }
 
-    ContractBillingEvent {
-        uuid ID PK
-        uuid ContractBillingScheduleID FK "ContractBillingSchedule · nullable"
-        uuid ContractTermID FK "ContractTerm"
-        date ScheduledDate
-        nvarchar Status
-        uuid OrderID FK "__mj_BizAppsOrders.OrderHeader · nullable"
-        decimal ComputedAmount "nullable"
-        datetime GeneratedAt "nullable"
-        nvarchar FailureReason "nullable"
-        nvarchar Notes "nullable"
-    }
-
-    ContractCommitment {
-        uuid ID PK
-        uuid ContractTermID FK "ContractTerm"
-        nvarchar CommitmentType
-        decimal CommittedAmount
-        decimal ConsumedAmount
-        date PeriodStart "nullable"
-        date PeriodEnd "nullable"
-        nvarchar TrueUpPolicy
-        nvarchar Status
-    }
-
-    ContractAmendment {
-        uuid ID PK
-        uuid ContractTermID FK "ContractTerm"
-        int AmendmentNumber
-        date EffectiveDate
-        nvarchar AmendmentType
-        nvarchar Description "nullable"
-        nvarchar Status
-        uuid ApprovalTaskID FK "__mj_BizAppsTasks.Task · nullable"
-    }
-
-    ContractEvent {
+    ContractTemplateModification {
         uuid ID PK
         uuid ContractID FK "Contract"
-        uuid ContractTermID FK "ContractTerm · nullable"
-        nvarchar EventType
-        datetime EventDate
-        nvarchar Payload "nullable"
-        uuid PerformedByUserID FK "__mj.User · nullable"
+        uuid ContractTemplateProvisionID FK "ContractTemplateProvision"
+        nvarchar ModificationText "nullable · nvarchar-max · what THIS contract says"
+        nvarchar Notes "nullable"
     }
 
     ContractSequence {
-        int ID PK
-        int NextSequenceNumber
+        int ID PK "singleton, always 1"
+        int NextSequenceNumber "default 1"
     }
 ```
 
----
+Every table also carries `__mj_CreatedAt` and `__mj_UpdatedAt` (`datetimeoffset`, defaulted and
+trigger-maintained). CodeGen owns them; they are omitted from the diagrams so the real content is
+readable.
 
-## 2.1 Full detail **with links** — every column AND every connection
-
-§2 above is the same tables with the relationship lines stripped, which is the version to read when
-you want a column list and nothing competing with it. This is the one to read when you need to see
-what reaches what — every foreign key drawn, cross-app parents included.
-
-It is **wide on purpose** and will not fit a laptop screen comfortably; that is the cost of showing
-the whole thing at once, and it is why the smaller per-area diagrams in §4–§6 exist. Use those to
-work in an area and this to orient.
+## 2. The links
 
 ```mermaid
 erDiagram
+    ContractTemplateType ||--o{ ContractTemplate : "ContractTemplateTypeID"
+    ContractTemplate ||--o{ ContractTemplateProvision : "ContractTemplateID"
+    ContractTemplate ||--o{ Contract : "ContractTemplateID · nullable"
     ContractType ||--o{ Contract : "ContractTypeID"
-    MJ_Company ||--o{ Contract : "CompanyID"
-    common_Organization ||--o{ Contract : "CustomerOrganizationID"
-    common_Person ||--o{ Contract : "CustomerPersonID"
-    common_Person ||--o{ Contract : "PrimaryContactPersonID"
-    MJ_User ||--o{ Contract : "OwnerUserID"
-    Contract ||--o{ Contract : "ParentContractID"
-    Contract ||--o{ Contract : "SupersededByContractID"
-    ContractTerm ||--o{ ContractAmendment : "ContractTermID"
-    tasks_Task ||--o{ ContractAmendment : "ApprovalTaskID"
-    ContractBillingSchedule ||--o{ ContractBillingEvent : "ContractBillingScheduleID"
-    ContractTerm ||--o{ ContractBillingEvent : "ContractTermID"
-    orders_OrderHeader ||--o{ ContractBillingEvent : "OrderID"
-    ContractTerm ||--o{ ContractBillingSchedule : "ContractTermID"
-    ContractTerm ||--o{ ContractCommitment : "ContractTermID"
-    Contract ||--o{ ContractEvent : "ContractID"
-    ContractTerm ||--o{ ContractEvent : "ContractTermID"
-    MJ_User ||--o{ ContractEvent : "PerformedByUserID"
-    ContractTerm ||--o{ ContractLine : "ContractTermID"
-    orders_Product ||--o{ ContractLine : "ProductID"
-    orders_SubscriptionType ||--o{ ContractLine : "SubscriptionTypeID"
-    orders_Subscription ||--o{ ContractLine : "SubscriptionID"
-    Contract ||--o{ ContractTerm : "ContractID"
-    ContractTerm ||--o{ ContractTerm : "RenewalOfTermID"
-    orders_PaymentTermsType ||--o{ ContractTerm : "PaymentTermsTypeID"
-    acct_Currency ||--o{ ContractTerm : "CurrencyID"
+    Contract ||--o{ ContractTemplateModification : "ContractID"
+    ContractTemplateProvision ||--o{ ContractTemplateModification : "ContractTemplateProvisionID"
+    Contract ||--o{ Contract : "ParentContractID · change orders"
+    Contract ||--o{ Contract : "SupersededByContractID · re-papering"
 
-    Contract {
-        uuid ID PK
-        nvarchar ContractNumber
-        uuid ContractTypeID FK "ContractType"
-        uuid CompanyID FK "MJ_Company"
-        uuid CustomerOrganizationID FK "common_Organization · nullable"
-        uuid CustomerPersonID FK "common_Person · nullable"
-        uuid PrimaryContactPersonID FK "common_Person · nullable"
-        uuid OwnerUserID FK "MJ_User · nullable"
-        uuid ParentContractID FK "self · nullable"
-        uuid SupersededByContractID FK "self · nullable"
-        nvarchar Status
-        nvarchar Description "nullable"
-        date EffectiveDate "nullable"
-        date ExecutedDate "nullable"
-        date PricedAt "nullable"
-        bit AutoRenew
-        int CancellationWindowDays "nullable"
-        int RenewalNoticeDays "nullable"
-        nvarchar TerminationPolicy "nullable"
-        nvarchar ExternalReferenceID "nullable"
-    }
-
-    ContractAmendment {
-        uuid ID PK
-        uuid ContractTermID FK "ContractTerm"
-        int AmendmentNumber
-        date EffectiveDate
-        nvarchar AmendmentType
-        nvarchar Description "nullable"
-        nvarchar Status
-        uuid ApprovalTaskID FK "tasks_Task · nullable"
-    }
-
-    ContractBillingEvent {
-        uuid ID PK
-        uuid ContractBillingScheduleID FK "ContractBillingSchedule · nullable"
-        uuid ContractTermID FK "ContractTerm"
-        date ScheduledDate
-        nvarchar Status
-        uuid OrderID FK "orders_OrderHeader · nullable"
-        decimal ComputedAmount "nullable"
-        datetime GeneratedAt "nullable"
-        nvarchar FailureReason "nullable"
-        nvarchar Notes "nullable"
-    }
-
-    ContractBillingSchedule {
-        uuid ID PK
-        uuid ContractTermID FK "ContractTerm"
-        nvarchar ScheduleType
-        nvarchar Frequency "nullable"
-        date AnchorDate "nullable"
-        bit IsActive
-        nvarchar Notes "nullable"
-    }
-
-    ContractCommitment {
-        uuid ID PK
-        uuid ContractTermID FK "ContractTerm"
-        nvarchar CommitmentType
-        decimal CommittedAmount
-        decimal ConsumedAmount
-        date PeriodStart "nullable"
-        date PeriodEnd "nullable"
-        nvarchar TrueUpPolicy
-        nvarchar Status
-    }
-
-    ContractEvent {
-        uuid ID PK
-        uuid ContractID FK "Contract"
-        uuid ContractTermID FK "ContractTerm · nullable"
-        nvarchar EventType
-        datetime EventDate
-        nvarchar Payload "nullable"
-        uuid PerformedByUserID FK "MJ_User · nullable"
-    }
-
-    ContractLine {
-        uuid ID PK
-        uuid ContractTermID FK "ContractTerm"
-        uuid ProductID FK "orders_Product"
-        nvarchar LineType
-        decimal Quantity
-        decimal ContractedUnitPrice "nullable"
-        decimal DiscountPct "nullable"
-        date StartDate "nullable"
-        date EndDate "nullable"
-        uuid SubscriptionTypeID FK "orders_SubscriptionType · nullable"
-        uuid SubscriptionID FK "orders_Subscription · nullable"
-        nvarchar Description "nullable"
-        int DisplayOrder
-    }
-
-    ContractSequence {
-        int ID PK
-        int NextSequenceNumber
-    }
-
-    ContractTerm {
-        uuid ID PK
-        uuid ContractID FK "Contract"
-        int TermNumber
-        date StartDate
-        date EndDate
-        nvarchar Status
-        uuid RenewalOfTermID FK "self · nullable"
-        decimal CommittedAmount
-        decimal EscalationPercent "nullable"
-        nvarchar EscalationBasis "nullable"
-        nvarchar BillingFrequency
-        tinyint BillingAnchorMonth "nullable"
-        tinyint BillingAnchorDay "nullable"
-        uuid PaymentTermsTypeID FK "orders_PaymentTermsType · nullable"
-        uuid CurrencyID FK "acct_Currency · nullable"
-        date EarlyTerminationDate "nullable"
-        decimal RenewalProbability "nullable"
-        nvarchar Notes "nullable"
-    }
-
-    ContractType {
-        uuid ID PK
-        nvarchar Code
-        nvarchar Name
-        nvarchar Description "nullable"
-        int DefaultTermMonths "nullable"
-        nvarchar DefaultBillingFrequency "nullable"
-        bit DefaultAutoRenew
-        bit RequiresSignature
-        decimal DefaultEscalationPercent "nullable"
-        decimal DefaultMaxEscalationPercent "nullable"
-        int DefaultRenewalNoticeDays "nullable"
-        int DefaultCancellationWindowDays "nullable"
-        nvarchar RenewalMode
-        bit AllowsCoterm
-        nvarchar DriverClass "nullable"
-        bit IsActive
-    }
-
+    Company ||--o{ Contract : "CompanyID · __mj"
+    Organization ||--o{ Contract : "CustomerOrganizationID · __mj_BizAppsCommon"
+    Person ||--o{ Contract : "PrimaryContactPersonID · __mj_BizAppsCommon"
+    Entity ||--o{ Contract : "CreatingEntityID · __mj"
 ```
 
----
+**8 internal foreign keys** (the first eight above) and **4 cross-app** (the last four). No FK leaves
+this schema except those four, and none points into `bizapps-sales` — sales depends on contracts, so
+the deal reference is the soft `CreatingEntityID` + `CreatingRecordID` pair rather than a hard FK.
 
-## 3. Cross-app reference register
+`ContractSequence` participates in no relationship at all: it is a one-row counter read under a lock
+by `spAssignNextContractNumber`.
 
-Every reference out of `__mj_BizAppsContracts`. **All are real foreign keys.** The direction rule
-(orders D44) is that cross-app references point *up* the dependency graph — `common → tasks →
-accounting → orders → contracts → sales` — so all of these are legal, and any reference into
-`bizapps-sales` would not be.
+## 3. Constraints
 
-| From | Column | To | App |
-|---|---|---|---|
-| `Contract` | `CompanyID` | `__mj.Company` | MJ core |
-| `Contract` | `OwnerUserID` | `__mj.User` | MJ core |
-| `Contract` | `CustomerOrganizationID` | `__mj_BizAppsCommon.Organization` | common |
-| `Contract` | `CustomerPersonID` | `__mj_BizAppsCommon.Person` | common |
-| `Contract` | `PrimaryContactPersonID` | `__mj_BizAppsCommon.Person` | common |
-| `ContractTerm` | `PaymentTermsTypeID` | `__mj_BizAppsOrders.PaymentTermsType` | orders |
-| `ContractTerm` | `CurrencyID` | `__mj_BizAppsAccounting.Currency` | accounting |
-| `ContractLine` | `ProductID` | `__mj_BizAppsOrders.Product` | orders |
-| `ContractLine` | `SubscriptionTypeID` | `__mj_BizAppsOrders.SubscriptionType` | orders |
-| `ContractLine` | `SubscriptionID` | `__mj_BizAppsOrders.Subscription` | orders |
-| `ContractBillingEvent` | `OrderID` | `__mj_BizAppsOrders.OrderHeader` | orders |
-| `ContractAmendment` | `ApprovalTaskID` | `__mj_BizAppsTasks.Task` | tasks |
-| `ContractEvent` | `PerformedByUserID` | `__mj.User` | MJ core |
-| — | *(none, and never)* | `bizapps-sales.Deal` | 🚫 forbidden (L-15) |
+### 3.1 CHECK — 12
 
-**The two `ContractLine` subscription columns are not redundant.** `SubscriptionTypeID` is a
-**decision** — which kind of subscription this line becomes, negotiated on the contract before
-anything exists (and required, because `orders.Subscription.SubscriptionTypeID` is `NOT NULL`).
-`SubscriptionID` is the **result** — the subscription the engine actually materialized. One is input,
-one is output.
-
----
-
-## 4. The agreement spine
-
-**Every field, and every connection into this area.** The three area diagrams below (§4–§6) are the
-ones to work from: each is small enough to read at a real font size, and each carries the full column
-list rather than making you scroll back to §2 to find out what a term actually holds.
-
-```mermaid
-erDiagram
-    ContractType ||--o{ Contract : "ContractTypeID"
-    MJ_Company ||--o{ Contract : "CompanyID"
-    common_Organization ||--o{ Contract : "CustomerOrganizationID"
-    common_Person ||--o{ Contract : "CustomerPersonID"
-    common_Person ||--o{ Contract : "PrimaryContactPersonID"
-    MJ_User ||--o{ Contract : "OwnerUserID"
-    Contract ||--o{ Contract : "ParentContractID"
-    Contract ||--o{ Contract : "SupersededByContractID"
-    Contract ||--o{ ContractTerm : "ContractID"
-    ContractTerm ||--o{ ContractTerm : "RenewalOfTermID"
-    orders_PaymentTermsType ||--o{ ContractTerm : "PaymentTermsTypeID"
-    acct_Currency ||--o{ ContractTerm : "CurrencyID"
-
-    ContractType {
-        uuid ID PK
-        nvarchar Code
-        nvarchar Name
-        nvarchar Description "nullable"
-        int DefaultTermMonths "nullable"
-        nvarchar DefaultBillingFrequency "nullable"
-        bit DefaultAutoRenew
-        bit RequiresSignature
-        decimal DefaultEscalationPercent "nullable"
-        decimal DefaultMaxEscalationPercent "nullable"
-        int DefaultRenewalNoticeDays "nullable"
-        int DefaultCancellationWindowDays "nullable"
-        nvarchar RenewalMode
-        bit AllowsCoterm
-        nvarchar DriverClass "nullable"
-        bit IsActive
-    }
-
-    Contract {
-        uuid ID PK
-        nvarchar ContractNumber
-        uuid ContractTypeID FK "ContractType"
-        uuid CompanyID FK "MJ_Company"
-        uuid CustomerOrganizationID FK "common_Organization · nullable"
-        uuid CustomerPersonID FK "common_Person · nullable"
-        uuid PrimaryContactPersonID FK "common_Person · nullable"
-        uuid OwnerUserID FK "MJ_User · nullable"
-        uuid ParentContractID FK "self · nullable"
-        uuid SupersededByContractID FK "self · nullable"
-        nvarchar Status
-        nvarchar Description "nullable"
-        date EffectiveDate "nullable"
-        date ExecutedDate "nullable"
-        date PricedAt "nullable"
-        bit AutoRenew
-        int CancellationWindowDays "nullable"
-        int RenewalNoticeDays "nullable"
-        nvarchar TerminationPolicy "nullable"
-        nvarchar ExternalReferenceID "nullable"
-    }
-
-    ContractTerm {
-        uuid ID PK
-        uuid ContractID FK "Contract"
-        int TermNumber
-        date StartDate
-        date EndDate
-        nvarchar Status
-        uuid RenewalOfTermID FK "self · nullable"
-        decimal CommittedAmount
-        decimal EscalationPercent "nullable"
-        nvarchar EscalationBasis "nullable"
-        nvarchar BillingFrequency
-        tinyint BillingAnchorMonth "nullable"
-        tinyint BillingAnchorDay "nullable"
-        uuid PaymentTermsTypeID FK "orders_PaymentTermsType · nullable"
-        uuid CurrencyID FK "acct_Currency · nullable"
-        date EarlyTerminationDate "nullable"
-        decimal RenewalProbability "nullable"
-        nvarchar Notes "nullable"
-    }
-
-```
-
-`ContractType` is configuration-as-data: the columns *are* the rules and a base behaviour class reads
-them; `DriverClass` is nullable and appears only when a customer needs something the columns cannot
-express. Both the contract and the term carry an `ExecutedDate` and a `PendingSignature` status, which
-is what lets one schema serve both the **evergreen** pattern (one signed document, many periods) and
-the **re-papered** pattern (new paper per period) without a second model.
-
----
-
-## 5. Coverage, billing and commitment
-
-**Every field, and every connection into this area.** `ContractTerm` repeats from §4 on purpose — it
-is the hinge between the agreement and the money, and an area diagram that omitted it would leave
-four tables hanging off nothing.
-
-```mermaid
-erDiagram
-    ContractBillingSchedule ||--o{ ContractBillingEvent : "ContractBillingScheduleID"
-    ContractTerm ||--o{ ContractBillingEvent : "ContractTermID"
-    orders_OrderHeader ||--o{ ContractBillingEvent : "OrderID"
-    ContractTerm ||--o{ ContractBillingSchedule : "ContractTermID"
-    ContractTerm ||--o{ ContractCommitment : "ContractTermID"
-    ContractTerm ||--o{ ContractLine : "ContractTermID"
-    orders_Product ||--o{ ContractLine : "ProductID"
-    orders_SubscriptionType ||--o{ ContractLine : "SubscriptionTypeID"
-    orders_Subscription ||--o{ ContractLine : "SubscriptionID"
-    Contract ||--o{ ContractTerm : "ContractID"
-    ContractTerm ||--o{ ContractTerm : "RenewalOfTermID"
-    orders_PaymentTermsType ||--o{ ContractTerm : "PaymentTermsTypeID"
-    acct_Currency ||--o{ ContractTerm : "CurrencyID"
-
-    ContractTerm {
-        uuid ID PK
-        uuid ContractID FK "Contract"
-        int TermNumber
-        date StartDate
-        date EndDate
-        nvarchar Status
-        uuid RenewalOfTermID FK "self · nullable"
-        decimal CommittedAmount
-        decimal EscalationPercent "nullable"
-        nvarchar EscalationBasis "nullable"
-        nvarchar BillingFrequency
-        tinyint BillingAnchorMonth "nullable"
-        tinyint BillingAnchorDay "nullable"
-        uuid PaymentTermsTypeID FK "orders_PaymentTermsType · nullable"
-        uuid CurrencyID FK "acct_Currency · nullable"
-        date EarlyTerminationDate "nullable"
-        decimal RenewalProbability "nullable"
-        nvarchar Notes "nullable"
-    }
-
-    ContractLine {
-        uuid ID PK
-        uuid ContractTermID FK "ContractTerm"
-        uuid ProductID FK "orders_Product"
-        nvarchar LineType
-        decimal Quantity
-        decimal ContractedUnitPrice "nullable"
-        decimal DiscountPct "nullable"
-        date StartDate "nullable"
-        date EndDate "nullable"
-        uuid SubscriptionTypeID FK "orders_SubscriptionType · nullable"
-        uuid SubscriptionID FK "orders_Subscription · nullable"
-        nvarchar Description "nullable"
-        int DisplayOrder
-    }
-
-    ContractBillingSchedule {
-        uuid ID PK
-        uuid ContractTermID FK "ContractTerm"
-        nvarchar ScheduleType
-        nvarchar Frequency "nullable"
-        date AnchorDate "nullable"
-        bit IsActive
-        nvarchar Notes "nullable"
-    }
-
-    ContractBillingEvent {
-        uuid ID PK
-        uuid ContractBillingScheduleID FK "ContractBillingSchedule · nullable"
-        uuid ContractTermID FK "ContractTerm"
-        date ScheduledDate
-        nvarchar Status
-        uuid OrderID FK "orders_OrderHeader · nullable"
-        decimal ComputedAmount "nullable"
-        datetime GeneratedAt "nullable"
-        nvarchar FailureReason "nullable"
-        nvarchar Notes "nullable"
-    }
-
-    ContractCommitment {
-        uuid ID PK
-        uuid ContractTermID FK "ContractTerm"
-        nvarchar CommitmentType
-        decimal CommittedAmount
-        decimal ConsumedAmount
-        date PeriodStart "nullable"
-        date PeriodEnd "nullable"
-        nvarchar TrueUpPolicy
-        nvarchar Status
-    }
-
-```
-
-One term may carry **more than one schedule** — a quarterly subscription cadence *and* a milestone
-schedule for the attached SOW — which is why it is a table rather than columns on the term.
-`ContractBillingEvent` is the audit trail as much as the queue: it answers "why did the customer get
-this bill on this date, and what produced it," and a failure stays `Failed` **with a reason** rather
-than retrying into a duplicate.
-
-**No amount on this side is computed here.** `ComputedAmount` is a *stamp* of what
-`Orders.PreviewOrder` returned. Contracts decides *what* to bill and never *what it costs*.
-
----
-
-## 6. Change, approval and history
-
-**Every field, and every connection into this area.**
-
-```mermaid
-erDiagram
-    ContractTerm ||--o{ ContractAmendment : "ContractTermID"
-    tasks_Task ||--o{ ContractAmendment : "ApprovalTaskID"
-    Contract ||--o{ ContractEvent : "ContractID"
-    ContractTerm ||--o{ ContractEvent : "ContractTermID"
-    MJ_User ||--o{ ContractEvent : "PerformedByUserID"
-    Contract ||--o{ ContractTerm : "ContractID"
-    ContractTerm ||--o{ ContractTerm : "RenewalOfTermID"
-    orders_PaymentTermsType ||--o{ ContractTerm : "PaymentTermsTypeID"
-    acct_Currency ||--o{ ContractTerm : "CurrencyID"
-
-    ContractTerm {
-        uuid ID PK
-        uuid ContractID FK "Contract"
-        int TermNumber
-        date StartDate
-        date EndDate
-        nvarchar Status
-        uuid RenewalOfTermID FK "self · nullable"
-        decimal CommittedAmount
-        decimal EscalationPercent "nullable"
-        nvarchar EscalationBasis "nullable"
-        nvarchar BillingFrequency
-        tinyint BillingAnchorMonth "nullable"
-        tinyint BillingAnchorDay "nullable"
-        uuid PaymentTermsTypeID FK "orders_PaymentTermsType · nullable"
-        uuid CurrencyID FK "acct_Currency · nullable"
-        date EarlyTerminationDate "nullable"
-        decimal RenewalProbability "nullable"
-        nvarchar Notes "nullable"
-    }
-
-    ContractAmendment {
-        uuid ID PK
-        uuid ContractTermID FK "ContractTerm"
-        int AmendmentNumber
-        date EffectiveDate
-        nvarchar AmendmentType
-        nvarchar Description "nullable"
-        nvarchar Status
-        uuid ApprovalTaskID FK "tasks_Task · nullable"
-    }
-
-    ContractEvent {
-        uuid ID PK
-        uuid ContractID FK "Contract"
-        uuid ContractTermID FK "ContractTerm · nullable"
-        nvarchar EventType
-        datetime EventDate
-        nvarchar Payload "nullable"
-        uuid PerformedByUserID FK "MJ_User · nullable"
-    }
-
-```
-
-**Amendments change a live term; renewals start a new one.** Conflating the two is the most common
-contract-model mistake. `ContractEvent` is the immutable system record; customer-visible events also
-write a `common.Activity` row so the agreement appears on the account timeline — two different things,
-neither replacing the other.
-
----
-
-## 7. Value lists (all CHECK-constrained)
-
-| Entity | Column | Values |
+| Table | Constraint | Rule |
 |---|---|---|
-| `Contract` | `Status` | `Draft` · `PendingSignature` · `Active` · `Expired` · `Terminated` · `Superseded` |
-| `ContractTerm` | `Status` | `Pending` · `PendingSignature` · `Active` · `Completed` · `Terminated` |
-| `ContractTerm` | `EscalationBasis` | `PriorTerm` · `ListPrice` · `Index` |
-| `ContractTerm` | `BillingFrequency` | `Monthly` · `Quarterly` · `SemiAnnual` · `Annual` · `Milestone` · `Custom` |
-| `ContractLine` | `LineType` | `Subscription` · `OneTime` · `Milestone` · `Usage` · `Minimum` |
-| `ContractBillingSchedule` | `ScheduleType` | `Cadence` · `Milestone` · `Custom` |
-| `ContractBillingEvent` | `Status` | `Scheduled` · `Generated` · `Skipped` · **`Cancelled`** · `Failed` |
-| `ContractCommitment` | `CommitmentType` | `Minimum` · `Prepaid` · `Draw` |
-| `ContractCommitment` | `TrueUpPolicy` | `BillShortfall` · `Forfeit` · `Rollover` |
-| `ContractCommitment` | `Status` | `Open` · `Closed` · `TruedUp` · `Forfeited` |
-| `ContractAmendment` | `AmendmentType` | `AddProduct` · `ChangeQuantity` · `ChangePrice` · `Coterm` · `PartialTerminate` · `Other` |
-| `ContractAmendment` | `Status` | `Draft` · `PendingApproval` · `Approved` · `Rejected` · `Applied` · `Cancelled` |
-| `ContractEvent` | `EventType` | `ContractCreated` · `ContractExecuted` · `ContractTerminated` · `ContractSuperseded` · `ContractExpired` · `SentForSignature` · `SignatureRejected` · `TermActivated` · `TermRenewed` · `TermCompleted` · `TermTerminated` · `AmendmentApplied` · `BillingEventGenerated` · `BillingEventFailed` |
+| `Contract` | `CK_Contract_Dates` | `EndDate >= EffectiveDate` when both are set |
+| `Contract` | `CK_Contract_ParentNotSelf` | `ParentContractID <> ID` |
+| `Contract` | `CK_Contract_SupersededNotSelf` | `SupersededByContractID <> ID` |
+| `Contract` | `CK_Contract_CreatingPairBothOrNeither` | `CreatingEntityID` and `CreatingRecordID` are both set or both null |
+| `Contract` | `CK_Contract_RenewalNoticeDays` | null or `>= 0` |
+| `Contract` | `CK_Contract_CancellationWindow` | null or `>= 0` |
+| `Contract` | `CK_Contract_AnnualIncrease` | null or `>= 0` |
+| `ContractType` | `CK_ContractType_Status` | `IN ('Active','Inactive')` |
+| `ContractType` | `CK_ContractType_ParentStatusRequirement` | `IN ('Required','Prohibited')` — nullable, meaning "no restriction" |
+| `ContractTemplateType` | `CK_ContractTemplateType_Status` | `IN ('Active','Inactive')` |
+| `ContractSequence` | `CK_ContractSequence_Singleton` | `ID = 1` |
+| `ContractSequence` | `CK_ContractSequence_NextSeq` | `NextSequenceNumber > 0` |
 
-`Usage` and `Index` are in their lists deliberately even though usage metering and index escalation
-are out of v1 — keeping the **value** means the schema does not change when the capability arrives,
-and adding no **column** until there is something real to read is the matching half of that rule.
+All seven `Contract` constraints have a **generated `Validate()` counterpart** on
+`mjBizAppsContractsContractEntity`, and both `ContractSequence` constraints have one, so violating
+any of them produces a field-named message rather than a raw SQL error.
 
-**`Cancelled` is distinct from `Skipped`** on a billing event: `Skipped` is one occurrence that did
-not bill, `Cancelled` is one killed because the agreement ended under it. Reusing `Skipped` would
-make "we skipped March" and "the agreement ended in March" the same value.
+The three `IN (…)` constraints do **not**: CodeGen renders those as `ValueListType='List'` metadata
+(which drives the UI dropdown) rather than as validators, and `BaseEntity` does not validate value
+lists — filed as [MJ#3969](https://github.com/MemberJunction/MJ/issues/3969).
 
-**`ContractEvent.EventType` was the schema's only unconstrained value column** until 2026-08-05 —
-`EventType = 'asdf'` saved. Naming the set immediately exposed a live split: the demo seed wrote
-`TermRenewed` while the renewal operation wrote `Renewed`, for the same event. The prefix discipline
-is deliberate: `Contract*` for what happens to the agreement, `Term*` for a period, `BillingEvent*`
-for a scheduled bill, so the subject of an event is readable from its type alone.
+### 3.2 Unique — 6
 
-### 7.1 Rules that are NOT value lists
-
-Four state-implies-field CHECKs and one filtered unique index. Each says "this status OBLIGES that
-column", which a value list cannot express:
-
-| Constraint | Rule |
-|---|---|
-| `CK_Contract_SupersededHasSuccessor` | `Superseded` requires `SupersededByContractID` — the exact state that column was added to eliminate |
-| `CK_ContractLine_SubscriptionNeedsType` | A `Subscription` line requires `SubscriptionTypeID`; without it the row saves and then fails at BILLING time on a live contract |
-| `CK_ContractBillingEvent_GeneratedHasTimestamp` | `Generated` requires `GeneratedAt` |
-| `CK_ContractAmendment_ApprovedHasTask` | `Approved` or `Rejected` requires `ApprovalTaskID` — an approval with no record is what the task integration exists to prevent |
-| `UQ_ContractLine_Subscription` (filtered) | One `orders.Subscription` per line; two lines owning one is a duplicate-billing shape |
-
----
-
-### 7.2 The rules that are NOT in the schema at all
-
-**Read this section as part of the ERD, not as an appendix.** A reader who takes the tables above as
-the whole model will conclude the database enforces everything, and it does not. As of 2026-08-05
-**nine of the ten tables have a server subclass** — every one except `ContractSequence`, which is a
-counter rather than a record with rules — and a material share of what makes a contract *correct*
-lives there rather than in `sys.check_constraints`.
-
-**Why anything lives outside the schema.** A CHECK constraint sees ONE ROW and no siblings. Three
-kinds of rule are therefore unreachable from it:
-
-1. **Two-column comparisons.** CodeGen derives a generated validation method name from a constraint's
-   expression, and a constraint naming two columns makes it emit a call to a method it never defines
-   — a build break in generated code that orders already hit. The escalation cap was the original
-   example; since 2026-08-05 the ceiling lives on `ContractType` rather than on each term, so that
-   particular rule is now cross-ROW as well as cross-column and could never have been a CHECK.
-2. **Cross-row rules.** A CHECK cannot read the row a foreign key points at, so "coverage must sit
-   inside its term" and "an amendment targets a RUNNING term" have nowhere to live in the schema.
-3. **Rules about a whole collection.** "An Active contract needs at least one term" is a statement
-   about rows that do not exist yet at insert time.
-
-**And why the readable half matters even when the CHECK already exists.** A constraint reports itself
-as `CK_ContractLine_SubscriptionNeedsType` — a symbol, in a database error, arriving at a UI that can
-only render it verbatim. Several rules below are therefore MIRRORED in `Validate()` as sentences
-while the CHECK stays exactly where it is as the un-bypassable floor. The mirror is not a
-replacement: a rule living only in TypeScript is a rule that direct SQL walks straight past.
-
-| Entity | Rule enforced in the entity layer | Why it cannot be a CHECK |
+| Table | Index | Columns |
 |---|---|---|
-| `Contract` | Legal status MOVES (`Terminated → Active` refused; `Superseded` terminal) | `CK_Contract_Status` knows the legal SET, not transitions |
-| `Contract` | `ContractNumber` allocated from `ContractSequence`; `PricedAt` defaulted | A read-modify-write, not a predicate |
-| `Contract` | An **Active** contract must have at least one term | A statement about a collection |
-| `ContractTerm` | `TermNumber` derived from the contract's existing terms | Requires reading siblings |
-| `ContractTerm` | Escalation may not exceed the ceiling set by the contract's TYPE; a renewal CLAMPS rather than failing | Reads another table (see 1 and 2) |
-| `ContractTerm` | A renewal chain may not cross contracts | Compares this row to the row it points at |
-| `Contract` | An unset renewal-notice period is inherited from the contract TYPE on a new contract | A lookup, and only for new records |
-| `ContractTerm` | An **Active** term must have at least one coverage line | A statement about a collection |
-| `ContractLine` | Coverage must sit inside its term's dates, both ends | Cross-row |
-| `ContractLine` | A **closed** term gains no new coverage | Cross-row |
-| `ContractLine` | The Subscription trio, said readably | Mirrors three CHECKs so the UI can show a sentence |
-| `ContractBillingSchedule` | A schedule that has already BILLED is frozen | Compares this row to the existence of rows in another table |
-| `ContractBillingSchedule` | The anchor must fall inside the term | Cross-row |
-| `ContractCommitment` | A settled commitment is terminal — reopening would bill one shortfall twice | Transitions again |
-| `ContractCommitment` | The period must sit inside the term | Cross-row |
-| `ContractAmendment` | An amendment targets a term that is **RUNNING** | Cross-row, and the distinction the whole table exists for |
-| `ContractAmendment` | `AmendmentNumber` derived per term | Requires reading siblings |
-| `ContractType` | A type's default escalation must fit under its own default ceiling | Two-column comparison (see 1 above) |
-| `ContractEvent` | Append-only — edit and delete both refused | CodeGen generates working `spUpdate`/`spDelete`, so the table's own "never edited" comment was documentation rather than a mechanism |
+| `Contract` | `UQ_Contract_ContractNumber` | `ContractNumber` |
+| `ContractTemplate` | `UQ_ContractTemplate_Name` | `Name` |
+| `ContractTemplateProvision` | `UQ_ContractTemplateProvision_Template_Number` | `ContractTemplateID, ProvisionNumber` |
+| `ContractTemplateModification` | `UQ_ContractTemplateModification_Contract_Provision` | `ContractID, ContractTemplateProvisionID` |
+| `ContractType` | `UQ_ContractType_Name` | `Name` |
+| `ContractTemplateType` | `UQ_ContractTemplateType_Name` | `Name` |
 
-**Two mechanical traps worth knowing before adding to this layer**, both sprung in this package:
+`UQ_ContractTemplateModification_Contract_Provision` is the one a user can reach by ordinary use: it
+says a contract records **at most one** modification per provision.
 
-- A rule placed in `ValidateAsync()` without `DefaultSkipAsyncValidation = false` on the class is
-  **dead code that reads as live**. It compiles, looks correct, and never runs.
-- `BaseEntity._InnerSave` skips its whole body — validation included — when the record is not dirty
-  (`baseEntity.ts:2531`). A save that only removes a CHILD touches no field on the parent, so the
-  parent's cross-child rules never run unless it passes `IgnoreDirtyState`.
+### 3.3 Non-unique indexes
 
-`testing.md` maps each rule above to the check that proves it.
+`IX_Contract_CreatingRecord` on `(CreatingEntityID, CreatingRecordID)` — the reverse lookup "which
+contract came from this deal?". CodeGen additionally creates an `IDX_AUTO_MJ_FKEY_*` index on every
+foreign key column.
 
----
+## 4. Derived columns — not in any table
 
-### 7.3 The write API, and what a diagram cannot show
+`vwContracts` is an **app-owned layered base view**: it wraps the CodeGen-generated
+`vwContractsGenerated` and adds six columns that are computed at read time. They appear on the
+`Contracts` entity as read-only fields, and they are the only place these facts exist.
 
-The tables say what CAN be stored. **Six remote operations** say what the app actually DOES, and two
-of them are the reason several columns exist at all:
-
-| Operation | What it does to the schema |
+| Column | Derived from |
 |---|---|
-| `Contracts.SaveContract` | Writes a whole agreement — contract, terms, coverage, schedules, commitments — in ONE transaction. Removals are NAMED in the payload, never inferred from absence, because a client holding two of five terms would otherwise delete the other three. |
-| `Contracts.ActivateTerm` | Turns a term Active AND creates its `ContractBillingSchedule` plus the `ContractBillingEvent` rows its cadence implies. A term marked Active with no schedule bills nothing. **Reads `ContractTerm.BillingAnchorMonth` / `BillingAnchorDay`** — until 2026-08-05 those two columns were written by `RenewTerm` and read by nothing at all. |
-| `Contracts.RenewTerm` | Creates the next term with `RenewalOfTermID` set, clamping escalation to the ceiling. |
-| `Contracts.TerminateContract` | Moves the contract and its live terms to Terminated and CANCELS future billing events while RETAINING those on or before the effective date — periods already covered are still owed. |
-| `Contracts.AmendTerm` | Co-terming (plan §5.4): a `ContractAmendment` plus a `ContractLine` whose `EndDate` is the **TERM's**, so a mid-term product renews with everything else instead of acquiring its own clock. |
-| `Contracts.GenerateBillingEvent` | Claims a `Scheduled` event, assembles what is owed for the period, and stamps `OrderID` / `ComputedAmount` / `GeneratedAt` together — which is what `CK_ContractBillingEvent_GeneratedHasOrder` and `_GeneratedHasTimestamp` exist to guarantee. |
+| `State` | `TerminatedDate` / `SupersededByContractID` / `EndDate` / `EffectiveDate` / `ExecutedDate`, in that precedence — `Terminated`, `Superseded`, `Expired`, `Active`, `Executed`, `Draft` |
+| `IsAwaitingDocument` | `ContractType.RequiresExecutedDocument` AND no `__mj.FileEntityRecordLink` row |
+| `IsChangeOrder` | `ParentContractID IS NOT NULL` |
+| `DaysToEnd` | `DATEDIFF(day, today, EndDate)` — signed |
+| `RenewalNoticeDeadline` | `EndDate - RenewalNoticeDays` |
+| `IsInCancellationWindow` | today falls within `CancellationWindowDays` of `EndDate` |
 
-**Three Explorer nav items** reach all of this: `ContractsSectionResource`,
-`ContractsBillingSectionResource` and `ContractsSetupSectionResource`, each registered via
-`@RegisterClass(BaseResourceComponent, …)` against a `DefaultNavItems` entry in
-`metadata/applications/.contracts-application.json`. Billing is a peer of Contracts rather than a
-page beneath it because the cross-contract questions — what will bill next month, who is behind on
-what they committed to — are not answered by opening one agreement at a time.
+Three of them depend on **today**, so they cannot be stored: nothing writes the row when the clock
+crosses a boundary. See `plans/ERD-planned.md` §7.2.
 
-**`ContractSequence` and `IX_ContractBillingEvent_Due` only make sense read against this table.** The
-sequence exists because `ContractNumber` is allocated by a read-modify-write that must not interleave;
-the index exists because the scheduled driver's only query is
-`Status='Scheduled' AND ScheduledDate <= today`.
+## 5. What this schema deliberately does not have
 
----
-
-## 8. Deliberately considered and rejected
-
-Recording these so they are not re-proposed:
-
-| Rejected | Why |
-|---|---|
-| `ContractLine.ResolvedUnitPrice` / `ResolvedAt` | Orders owns product pricing and price history. Each generated bill **is** an order carrying the real price and date, already linked via `ContractBillingEvent.OrderID`. A second copy here has no authority and can only drift. |
-| `ContractTerm.EscalationIndexCode` | A bare code names an index but nothing resolves it, so an `Index` basis still could not execute. Matches the `Usage` precedent: keep the value, add the column when the capability is real. |
-| `DocumentFileID` (three tables) | Replaced by `__mj.FileEntityRecordLink` — see §0. |
-| Renaming `DiscountPct` | It is a fraction (0–1) wearing a percent name, but orders uses the identical shape for `OrderLine.DiscountPct` and `SalesAuthority.MaxDiscountPct`. Family consistency beats local correctness. |
-| `Contract.DealID` in any form | L-15 — direction *and* cardinality. |
-
-**Known gap, not yet solved:** there is no `ContractLine → OrderLine` mapping, so deriving "what did
-this line cost last term" means matching by `ProductID` within the term's orders — fine when a product
-appears once, ambiguous when it does not. It belongs in the billing engine, not in a shadow price column.
+No `Status` column on `Contract` (derived as `State`), no named document FK (documents attach through
+`__mj.FileEntityRecordLink`), no `ContractTemplateID` on a modification (its provision derives the
+template), no line items, no billing schedule, no pricing, no commitment tracking and no amendment
+workflow. The v1 schema had all of those across 10 tables; v2 is 7. `plans/ERD-planned.md` §9 records
+each removal and who ruled it.

@@ -107,6 +107,21 @@ it there:
 > What IS missing is the `IN (…)` constraints — see **R-9**. Those genuinely have no TypeScript
 > counterpart, and the reason is instructive: CodeGen renders them as value-list metadata rather than
 > as validators, which is defensible, but MJ then never validates the list.
+>
+> **Re-checked 2026-08-20 at Marcelo's request, and it holds — with one refinement.** All four
+> validator bodies were read against the `CHECK` expressions in the baseline migration and are
+> semantically equivalent. The baseline itself settles the intent, in a comment above
+> `CK_Contract_CreatingPairBothOrNeither`: *"CodeGen derives the generated validator from this
+> expression, so each column is named ONCE"* — the schema author wrote these constraints **expecting**
+> the validators, and even records the failure mode of getting it wrong. This was never an oversight.
+>
+> **The one real divergence, which is narrow and worth knowing rather than fixing.**
+> `ValidateCreatingEntityAndRecordCoexistence` treats an EMPTY STRING as absent
+> (`!= null && !== ""`); the SQL `CHECK` treats it as present, because `''` is not `NULL`. So
+> `CreatingEntityID = NULL` with `CreatingRecordID = ''` passes in TypeScript and is refused by the
+> database. TypeScript is the more permissive of the two, which is the safe direction for a
+> divergence — the floor still holds — and the case needs someone to write an empty string into a
+> polymorphic record id. Noted, not filed.
 
 The original text follows, struck through, so the reasoning is not lost:
 
@@ -273,6 +288,16 @@ being offered for new contracts", which today nothing enforces.
   contract or provision reads as *"choose the provision this modification changes"* rather than as a
   NOT NULL violation.
 
+**The UI-side rule folds in here (ruled 2026-08-19, Marcelo).** `modification-editor.component.ts`
+currently enforces this on its own — `[disabled]="!DraftText.trim()"` on the *Add to list* button —
+which is the app's only statement of the rule and reaches exactly ONE of the three write paths. The
+generated modification form and any API caller write NULL happily. So: the requirement moves onto the
+entity, and **the UI check is deleted rather than kept as a belt-and-braces preflight**, because once
+`ModificationText` is NOT NULL the generated form derives the requirement from the column itself and
+`mj-form-field` marks it. A hand-written disable that duplicates a metadata-derived rule is a second
+copy that drifts. This is the merge of what was raised separately as a frontend-enforcement finding —
+**R-6 is its single home.**
+
 **Migration order (ruled 2026-08-20):** backfill filler text into any NULL rows in the same
 migration, THEN `ALTER COLUMN … NOT NULL`, then re-run CodeGen so the generated entity and its
 validation reflect non-nullable. Written idempotently and for a database that already has data, per
@@ -435,6 +460,11 @@ that is not listed. That test failing is the system working.
 > much is worse than the gap. Suite 69/69, build 6/6 exit 0. `class-registration.test.ts` caught the
 > new registrations and its expectation table was updated — the guard stayed, the expectation moved.
 > Delete the file, the two `ValidateValueLists` calls and the test when MJ#3969 lands.
+>
+> **Upstream is under way (2026-08-19):** another agent is fixing MJ#3969. Nothing here changes until
+> it ships — the stopgap and the upstream fix produce the same errors from the same metadata, so they
+> can coexist safely; the only cost of leaving ours in after the fix lands is a duplicate message, and
+> the file header says how to remove it in one commit.
 
 Three fields carry an exhaustive value set: `ContractType.Status`, `ContractTemplateType.Status`,
 `ContractType.ParentStatusRequirement`. Each has a `CHECK (… IN (…))` in the database and
@@ -514,89 +544,182 @@ its FK-dropdown `ExtraFilter` from the typed search query alone. A metadata-decl
 an FK picker does not exist. Ours is a bespoke component that owns its own read, so we can simply do
 it — but a `RelatedEntityFilter` on `EntityField` is a reasonable MJ feature request if this recurs.
 
-## R-11 · Delete `ContractTemplateProvision.Sequence` and order by `ProvisionNumber` — ⏸ BLOCKED (needs Marcelo)
+## R-11 · Delete `ContractTemplateProvision.Sequence`; order from `ProvisionNumber` in the view — ✅ READY
 
-> ⚠ Marked blocked 2026-08-20 (main agent). The analysis is sound and the `Intl.Collator` natural
-> sort is the right mechanism — but **this reverses a recorded ruling.** ERD R-14 says: *"`Sequence` on
-> `ContractType` and `ContractTemplateType` — Removed … `ContractTemplateProvision.Sequence` **stays**:
-> provision numbers do not sort as text and a legal document has a canonical order."* Dropping the
-> column is exactly what that ruling declined, and the reasoning it gave (text does not sort) is the
-> same problem this item solves differently. That makes it a decision to re-take, not an omission to
-> fill — and it is a column drop, which is a one-way door.
+> Marked ready 2026-08-19 (Marcelo). Two things unblocked it. **The design question** — maintained
+> column vs. derived — is answered below and measured against all 73 real provision rows. **The
+> ruling** — this reverses ERD R-14, which kept `Sequence` because *"provision numbers do not sort as
+> text and a legal document has a canonical order"*. The premise is correct and the conclusion does
+> not follow: a derived sort key preserves the canonical order without a maintained column, and the
+> kept column has **already failed at the job it was kept for** (see the collision below). Logged as
+> **R-20** in `plans/ERD-planned.md` §9, per the reversal-log convention.
 
-`Sequence` is an `int` with a default of 0, no unique constraint and no rule: two provisions in one
-template can silently share a display order, and it is a second, hand-maintained copy of an order the
-`ProvisionNumber` already states. It is exactly the stored projection §7.2 forbids.
-
-**Ordering by `ProvisionNumber` directly does not work** — it is `nvarchar`, so `1.10` sorts before
-`1.9`, and `10.1` before `2.1`.
-
-**There is an existing, standard solution, and it is not a bespoke formula.** The problem is
-"natural sort" (a.k.a. the alphanum algorithm; Windows exposes it as `StrCmpLogicalW`). JavaScript has
-it built in — `Intl.Collator(undefined, { numeric: true })` — and it produces exactly the wanted order
-with nothing to invent (measured):
+**`Sequence` is already wrong in the live data, which settles whether this is worth doing.** It is an
+`int` defaulting to 0 with no unique constraint and no rule, and the seeded Master Agreement already
+contains a collision:
 
 ```
-1.1 | 1.1A | 1.1B | 1.2 | 1.9 | 1.10 | 1.11 | 2.1A | 2.1D | 2.10B | 10.1 | 12.3
+ProvisionNumber   Sequence
+'1'               1
+'1.1'             1        <-- same order as its own parent section
 ```
 
-**The letter→digit encoding is not safe, and this is worth recording so it is not re-proposed.**
-Mapping `A→1` and appending (`1.1A → 1.11`, `2.1D → 2.14`) collides in two ways as soon as a segment
-reaches two digits (measured):
+Two rows in one template claim the same position, nothing errors, and the grid picks between them
+arbitrarily. That is the failure mode of a hand-maintained copy of an order the `ProvisionNumber`
+already states — the stored projection §7.2 forbids.
+
+### Ordering by `ProvisionNumber` directly does not work
+
+It is `nvarchar`, so string comparison puts `1.10` before `1.9` and `10.1` before `2.1`.
+
+### The standard solution is natural sort, and JavaScript has it built in
+
+This is a named, solved problem — the **alphanum algorithm**, a.k.a. natural sort; Windows ships it as
+`StrCmpLogicalW`. No formula needs inventing:
+
+```js
+[...numbers].sort(new Intl.Collator(undefined, { numeric: true }).compare)
+// 1.1 | 1.1A | 1.1B | 1.2 | 1.9 | 1.10 | 1.11 | 2.1A | 2.1D | 2.10B | 10.1 | 12.3
+```
+
+**Yes, it avoids the traps.** `Intl.Collator` compares runs of digits as NUMBERS and everything else
+as text, so `1.10 > 1.9` and `1.1A` lands between `1.1` and `1.2` with no encoding step at all.
+
+### Why the letter→digit encoding cannot work — recorded so it is not re-proposed
+
+Mapping `A→1` and appending (`1.1A → 1.11`, `2.1D → 2.14`) reads well and collides as soon as any
+segment reaches two digits. Measured:
 
 | Input | Encodes to | Collides with |
 |---|---|---|
 | `1.10` | `1.1` | `1.1` — the tenth sub-clause becomes the first |
 | `1.1A` | `1.11` | `1.11` — the eleventh sub-clause |
 
-A decimal cannot carry a variable-width, variable-depth sequence; that is what a collation key is for.
+The root problem is that a decimal number has one decimal point, and a provision number has an
+arbitrary number of independent segments. Squeezing the second into the first must lose information.
 
-**The catch is SQL.** The grid orders server-side via `OrderBy`, and SQL Server has no natural-sort
-collation — so a comparator in TypeScript cannot order a paged view. The standard answer is a **sort
-key**: zero-pad every run of digits and uppercase the rest, giving a plain string that sorts
-lexically into natural order. Verified to reproduce `Intl.Collator`'s order exactly over the set above:
+### The catch, and why a comparator is not enough
+
+**The grid sorts server-side.** Pages come back already ordered by a SQL `ORDER BY`, so a JavaScript
+comparator can only reorder the rows on the current page — which is not sorting, it is shuffling a
+window. SQL Server has no natural-sort collation, so the order has to be expressible in SQL.
+
+### What zero-padding actually does — the part that was unclear
+
+String comparison walks left to right, character by character, and stops at the first difference. It
+therefore compares the FIRST CHARACTER of one number against the FIRST CHARACTER of another —
+regardless of how many digits each has. `'9'` vs `'1'` in `10` decides it: `9 > 1`, so `"9" > "10"`.
+The comparison is not wrong, it is *misaligned* — it is comparing a units digit against a tens digit.
+
+Padding fixes the alignment rather than the comparison. Give every number the same width and the
+digits line up by place value, so character-by-character comparison becomes place-by-place comparison,
+which is exactly what comparing numbers means:
 
 ```
-1.1   -> 000001.000001
-1.1A  -> 000001.000001A
-1.10  -> 000001.000010
-2.1D  -> 000002.000001D
+unpadded:  "9"     vs "10"      -> compares '9' to '1'  -> wrong
+padded:    "000009" vs "000010" -> compares '0' to '0', … , '9' to '1' at the last place -> right
 ```
 
-**Proposal:** replace `Sequence` with `ProvisionSortKey` (`nvarchar(120)`, NOT NULL, indexed),
-maintained on the shared subclass because it is a **pure row-local function of `ProvisionNumber`** —
-the one category §7.2 permits storing, and the same category as `RenewalNoticeDeadline`. Everything
-that reads `Sequence` today (`ORDER BY Sequence ASC` in the editor and the provisions page,
-`directoryOrder` in the metadata seed) moves to it. Padding to six digits per run supports numbers far
-past anything a contract will carry.
+It is the same reason dates are written `2026-08-19` rather than `8/19/2026`: fixed-width fields make
+a plain text sort agree with the real order. Trailing letters keep working because they sit at the
+same offset in both keys once the digits are padded, so `000001.000001` < `000001.000001A` <
+`000001.000002` — `1.1`, `1.1A`, `1.2`. This is a **collation key** (a.k.a. sort key), a completely
+standard technique; it is what ICU builds internally to make `Intl.Collator` fast.
 
-**Open:** whether to compute it in the entity subclass or as a persisted computed column. The subclass
-is portable to PostgreSQL and testable; a computed column cannot drift even if a row is written by raw
-SQL. Given the seed data is written by `mj sync push` — which goes through the entity layer — the
-subclass is probably sufficient, but a `PERSISTED` computed column is the stronger floor and is
-indexable because the expression is deterministic.
+### Derive it in a LAYERED VIEW — no column, no maintenance
 
-## R-12 · `ContractTemplate.SourceURL` — the constraint is external, and NOT NULL forecloses a case — 🗣 DISCUSSION
+Marcelo's question, and it is the better design: put the key in the app-owned layered base view rather
+than in a stored column. `vwContracts` already establishes the pattern here.
 
-> Marked discussion 2026-08-20 (main agent) — which is what the item itself concludes: *"leave the
-> column as-is and raise it."* Nothing is blocked; it is logged in `plans/QUESTIONS.md`. No
-> implementation should start from this item.
+**Proven against the real table.** The expression below was run over all 73 seeded provisions and its
+`ORDER BY` produced a sequence **identical** to `Intl.Collator`'s, row for row:
 
-The ERD asks for *"a public URL that never goes away"*. The column is already NOT NULL, and **that is
-as far as the schema can go**: whether a URL stays reachable is a fact about the outside world, and no
-`CHECK`, trigger or subclass can assert it. Format validation (`https://…`) is possible but weak — a
-well-formed dead link passes.
+```sql
+-- split on the single dot, then split each segment into its leading digits + trailing letters
+RIGHT('000000' + n1, 6) + UPPER(a1) + '.' + RIGHT('000000' + n2, 6) + UPPER(a2) AS ProvisionSortKey
+```
 
-**The live question is not enforcement, it is whether NOT NULL is right at all.** The primary case is
-a Blue Cypress-hosted URL we maintain, which the current column suits. It forecloses the case where a
-template version exists only as an **attached file** — which is a supported shape everywhere else in
-this app, since documents attach through `__mj.FileEntityRecordLink` and no named file column exists.
+Result: `0, 1, 1.1, 1.2, … 1.9, 1.10, 1.11, … 16.15, 16.16, 16.17, 16.18`.
 
-Rather than guess: **leave the column as-is and raise it.** The options, if it turns out to matter:
-make `SourceURL` nullable and add a rule that a template must have *either* a `SourceURL` or a linked
-file (the same both-or-neither shape as `CK_Contract_CreatingPairBothOrNeither`, but cross-table, so
-subclass-tier), or keep NOT NULL and accept that a file-only template records the file's URL. **This
-is in `plans/QUESTIONS.md` as an answer-first entry; nothing is blocked on it.**
+**Efficiency — less efficient in theory, irrelevant in practice, and the right trade.** A view
+expression cannot be indexed, so SQL sorts at query time instead of walking an index. The set being
+sorted is **one template's provisions — 71 rows**. A sort of 71 rows is free; it does not appear in a
+query plan as anything but a rounding error. Against that, a stored column costs a migration, an
+`ALTER`, a maintenance path in the subclass, and a permanent opportunity to drift — which is the
+failure this item exists to remove. Buying an index we do not need with a drift risk we do not want is
+the wrong direction. **If this table ever grew by orders of magnitude**, the escape hatch is a
+`PERSISTED` computed column with the same expression, which IS indexable because the expression is
+deterministic — so nothing about this choice is a dead end.
+
+**Depth: the current data has at most two segments** (`MAX` dots = 1, max length 5). The two-segment
+expression above therefore covers everything that exists. A third segment would sort as though its
+tail were part of segment two — wrong but not silent, since the numbers are visible on screen. The
+implementer should either generalise to a deterministic scalar UDF (arbitrary depth, still fine at
+this scale) **or** add a guard that refuses a `ProvisionNumber` with more than two segments, and say
+in the migration which was chosen and why.
+
+### The work
+
+1. Migration: add `ProvisionSortKey` to the app-owned layered view over `ContractTemplateProvision`
+   — **two migrations and the entity flags set before the first CodeGen**, per BUILD-STATE §5 gotcha
+   6, or CodeGen will DROP/CREATE the public view name over the wrapper.
+2. Drop `Sequence` (a `CHECK`-free int nothing else reads once step 3 lands).
+3. Repoint every reader: `ORDER BY Sequence ASC` in the modifications editor and the provisions page,
+   and `directoryOrder` in the metadata seed.
+4. A test that pins the ORDER over a fixture including `1`, `1.1`, `1.9`, `1.10`, `1.1A`, `2.1` —
+   written from the expected order, not from what the expression returns.
+
+## R-12 · `ContractTemplate.SourceURL` — make it nullable — ✅ READY (with one open question)
+
+> **Ruled 2026-08-19 (Marcelo): NOT NULL is wrong for now.** The column becomes nullable. The
+> conditional rule people actually want — *a URL **or** an attached file* — is described below with an
+> honest account of what can and cannot enforce it.
+
+**Reachability is not enforceable, by anything.** The ERD asks for *"a public URL that never goes
+away"*. Whether a URL still resolves is a fact about the outside world: no `CHECK`, trigger, subclass
+or remote operation can assert it, and format validation (`https://…`) is weak because a well-formed
+dead link passes it. Nothing below tries.
+
+### Why a remotable operation is NOT the answer here
+
+It was worth asking, and it is easy to build — but it buys nothing, because the obstacle is **ordering,
+not verdicts**. A file attaches through `__mj.FileEntityRecordLink`, which is keyed on `RecordID`. **A
+file cannot be linked to a record that does not exist yet.** So on CREATE the file half of "URL or
+file" is unsatisfiable in principle, and no amount of pre-save checking — by a remote op or anything
+else — changes that. On UPDATE the check needs one `count_only` `RunView`, which `ValidateAsync`
+already does cheaply and whose verdict now reaches the user legibly (R-13). A remote op would be a
+second statement of a rule the save channel already carries, which D-24 rung 4 explicitly warns
+against.
+
+### Three ways to have the rule, in preference order
+
+1. **Enforce at the point of REFERENCE, not at entry — recommended.** The business harm is not a bare
+   template row; it is *a contract citing standard terms nobody can read*. So put the rule on the
+   **contract**: `ContractEntityServer.ValidateAsync()` refuses a save whose `ContractTemplateID`
+   names a template with neither a `SourceURL` nor a linked file. This has **no ordering problem at
+   all** — by the time a contract references a template, the template exists and has had every chance
+   to acquire its file — it is one read on a path that already reads the type row, and it puts the
+   message where someone can act on it. It also leaves template *authoring* free, which is what
+   Marcelo asked for.
+2. **Deferred enforcement on the template itself.** `ContractTemplateEntityServer.ValidateAsync()`
+   refuses an UPDATE (`IsSaved`) with neither. A template can be created bare and cannot be *left*
+   bare once edited. Correct but slightly odd to explain, and it still cannot catch a bare template
+   nobody edits again.
+3. **Bespoke UI.** The template form grows an explicit "where does this version's text live?" control
+   offering URL or file, so the either/or is visible rather than inferred. Worth doing **alongside**
+   option 1 as an affordance; it is not enforcement, since it only covers the form path.
+
+### The work
+
+1. Migration: `ALTER COLUMN SourceURL … NULL`. Re-run CodeGen so the generated entity and its
+   validation reflect nullable — the current NOT NULL is what makes the generated form mark it
+   required.
+2. Option 1's rule on `ContractEntityServer.ValidateAsync()`, with a message naming the template.
+3. `plans/QUESTIONS.md` Q-6 records this; update it with the ruling.
+
+**Open:** confirm option 1 is the wanted semantic — it means a template can exist with no readable
+text and is only refused when a contract tries to cite it. That is deliberate, and it is a product
+call rather than a technical one.
 
 ## R-13 · The message plumbing that made all of the above invisible — FIXED UPSTREAM
 
@@ -612,8 +735,12 @@ A subclass's `ValidateAsync()` refusal reached the user as
 Both of this app's server-side rules were affected. **Fixed** in
 `random-projects/mj-completemessage-fix/` (branch `fix/completemessage-drops-validation-prose`,
 commit `9b79794fd0`, off `origin/next`) and applied live in `instances/contracts-mj6/mj`: MJCore
-2074/2074, `tsc` exit 0, regression test red-proven. Logged in `MJ-UPSTREAM.md`; awaiting a second
-agent's verification and PR.
+2074/2074, `tsc` exit 0, regression test red-proven. Logged in `MJ-UPSTREAM.md`.
+
+**Handed off 2026-08-19 (Marcelo):** another agent owns the verification and the PR from here.
+Nothing in this repo depends on it landing — the fix is already live in this instance's MJ worktree,
+so the messages are legible here today; the PR is what makes that true for everyone else. Changesets
+on that PR are **patch-level only** for now (Marcelo, 2026-08-19).
 
 **Consequence for this plan:** rung-3 rules are now worth writing. Before this, every server-only rule
 we added would have shipped its explanation as JSON.
@@ -680,18 +807,27 @@ input; ⏸ and 🗣 items need the named answer first.
    Reworks shipped code (`ParentStatusRequirement`), so it wants a clear run rather than being
    squeezed between other items. Its deferred half rides with R-14.
 8. **R-10** ✅ — uniqueness: the picker preflight plus the staged-rows rule.
-9. **R-14** 🗣 — the post-execution lock. Needs the frozen-set ruling, especially renewal terms.
-10. **R-11** ⏸ — needs Marcelo, because it reverses ERD R-14.
-11. **R-12** 🗣 — logged as a question; nothing blocked.
+9. **R-11** ✅ — the sort key in the layered view, then drop `Sequence`. Two migrations and the
+   entity flags BEFORE the first CodeGen (BUILD-STATE §5 gotcha 6), so it wants its own run.
+10. **R-12** ✅ — `SourceURL` nullable, plus the reference-time rule on the contract.
+11. **R-14** 🗣 — the post-execution lock. Needs the frozen-set ruling, especially renewal terms.
 
-R-2 is **withdrawn** (premise false — see the correction). R-9 and R-13 are already done
-(implemented / fixed upstream). R-9–R-13 were authored by the second agent; the status marks on
-R-10–R-12 were added by the main agent on review and are open to challenge.
+R-2 is **withdrawn** (premise false — the correction was re-checked at Marcelo's request on
+2026-08-20 and holds, with one narrow empty-string divergence noted). R-9 is **implemented**; R-13 is
+**fixed and handed to another agent** for verification and PR. R-9–R-13 were authored by the main
+agent; R-1–R-8 and R-14 by the second agent. Every ✅ above is now a Marcelo ruling rather than an
+agent's judgement, so **a third agent may pick up any of them without further input** — read the item
+in full first, several carry a warning that costs a rebuild if skipped.
 
 ## Open questions for review
 
-- **R-11 — BLOCKING that item:** dropping `ContractTemplateProvision.Sequence` reverses ERD R-14,
-  which explicitly kept it. Re-take the decision or leave the column?
+- ~~**R-11:** dropping `ContractTemplateProvision.Sequence` reverses ERD R-14~~ — **ANSWERED
+  2026-08-19 (Marcelo): drop it.** Logged as ERD R-20.
+- **R-12 (not blocking):** confirm that enforcing "a template has a URL or a file" at the point a
+  CONTRACT references it — rather than when the template is saved — is the wanted semantic. It means a
+  bare template can exist and is refused only when cited.
+- **R-11 (not blocking):** generalise the sort key to arbitrary segment depth via a scalar UDF, or
+  guard against a third segment? Current data has at most two.
 - **R-14:** the frozen field set, and specifically whether renewal-terms fields are transcription
   (correctable) or terms (frozen).
 - **R-3:** build `RootParentContractID` / `RootSupersededByContractID`, or delete the metadata rows

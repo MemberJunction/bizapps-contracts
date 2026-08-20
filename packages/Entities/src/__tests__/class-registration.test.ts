@@ -25,14 +25,18 @@ import { ContractEntity } from '../ContractEntity.js';
 
 /** Every entity this app owns, and the class each name must resolve to. */
 const EXPECTED: ReadonlyArray<{ entity: string; className: string }> = [
-    // The one entity with a hand-written shared subclass — it carries the HasModifications guard
-    // and Supersede(), so resolving to the generated class instead would silently drop both.
+    // Entities with a hand-written shared subclass. Resolving to the generated class instead would
+    // silently drop the rules the subclass carries — which is the whole failure mode this file exists
+    // for, since a lost registration does not error.
+    //   Contracts             — the HasModifications guard and Supersede().
+    //   the two lookup tables — the value-list guard standing in for MJ#3969, without which their
+    //                           IN(...) CHECK constraints have no TypeScript representation at all.
     { entity: 'MJ_BizApps_Contracts: Contracts', className: 'ContractEntity' },
+    { entity: 'MJ_BizApps_Contracts: Contract Types', className: 'ContractTypeEntity' },
+    { entity: 'MJ_BizApps_Contracts: Contract Template Types', className: 'ContractTemplateTypeEntity' },
     // The rest have no hand-written subclass yet, so the GENERATED class is the correct answer.
     // Asserting that is not redundant: it is what fails if someone adds a subclass without adding it
     // to this list, or re-registers one of v1's deleted classes.
-    { entity: 'MJ_BizApps_Contracts: Contract Types', className: 'mjBizAppsContractsContractTypeEntity' },
-    { entity: 'MJ_BizApps_Contracts: Contract Template Types', className: 'mjBizAppsContractsContractTemplateTypeEntity' },
     { entity: 'MJ_BizApps_Contracts: Contract Templates', className: 'mjBizAppsContractsContractTemplateEntity' },
     { entity: 'MJ_BizApps_Contracts: Contract Template Provisions', className: 'mjBizAppsContractsContractTemplateProvisionEntity' },
     { entity: 'MJ_BizApps_Contracts: Contract Template Modifications', className: 'mjBizAppsContractsContractTemplateModificationEntity' },

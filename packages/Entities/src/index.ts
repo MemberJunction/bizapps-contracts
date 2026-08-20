@@ -24,6 +24,11 @@ export * from './generated/entity_subclasses';
  * refuses before the round trip and the server refuses regardless (plan §6.3). */
 export * from './ContractEntity';
 
+/* The two lookup entities, which exist ONLY to validate their value-list columns — a rule MJ does not
+ * yet provide (MJ#3969). Deleted wholesale when it lands; see value-list-validation.ts. */
+export * from './ContractTypeEntity';
+export * from './value-list-validation';
+
 /* The lifecycle rule, stated once and rendered two ways (D-19 / R-19). Exported because the UI needs
  * DeriveContractState to show a state that tracks UNSAVED edits — reading the view's stored column
  * would contradict the form on screen — and because StateSQL() is what the migration's CASE is checked
