@@ -2,8 +2,11 @@
  * @fileoverview `ContractTypeEntity` and `ContractTemplateTypeEntity` — the two lookup tables, which
  * exist as subclasses for exactly one reason: their value-list columns are validated NOWHERE.
  *
- * Both carry `nvarchar` columns constrained by `CHECK (… IN (…))` — `ContractType.Status`,
- * `ContractType.ParentStatusRequirement`, `ContractTemplateType.Status`. CodeGen renders that kind of
+ * Both carry an `nvarchar` column constrained by `CHECK (… IN (…))` — `ContractType.Status` and
+ * `ContractTemplateType.Status`. (A third, `ContractType.ParentStatusRequirement`, was the original
+ * motivating case; R-4 replaced it with two booleans, which need no value list at all — a `bit` has
+ * only two possible values. The guard stays generic, so losing a field does not change it.) CodeGen
+ * renders that kind of
  * constraint as value-list METADATA rather than as a generated `Validate()` method, and `BaseEntity`
  * never reads value-list metadata, so the constraint has no TypeScript representation at all. Full
  * reasoning, and the deletion plan, in `value-list-validation.ts`; filed as MJ#3969.
@@ -29,15 +32,18 @@ import {
 import { ValidateValueLists } from './value-list-validation';
 
 /**
- * `Status` (`Active` / `Inactive`) and `ParentStatusRequirement` (`Required` / `Prohibited`, or null
- * for no restriction).
+ * `Status` (`Active` / `Inactive`) — the only value-list column left on this table.
  *
- * `ParentStatusRequirement` is the one worth spelling out, because a wrong value here is not merely
- * invalid data. `ContractEntityServer.ValidateAsync()` branches on those two exact strings to decide
- * whether a contract of this type must, must not, or may name a `ParentContractID`. The database's
- * `CHECK` is what keeps a third string out of the column — but it refuses at the very end, as a
- * constraint violation naming no field. This makes the refusal arrive on the field, in the browser,
- * before the round trip.
+ * It is load-bearing rather than cosmetic: R-5 refuses a contract that NEWLY selects a type whose
+ * `Status` is `Inactive`, and R-8 refuses deleting a type in use while telling the user to retire it
+ * instead. So "Active" / "Inactive" is the vocabulary two rules read, and the database's `CHECK` is
+ * what keeps a third string out of the column — but it refuses at the very end, as a constraint
+ * violation naming no field. This makes the refusal arrive on the field, in the browser, before the
+ * round trip.
+ *
+ * The type's three RULE columns (`MustBeRoot`, `MustBeChild`, `TemplateRequired`) are `bit`s and need
+ * nothing here — a boolean cannot hold an out-of-list value, which is half the argument R-4 made for
+ * replacing the three-state string.
  */
 @RegisterClass(BaseEntity, 'MJ_BizApps_Contracts: Contract Types')
 export class ContractTypeEntity extends mjBizAppsContractsContractTypeEntity {

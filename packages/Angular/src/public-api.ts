@@ -29,7 +29,6 @@ import './lib/generated/generated-forms.module';
 import { GeneratedFormsModule } from './lib/generated/generated-forms.module';
 export { GeneratedFormsModule } from './lib/generated/generated-forms.module';
 export { mjBizAppsContractsContractFormComponent } from './lib/generated/Entities/mjBizAppsContractsContract/mjbizappscontractscontract.form.component';
-export { mjBizAppsContractsContractSequenceFormComponent } from './lib/generated/Entities/mjBizAppsContractsContractSequence/mjbizappscontractscontractsequence.form.component';
 export { mjBizAppsContractsContractTemplateFormComponent } from './lib/generated/Entities/mjBizAppsContractsContractTemplate/mjbizappscontractscontracttemplate.form.component';
 export { mjBizAppsContractsContractTemplateModificationFormComponent } from './lib/generated/Entities/mjBizAppsContractsContractTemplateModification/mjbizappscontractscontracttemplatemodification.form.component';
 export { mjBizAppsContractsContractTemplateProvisionFormComponent } from './lib/generated/Entities/mjBizAppsContractsContractTemplateProvision/mjbizappscontractscontracttemplateprovision.form.component';

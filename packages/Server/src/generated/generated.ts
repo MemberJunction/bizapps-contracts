@@ -17,147 +17,8 @@ import { MaxLength } from 'class-validator';
 import * as mj_core_schema_server_object_types from '@memberjunction/server'
 
 
-import { mjBizAppsContractsContractSequenceEntity, mjBizAppsContractsContractTemplateModificationEntity, mjBizAppsContractsContractTemplateProvisionEntity, mjBizAppsContractsContractTemplateTypeEntity, mjBizAppsContractsContractTemplateEntity, mjBizAppsContractsContractTypeEntity, mjBizAppsContractsContractEntity } from '@mj-biz-apps/contracts-entities';
+import { mjBizAppsContractsContractTemplateModificationEntity, mjBizAppsContractsContractTemplateProvisionEntity, mjBizAppsContractsContractTemplateTypeEntity, mjBizAppsContractsContractTemplateEntity, mjBizAppsContractsContractTypeEntity, mjBizAppsContractsContractEntity } from '@mj-biz-apps/contracts-entities';
     
-
-//****************************************************************************
-// ENTITY CLASS for MJ_BizApps_Contracts: Contract Sequences
-//****************************************************************************
-@ObjectType({ description: `Singleton counter behind ContractNumber (CTR-{seq}), the same shape orders uses for ORD- and PAY-. Seeded in the baseline because it is a counter rather than vocabulary: it must exist before the first contract is written.` })
-export class mjBizAppsContractsContractSequence_ {
-    @Field(() => Int) 
-    ID: number;
-        
-    @Field(() => Int, {description: `The next number to hand out. Advanced server-side by ContractEntityServer.Save().`}) 
-    NextSequenceNumber: number;
-        
-    @Field() 
-    _mj__CreatedAt: Date;
-        
-    @Field() 
-    _mj__UpdatedAt: Date;
-        
-}
-
-//****************************************************************************
-// INPUT TYPE for MJ_BizApps_Contracts: Contract Sequences
-//****************************************************************************
-@InputType()
-export class CreatemjBizAppsContractsContractSequenceInput {
-    @Field(() => Int, { nullable: true })
-    ID?: number;
-
-    @Field(() => Int, { nullable: true })
-    NextSequenceNumber?: number;
-
-    @Field(() => RestoreContextInput, { nullable: true })
-    RestoreContext___?: RestoreContextInput;
-}
-    
-
-//****************************************************************************
-// INPUT TYPE for MJ_BizApps_Contracts: Contract Sequences
-//****************************************************************************
-@InputType()
-export class UpdatemjBizAppsContractsContractSequenceInput {
-    @Field(() => Int)
-    ID: number;
-
-    @Field(() => Int, { nullable: true })
-    NextSequenceNumber?: number;
-
-    @Field(() => [KeyValuePairInput], { nullable: true })
-    OldValues___?: KeyValuePairInput[];
-
-    @Field(() => RestoreContextInput, { nullable: true })
-    RestoreContext___?: RestoreContextInput;
-}
-    
-//****************************************************************************
-// RESOLVER for MJ_BizApps_Contracts: Contract Sequences
-//****************************************************************************
-@ObjectType()
-export class RunmjBizAppsContractsContractSequenceViewResult {
-    @Field(() => [mjBizAppsContractsContractSequence_])
-    Results: mjBizAppsContractsContractSequence_[];
-
-    @Field(() => String, {nullable: true})
-    UserViewRunID?: string;
-
-    @Field(() => Int, {nullable: true})
-    RowCount: number;
-
-    @Field(() => Int, {nullable: true})
-    TotalRowCount: number;
-
-    @Field(() => Int, {nullable: true})
-    ExecutionTime: number;
-
-    @Field({nullable: true})
-    ErrorMessage?: string;
-
-    @Field(() => Boolean, {nullable: false})
-    Success: boolean;
-}
-
-@Resolver(mjBizAppsContractsContractSequence_)
-export class mjBizAppsContractsContractSequenceResolver extends ResolverBase {
-    @Query(() => RunmjBizAppsContractsContractSequenceViewResult)
-    async RunmjBizAppsContractsContractSequenceViewByID(@Arg('input', () => RunViewByIDInput) input: RunViewByIDInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
-        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
-        return super.RunViewByIDGeneric(input, provider, userPayload, pubSub);
-    }
-
-    @Query(() => RunmjBizAppsContractsContractSequenceViewResult)
-    async RunmjBizAppsContractsContractSequenceViewByName(@Arg('input', () => RunViewByNameInput) input: RunViewByNameInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
-        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
-        return super.RunViewByNameGeneric(input, provider, userPayload, pubSub);
-    }
-
-    @Query(() => RunmjBizAppsContractsContractSequenceViewResult)
-    async RunmjBizAppsContractsContractSequenceDynamicView(@Arg('input', () => RunDynamicViewInput) input: RunDynamicViewInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
-        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
-        input.EntityName = 'MJ_BizApps_Contracts: Contract Sequences';
-        return super.RunDynamicViewGeneric(input, provider, userPayload, pubSub);
-    }
-    @Query(() => mjBizAppsContractsContractSequence_, { nullable: true })
-    async mjBizAppsContractsContractSequence(@Arg('ID', () => Int) ID: number, @Ctx() { userPayload, providers }: AppContext, @PubSub() pubSub: PubSubEngine): Promise<mjBizAppsContractsContractSequence_ | null> {
-        this.CheckUserReadPermissions('MJ_BizApps_Contracts: Contract Sequences', userPayload);
-        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
-        const sSQL = `SELECT * FROM ${provider.QuoteSchemaAndView('__mj_BizAppsContracts', 'vwContractSequences')} WHERE ${provider.QuoteIdentifier('ID')}=${provider.BuildParameterPlaceholder(0)} ` + this.getRowLevelSecurityWhereClause(provider, 'MJ_BizApps_Contracts: Contract Sequences', userPayload, EntityPermissionType.Read, 'AND');
-        const rows = await provider.ExecuteSQL(sSQL, [ID], undefined, this.GetUserFromPayload(userPayload));
-        const result = await this.MapFieldNamesToCodeNames('MJ_BizApps_Contracts: Contract Sequences', rows && rows.length > 0 ? rows[0] : null, this.GetUserFromPayload(userPayload));
-        return result;
-    }
-    
-    @Mutation(() => mjBizAppsContractsContractSequence_)
-    async CreatemjBizAppsContractsContractSequence(
-        @Arg('input', () => CreatemjBizAppsContractsContractSequenceInput) input: CreatemjBizAppsContractsContractSequenceInput,
-        @Ctx() { providers, userPayload }: AppContext,
-        @PubSub() pubSub: PubSubEngine
-    ) {
-        const provider = GetReadWriteProvider(providers);
-        return this.CreateRecord('MJ_BizApps_Contracts: Contract Sequences', input, provider, userPayload, pubSub)
-    }
-        
-    @Mutation(() => mjBizAppsContractsContractSequence_)
-    async UpdatemjBizAppsContractsContractSequence(
-        @Arg('input', () => UpdatemjBizAppsContractsContractSequenceInput) input: UpdatemjBizAppsContractsContractSequenceInput,
-        @Ctx() { providers, userPayload }: AppContext,
-        @PubSub() pubSub: PubSubEngine
-    ) {
-        const provider = GetReadWriteProvider(providers);
-        return this.UpdateRecord('MJ_BizApps_Contracts: Contract Sequences', input, provider, userPayload, pubSub);
-    }
-    
-    @Mutation(() => mjBizAppsContractsContractSequence_)
-    async DeletemjBizAppsContractsContractSequence(@Arg('ID', () => Int) ID: number, @Arg('options___', () => DeleteOptionsInput) options: DeleteOptionsInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
-        const provider = GetReadWriteProvider(providers);
-        const key = new CompositeKey([{FieldName: 'ID', Value: ID}]);
-        return this.DeleteRecord('MJ_BizApps_Contracts: Contract Sequences', key, options, provider, userPayload, pubSub);
-    }
-    
-}
 
 //****************************************************************************
 // ENTITY CLASS for MJ_BizApps_Contracts: Contract Template Modifications
@@ -176,8 +37,8 @@ export class mjBizAppsContractsContractTemplateModification_ {
     @MaxLength(36)
     ContractTemplateProvisionID: string;
         
-    @Field({nullable: true, description: `What this contract says INSTEAD of the standard clause. Read as a pair with ContractTemplateProvision.ProvisionText.`}) 
-    ModificationText?: string;
+    @Field({description: `What this contract says INSTEAD of the standard clause. Read as a pair with ContractTemplateProvision.ProvisionText.`}) 
+    ModificationText: string;
         
     @Field({nullable: true, description: `Optional working note, e.g. who negotiated it.`}) 
     Notes?: string;
@@ -213,7 +74,7 @@ export class CreatemjBizAppsContractsContractTemplateModificationInput {
     ContractTemplateProvisionID?: string;
 
     @Field({ nullable: true })
-    ModificationText: string | null;
+    ModificationText?: string;
 
     @Field({ nullable: true })
     Notes: string | null;
@@ -238,7 +99,7 @@ export class UpdatemjBizAppsContractsContractTemplateModificationInput {
     ContractTemplateProvisionID?: string;
 
     @Field({ nullable: true })
-    ModificationText?: string | null;
+    ModificationText?: string;
 
     @Field({ nullable: true })
     Notes?: string | null;
@@ -962,9 +823,14 @@ export class mjBizAppsContractsContractType_ {
     @Field() 
     _mj__UpdatedAt: Date;
         
-    @Field({nullable: true, description: `Whether a contract of this type must, must not, or may name a ParentContractID: 'Required' (a Change Order amends something, so it has to say what), 'Prohibited' (a root agreement), or NULL for no restriction. Enforced in ContractEntityServer.ValidateAsync. Replaced a comparison against this row's NAME, which stopped working the moment anyone renamed it.`}) 
-    @MaxLength(20)
-    ParentStatusRequirement?: string;
+    @Field(() => Boolean, {description: `This type of contract may NOT name a ParentContractID — it is a root agreement. Enforced in ContractEntityServer.ValidateAsync. Mutually exclusive with MustBeChild (CK_ContractType_RootOrChild); both false means no restriction on where in the tree this type may sit, which is the honest default.`}) 
+    MustBeRoot: boolean;
+        
+    @Field(() => Boolean, {description: `This type of contract MUST name a ParentContractID — a Change Order that amends nothing is not a change order, and would never appear in the original agreement's lineage. Enforced in ContractEntityServer.ValidateAsync. Mutually exclusive with MustBeRoot.`}) 
+    MustBeChild: boolean;
+        
+    @Field(() => Boolean, {description: `This type of contract must carry its own ContractTemplateID — the standard terms it incorporates. On the TYPE rather than inferred from the placement flags, because "where in the tree" and "does it need its own paper" are different questions and a future type could want any combination.`}) 
+    TemplateRequired: boolean;
         
     @Field(() => [mjBizAppsContractsContract_])
     mjBizAppsContractsContracts_ContractTypeIDArray: mjBizAppsContractsContract_[]; // Link to mjBizAppsContractsContracts
@@ -991,8 +857,14 @@ export class CreatemjBizAppsContractsContractTypeInput {
     @Field({ nullable: true })
     Status?: string;
 
-    @Field({ nullable: true })
-    ParentStatusRequirement: string | null;
+    @Field(() => Boolean, { nullable: true })
+    MustBeRoot?: boolean;
+
+    @Field(() => Boolean, { nullable: true })
+    MustBeChild?: boolean;
+
+    @Field(() => Boolean, { nullable: true })
+    TemplateRequired?: boolean;
 
     @Field(() => RestoreContextInput, { nullable: true })
     RestoreContext___?: RestoreContextInput;
@@ -1019,8 +891,14 @@ export class UpdatemjBizAppsContractsContractTypeInput {
     @Field({ nullable: true })
     Status?: string;
 
-    @Field({ nullable: true })
-    ParentStatusRequirement?: string | null;
+    @Field(() => Boolean, { nullable: true })
+    MustBeRoot?: boolean;
+
+    @Field(() => Boolean, { nullable: true })
+    MustBeChild?: boolean;
+
+    @Field(() => Boolean, { nullable: true })
+    TemplateRequired?: boolean;
 
     @Field(() => [KeyValuePairInput], { nullable: true })
     OldValues___?: KeyValuePairInput[];
@@ -1134,7 +1012,7 @@ export class mjBizAppsContractsContract_ {
     @MaxLength(36)
     ID: string;
         
-    @Field({description: `CTR-{seq} from ContractSequence. Unique.`}) 
+    @Field({description: `CTR-000001, minted by spAssignNextContractNumber from the seq_ContractNumber database SEQUENCE. Unique. Gaps are normal and are not to be "fixed" — a save that fails after taking a number leaves one behind, and UQ_Contract_ContractNumber is what guarantees no two contracts share a number.`}) 
     @MaxLength(50)
     ContractNumber: string;
         

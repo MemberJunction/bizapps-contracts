@@ -24,6 +24,10 @@ export * from './generated/entity_subclasses';
  * refuses before the round trip and the server refuses regardless (plan §6.3). */
 export * from './ContractEntity';
 
+/* The modification's three required fields, re-explained. It adds NO rule — the NOT NULL metadata is
+ * the rule — it only replaces MJ's "<field> cannot be null" with a sentence that says what to do. */
+export * from './ContractTemplateModificationEntity';
+
 /* The two lookup entities, which exist ONLY to validate their value-list columns — a rule MJ does not
  * yet provide (MJ#3969). Deleted wholesale when it lands; see value-list-validation.ts. */
 export * from './ContractTypeEntity';

@@ -4,7 +4,10 @@ The running record of what is covered, what is not, and what needs a person. Cov
 against the **matrix**, not against the tests that happen to exist — an empty box is a gap even when
 every written test is green.
 
-> **Last run:** 2026-08-19, branch `build/contracts-v2`, instance `contracts-mj6`.
+> **Last run:** 2026-08-20, branch `build/backend-requirements`, instance `contracts-mj6`.
+> **Totals: 117 unit assertions (10 files), all passing.** Build `exit 0` on all 6 packages (real `tsc`,
+> not a grep). Plus a **live GraphQL check** against a restarted MJAPI for R-6 — create with no text,
+> with `''`, with whitespace, and a valid create — each observed, and the probe rows deleted after.
 > **Totals: 64 unit assertions (4 files), all passing.** Plus a **live render check** in system
 > Chrome against a running Explorer: three sections, the full rail, the dashboard and its counts, with
 > **zero console errors and zero pageerrors** (screenshot in `design-docs/ui-design/`). Every number below was observed, not
@@ -46,6 +49,17 @@ node test-harnesses/integration.mjs            # will report zero known bundles 
 | SQL ⇄ TypeScript parity for `State` | ✅ | — | reads the committed migration and asserts `StateSQL()` still matches it |
 | ClassFactory resolution, all 7 entities | ✅ 16 | — | plus 7 assertions that no v1 entity name still resolves |
 | `HasModifications` monotonic guard | ✗ | ✗ | needs an entity instance (provider); the collection-count logic is the part worth covering — item 13 |
+| `ModificationText` required (R-6) — NOT NULL + not-blank | ✅ 14 | ✅ manual | the free function is covered by unit tests (incl. the collapse of the two absence errors); the CREATE path was driven through live GraphQL and refuses null, `''` and whitespace with the app's own prose |
+| Required-field prose on the UPDATE path (R-6) | ✅ 14 | ⚠ **refused but unreadable** | the update IS correctly refused, but MJ returns `"Unknown error"` — `ResolverBase.ts:1335` reads `LatestResult.Message` where create reads `CompleteMessage`. Logged in `MJ-UPSTREAM.md`; **not an app bug and not fixable from here** |
+| Retired type/template not newly selected (R-5) | ✅ 9 | ✅ manual | the `IsNewlySelected` predicate is unit-covered incl. the create case and UUID casing; 5 live GraphQL probes covered both FKs and both directions (refuse a new selection, still allow an existing one) |
+| Refusal messages on the UPDATE/DELETE paths | ✅ 10 (in mj) | ✅ manual | needs the local `ResolverBase` patch (`Message` → `CompleteMessage`); commented onto MJ#3973. Without it every refusal on an update reads "Unknown error" |
+| Delete refusals explain themselves (R-8) | ✅ 9 | ✅ manual | 6 live probes: provision-with-modifications, template-with-contracts-and-provisions, type-in-use, template-type-in-use, contract-with-modifications-and-a-child all refused with counts; an unreferenced type still deleted (the counter-test). Registration guard red-proven |
+| Provision immutability (R-1) | — | ✅ manual | 5 direct-SQL trigger probes (term change blocked, Description/Sequence allowed, DELETE blocked, **identical 73-row rewrite allowed**) + a real `mj sync push` at `errorCount: 0` + 4 live GraphQL probes on the code half |
+| Contract numbering from a SQL SEQUENCE (R-7) | ✅ (registration) | ✅ manual | two live creates minted CTR-900010 then CTR-900011 sequentially through the unchanged sproc signature; entity/table/metadata all verified gone with zero orphans; both probe contracts deleted |
+| Lineage cycle prevention (R-3) | — | ✅ manual | 7 live probes across both FKs: 2-node ring refused, 3-node ring refused with the full chain, legal parent + legal supersession accepted, superseded ring refused. No unit test — the logic is a recursive CTE and a TS restatement is not an oracle for SQL |
+| Modification uniqueness (R-10) | ✅ 8 | ✅ manual | staged-duplicate counting unit-covered incl. UUID casing / blanks / triplicates (red-proven); live probes confirm a saved duplicate is refused with prose and an ordinary re-save is not |
+| Tree placement + template rules (R-4) | ✅ (generated CHECK validator) | ✅ manual | live probes: MustBeChild refused a parentless change order; MustBeRoot + TemplateRequired both refused in one response; **a modification on a change order citing the parent's template is now accepted** (previously impossible); an out-of-tree provision still refused |
+| Migration re-runnability (V202608192340) | ✅ manual | — | history row deleted and the migration re-applied twice from scratch; the CodeGen capture's `DROP`/`CREATE PROCEDURE` observed executing (sproc `modify_date` moved to the migration's own timestamp, not CodeGen's) |
 | `ContractNumber` minting under concurrency | ✗ | ✗ | `contracts-numbering` bundle, item 13. Lock behaviour is only observable against a real DB |
 | Graph save: header + modifications atomicity | ✗ | ✗ | `contracts-graph-save`, item 13 — the acceptance test for D-15 itself |
 | Provision/template consistency (server rule) | ✗ | ✗ | `contracts-graph-save`, item 13 |

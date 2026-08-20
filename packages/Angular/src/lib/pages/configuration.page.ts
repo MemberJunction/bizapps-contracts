@@ -178,77 +178,57 @@ export class MJCTemplateTypesPageComponent extends MJCConfigPageBase {
 }
 
 /**
- * The contract-number sequence.
+ * How contract numbers are minted.
  *
- * A single-row table, which makes a grid a slightly odd surface for it — but the number it holds is
- * the one piece of configuration that can visibly go wrong ("why is the next contract CTR-000412?"),
- * and having nowhere to look at it is worse than an odd-looking grid. Read-only in practice: the
- * counter is taken under a lock by the server subclass, so editing it by hand is a way to create
- * duplicate numbers, and the page says so.
+ * NO GRID, AND NOTHING TO EDIT — that is the change R-7 made, and it is the point rather than a
+ * regression. This page used to render `MJ_BizApps_Contracts: Contract Sequences` in an editable grid
+ * plus a card reading the counter row. That entity existed only because the counter lived in a TABLE,
+ * which made CodeGen register it with `AllowUpdateAPI = true` — and `spAssignNextContractNumber` never
+ * used the entity at all, so the only thing the writable surface could do was let someone wind the
+ * counter backwards and mint duplicate numbers until the unique index started refusing saves. The
+ * counter is now a SQL SEQUENCE, which is not a table, so there is no entity, no grid and no field to
+ * wind back.
+ *
+ * WHY THE NEXT NUMBER IS NO LONGER SHOWN. A sequence's position lives in `sys.sequences`, and this app
+ * ships zero remote operations by design (plan §6.3), so there is no client-reachable path to it short
+ * of adding one or defining an MJ Query. Neither is worth it here: the number was only ever displayed
+ * to answer "why is the next contract CTR-000412?", and the honest answer — gaps are normal and the
+ * unique index is the guarantee — is text, not a number. If someone genuinely needs the live value,
+ * an MJ Query over `sys.sequences` is the cheap way in and does not reintroduce a writable surface.
+ *
+ * It no longer extends `MJCConfigPageBase`: that base exists to bind a grid to an entity, and this page
+ * has neither.
  */
 @Component({
     selector: 'mjc-numbering-page',
     standalone: true,
     encapsulation: ViewEncapsulation.None,
-    imports: [CommonModule, BaseFormsModule, MJCFkNavigateDirective],
+    imports: [CommonModule],
     template: `
-        <div class="mjc-page mjc-page--grid">
+        <div class="mjc-page">
             <p class="mjc-page__intro">
-                Contract numbers are minted <code>CTR-000001</code> from a single counter, taken under a
-                lock inside the save that uses it. The next value is below.
+                Contract numbers are minted <code>CTR-000001</code>, <code>CTR-000002</code>, … by the
+                database itself — a SQL <code>SEQUENCE</code> read inside the save that uses the number.
+                There is nothing here to configure, and that is deliberate.
             </p>
-            <p class="mjc-page__intro">
-                <strong>Do not edit it to fix a gap.</strong> Gaps are normal — a save that fails after
-                taking a number leaves one behind, and the unique index, not this counter, is what
-                guarantees no two contracts share a number. Winding it backwards is how you get a
-                collision.
-            </p>
-            @if (NextNumber !== null) {
-                <div class="mjc-card">
-                    <h3 class="mjc-card__title">Next contract number</h3>
-                    <p>CTR-{{ PaddedNext }}</p>
-                </div>
-            }
-            <div class="mjc-grid-fill">
-                <mj-explorer-entity-data-grid mjcFkNavigate [Params]="Params" [ShowToolbar]="true" [ToolbarConfig]="GridToolbar" />
+            <div class="mjc-card">
+                <h3 class="mjc-card__title">Gaps in the numbering are normal</h3>
+                <p>
+                    A save that fails after taking a number leaves that number behind, and nothing
+                    reissues it. This is expected. What guarantees that no two contracts share a number
+                    is the unique index on the column — not the counter.
+                </p>
+            </div>
+            <div class="mjc-card">
+                <h3 class="mjc-card__title">There is no counter to correct</h3>
+                <p>
+                    The sequence used to be an ordinary table, which meant it appeared here as an
+                    editable row. Winding such a counter backwards to "close a gap" is precisely how you
+                    get two contracts with the same number, so the editable surface was removed rather
+                    than labelled. A sequence cannot be edited through the application at all.
+                </p>
             </div>
         </div>
     `,
 })
-export class MJCNumberingPageComponent extends MJCConfigPageBase {
-    public NextNumber: number | null = null;
-
-    protected get entityName(): string {
-        return MJC_ENTITIES.ContractSequence;
-    }
-    protected override get orderBy(): string {
-        return 'ID ASC';
-    }
-
-    /** Rendered the way the server formats it, so what is shown is what the next contract will carry. */
-    public get PaddedNext(): string {
-        return String(this.NextNumber ?? 0).padStart(6, '0');
-    }
-
-    public override ngOnInit(): void {
-        super.ngOnInit();
-        void this.readNext();
-    }
-
-    private async readNext(): Promise<void> {
-        try {
-            const result = await ScopedRunView().RunView({
-                EntityName: MJC_ENTITIES.ContractSequence,
-                ResultType: 'simple',
-                MaxRows: 1,
-            });
-            const row = (result?.Results ?? [])[0] as Record<string, unknown> | undefined;
-            const value = Number(row?.['NextSequenceNumber']);
-            this.NextNumber = Number.isFinite(value) ? value : null;
-        } catch {
-            // The grid below still shows the row; the card is a convenience.
-            this.NextNumber = null;
-        }
-        this.cdr.detectChanges();
-    }
-}
+export class MJCNumberingPageComponent {}

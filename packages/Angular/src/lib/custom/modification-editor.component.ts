@@ -184,7 +184,17 @@ export interface ProvisionOption {
                                 }
                                 @if (!FilteredProvisions.length) {
                                     <div class="mjc-empty" style="border:0; background:transparent">
-                                        No provision matches “{{ Search }}”.
+                                        @if (AlreadyModifiedCount && !Search.trim()) {
+                                            Every provision in this agreement already has a modification
+                                            recorded. Edit one below, or remove it first to record it
+                                            differently.
+                                        } @else if (AlreadyModifiedCount) {
+                                            No remaining provision matches “{{ Search }}”.
+                                            {{ AlreadyModifiedCount }} already
+                                            {{ AlreadyModifiedCount === 1 ? 'has' : 'have' }} a modification.
+                                        } @else {
+                                            No provision matches “{{ Search }}”.
+                                        }
                                     </div>
                                 }
                             </div>
@@ -303,16 +313,56 @@ export class MJCModificationEditorComponent implements OnInit {
         this.cdr.detectChanges();
     }
 
-    /** Provisions matching the search box — number, title or text. */
+    /**
+     * Provisions this contract may still modify, narrowed by the search box.
+     *
+     * R-10 — ALREADY-MODIFIED PROVISIONS ARE EXCLUDED, and this is the reason the whole item exists.
+     * `UQ_ContractTemplateModification_Contract_Provision` makes (contract, provision) unique, and
+     * nothing stopped the picker offering a provision the contract had already modified: staging the
+     * duplicate looked fine and the save died on a raw unique-index violation. Filtering here removes
+     * the error from the normal path entirely rather than explaining it afterwards, and it costs
+     * nothing — the staged/loaded collection is already in memory.
+     *
+     * Reads the COLLECTION, not a query: rows staged in this editor and never saved must count too,
+     * otherwise the picker would keep offering a provision the user just added.
+     */
     public get FilteredProvisions(): ProvisionOption[] {
+        const taken = this.modifiedProvisionIDs();
+        const available = this.Provisions.filter((p) => !taken.has(p.ID.toLowerCase()));
         const q = this.Search.trim().toLowerCase();
-        if (!q) return this.Provisions;
-        return this.Provisions.filter(
+        if (!q) return available;
+        return available.filter(
             (p) =>
                 p.ProvisionNumber.toLowerCase().includes(q) ||
                 p.Title.toLowerCase().includes(q) ||
                 (p.ProvisionText ?? '').toLowerCase().includes(q),
         );
+    }
+
+    /**
+     * How many provisions are hidden because they are already modified — so the empty state can say
+     * "every clause already has a modification" instead of "no provisions match", which would read as
+     * a broken search.
+     */
+    public get AlreadyModifiedCount(): number {
+        const taken = this.modifiedProvisionIDs();
+        return this.Provisions.filter((p) => taken.has(p.ID.toLowerCase())).length;
+    }
+
+    /**
+     * The provision IDs this contract already modifies, lower-cased.
+     *
+     * Lower-cased because MJ returns UUIDs in either casing depending on the path that loaded them, and
+     * a case-sensitive comparison here would silently fail to hide a row — putting the duplicate back
+     * on the menu while looking like it worked.
+     */
+    private modifiedProvisionIDs(): Set<string> {
+        const ids = new Set<string>();
+        for (const row of this.Rows) {
+            const id = row.mod.ContractTemplateProvisionID;
+            if (id) ids.add(String(id).toLowerCase());
+        }
+        return ids;
     }
 
     public ToggleProvision(p: ProvisionOption): void {

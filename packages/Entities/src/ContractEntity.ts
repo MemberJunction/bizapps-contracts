@@ -23,6 +23,34 @@ import { BaseEntity, ValidationErrorInfo, ValidationErrorType, ValidationResult 
 import { RegisterClass } from '@memberjunction/global';
 import { mjBizAppsContractsContractEntity } from './generated/entity_subclasses';
 
+/**
+ * Which provision IDs appear more than once — the pure half of R-10's staged-rows rule.
+ *
+ * A free function taking plain values so the counting is testable without a provider or a
+ * `RelatedRecordCollection`, the same reason `ValidateValueLists` and `IsNewlySelected` are free
+ * functions. Every subtlety worth getting right is in here rather than in the caller:
+ *
+ *   · **case-insensitive** — MJ returns UUIDs in either casing depending on how the row was loaded, so
+ *     a case-sensitive compare would miss a duplicate while appearing to check for one;
+ *   · **blanks are skipped**, not grouped — several rows with no provision chosen yet are an
+ *     incomplete edit, not "the same provision twice", and reporting them as duplicates would refuse a
+ *     save the user is still composing;
+ *   · **each duplicated ID is reported once**, however many times it appears, so three copies of one
+ *     provision is one problem rather than two.
+ */
+export function FindDuplicateProvisionIDs(provisionIDs: readonly unknown[]): string[] {
+    const counts = new Map<string, number>();
+    const duplicates: string[] = [];
+    for (const raw of provisionIDs) {
+        const id = String(raw ?? '').trim().toLowerCase();
+        if (!id) continue;
+        const next = (counts.get(id) ?? 0) + 1;
+        counts.set(id, next);
+        if (next === 2) duplicates.push(id);
+    }
+    return duplicates;
+}
+
 @RegisterClass(BaseEntity, 'MJ_BizApps_Contracts: Contracts')
 export class ContractEntity extends mjBizAppsContractsContractEntity {
     /**
@@ -57,7 +85,43 @@ export class ContractEntity extends mjBizAppsContractsContractEntity {
             );
         }
 
+        this.refuseDuplicateStagedModifications(result);
+
         return result;
+    }
+
+    /**
+     * R-10 — two modifications of the SAME provision, caught among the rows in hand.
+     *
+     * `UQ_ContractTemplateModification_Contract_Provision` is the floor, and it refuses this as a raw
+     * unique-index violation naming no field. This catches the case the browser can see for free: the
+     * collection is staged right here during a graph save, so a duplicate among those rows needs **no
+     * query at all**. The saved-rows half (a staged row colliding with one already in the table) needs
+     * a read and lives on the server subclass.
+     *
+     * WHY THIS IS ON `ContractEntity` AND NOT ON THE MODIFICATION. The item says "rule on the shared
+     * subclass" without saying which; only the CONTRACT holds the sibling rows. A modification cannot
+     * see its siblings, so the same rule written there could only ever be the one-query server version.
+     *
+     * Case-insensitive on the FK because MJ returns UUIDs in either casing, and a case-sensitive
+     * comparison would miss a duplicate while appearing to check for one.
+     */
+    private refuseDuplicateStagedModifications(result: ValidationResult): void {
+        const provisionIDs = this.Modifications.Items.map((mod) => mod.Get('ContractTemplateProvisionID') as unknown);
+        const duplicates = FindDuplicateProvisionIDs(provisionIDs);
+        if (duplicates.length === 0) return;
+
+        result.Success = false;
+        result.Errors.push(
+            new ValidationErrorInfo(
+                'Modifications',
+                `${duplicates.length === 1 ? 'A provision is' : `${duplicates.length} provisions are`} modified more ` +
+                    `than once on this contract. A contract records ONE negotiated wording per standard clause — ` +
+                    `combine the duplicates into a single modification.`,
+                duplicates.length,
+                ValidationErrorType.Failure,
+            ),
+        );
     }
 
     /**

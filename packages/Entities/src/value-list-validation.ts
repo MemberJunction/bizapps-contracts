@@ -24,7 +24,7 @@
  *
  * ## Why this is generic rather than three hand-written checks
  *
- * Three fields need it today (`ContractType.Status`, `ContractType.ParentStatusRequirement`,
+ * Three fields need it today (`ContractType.Status`, `ContractTemplateType.Status`,
  * `ContractTemplateType.Status`). Naming them here would mean a fourth value-list field added next
  * year is silently unguarded, and nothing would fail to say so. Driving off `ValueListTypeEnum`
  * instead means the guard covers whatever the schema declares, now and later, and needs no edit when

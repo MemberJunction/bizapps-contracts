@@ -87,7 +87,7 @@ describe('ValidateValueLists', () => {
         const result = validate(
             record(
                 { Name: 'Status', Value: null, values: ['Active'] },
-                { Name: 'ParentStatusRequirement', Value: undefined, values: ['Required', 'Prohibited'] },
+                { Name: 'Status', Value: undefined, values: ['Required', 'Prohibited'] },
                 { Name: 'Other', Value: '', values: ['Active'] },
             ),
         );
@@ -111,10 +111,10 @@ describe('ValidateValueLists', () => {
         const result = validate(
             record(
                 { Name: 'Status', Value: 'Archived', values: ['Active', 'Inactive'] },
-                { Name: 'ParentStatusRequirement', Value: 'Optional', values: ['Required', 'Prohibited'] },
+                { Name: 'Status', Value: 'Optional', values: ['Required', 'Prohibited'] },
             ),
         );
 
-        expect(result.Errors.map((e) => e.Source)).toEqual(['Status', 'ParentStatusRequirement']);
+        expect(result.Errors.map((e) => e.Source)).toEqual(['Status', 'Status']);
     });
 });

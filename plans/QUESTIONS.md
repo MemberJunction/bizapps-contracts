@@ -118,3 +118,48 @@ expensive to reverse.
 ## Answered
 
 *(none yet)*
+
+## Q-R6a · Should `MODIFICATION_REQUIRED_FIELD_PROSE` exist at all? — OPEN (Marcelo asked 2026-08-20)
+
+**Proposed solution (implemented, proceeding by default): KEEP it.** It is not a workaround for the
+message-plumbing bug, so #3973 landing does not make it redundant. But the maintenance question is
+real and the reviewer should rule.
+
+**The question as asked:** is the prose map in `packages/Entities/src/ContractTemplateModificationEntity.ts`
+actually accounting for the message issue the other agent is fixing in
+[MJ#3973](https://github.com/MemberJunction/MJ/pull/3973) — in which case we should delete it and pull
+their changes in instead?
+
+**Answer: no. They fix different layers, and both are needed.**
+
+| | What it fixes | Without it, the user sees |
+|---|---|---|
+| **MJ#3973** (+ the `ResolverBase` follow-up) | **HOW** a refusal travels — `CompleteMessage` rendered `ValidationErrorInfo` as a JSON blob, and update/delete never called it at all | `{"Source":"ModificationText","Message":"…","Value":null}` — or, on an update, the literal text `Unknown error` |
+| **The prose map** | **WHAT** the refusal says — replaces MJ's `"<Display Name> cannot be null"` | `Modification Text cannot be null` — correct, field-named, and mute on what to do |
+
+So with #3973 alone the user gets `"Modification Text cannot be null"` rendered cleanly. The map is
+what makes it `"Record what this contract says instead of the standard clause…"`. Verified in this
+order on a live instance: the prose only arrived at all *because* #3973 is applied locally, and it only
+said something useful because of the map. **They compose; neither substitutes for the other.**
+
+**The genuine review question underneath, which is worth ruling on:** is hand-written prose per field
+worth its maintenance? Honest arguments both ways.
+
+- **For keeping it.** These three fields are the app's reason to exist, and two of them are FKs whose
+  flat message is actively unhelpful ("Contract Template Provision cannot be null" does not tell anyone
+  to pick a clause). It also owns the DE-DUPLICATION, which is not cosmetic: `ModificationText`
+  genuinely produces two absence errors (MJ's nullability check plus CodeGen's
+  `ValidateModificationTextNotEmpty`), and something has to collapse them. Deleting the map means
+  either living with the double error or writing a separate collapse.
+- **Against.** It is a second place where a field's meaning is written down, keyed on string field
+  names that a rename would silently orphan (mitigated: `fieldIsAbsent` returns false for a field the
+  entity does not have, so a drifted key stops rewording rather than rewording the wrong thing — but it
+  stops silently). And a per-field prose table does not scale to seven entities; if this pattern is
+  right, it probably belongs in MJ as `EntityField.RequiredFieldMessage` metadata rather than in every
+  app's subclass.
+- **A third option worth considering:** put the prose in `__mj.EntityField.Description` (already
+  displayed as form help text) and ask MJ to fall back to it in the nullability message. That is an MJ
+  feature request, and it would delete this file from every app at once.
+
+**Reviewer:** Marcelo. **Route the ruling to:** the R-6 item in `plans/backend-requirements.md`, and — if
+the third option is chosen — a new entry in `MJ-UPSTREAM.md`.

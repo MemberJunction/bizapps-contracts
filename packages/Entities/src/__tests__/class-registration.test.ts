@@ -31,20 +31,27 @@ const EXPECTED: ReadonlyArray<{ entity: string; className: string }> = [
     //   Contracts             — the HasModifications guard and Supersede().
     //   the two lookup tables — the value-list guard standing in for MJ#3969, without which their
     //                           IN(...) CHECK constraints have no TypeScript representation at all.
+    //   Contract Template Modifications — the required-field prose (R-6). It carries no RULE, so
+    //                           losing the registration would not fail a save; it would quietly
+    //                           restore MJ's "<field> cannot be null", which nothing else detects.
     { entity: 'MJ_BizApps_Contracts: Contracts', className: 'ContractEntity' },
     { entity: 'MJ_BizApps_Contracts: Contract Types', className: 'ContractTypeEntity' },
     { entity: 'MJ_BizApps_Contracts: Contract Template Types', className: 'ContractTemplateTypeEntity' },
+    { entity: 'MJ_BizApps_Contracts: Contract Template Modifications', className: 'ContractTemplateModificationEntity' },
     // The rest have no hand-written subclass yet, so the GENERATED class is the correct answer.
     // Asserting that is not redundant: it is what fails if someone adds a subclass without adding it
     // to this list, or re-registers one of v1's deleted classes.
     { entity: 'MJ_BizApps_Contracts: Contract Templates', className: 'mjBizAppsContractsContractTemplateEntity' },
     { entity: 'MJ_BizApps_Contracts: Contract Template Provisions', className: 'mjBizAppsContractsContractTemplateProvisionEntity' },
-    { entity: 'MJ_BizApps_Contracts: Contract Template Modifications', className: 'mjBizAppsContractsContractTemplateModificationEntity' },
-    { entity: 'MJ_BizApps_Contracts: Contract Sequences', className: 'mjBizAppsContractsContractSequenceEntity' },
 ];
 
 /** v1 entity names. Nothing may still register for them — the tables are gone. */
 const DELETED_V1_ENTITIES: readonly string[] = [
+    // R-7 (2026-08-20): the ContractSequence TABLE became a SQL SEQUENCE, which CodeGen cannot see,
+    // so the entity, its 4 fields and its 2 generated validators are gone. Listed here rather than
+    // merely deleted from EXPECTED so a re-registration is caught: the whole point of R-7 was that an
+    // API-writable counter is a surface with no legitimate use.
+    'MJ_BizApps_Contracts: Contract Sequences',
     'MJ_BizApps_Contracts: Contract Terms',
     'MJ_BizApps_Contracts: Contract Lines',
     'MJ_BizApps_Contracts: Contract Amendments',

@@ -15,7 +15,6 @@ import { EntityViewerModule } from '@memberjunction/ng-entity-viewer';
 import { LinkDirectivesModule } from '@memberjunction/ng-link-directives';
 
 // Import Generated Components
-import { mjBizAppsContractsContractSequenceFormComponent } from "./Entities/mjBizAppsContractsContractSequence/mjbizappscontractscontractsequence.form.component";
 import { mjBizAppsContractsContractTemplateModificationFormComponent } from "./Entities/mjBizAppsContractsContractTemplateModification/mjbizappscontractscontracttemplatemodification.form.component";
 import { mjBizAppsContractsContractTemplateProvisionFormComponent } from "./Entities/mjBizAppsContractsContractTemplateProvision/mjbizappscontractscontracttemplateprovision.form.component";
 import { mjBizAppsContractsContractTemplateTypeFormComponent } from "./Entities/mjBizAppsContractsContractTemplateType/mjbizappscontractscontracttemplatetype.form.component";
@@ -26,7 +25,6 @@ import { mjBizAppsContractsContractFormComponent } from "./Entities/mjBizAppsCon
 
 @NgModule({
 declarations: [
-    mjBizAppsContractsContractSequenceFormComponent,
     mjBizAppsContractsContractTemplateModificationFormComponent,
     mjBizAppsContractsContractTemplateProvisionFormComponent,
     mjBizAppsContractsContractTemplateTypeFormComponent,

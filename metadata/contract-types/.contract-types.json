@@ -2,36 +2,48 @@
   {
     "_comments": [
       "The four seeded contract types (plan §7 / ERD §7). CONFIGURATION-AS-DATA in the narrow sense",
-      "that survived the rebuild: TWO columns carry a rule — RequiresExecutedDocument, read by the",
-      "derived IsAwaitingDocument, and ParentStatusRequirement, read by ContractEntityServer to decide",
-      "whether a contract of this type must, must not, or may name a ParentContractID. Neither is ever",
-      "branched on by NAME — that was the defect this column replaced.",
+      "that survived the rebuild: FOUR columns carry a rule, and none of them is ever branched on by",
+      "NAME — that was the defect the first of them replaced.",
+      "",
+      "  RequiresExecutedDocument  read by the derived IsAwaitingDocument.",
+      "  MustBeRoot / MustBeChild  where in the contract tree this type may sit. Mutually exclusive",
+      "                           (CK_ContractType_RootOrChild); BOTH FALSE means unrestricted, which",
+      "                           is the honest default and what two of these four want.",
+      "  TemplateRequired         whether a contract of this type must carry its own ContractTemplateID.",
+      "",
+      "MustBeRoot/MustBeChild REPLACED the three-state ParentStatusRequirement string (V202608200300,",
+      "ruled by Marcelo 2026-08-20): a column whose values invert the rule when read in the wrong order",
+      "is a column that will eventually be read in the wrong order.",
+      "",
+      "ORDER FORM AND PAYMENT LINK ARE RETIRED HERE (Status = Inactive), not deleted. Contracts does no",
+      "billing, so neither belongs — but 7 of the 9 existing contracts use them and every FK is",
+      "NO_ACTION, so a DELETE is simply refused. Retiring is also the better path on its own merits: it",
+      "is a live test of R-5 (two genuinely retired types, referenced by existing contracts, is exactly",
+      "the state the Inactive-selection rule has to handle) and R-8 (Delete now explains why it refuses).",
+      "The demo rows age out.",
       "",
       "v1 seeded six types with fourteen columns of billing defaults (term months, billing frequency,",
       "escalation percents, renewal mode, coterm). All of it is gone: v2 does not bill, does not renew",
-      "on a schedule, and does not decide anything from a type beyond whether paper is expected. The",
-      "vocabulary changed too — MSA / Standard / Membership / Evergreen / Pilot described commercial",
-      "shapes; Order Form / SOW / Payment Link / Change Order describe what the DOCUMENT is, which is",
-      "what a tracking app can actually observe.",
+      "on a schedule, and does not decide anything from a type beyond whether paper is expected.",
       "",
       "Fixed UUIDs so a re-push against a rebuilt database UPDATES these rows rather than creating a",
-      "second set. Deliberately a NEW block (3333…10xx) rather than reusing v1's 3333…000x: the rows",
-      "are not edits of the old ones, and a from-zero rebuild should not resurrect an MSA row as an",
-      "Order Form."
+      "second set. Deliberately a NEW block (3333…10xx) rather than reusing v1's 3333…000x."
     ],
     "fields": {
       "Name": "Order Form",
       "Description": "The commercial document a customer signs to buy — the ordinary agreement. Sits beneath a Master Agreement whose provisions it incorporates by reference, which is why the Order Form carries the ContractTemplateID rather than the MA carrying anything about it.",
       "RequiresExecutedDocument": true,
-      "ParentStatusRequirement": null,
-      "Status": "Active"
+      "Status": "Inactive",
+      "MustBeRoot": false,
+      "MustBeChild": false,
+      "TemplateRequired": false
     },
     "primaryKey": {
       "ID": "33333333-0000-4000-8000-000000001001"
     },
     "sync": {
-      "lastModified": "2026-08-19T23:07:39.470Z",
-      "checksum": "41a6cbef3aa681218b0346e4f4e789ccd7fef2adea12e9cae8224bf13a0428c3"
+      "lastModified": "2026-08-20T06:29:17.064Z",
+      "checksum": "99cd31b7d6020588cf04bd5f9c6cbedf82ef1502cfa80793ca76de00290a0690"
     }
   },
   {
@@ -39,15 +51,17 @@
       "Name": "Statement of Work",
       "Description": "Scoped services with a defined end. Amith, 2026-08-18: SOWs have standard language but no versioned template — so an SOW contract may have no ContractTemplateID, and that is not a gap to fill. Paper is still expected.",
       "RequiresExecutedDocument": true,
-      "ParentStatusRequirement": null,
-      "Status": "Active"
+      "Status": "Active",
+      "MustBeRoot": true,
+      "MustBeChild": false,
+      "TemplateRequired": true
     },
     "primaryKey": {
       "ID": "33333333-0000-4000-8000-000000001002"
     },
     "sync": {
-      "lastModified": "2026-08-19T23:07:39.470Z",
-      "checksum": "9a800a6490ac487374edf5faa29dce1a65f34ca8f6c84993aad1ae74ced3211d"
+      "lastModified": "2026-08-20T06:29:17.091Z",
+      "checksum": "1ac841f72c5729e48129847ea75057d9b59c3cf98953b4afca8664bd984e5cf1"
     }
   },
   {
@@ -55,31 +69,35 @@
       "Name": "Payment Link",
       "Description": "The sub-$10k self-serve case: finance sends a HubSpot payment link that references the Master Agreement, and nobody signs anything. There is an implied contract, so it IS a contract — it has a ContractTemplateID and no document. This is the one type where RequiresExecutedDocument is false, and the reason that column exists at all.",
       "RequiresExecutedDocument": false,
-      "ParentStatusRequirement": null,
-      "Status": "Active"
+      "Status": "Inactive",
+      "MustBeRoot": false,
+      "MustBeChild": false,
+      "TemplateRequired": false
     },
     "primaryKey": {
       "ID": "33333333-0000-4000-8000-000000001003"
     },
     "sync": {
-      "lastModified": "2026-08-19T23:07:39.472Z",
-      "checksum": "e4dc8f64da700be0d50883a6f3a4458f5c55e0a93adf11bcd0541cfe11d51cf7"
+      "lastModified": "2026-08-20T06:29:17.113Z",
+      "checksum": "bce530681ff6bbefbf864854fc60611e96f50ff38b0d0b541f616d37befec058"
     }
   },
   {
     "fields": {
       "Name": "Change Order",
-      "Description": "Amends an existing agreement rather than replacing it: signed paper of its own, its own dates, and a ParentContractID naming what it changes. ParentStatusRequirement = 'Required' is what enforces that parent — the server subclass reads this column, where it used to compare this row's NAME to the string 'Change Order' and silently stopped working if anyone renamed it.",
+      "Description": "Amends an existing agreement rather than replacing it: signed paper of its own, its own dates, and a ParentContractID naming what it changes. MustBeChild = 1 is what enforces that parent — the server subclass reads that flag, where it once compared this row's NAME to the string 'Change Order' and silently stopped working if anyone renamed it. It carries no template of its own (TemplateRequired = 0); a modification recorded on a change order may cite any provision of a template at or above it in the tree.",
       "RequiresExecutedDocument": true,
-      "ParentStatusRequirement": "Required",
-      "Status": "Active"
+      "Status": "Active",
+      "MustBeRoot": false,
+      "MustBeChild": true,
+      "TemplateRequired": false
     },
     "primaryKey": {
       "ID": "33333333-0000-4000-8000-000000001004"
     },
     "sync": {
-      "lastModified": "2026-08-19T23:07:40.175Z",
-      "checksum": "ae818c323464610fc77536116de2a6cf97426bfa5900e97ebb4eb42d05e1cbd3"
+      "lastModified": "2026-08-20T06:35:14.239Z",
+      "checksum": "91b68c740e0440af70a6821a4d8f90518f4749ab7e1f1c89bb854896595d2bbd"
     }
   }
 ]

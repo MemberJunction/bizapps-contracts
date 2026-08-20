@@ -44,7 +44,37 @@ someone using our own UI*.
 
 ---
 
-## R-1 · A template's provisions must not change once a contract references them — ✅ READY
+## R-1 · A template's provisions must not change once a contract references them — **IMPLEMENTED 2026-08-20**
+
+> ✅ **DONE 2026-08-20.** Trigger `trg_ContractTemplateProvision_Immutability`
+> (`V202608200100`, accounting's shape) + the code half on
+> `ContractTemplateProvisionEntityServer.ValidateAsync()`, gated on ANY reference as ruled.
+>
+> **The `mj sync push` trap was real and is verified avoided.** Two proofs, in order of strength:
+> (a) a direct SQL `UPDATE ... SET ProvisionNumber=ProvisionNumber, Title=Title,
+> ProvisionText=ProvisionText` across all 73 provisions **passed**; (b) a real
+> `mj sync push --dir metadata` returned `errorCount: 0` with **98 unchanged, 1 updated** while the
+> trigger was live. A trigger without the value comparison would have failed both.
+>
+> **Trigger probes (direct SQL, bypassing the app):** term change BLOCKED · `Description` change
+> PASSED · `Sequence` change PASSED · DELETE BLOCKED · identical rewrite PASSED.
+> **Code probes (live GraphQL):** `ProvisionText` and `Title` each refused naming the field and the
+> count (*"8 contracts already incorporate this agreement version, so the standard wording cannot
+> change…"*) · `Description` accepted · delete of an unmodified provision refused **by the code**.
+>
+> **The one thing the spec did not anticipate — and it is an interaction with R-8, not a detail.** The
+> item specifies the code half as an immutability check on `ValidateAsync`. That is not sufficient once
+> R-8 exists: the trigger also blocks **DELETE** on a referenced template, while R-8's delete guard
+> only knew about modifications. So deleting an *unmodified* provision of a referenced template passed
+> the guard and died in the database — producing precisely the raw constraint error R-8 was written to
+> eliminate. **The code half must cover every condition the trigger covers, or the guard has a hole
+> shaped like the trigger.** `Delete()` now reports both dependencies together.
+>
+> Smaller note: the code compares trimmed strings while the trigger compares exactly, so the code is
+> marginally more permissive on a whitespace-only diff. That is the safe direction — the trigger still
+> holds the line — and it stops a whitespace round-trip from refusing a save nobody meant to make.
+>
+> The original specification follows.
 
 **Severity: highest.** This is the app's central promise, and nothing enforces it.
 
@@ -160,7 +190,42 @@ the floor.
 Keep the messages field-named (`ValidationErrorInfo` `Source` = `EndDate`, `ParentContractID`, …) so
 the form marks the field rather than showing a banner.
 
-## R-3 · Lineage cycles — ✅ READY
+## R-3 · Lineage cycles — **IMPLEMENTED 2026-08-20**
+
+> ✅ **DONE 2026-08-20.** `ContractEntityServer.refuseLineageCycles()` — one upward recursive walk per
+> dirty FK, `Depth < 50`, on both `ParentContractID` and `SupersededByContractID`.
+>
+> **7 live GraphQL probes:** a two-node ring refused · a legal parent accepted · a three-node ring
+> refused · the superseded axis accepted when legal and refused when it closed a ring · everything
+> restored. The refusal names the ring, which was worth the extra column in the walk:
+> > *That would put contract CTR-900001 inside its own parent chain (**CTR-900001 -> CTR-900002 ->
+> > CTR-900008 -> CTR-900001**). A contract cannot be, directly or indirectly, its own parent…*
+>
+> **⚠ The item's severity assessment is now WRONG, and in the dangerous direction.** R-3 argued a cycle
+> "corrupts nothing silently — it makes the Lineage panel walk forever, which is loud", and used that to
+> justify code-only rather than a trigger. Since it was written, `vwContracts` gained
+> `RootParentContractID` / `RootSupersededByContractID`, computed by `fnContract*_GetRootID`, whose CTE
+> walks to `Depth < 100` and then takes the row `WHERE ParentContractID IS NULL`. **In a ring no row
+> satisfies that**, so the function returns nothing and the column comes back **NULL** — silently wrong,
+> on the app's primary view, for every contract in the ring, plus 100 levels of recursion per row on
+> every read. A cycle is therefore quiet, not loud. Code-only is still defensible (nothing but our own
+> UI and API writes these FKs), but if a trigger is ever added for lineage this is the argument for it,
+> and it should not be re-derived from the stale premise.
+>
+> **The item's "related finding" is resolved and was already stale.** It asks whether to build
+> `RootParentContractID` / `RootSupersededByContractID` or delete the metadata rows describing fields
+> nothing returns. They are **built** — present in `vwContracts`, returning real values, 0 NULLs across
+> all 9 contracts (`V202608182000` + `V202608182002`). Nothing to decide.
+>
+> Two deliberate skips, each avoiding a duplicate error: the check is skipped on a **create** (an unsaved
+> record has an ID but no row, so nothing can point at it) and on the direct `A -> A` case (already
+> reported by the generated `CK_Contract_ParentNotSelf` validator).
+>
+> **No unit test, on purpose.** The logic is a recursive CTE; a TypeScript unit test could only restate
+> it, and a restatement of SQL is not an oracle for SQL. The 7 runtime probes are the coverage, and they
+> are recorded in `testing.md` as manual rather than automated.
+>
+> The original specification follows.
 
 **How the hole works.** The two CHECKs stop only `A → A`. Nothing stops `A → B → A`, or a longer
 ring, in either `ParentContractID` or `SupersededByContractID`. Each individual save looks perfectly
@@ -200,7 +265,65 @@ currently work, so this is not breaking anything today — but it is metadata de
 nothing returns, which is the exact shape of the `IsChangeOrder` trap we just removed. Either build
 them (a recursive view column, which then *needs* R-3 to terminate) or delete the metadata rows.
 
-## R-4 · Modifications, templates, and the contract tree — ✅ READY
+## R-4 · Modifications, templates, and the contract tree — **IMPLEMENTED 2026-08-20** (deferred half excepted)
+
+> ✅ **DONE 2026-08-20**, except the half the item itself defers to R-14.
+>
+> `V202608200300`: `MustBeRoot` / `MustBeChild` / `TemplateRequired` added, `CK_ContractType_RootOrChild`
+> added, `ParentStatusRequirement` and its CHECK **dropped**. Seed rewritten and pushed
+> (`errorCount: 0`, idempotent on a second push). `ContractEntityServer` rewritten to read the flags.
+> `ContractTemplateModificationEntityServer` now compares against the **ancestor set**.
+>
+> **Order Form and Payment Link retired** (`Status = 'Inactive'`), still referenced by 5 and 2
+> contracts — which is now the live test state for R-5 and R-8, exactly as the item predicted.
+>
+> **CodeGen generated the CHECK's validator for free**, as predicted:
+> `if (this.MustBeRoot && this.MustBeChild)`. No hand-written counterpart (the R-2 trap).
+>
+> ### Probes (live GraphQL)
+> · a Change Order with no parent → **refused** (`MustBeChild`)
+> · a Statement of Work with a parent and no template → **refused on BOTH rules in one response**
+>   (`MustBeRoot` + `TemplateRequired`)
+> · **the case that was previously impossible**: a modification recorded ON a change order, citing a
+>   provision of its PARENT's template → **accepted**. Before R-4 this was refused, because the change
+>   order's own `ContractTemplateID` is null and the old rule compared against that single column. This
+>   is the whole point of the tree model, and it means the change-order mechanism is now usable rather
+>   than decorative.
+> · a provision from a template NOT in the tree → **refused**, naming both templates
+> · all probe data removed; 9 contracts / 1 template / 73 provisions / 3 modifications restored
+>
+> ### Three things worth recording
+>
+> 1. **The superseded migration argued against this change, and the objection does not survive.**
+>    `V202608192100` says a bit pair *"would also encode 'neither', which is not a state that means
+>    anything."* It was aimed at a different pair (`CanHaveParent` / `MustHaveParent`). With
+>    `MustBeRoot` / `MustBeChild`, "neither" means **unrestricted** — a real, wanted, and in fact
+>    majority state (two of the four seeded types). Answered rather than ignored, in the new migration's
+>    header.
+> 2. **`EntityFieldValue` blocks dropping a value-list `EntityField`.** The `IN (...)` CHECK had been
+>    rendered as two `EntityFieldValue` rows (that is R-9's subject), which are FK children of the
+>    field. First run died on `FK_EntityFieldValue_EntityField`; the full child set was then read off
+>    `sys.foreign_keys` rather than found one error at a time. Same lesson as R-7's `EntitySetting`.
+> 3. **CodeGen must run BEFORE `mj sync push` when a migration adds columns.** The push failed with
+>    *"Field MustBeRoot does not exist on entity …"* — the columns existed in SQL but had no
+>    `EntityField` rows yet, and metadata sync validates against metadata. This is ADR-023's ordering,
+>    and it is also the concrete reason migrations do not hand-carry `EntityField` rows: CodeGen owns
+>    them, so it has to go first.
+>
+> Bonus catch, same shape as R-7's: the Change Order type's own **`Description`** said
+> *"ParentStatusRequirement = 'Required' is what enforces that parent"* — user-visible help text naming
+> a column this migration drops. Rewritten and re-pushed.
+>
+> ### ⏳ NOT DONE — the deferred half (rides with R-14, per the item)
+> *"Reject clearing `ContractTemplateID` when a modification ANYWHERE IN THE TREE references that
+> template and it is not reachable elsewhere in the tree."* What IS implemented is the narrow half the
+> item marks certain: clearing is refused when modifications on **this** contract cite provisions of the
+> template being cleared (`refuseClearingAReferencedTemplate`, verified by build; the tree-wide version
+> needs the settled tree model R-14 brings). A pre-existing modification on a CHILD contract citing the
+> cleared template is not yet caught — though the modification-side rule refuses to SAVE such a row, so
+> the gap is historical rows, not new ones.
+>
+> The original specification follows.
 
 Ruled: **a contract that needs a template must have one, and a modification may point at any template
 at or above it in the tree.**
@@ -278,7 +401,32 @@ refused).
   and the post-execution lock (R-9) all read the same ancestor set, and writing that walk once against
   a settled tree model beats writing it three times.
 
-## R-5 · An Inactive type must not be newly selected — ✅ READY
+## R-5 · An Inactive type must not be newly selected — **IMPLEMENTED 2026-08-20**
+
+> ✅ **DONE 2026-08-20.** `ContractEntityServer.refuseRetiredSelections()` + the extracted
+> `IsNewlySelected()` predicate. 9 unit tests (red-proven) and **5 live GraphQL probes**: newly
+> selecting a retired `ContractType` is refused; a contract already on that type still saves; switching
+> to an Active type is accepted; newly selecting a template whose *type* is retired is refused; a
+> contract already on that template still saves. Every flipped `Status` and probe `Notes` restored and
+> the restore verified.
+>
+> **The one thing the spec did not say, and it decides whether the rule works at all.** The item says
+> the rule fires when the FK is "dirty", and points at
+> `GLAccountEntityServer.LOCKED_IDENTITY_FIELDS` for the shape. That shape **returns early when
+> `OldValue` is null** — correct for accounting, which asks "did an existing value change", and wrong
+> here, because it skips every **create**. A create is the newest selection there is, and it is exactly
+> what the Configuration page promises to stop ("a retired type stops being offered for new
+> contracts"). So "newly selected" is `!IsSaved || the key changed`, not `the key changed`. Copying
+> accounting verbatim would have shipped a rule that builds, reviews clean, and never fires on its
+> primary case.
+>
+> Two smaller notes: the comparison is case-insensitive because MJ returns UUIDs in either casing
+> (a `!==` reports a change on a record nobody touched), and `Status` rides along on the `RunView`
+> `typeRule()` already does for the parent-status rule — so the `ContractTypeID` half costs **zero**
+> extra round trips. Only the template half costs reads (two, template → its type → that type's
+> `Status`; no view exposes it in one hop), and only when the template FK is newly selected.
+>
+> The original specification follows.
 
 Ruled, with the qualifier that matters: **this is a modification check.** A contract that already
 references a type keeps working — we assume the type was Active when it was chosen — so the rule fires
@@ -323,6 +471,14 @@ being offered for new contracts", which today nothing enforces.
 > called it. One word in each of two throws. Logged in `MJ-UPSTREAM.md`; likely affects accounting's
 > identity-lock and immutability messages too, since those refuse on updates.
 
+> **⏳ ONE THING FOR REVIEW (Marcelo, 2026-08-20):** whether `MODIFICATION_REQUIRED_FIELD_PROSE` should
+> exist in the code at all, or whether it was compensating for the message bug MJ#3973 fixes. **It was
+> not** — #3973 fixes how a refusal TRAVELS (a JSON blob, and "Unknown error" on updates), the map
+> fixes what it SAYS, and they compose. Full answer, the real maintenance argument against it, and a
+> third option (put the prose in `EntityField.Description` and have MJ fall back to it, deleting this
+> file from every app at once) are logged answer-first as **Q-R6a in `plans/QUESTIONS.md`**. Proceeding
+> with it in place.
+
 The original specification follows.
 
 - **`ModificationText` becomes NOT NULL** (migration + validation). A modification that asserts "this
@@ -351,7 +507,54 @@ validation reflect non-nullable. Written idempotently and for a database that al
 `docs/database-migrations.md`. Do not let `ALTER COLUMN` meet a NULL and fail — that leaves the
 migration half-applied on exactly the databases that have real content.
 
-## R-7 · Replace `ContractSequence` with a real SQL sequence — ✅ READY
+## R-7 · Replace `ContractSequence` with a real SQL sequence — **IMPLEMENTED 2026-08-20**
+
+> ✅ **DONE 2026-08-20.** `V202608200200`: `CREATE SEQUENCE seq_ContractNumber … NO CACHE`, positioned
+> at `MAX+1`; `spAssignNextContractNumber` rewritten to `NEXT VALUE FOR` (same name, same signature, so
+> no application code changed); the table, its 3 CRUD sprocs, its view, its trigger and all four
+> metadata layers deleted; CodeGen re-run, which removed the generated entity, its 2 validators and its
+> form component.
+>
+> **Proof:** two contracts created through live GraphQL minted **CTR-900010** then **CTR-900011**,
+> sequentially, and the sequence read `900011` after. Zero references to `ContractSequence` remain in
+> the generated code, zero orphaned metadata rows, `contracts=9` after cleanup.
+>
+> **RULED (Marcelo, 2026-08-20): the jump is fine.** The item predicted the restart would compute 27.
+> It computes **900009** here, because the demo data occupies a reserved `CTR-9000xx` block. Marcelo:
+> *"if the design of the sequence means it will jump to the highest number that is ok … in production
+> there will be no demo block, and that's totally okay to have here as well."* No special-casing — a
+> migration that knows about demo data is a migration that lies on a real install.
+>
+> ### Four things the spec did not have, three of which broke the first run
+>
+> 1. **The spec's own SQL does not compile.** `EXEC(N'ALTER SEQUENCE … RESTART WITH ' + CAST(@next AS
+>    NVARCHAR(20)))` fails with `Incorrect syntax near 'CAST'` — `EXEC()` concatenates string literals
+>    and variables only, never a function call. Build the string into a variable and
+>    `EXEC sp_executesql`.
+> 2. **`ApplicationEntity` + `EntityPermission` + `EntityField` is not the full metadata footprint.**
+>    The first run died on `FK_EntitySetting_Entity`. The complete set of FK children of `__mj.Entity`
+>    was then read off `sys.foreign_keys` rather than discovered one error per attempt: **EntityField
+>    (4), EntityPermission (3), EntitySetting (2), ApplicationEntity (1)**. (The whole migration rolled
+>    back cleanly — skyway runs one transaction per file — so a retry is clean.)
+> 3. **The UI was bound to the entity, and the item does not mention the UI at all.** The Configuration
+>    → Numbering page rendered `Contract Sequences` in an editable grid plus a card reading the counter
+>    row; deleting the entity would have broken it at runtime. It is now a text-only page explaining
+>    that gaps are normal and there is nothing to correct — which is what the item argues the surface
+>    should always have been. **The live next-number is no longer displayed**: a sequence's position
+>    lives in `sys.sequences`, and with zero remote operations by design there is no client path to it.
+>    An MJ Query is the cheap way back if anyone wants it, and it does not reintroduce a writable field.
+> 4. **`public-api.ts` is hand-maintained and still exported the generated form component.** CodeGen
+>    deletes the file; nothing updates the barrel, so the Angular build failed with `TS2307`. Also
+>    `entity-names.ts` carried the name.
+>
+> Bonus catch: `Contract.ContractNumber`'s column DESCRIPTION said *"CTR-{seq} from ContractSequence"* —
+> prose naming the deleted table, which CodeGen syncs into `EntityField.Description` and the form's help
+> text. The same trap as leaving the entity metadata behind, just quieter. Corrected in the migration.
+>
+> **Still to do (not blocking):** file the family-wide hole against accounting and orders — all six
+> sequence entities across the three apps are API-writable. See the note below.
+>
+> The original specification follows.
 
 **Accounting does not solve this, so there is nothing to copy.** All six sequence entities across the
 three apps are fully writable through the API:
@@ -465,7 +668,47 @@ Implementation, one migration:
 `AllowDeleteAPI` to false on `MJ_BizApps_Contracts: Contract Sequences` (metadata only, no schema
 change). Nothing legitimate breaks, because the sproc does not use the entity.
 
-## R-8 · Deletes fail as raw foreign-key errors — ✅ READY
+## R-8 · Deletes fail as raw foreign-key errors — **IMPLEMENTED 2026-08-20**
+
+> ✅ **DONE 2026-08-20.** One shared guard (`delete-guard.ts`: `GuardedDelete` /
+> `DescribeDeleteBlockers` / `RefuseDelete` / `plural`) and four `Delete()` overrides across three new
+> server subclasses plus `ContractEntityServer`. 9 registration tests (red-proven) and **6 live GraphQL
+> probes** — five refusals with correct counts and pluralisation, and one successful delete of an
+> unreferenced row, which is the counter-test a blanket-blocking guard would also have passed. Nothing
+> was destroyed; row counts unchanged.
+>
+> Actual messages, measured:
+> > *Template "Master Agreement — 2026-02-02" cannot be deleted. **8 contracts** incorporate this
+> > version as their standard terms — deleting it would erase what those customers agreed to. A signed
+> > version is a historical record; retire the template's type instead of deleting the version. It also
+> > still holds **73 provisions**.*
+>
+> > *Contract CTR-900001 cannot be deleted. It records **2 modifications** to the standard agreement…
+> > **1 contract** names it as a parent, so deleting it would leave a change order amending nothing.*
+>
+> **Three deviations from the spec, each for a stated reason:**
+>
+> 1. **It returns false with a REGISTERED RESULT; it does not throw.** The item said return false, and
+>    accounting's two precedents throw. Returning false is right — `Delete()` is declared
+>    `Promise<boolean>`, and `LatestResult` is the channel `ResolverBase` actually reads. The mechanism
+>    the spec did not name is `RegisterResultHistoryEntry()`, which is public precisely so a subclass
+>    can attach the reason before returning.
+> 2. **⚠ It needed an MJ fix to be VISIBLE AT ALL.** `ResolverBase.DeleteRecord` read
+>    `LatestResult?.Message` instead of `CompleteMessage`, so every one of these carefully-worded
+>    refusals reached the API as the literal string `"Unknown error"`. Patched locally in
+>    `instances/contracts-mj6/mj` and commented onto MJ#3973. **On an unpatched MJ the deletes are still
+>    refused and the reasons are invisible** — a message-quality dependency, not a correctness one. This
+>    is the same defect R-6 hit on the update path.
+> 3. **The spec's prediction about `class-registration.test.ts` was wrong, and the gap it revealed is
+>    real.** The item says that test "must be updated, because it asserts which class each entity name
+>    resolves to and will fail on a new subclass that is not listed." It did **not** fail: it imports
+>    only the Entities package, so it cannot see a server registration in either direction — it will not
+>    fail on a new one and will not notice a lost one. Since these four classes carry **nothing but a
+>    `Delete()` override**, a tree-shaken registration has no symptom except deletes quietly reverting
+>    to raw FK errors. Closed with a new `server-class-registration.test.ts` asserting the server-side
+>    resolution and the anti-tree-shake anchors.
+>
+> The original specification follows.
 
 Every FK in the schema is `NO_ACTION`, which is the correct behaviour — a delete that would orphan
 data is refused. But it reaches the user as an FK constraint message.
@@ -572,7 +815,33 @@ whether it is safe:
 
 Put it where it can be deleted in one commit when MJ#3969 lands, and say so in the file header.
 
-## R-10 · Uniqueness is enforced nowhere above the database — ✅ READY
+## R-10 · Uniqueness is enforced nowhere above the database — **IMPLEMENTED 2026-08-20**
+
+> ✅ **DONE 2026-08-20.** All three layers the item asks for, and none of the five it says to leave
+> alone:
+>
+> 1. **Picker preflight** — `FilteredProvisions` now excludes provisions this contract already modifies,
+>    so the normal path never produces the error. Reads the COLLECTION, not a query, so a row staged
+>    seconds ago counts. Free: the rows are already in memory.
+> 2. **Staged-rows rule** — `FindDuplicateProvisionIDs` on `ContractEntity.Validate()`, no query at all.
+>    8 unit tests, red-proven (5 fail when the casing normalisation is removed).
+> 3. **Saved-rows rule** — `ContractTemplateModificationEntityServer.ValidateAsync()`, one `count_only`.
+>    Live probe: a second modification of an already-modified provision is refused with prose, and
+>    **re-saving an existing modification is still accepted** — the `ID <> this.ID` exclusion, without
+>    which every ordinary re-save would find itself and refuse.
+>
+> **One clarification the item leaves open, and it matters.** It says "rule on the shared subclass"
+> without saying WHICH shared subclass. It has to be `ContractEntity`, not
+> `ContractTemplateModificationEntity`: only the contract holds the sibling rows. A modification cannot
+> see its siblings, so the same rule written there could only ever have been the one-query server
+> version — the no-query claim is only true from the parent.
+>
+> **A UI nicety that turned out to be necessary rather than optional.** Hiding taken provisions makes
+> the empty state ambiguous — "No provision matches" reads as a broken search when the real reason is
+> that every clause is already modified. The empty state now distinguishes the two, and reports how
+> many are hidden.
+>
+> The original specification follows.
 
 > Marked ready 2026-08-20 (main agent, reviewing the second agent's item). It picks a pattern per
 > rule from established family precedent, the picker fix costs nothing extra on a read that already
@@ -1007,16 +1276,17 @@ Marked from the 2026-08-20 review. An agent may pick up anything marked ✅ READ
 input; ⏸ and 🗣 items need the named answer first.
 
 1. ~~**R-6**~~ — **DONE 2026-08-20.** Backfill → NOT NULL → CHECK → CodeGen. Not the smallest closed loop it looked like: see the two notes on the item.
-2. **R-5** ✅ — Inactive-type modification check. Code only, no schema.
-3. **R-8** ✅ — delete messages. Creates three server subclasses the later items also need.
-4. **R-1** ✅ — provision immutability. Trigger + code, and read the value-comparison warning first;
-   a trigger without it breaks `mj sync push`.
-5. **R-7** ✅ — the sequence swap, plus filing the accounting/orders issues.
-6. **R-3** ✅ — cycle prevention; the ancestor walk it builds is reused by R-4 and R-14.
-7. **R-4** ✅ — the two-boolean rework, the type retirements, and the tree-scoped modification rule.
-   Reworks shipped code (`ParentStatusRequirement`), so it wants a clear run rather than being
-   squeezed between other items. Its deferred half rides with R-14.
-8. **R-10** ✅ — uniqueness: the picker preflight plus the staged-rows rule.
+2. ~~**R-5**~~ — **DONE 2026-08-20.** Code only, no schema. Note the create case: accounting's dirty-check shape skips it.
+3. ~~**R-8**~~ — **DONE 2026-08-20.** Created the three server subclasses the later items need; R-1's code half goes in `ContractTemplateProvisionEntityServer`.
+4. ~~**R-1**~~ — **DONE 2026-08-20.** The value-comparison warning was correct and is verified by a
+   real `mj sync push` (errorCount 0) with the trigger live. Its code half had to grow a DELETE guard
+   to keep R-8 whole.
+5. ~~**R-7**~~ — **DONE 2026-08-20.** Sequence swap complete; the accounting/orders issue filing is still open.
+6. ~~**R-3**~~ — **DONE 2026-08-20.** The walk is `lineageReachesSelf()`; R-4 and R-14 reuse the shape.
+7. ~~**R-4**~~ — **DONE 2026-08-20** except the deferred half. The two-boolean rework, the type
+   retirements, and the tree-scoped modification rule all landed; the change-order modification case
+   now works, which it did not before.
+8. ~~**R-10**~~ — **DONE 2026-08-20.** Picker preflight + staged-rows rule + the saved-rows server check.
 9. **R-11** ✅ — a PERSISTED computed column plus its index, then drop `Sequence`. One `ALTER TABLE`
    and a CodeGen run; no layered view, so gotcha 6 does not apply here.
 10. **R-12** ✅ — `SourceURL` nullable, plus a derived `IsUsable` in a layered view. This one DOES
