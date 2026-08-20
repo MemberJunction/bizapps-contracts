@@ -1162,6 +1162,20 @@ refuses a `ProvisionNumber` with more than two segments, and say in the migratio
 > question, not this one.
 >
 > The original specification follows.
+>
+> **⛔ RULED 2026-08-20 — `IsUsable` requires a URL or an attached FILE. Provisions do not count.**
+> Proposed and rejected: that a template carrying provisions with real text is self-contained, so the
+> external document is redundant. Marcelo: *"provisions are useful but we need a source."* The
+> provisions are this app's transcription of the terms; the URL or the file is the SOURCE they were
+> transcribed from, and a dispute is settled against the source, not against our copy of it. So a
+> version with 73 provisions and no source is still not usable, and cannot be published.
+>
+> Practical consequence, recorded because it is real data rather than a hypothetical: two live
+> templates have no source — `Master Agreement — Elastik Teams / APhA` (0 contracts) and
+> `Master Services Agreement — Cimatri / ACMG` (**2 contracts**). Neither can be published until it
+> gets a URL or an attached document, and the second one has contracts already referencing standard
+> terms that exist nowhere.
+
 
 > **Ruled 2026-08-19 (Marcelo).** `SourceURL` becomes nullable. The "URL or file" requirement is
 > surfaced as a **derived usability flag the UI can show**, rather than as a save-time refusal —
