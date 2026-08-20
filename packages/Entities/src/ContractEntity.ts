@@ -24,6 +24,33 @@ import { RegisterClass } from '@memberjunction/global';
 import { mjBizAppsContractsContractEntity } from './generated/entity_subclasses';
 
 /**
+ * Do two contracts sit at the SAME LEVEL of the tree — i.e. may one supersede the other?
+ *
+ * The pure half of the same-level supersession rule (ruled by Marcelo, 2026-08-20). A free function
+ * taking plain values for the same reason `FindDuplicateProvisionIDs` is one: the decision has three
+ * cases and two of them are easy to get backwards, and none of them needs a database to check.
+ *
+ *   · **both NULL → same level.** Two top-level agreements. This is the common case and the one a
+ *     naive `a === b` on nullable values gets right by accident and a SQL `=` gets WRONG — hence the
+ *     caller's `IS NULL` branch when it builds a filter.
+ *   · **one NULL, one set → DIFFERENT levels.** A change order claiming to replace a whole order form.
+ *     This is the case the rule exists to refuse.
+ *   · **both set → compare case-insensitively.** MJ returns UUIDs in either casing depending on how
+ *     the row was loaded, so a case-sensitive compare would call two siblings different levels and
+ *     refuse a legitimate re-papering.
+ *
+ * Note this is deliberately NOT "root only": two siblings under one parent are the same level, which
+ * is what lets a change order supersede another change order under the same agreement.
+ */
+export function IsSameContractLevel(myParentID: string | null | undefined, theirParentID: string | null | undefined): boolean {
+    const a = myParentID ?? null;
+    const b = theirParentID ?? null;
+    if (a === null && b === null) return true;
+    if (a === null || b === null) return false;
+    return a.toLowerCase() === b.toLowerCase();
+}
+
+/**
  * Which provision IDs appear more than once — the pure half of R-10's staged-rows rule.
  *
  * A free function taking plain values so the counting is testable without a provider or a

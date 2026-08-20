@@ -373,16 +373,39 @@ part of this item, not a follow-up: two overlapping mechanisms for one rule is w
 The validation becomes `MustBeChild && !ParentContractID` → refuse, and
 `MustBeRoot && ParentContractID` → refuse, with the same messages.
 
-### Removing Order Form and Payment Link — RULED: retire
+### Removing Order Form and Payment Link — ~~RULED: retire~~ **REVERSED 2026-08-20: both stay Active**
 
-Contracts does no billing, so both go. They are **in use by 7 of 9 contracts** (Order Form 5, Payment
-Link 2) and every FK is `NO_ACTION`, so a DELETE is simply refused. Ruled: **retire them with
-`Status = 'Inactive'`** via metadata, and let the demo rows age out.
-
-Marcelo's note on why this is the better path anyway: it **gives us a live test of R-5** — two
-genuinely retired types, referenced by existing contracts, is exactly the state the
-Inactive-selection rule has to handle correctly (existing contracts keep working; new selection is
-refused).
+> ⚠️ **REVERSED by Marcelo, 2026-08-20.** Both types are **reinstated `Status = 'Active'`** in
+> `metadata/contract-types/.contract-types.json`. Do **not** re-retire them. The original reasoning
+> ("contracts does no billing, so neither belongs") does not hold: both are real agreement *shapes*
+> regardless of which app bills, and 7 of the 9 existing contracts use them.
+>
+> **The ruled rule columns** — and note both changed from `TemplateRequired = 0`, which contradicted
+> each type's own description (a contract whose terms live entirely in an MA it need not cite has no
+> stated terms at all):
+>
+> | Type | `TemplateRequired` | `RequiresExecutedDocument` | Consequence |
+> |---|---|---|---|
+> | Order Form | **1** | **1** | incorporates the MA; somebody signs → sits on Awaiting-documents until the file is registered |
+> | Payment Link | **1** | **0** | incorporates the MA; nobody signs → never appears on Awaiting-documents |
+>
+> `Payment Link` remains the **only** type with `RequiresExecutedDocument = 0`, which is the reason
+> that column exists: it is what stops a self-serve sale sitting on a worklist forever waiting for
+> paper that will never arrive. `MustBeRoot`/`MustBeChild` stay `0`/`0` for both — the MA they
+> reference is a *template*, not a parent contract, so neither needs a tree position.
+>
+> **Open:** Marcelo is confirming the Payment Link shape with Andrew. If `TemplateRequired` comes back
+> false, only the metadata row changes — no schema, no code.
+>
+> **Two consequences of the reversal, both real:**
+> 1. **R-5 loses its live test.** Retiring these two was deliberately doubling as the real-world test
+>    of the Inactive-selection rule (a retired type still referenced by existing contracts). With both
+>    Active, nothing exercises that path against real data — R-5's coverage is unit-level only until
+>    some other type is retired or a fixture supplies one.
+> 2. **`TemplateRequired = 1` is retroactive.** Any existing Order Form / Payment Link contract with a
+>    NULL `ContractTemplateID` now violates the type's rule, and the "contract side (certain half)"
+>    rule below will refuse the next save of those rows. Backfill the template on existing rows, or
+>    scope the rule to newly-set values, before enabling it. This is sequencing, not a blocker.
 
 ### The rules to implement, once unblocked
 
@@ -1280,141 +1303,98 @@ we added would have shipped its explanation as JSON.
 
 ---
 
-## R-14 · Locking a contract after execution — 🗣 DISCUSSION, do not implement yet
+## R-16 · Re-papering (C-US9) — **IMPLEMENTED 2026-08-20**
 
-Raised in review: *"shouldn't it be locked after it is active? only a change order should be able to
-change it after it is executed?"* Split out of R-5 at Marcelo's request (2026-08-20) because it is a
-bigger design conversation than the rest of this plan, and because R-4's tree rules and R-3's ancestor
-walk both feed it.
+> ✅ **DONE 2026-08-20.** `ContractEntityServer.refuseCrossLevelSupersession()` +
+> `IsSameContractLevel()` (shared, 7 unit tests) + the re-papering surface on the Lineage panel.
+> `tsc` and `ngc` clean, 166/166 unit tests pass. **The runtime write path is UNPROVEN — see the gap
+> at the bottom of this item.**
 
-**Why it is not just another validation.** Everything else here is a rule about one row or one FK.
-This is a policy about what a contract IS after paper exists — and the answer determines whether the
-change-order mechanism is load-bearing or decorative.
+### The direction question — RULED: the FK stays on the PREDECESSOR
 
-**The lock key should be `ExecutedDate IS NOT NULL`, not the derived `State`.** `State` is computed in
-the view and turns over with the calendar, so a lock keyed on it would freeze and unfreeze rows
-without anyone touching them, and a trigger would have to recompute the whole precedence chain
-inline. `ExecutedDate` is a single stored field: visible to a trigger, testable in-memory by the
-shared class, and it means the thing we actually care about — someone signed something.
+Marcelo asked whether the tree is backwards: should the successor carry `SupersedesID` instead?
+Evaluated, and **no — keep `SupersededByContractID` on the predecessor.** Four reasons, the third
+decisive:
 
-**Proposed frozen set once executed** — the terms a counterparty agreed to:
-`ContractTypeID`, `CompanyID`, `CustomerOrganizationID`, `ContractTemplateID`, `EffectiveDate`,
-`EndDate`, `ExecutedDate`.
+1. **It makes "superseded at most once" structurally true.** One column on the predecessor cannot hold
+   two successors. Reversed, two contracts could both claim to replace the same predecessor unless a
+   UNIQUE index is added.
+2. **It supports consolidation.** A FK is many-to-one, so several agreements may point at one
+   successor — three order forms replaced by one master. Reversed gives the opposite (one contract
+   split into many), which is rarer.
+3. **`Superseded` stays a LOCAL read.** The derived state is `SupersededByContractID IS NOT NULL` — a
+   column on the row being projected. Reversed, every contract's state needs an `EXISTS` subquery
+   against the successor, **in the base view every grid, worklist and dashboard reads**. It would also
+   invert `fnContract*_GetRootID`, which already walks the supersession chain for
+   `RootSupersededByContractID`.
+4. **A `SupersedesID` alongside it recreates the defect D-19/R-18 deleted** — one relationship stored
+   twice is two facts that can disagree, exactly like the removed stored `Status = 'Superseded'`.
 
-**Proposed still-editable** — facts recorded later, and transcription that may be corrected:
-`TerminatedDate` (termination is a later event, and §7.1 explicitly refuses to tie it to the term),
-`ParentContractID` / `SupersededByContractID` (lineage is recorded after the fact),
-`Description`, `Notes`, `PrimaryContactPersonID`, `SigningProviderURL`, `HasModifications`.
+### The write problem, and why no column and no transaction were needed
 
-**The open question inside the open question:** the renewal-terms fields (`AutoRenew`,
-`RenewalNoticeDays`, `CancellationWindowDays`, `AnnualIncreasePercent`). They are *transcription of
-what the paper says* — which argues correctable — but they are also *terms*, and they drive the
-watchlist finance acts on. Freezing them means a typo needs a change order; leaving them open means
-the watchlist can be edited after signature. This needs a ruling, not an inference.
+The concern was real: the UI picks the predecessor from the SUCCESSOR's form, so the form must write a
+record it is not editing, and there is seemingly no field to carry that intent. **There is nothing to
+carry.** The picker yields an ID and `ContractEntity.Supersede()` takes the entity. No `SupersedesID`.
 
-**Why the lock is acceptable at all:** you do not edit an executed contract, you write a Change Order
-whose `ParentContractID` names it — which R-4's `ParentStatusRequirement` enforces. The lock and the
-change-order requirement are two halves of one design, so shipping the lock without R-4 settled would
-leave users with no legal way to record a change.
+The operation is two steps in one order: **save the successor, then set the predecessor's field.** A
+contract cannot point at one that does not exist, so the successor goes first; the predecessor's own
+`Save()` then runs the level check — the same check that applies to anyone editing
+`SupersededByContractID` by hand, which is the second half of what Marcelo asked for.
 
-**Tier, once decided:** shared `Validate()` for the field-level "you cannot change this" message
-(in-memory `OldValue` check, no DB read — same shape as `GLAccountEntityServer`), plus a DB trigger if
-we decide the floor matters. Accounting has both for JE immutability; whether contracts need the floor
-depends on whether anything other than our own UI will ever write these rows.
+**A `TransactionGroup` was tried and REMOVED (Marcelo, 2026-08-20).** It made both writes atomic, but
+it DEFERS every write until `Submit()` — so the predecessor validated against a successor with an ID
+and no row, and the guard could not distinguish an unwritten sibling from a bad reference. That
+ambiguity was the *sole* reason the guard needed a special case, and it forced the missing-row branch
+to return success on a genuinely absent contract. Self-inflicted complexity in service of atomicity
+nobody asked for.
 
----
+Atomicity was also worth little: **the successor is not a byproduct of superseding, it is a contract
+the user is deliberately creating.** A failed link leaves that contract unlinked — not garbage — and
+the picker retries the link alone. A benign, visible, recoverable partial state beats a rule the
+validator cannot check. A missing successor is now unambiguously a refusal with app prose.
 
-## R-15 · The chain of permission to change — 🗣 DISCUSSION, sequence LAST
+### Same-level, not root-only — RULED
 
-> Raised 2026-08-20 (Marcelo), while ruling R-12. **This is the umbrella the individual locking rules
-> hang from**, and it is deliberately last: several items above each answer one slice, and writing the
-> general rule after they are built is cheaper than deriving it in the abstract now. Do not start this
-> until they are in.
+**A contract may only supersede a contract with the same `ParentContractID`** (both NULL, or the same
+parent). "Root only" is wrong in both directions: it forbids a change order superseding another change
+order under one order form — real, and the alternative is DELETING history — while still permitting a
+change order to claim it replaced the whole agreement it hangs off. Siblinghood, not depth, is the
+axis. **`ContractTypeID` is deliberately NOT constrained**: `Payment Link → Order Form` is a genuine
+cross-type upgrade and is precisely why those two types are distinguished.
 
-**The question.** This schema is a chain — `ContractTemplateType → ContractTemplate →
-ContractTemplateProvision → Contract → ContractTemplateModification`, plus `Contract → Contract` twice
-over (change orders, supersession). Every item so far has answered *one link* of it in isolation:
+Entity layer, not a CHECK — the rule compares this row's parent with ANOTHER row's, which a CHECK
+cannot see (same reason as `refuseLineageCycles`). Unlike that guard it **runs on create**, because a
+cross-level supersession is entirely possible on a brand-new contract, which is the primary flow.
 
-| Item | The one link it answers |
-|---|---|
-| R-1 | a provision may not change once a contract references its template |
-| R-12 | a contract may not be created against an unusable template |
-| R-14 | a contract may not change once executed |
+### Change order superseding a change order — RULED: yes
 
-Each is defensible alone. Together they imply a general rule nobody has written down: **what does
-locking one record mean for the records it points at, and for the records that point at it?** Until
-that is stated, every new link gets its own ad-hoc answer and they will not agree with each other.
+Falls out of the same-parent rule; no extra code.
 
-**The cases with no answer today:**
+### Modifications of a superseded contract — RULED, and it needs NO mechanism
 
-- **Backwards along the chain.** An executed contract references a template version. R-1 freezes that
-  template's provisions once *any* contract references it — but should executing a contract freeze
-  anything more, e.g. the template's `SourceURL` or its `ContractTemplateTypeID`?
-- **A dependency degrading after the fact.** R-12 refuses a NEW contract against an unusable template.
-  What about one already signed against a template whose file is later unlinked? The contract's terms
-  did not change; its *evidence* did. Probably nothing should break — but "probably" is what this item
-  replaces, and `IsUsable` makes it visible, which means someone will ask.
-- **Forwards, to change orders.** A change order amends a locked parent. It is a separate contract, so
-  R-14's lock does not stop it — that is the intended escape hatch. May it reference a DIFFERENT
-  template than its parent? Nothing says.
-- **Retirement vs deletion.** R-5 and R-8 both land on "retire a type by setting Status, do not delete
-  it". That is the same idea one link further up: an in-use record may be withdrawn from future use but
-  not removed from past use. Worth stating once rather than three times.
+Marcelo, 2026-08-20: *"modifications are just a record of something that actually exists in an
+executed document. They are meant to expose that on the DB side. So when a contract or a change order
+gets superseded, its modifications get superseded as well."*
 
-**Deliverable:** one short section in `plans/ERD-planned.md` §7, where the rules live, stating the
-principle and the per-link table it implies, with each existing rule cited as an instance. Whichever
-gaps it exposes then become their own items.
+So there is **nothing to build and nothing to store**. A modification's in-force-ness is its
+contract's `State`, which is already derived — a superseded contract's modifications are historical
+because the contract is. The earlier worry (that R-4's ancestor walk needs a notion of a superseded
+node) was the wrong shape: the walk should read the contract's derived state, never a second flag.
+**Do not add an `IsSuperseded` to modifications.** The only follow-on is presentational — the
+Modifications page should show the owning contract's `State` so a reader can tell live terms from
+historical ones.
 
-> ✅ **Scope settled 2026-08-20 (Marcelo): this is the lock/immutability cascade.** The alternative
-> reading — **MJ entity permissions**, roles, who may read or write which entity — is **explicitly out
-> of scope for this item and for this document.** It is still genuinely uncovered anywhere in the
-> repo's planning, so if it ever needs doing it starts as a new item rather than being folded in here;
-> the two share no mechanism, and merging them would produce a section that answers neither well.
+### `SupersededByContractID` is left UNLOCKED (interaction with R-14)
 
-## Suggested order
+Ruled: unlocked for now, for simplicity. **R-14 must not lock it** when it lands — otherwise an
+executed contract can never be re-papered, which is the only kind anyone ever re-papers. Write this
+into R-14 before implementing it.
 
-Marked from the 2026-08-20 review. An agent may pick up anything marked ✅ READY without further
-input; ⏸ and 🗣 items need the named answer first.
+### ⚠ THE GAP — the runtime write path is unproven
 
-1. ~~**R-6**~~ — **DONE 2026-08-20.** Backfill → NOT NULL → CHECK → CodeGen. Not the smallest closed loop it looked like: see the two notes on the item.
-2. ~~**R-5**~~ — **DONE 2026-08-20.** Code only, no schema. Note the create case: accounting's dirty-check shape skips it.
-3. ~~**R-8**~~ — **DONE 2026-08-20.** Created the three server subclasses the later items need; R-1's code half goes in `ContractTemplateProvisionEntityServer`.
-4. ~~**R-1**~~ — **DONE 2026-08-20.** The value-comparison warning was correct and is verified by a
-   real `mj sync push` (errorCount 0) with the trigger live. Its code half had to grow a DELETE guard
-   to keep R-8 whole.
-5. ~~**R-7**~~ — **DONE 2026-08-20.** Sequence swap complete; the accounting/orders issue filing is still open.
-6. ~~**R-3**~~ — **DONE 2026-08-20.** The walk is `lineageReachesSelf()`; R-4 and R-14 reuse the shape.
-7. ~~**R-4**~~ — **DONE 2026-08-20** except the deferred half. The two-boolean rework, the type
-   retirements, and the tree-scoped modification rule all landed; the change-order modification case
-   now works, which it did not before.
-8. ~~**R-10**~~ — **DONE 2026-08-20.** One modification per provision × contract combo: picker preflight + staged-rows rule + the saved-rows server check.
-9. **R-11** ✅ — a PERSISTED computed column plus its index, then drop `Sequence`. One `ALTER TABLE`
-   and a CodeGen run; no layered view, so gotcha 6 does not apply here.
-10. **R-12** ✅ — `SourceURL` nullable, plus a derived `IsUsable` in a layered view. This one DOES
-    need two migrations with the entity flags set before the first CodeGen (gotcha 6) — read the
-    `vwContracts` pair first.
-11. **R-14** 🗣 — the post-execution lock. Needs the frozen-set ruling, especially renewal terms.
-12. **R-15** 🗣 — **LAST, deliberately.** The general permission-to-change chain. It generalises R-1,
-    R-12 and R-14, so it is cheaper to write once those exist than to derive in the abstract.
-
-R-2 is **withdrawn** (premise false — the correction was re-checked at Marcelo's request on
-2026-08-20 and holds, with one narrow empty-string divergence noted). R-9 is **implemented**; R-13 is
-**fixed and handed to another agent** for verification and PR. R-9–R-13 were authored by the main
-agent; R-1–R-8 and R-14 by the second agent. Every ✅ above is now a Marcelo ruling rather than an
-agent's judgement, so **a third agent may pick up any of them without further input** — read the item
-in full first, several carry a warning that costs a rebuild if skipped.
-
-## Open questions for review
-
-- ~~**R-11:** dropping `ContractTemplateProvision.Sequence` reverses ERD R-14~~ — **ANSWERED
-  2026-08-19 (Marcelo): drop it.** Logged as ERD R-20.
-- **R-11 (not blocking):** generalise the sort key to arbitrary segment depth via a scalar UDF, or add
-  a `CHECK` refusing a third segment? Current data has at most two.
-- **R-14:** the frozen field set, and specifically whether renewal-terms fields are transcription
-  (correctable) or terms (frozen). **Now also carries** R-12's lifecycle half — what happens to an
-  existing contract whose template later becomes unusable.
-- ~~**R-15:** lock/immutability cascade, or MJ entity permissions?~~ — **ANSWERED 2026-08-20
-  (Marcelo): the cascade.** Entity permissions are out of scope for this document.
-- **R-3:** build `RootParentContractID` / `RootSupersededByContractID`, or delete the metadata rows
-  that describe fields nothing returns?
-- **R-7:** who files the accounting + orders sequence issues, and against which repos?
+`ngc`/`tsc` clean and the pure predicate has 7 unit tests, but **nothing has executed either write.**
+Unverified: that the successor saves and then the predecessor's field is set, that the level guard's
+refusal surfaces its prose through the panel, and that the missing-successor refusal fires. This is not
+a separate blocker — it is the same unproven write path as item 13 (BUILD-STATE §2: no contract has
+ever been successfully saved in a browser in this app). The re-papering flow should be one of the first
+things driven once that is unblocked.

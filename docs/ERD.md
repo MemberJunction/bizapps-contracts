@@ -9,15 +9,15 @@
 > **GENERATED FROM THE LIVE SCHEMA.** Every table, column, nullability, foreign key, `CHECK` and
 > unique index below was read out of `sys.tables` / `sys.columns` / `sys.foreign_keys` /
 > `sys.check_constraints` / `sys.indexes` on a database built by `migrations/B202608040001…` through
-> `V202608192200…`.
+> `V202608201000…`.
 >
 > **It is checked, not trusted.** `npx tsx test-harnesses/erd-schema-diff.ts` diffs this document
 > against the live schema and exits non-zero on drift. Run it after any migration. The previous
 > revision of this file described the **v1** schema for a day after v1 was retired, and nothing about
 > reading it revealed that — which is why the check exists.
 
-**7 tables** · 8 internal
-> relationships · 4 cross-app foreign keys · 12 CHECK constraints · 6 unique indexes.
+**6 tables** · 8 internal
+> relationships · 4 cross-app foreign keys · 13 CHECK constraints · 6 unique indexes.
 
 Schema: `__mj_BizAppsContracts`. Entity name prefix: `MJ_BizApps_Contracts: `.
 
@@ -42,6 +42,7 @@ erDiagram
         date IntroducedDate "nullable"
         nvarchar SourceURL "where the text of this version lives"
         nvarchar Description "nullable"
+        nvarchar Status "Draft or Published"
     }
 
     ContractTemplateProvision {
@@ -49,9 +50,9 @@ erDiagram
         uuid ContractTemplateID FK "ContractTemplate"
         nvarchar ProvisionNumber "unique within the template"
         nvarchar Title "the clause heading"
-        nvarchar ProvisionText "nullable · nvarchar-max · the standard clause"
+        nvarchar ProvisionText "nvarchar-max · the standard clause · required, non-blank"
         nvarchar Description "nullable"
-        int Sequence "display order"
+        nvarchar ProvisionSortKey "nullable · collatable key derived from ProvisionNumber · display order"
     }
 
     ContractType {
@@ -60,7 +61,9 @@ erDiagram
         nvarchar Description "nullable"
         bit RequiresExecutedDocument "drives IsAwaitingDocument"
         nvarchar Status "Active or Inactive"
-        nvarchar ParentStatusRequirement "nullable · Required or Prohibited"
+        bit MustBeRoot "this type may not name a parent"
+        bit MustBeChild "this type MUST name a parent · change orders"
+        bit TemplateRequired "this type must cite a ContractTemplate"
     }
 
     Contract {
@@ -96,11 +99,6 @@ erDiagram
         nvarchar ModificationText "nullable · nvarchar-max · what THIS contract says"
         nvarchar Notes "nullable"
     }
-
-    ContractSequence {
-        int ID PK "singleton, always 1"
-        int NextSequenceNumber "default 1"
-    }
 ```
 
 Every table also carries `__mj_CreatedAt` and `__mj_UpdatedAt` (`datetimeoffset`, defaulted and
@@ -130,12 +128,14 @@ erDiagram
 this schema except those four, and none points into `bizapps-sales` — sales depends on contracts, so
 the deal reference is the soft `CreatingEntityID` + `CreatingRecordID` pair rather than a hard FK.
 
-`ContractSequence` participates in no relationship at all: it is a one-row counter read under a lock
-by `spAssignNextContractNumber`.
+`ContractNumber` is minted by `spAssignNextContractNumber` from the schema-owned SQL sequence
+`seq_ContractNumber` (`NO CACHE`, so a restart cannot make the numbers jump). The `ContractSequence`
+counter TABLE it replaced was dropped in `V202608200200` — a table was a full MJ entity, so anyone
+with entity permission could rewrite or delete the counter; a sequence has no such surface.
 
 ## 3. Constraints
 
-### 3.1 CHECK — 12
+### 3.1 CHECK — 13
 
 | Table | Constraint | Rule |
 |---|---|---|
@@ -147,14 +147,16 @@ by `spAssignNextContractNumber`.
 | `Contract` | `CK_Contract_CancellationWindow` | null or `>= 0` |
 | `Contract` | `CK_Contract_AnnualIncrease` | null or `>= 0` |
 | `ContractType` | `CK_ContractType_Status` | `IN ('Active','Inactive')` |
-| `ContractType` | `CK_ContractType_ParentStatusRequirement` | `IN ('Required','Prohibited')` — nullable, meaning "no restriction" |
+| `ContractType` | `CK_ContractType_RootOrChild` | `NOT (MustBeRoot = 1 AND MustBeChild = 1)` — a type cannot be both |
 | `ContractTemplateType` | `CK_ContractTemplateType_Status` | `IN ('Active','Inactive')` |
-| `ContractSequence` | `CK_ContractSequence_Singleton` | `ID = 1` |
-| `ContractSequence` | `CK_ContractSequence_NextSeq` | `NextSequenceNumber > 0` |
+| `ContractTemplate` | `CK_ContractTemplate_Status` | `IN ('Draft','Published')` |
+| `ContractTemplateProvision` | `CK_ContractTemplateProvision_TextNotBlank` | `LEN(LTRIM(RTRIM(ProvisionText))) > 0` |
+| `ContractTemplateModification` | `CK_ContractTemplateModification_TextNotBlank` | `LEN(LTRIM(RTRIM(ModificationText))) > 0` |
 
 All seven `Contract` constraints have a **generated `Validate()` counterpart** on
-`mjBizAppsContractsContractEntity`, and both `ContractSequence` constraints have one, so violating
-any of them produces a field-named message rather than a raw SQL error.
+`mjBizAppsContractsContractEntity`, and so do the two `TextNotBlank` constraints and
+`CK_ContractType_RootOrChild`, so violating any of them produces a field-named message rather than a
+raw SQL error.
 
 The three `IN (…)` constraints do **not**: CodeGen renders those as `ValueListType='List'` metadata
 (which drives the UI dropdown) rather than as validators, and `BaseEntity` does not validate value

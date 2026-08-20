@@ -15,12 +15,25 @@
       "ruled by Marcelo 2026-08-20): a column whose values invert the rule when read in the wrong order",
       "is a column that will eventually be read in the wrong order.",
       "",
-      "ORDER FORM AND PAYMENT LINK ARE RETIRED HERE (Status = Inactive), not deleted. Contracts does no",
-      "billing, so neither belongs — but 7 of the 9 existing contracts use them and every FK is",
-      "NO_ACTION, so a DELETE is simply refused. Retiring is also the better path on its own merits: it",
-      "is a live test of R-5 (two genuinely retired types, referenced by existing contracts, is exactly",
-      "the state the Inactive-selection rule has to handle) and R-8 (Delete now explains why it refuses).",
-      "The demo rows age out.",
+      "ORDER FORM AND PAYMENT LINK ARE ACTIVE. They were retired (Status = Inactive) under R-4 on the",
+      "reasoning that contracts does no billing, so neither belonged. REVERSED by Marcelo 2026-08-20: both",
+      "are real agreement shapes regardless of who bills, and 7 of the 9 existing contracts use them.",
+      "Their two rule columns differ in exactly the way the columns exist to express:",
+      "",
+      "  Order Form    TemplateRequired = 1, RequiresExecutedDocument = 1  — incorporates the MA, and",
+      "                somebody signs. Shows on Awaiting-documents until the file is registered.",
+      "  Payment Link  TemplateRequired = 1, RequiresExecutedDocument = 0  — incorporates the MA, and",
+      "                nobody signs. Never shows on Awaiting-documents. This is the ONLY type with",
+      "                RequiresExecutedDocument = 0 and the reason that column exists.",
+      "",
+      "Both previously carried TemplateRequired = 0, which contradicted their own descriptions: each one",
+      "says the agreement's terms live in the Master Agreement it references, and a contract whose terms",
+      "are entirely in a template it need not cite has no stated terms at all. Corrected here.",
+      "",
+      "NOTE — R-5's live test is now gone. Retiring these two was deliberately doubling as the real-world",
+      "test of the Inactive-selection rule (a retired type still referenced by existing contracts). With",
+      "both Active, nothing exercises that path against real data; R-5's coverage is unit-level only until",
+      "some other type is retired or a fixture supplies one.",
       "",
       "v1 seeded six types with fourteen columns of billing defaults (term months, billing frequency,",
       "escalation percents, renewal mode, coterm). All of it is gone: v2 does not bill, does not renew",
@@ -31,19 +44,19 @@
     ],
     "fields": {
       "Name": "Order Form",
-      "Description": "The commercial document a customer signs to buy — the ordinary agreement. Sits beneath a Master Agreement whose provisions it incorporates by reference, which is why the Order Form carries the ContractTemplateID rather than the MA carrying anything about it.",
+      "Description": "The commercial document a customer signs to buy — the ordinary agreement. Sits beneath a Master Agreement whose provisions it incorporates by reference, which is why the Order Form carries the ContractTemplateID rather than the MA carrying anything about it — hence TemplateRequired = 1. Signed paper is expected (RequiresExecutedDocument = 1), so it appears on the Awaiting-documents worklist until the executed file is registered. Reinstated Active 2026-08-20 (Marcelo), reversing the R-4 retirement.",
       "RequiresExecutedDocument": true,
-      "Status": "Inactive",
+      "Status": "Active",
       "MustBeRoot": false,
       "MustBeChild": false,
-      "TemplateRequired": false
+      "TemplateRequired": true
     },
     "primaryKey": {
       "ID": "33333333-0000-4000-8000-000000001001"
     },
     "sync": {
-      "lastModified": "2026-08-20T16:57:22.631Z",
-      "checksum": "99cd31b7d6020588cf04bd5f9c6cbedf82ef1502cfa80793ca76de00290a0690"
+      "lastModified": "2026-08-20T22:59:58.444Z",
+      "checksum": "14681f02c7186696fdedcca3ff4952face8e4bb14711d96708e11de52fc8afb7"
     }
   },
   {
@@ -67,19 +80,19 @@
   {
     "fields": {
       "Name": "Payment Link",
-      "Description": "The sub-$10k self-serve case: finance sends a HubSpot payment link that references the Master Agreement, and nobody signs anything. There is an implied contract, so it IS a contract — it has a ContractTemplateID and no document. This is the one type where RequiresExecutedDocument is false, and the reason that column exists at all.",
+      "Description": "The sub-$10k self-serve case: finance sends a HubSpot payment link that references the Master Agreement, and nobody signs anything. There is an implied contract, so it IS a contract — it carries a ContractTemplateID (TemplateRequired = 1, because the MA it incorporates is the only thing stating the terms) and no document. This is the one type where RequiresExecutedDocument is false, and the reason that column exists at all: it is what keeps a Payment Link OFF the Awaiting-documents worklist instead of sitting there forever waiting on paper that will never arrive. Reinstated Active 2026-08-20 (Marcelo), reversing the R-4 retirement; final shape pending Andrew's confirmation.",
       "RequiresExecutedDocument": false,
-      "Status": "Inactive",
+      "Status": "Active",
       "MustBeRoot": false,
       "MustBeChild": false,
-      "TemplateRequired": false
+      "TemplateRequired": true
     },
     "primaryKey": {
       "ID": "33333333-0000-4000-8000-000000001003"
     },
     "sync": {
-      "lastModified": "2026-08-20T06:29:17.113Z",
-      "checksum": "bce530681ff6bbefbf864854fc60611e96f50ff38b0d0b541f616d37befec058"
+      "lastModified": "2026-08-20T22:59:58.461Z",
+      "checksum": "48ce6187085de18faeb05ebde87e29ccde0e9ebcb6337b09230764a4eaf66fe5"
     }
   },
   {

@@ -563,7 +563,7 @@ export class MJCContractModificationsPanel extends BaseFormPanel<ContractEntity>
     selector: 'mjc-contract-lineage-panel',
     standalone: true,
     encapsulation: ViewEncapsulation.None,
-    imports: [CommonModule, BaseFormsModule],
+    imports: [CommonModule, FormsModule, BaseFormsModule],
     template: `
         <mj-collapsible-panel
             SectionKey="contractLineage"
@@ -585,11 +585,65 @@ export class MJCContractModificationsPanel extends BaseFormPanel<ContractEntity>
                         @if (SupersededBy) {
                             <p class="mjc-note">
                                 <span class="mjc-chip mjc-chip--muted">Superseded</span>
-                                Replaced by newer paper — this agreement's terms no longer govern.
+                                Replaced by <strong>{{ SupersededBy }}</strong> — this agreement's terms no longer govern.
                             </p>
                         }
                     </div>
                 }
+
+                <!-- ── Re-papering: what THIS agreement replaces ─────────────────────────────
+                     The FK lives on the PREDECESSOR, so this section writes another record. See
+                     LinkSupersedes(). Rendered on a brand-new contract too — picking the predecessor
+                     while composing the successor is the primary flow. -->
+                <div class="mjc-body">
+                    @if (Supersedes.length) {
+                        <p class="mjc-note">
+                            <span class="mjc-chip mjc-chip--info">Re-papers</span>
+                            This agreement replaces
+                            @for (p of Supersedes; track p.ID) {
+                                <strong>{{ p.ContractNumber }}</strong>{{ $last ? '' : ', ' }}
+                            }.
+                            @if (EditMode) {
+                                @for (p of Supersedes; track p.ID) {
+                                    <button type="button" class="mjc-btn mjc-btn--flat mjc-btn--sm"
+                                            [disabled]="Busy"
+                                            (click)="UnlinkSupersedes(p.ID)"
+                                            [attr.aria-label]="'Stop superseding ' + p.ContractNumber">
+                                        Unlink {{ p.ContractNumber }}
+                                    </button>
+                                }
+                            }
+                        </p>
+                    }
+
+                    @if (EditMode) {
+                        <div class="mjc-field">
+                            <label for="mjc-supersedes-picker">This agreement supersedes</label>
+                            <select id="mjc-supersedes-picker" [(ngModel)]="PickedPredecessorID" [disabled]="Busy"
+                                    aria-label="Choose the contract this agreement replaces">
+                                <option [ngValue]="''">— nothing (this is new paper) —</option>
+                                @for (c of Candidates; track c.ID) {
+                                    <option [ngValue]="c.ID">{{ c.ContractNumber }} — {{ c.ContractType }}</option>
+                                }
+                            </select>
+                            <button type="button" class="mjc-btn mjc-btn--sm"
+                                    [disabled]="Busy || !PickedPredecessorID"
+                                    (click)="LinkSupersedes()">
+                                {{ Busy ? 'Linking…' : 'Link' }}
+                            </button>
+                            <div class="mjc-hint">
+                                Saves this contract first, then marks the chosen agreement superseded by it.
+                            </div>
+                            @if (!Candidates.length && !CandidatesLoading) {
+                                <div class="mjc-hint">
+                                    Nothing eligible. A predecessor must sit at the same level as this contract
+                                    ({{ LevelDescription }}) and must not already be superseded.
+                                </div>
+                            }
+                            @if (LinkError) { <div class="mjc-error">{{ LinkError }}</div> }
+                        </div>
+                    }
+                </div>
 
                 @if (Children.length) {
                     <table class="mjc-grid">
@@ -629,7 +683,133 @@ export class MJCContractLineagePanel extends BaseFormPanel<ContractEntity> {
     private loadStarted = false;
 
     public get ParentName(): string { return this.Record?.ParentContract ?? ''; }
-    public get SupersededBy(): string { return this.Record?.SupersededByContractID ?? ''; }
+
+    /**
+     * The successor's NUMBER, not its id.
+     *
+     * Was `SupersededByContractID` — which rendered a raw UUID to the user in the one place the panel
+     * is trying to say something human ("replaced by newer paper"). `SupersededByContract` is the
+     * generated virtual FK-name field, so this costs nothing extra to read.
+     */
+    public get SupersededBy(): string { return this.Record?.SupersededByContract ?? ''; }
+
+    /** Predecessors THIS contract replaces — the reverse of `SupersededByContractID`. */
+    public Supersedes: Array<{ ID: string; ContractNumber: string }> = [];
+    /** Eligible predecessors, loaded only in EditMode. */
+    public Candidates: Array<{ ID: string; ContractNumber: string; ContractType: string }> = [];
+    public CandidatesLoading = false;
+    public PickedPredecessorID = '';
+    public Busy = false;
+    public LinkError = '';
+
+    /** Names this contract's level, so the empty-candidates hint can explain what "eligible" means. */
+    public get LevelDescription(): string {
+        return this.Record?.ParentContractID
+            ? `under ${this.Record.ParentContract ?? 'its parent contract'}`
+            : 'a top-level agreement';
+    }
+
+    /**
+     * Re-paper: mark the chosen PREDECESSOR as superseded by this contract.
+     *
+     * TWO STEPS, IN THIS ORDER, and that is the whole operation. The predecessor cannot point at a
+     * contract that does not exist yet, so this one is saved first; then the predecessor's own
+     * `Supersede()` sets its field and saves. `ContractEntityServer` validates the level on that
+     * second save — the same rule that applies to anyone setting `SupersededByContractID` by hand.
+     *
+     * WHY THIS WRITES ANOTHER RECORD. The relationship is stored on the predecessor, which is the
+     * correct direction: it keeps "a contract is superseded at most once" structurally true, supports
+     * several agreements consolidating into one, and lets the base view derive `Superseded` from a
+     * column on the row it is already projecting rather than an EXISTS subquery on the app's hottest
+     * read path. The cost of that choice is exactly this — the successor's form reaches over and writes
+     * the predecessor. No `SupersedesID` column is needed to carry the intent: the picker yields an ID
+     * and `Supersede()` takes the entity.
+     *
+     * DELIBERATELY NOT ONE TRANSACTION (simplified 2026-08-20 after Marcelo pushed back). A
+     * `TransactionGroup` would make both writes atomic, but it DEFERS every write until `Submit()` —
+     * so the predecessor would validate against a successor that has an ID and no row, and the level
+     * check could not tell an unwritten sibling from a bad reference. That ambiguity was the only
+     * reason the guard needed a special case.
+     *
+     * And atomicity buys very little here: the successor is not a byproduct of superseding, it is a
+     * contract the user is deliberately creating. If the link fails, what remains is that contract,
+     * unlinked — not garbage — and the picker below retries the link on its own. A benign, visible,
+     * recoverable partial state is worth more than a rule the validator cannot check.
+     */
+    public async LinkSupersedes(): Promise<void> {
+        const predecessorID = this.PickedPredecessorID;
+        if (!predecessorID || !this.Record) return;
+
+        this.Busy = true;
+        this.LinkError = '';
+        try {
+            const { Metadata } = await import('@memberjunction/core');
+            const provider = this.FormComponent?.ProviderToUse ?? Metadata.Provider;
+
+            // 1 · The successor must exist before anything can point at it.
+            if (this.Record.Dirty || !this.Record.IsSaved) {
+                if (!(await this.Record.Save())) {
+                    throw new Error(
+                        this.Record.LatestResult?.Message ??
+                            'This contract could not be saved, so nothing was superseded.',
+                    );
+                }
+            }
+
+            // 2 · Set the field on the predecessor. Its own validation checks the level.
+            const predecessor = await provider.GetEntityObject<ContractEntity>(MJC_ENTITIES.Contract);
+            if (!(await predecessor.Load(predecessorID))) {
+                throw new Error('That contract could not be loaded — it may have been deleted.');
+            }
+            predecessor.Supersede(this.Record);
+            if (!(await predecessor.Save())) {
+                throw new Error(
+                    predecessor.LatestResult?.Message ??
+                        'The predecessor could not be marked superseded. This contract was saved and is not linked.',
+                );
+            }
+
+            this.PickedPredecessorID = '';
+            this.loadStarted = false;
+            await this.load();
+        } catch (e) {
+            this.LinkError = e instanceof Error ? e.message : String(e);
+        } finally {
+            this.Busy = false;
+            this.cdr.detectChanges();
+        }
+    }
+
+    /**
+     * Undo a re-papering — clear the predecessor's successor FK.
+     *
+     * Left available deliberately (Marcelo, 2026-08-20: "supersedes should be left unlocked for now").
+     * One record changes, so no transaction group is needed. The predecessor returns to whatever state
+     * its own dates imply, because `Superseded` was never stored.
+     */
+    public async UnlinkSupersedes(predecessorID: string): Promise<void> {
+        this.Busy = true;
+        this.LinkError = '';
+        try {
+            const { Metadata } = await import('@memberjunction/core');
+            const provider = this.FormComponent?.ProviderToUse ?? Metadata.Provider;
+            const predecessor = await provider.GetEntityObject<ContractEntity>(MJC_ENTITIES.Contract);
+            if (!(await predecessor.Load(predecessorID))) {
+                throw new Error('That contract could not be loaded — it may have been deleted.');
+            }
+            predecessor.SupersededByContractID = null;
+            if (!(await predecessor.Save())) {
+                throw new Error(predecessor.LatestResult?.Message ?? 'Could not unlink. Nothing was changed.');
+            }
+            this.loadStarted = false;
+            await this.load();
+        } catch (e) {
+            this.LinkError = e instanceof Error ? e.message : String(e);
+        } finally {
+            this.Busy = false;
+            this.cdr.detectChanges();
+        }
+    }
 
     public get Count(): number | undefined {
         this.ensureLoaded();
@@ -651,12 +831,13 @@ export class MJCContractLineagePanel extends BaseFormPanel<ContractEntity> {
     }
 
     private async load(): Promise<void> {
+        const me = this.Record!.ID;
+        const rv = await this.scopedRunView();
         try {
-            const { ScopedRunView } = await import('../data/provider');
-            const r = await ScopedRunView(this.FormComponent?.ProviderToUse).RunView<Record<string, string | null>>({
+            const r = await rv.RunView<Record<string, string | null>>({
                 EntityName: MJC_ENTITIES.Contract,
                 Fields: ['ID', 'ContractNumber', 'ContractType', 'Description', 'ExecutedDate'],
-                ExtraFilter: `ParentContractID = '${this.Record!.ID}'`,
+                ExtraFilter: `ParentContractID = '${me}'`,
                 OrderBy: 'ExecutedDate ASC',
                 ResultType: 'simple',
             });
@@ -664,7 +845,63 @@ export class MJCContractLineagePanel extends BaseFormPanel<ContractEntity> {
         } catch {
             this.Children = [];
         }
+
+        // What this contract replaces. The reverse of `SupersededByContractID`, so it is a query and
+        // not a field read — a set, because several agreements may consolidate into one successor.
+        try {
+            const r = await rv.RunView<{ ID: string; ContractNumber: string }>({
+                EntityName: MJC_ENTITIES.Contract,
+                Fields: ['ID', 'ContractNumber'],
+                ExtraFilter: `SupersededByContractID = '${me}'`,
+                OrderBy: 'ContractNumber ASC',
+                ResultType: 'simple',
+            });
+            this.Supersedes = r?.Success ? r.Results : [];
+        } catch {
+            this.Supersedes = [];
+        }
+
+        await this.loadCandidates();
         this.cdr.detectChanges();
+    }
+
+    /**
+     * Eligible predecessors: same level, not already superseded, not this contract.
+     *
+     * The same-level predicate has to be written two ways because `ParentContractID = NULL` matches
+     * nothing in SQL — a top-level contract's peers are found with `IS NULL`, a child's with an
+     * equality. Getting that wrong would silently offer an empty list to every root contract, which is
+     * most of them.
+     *
+     * This mirrors `refuseCrossLevelSupersession` but does NOT replace it: this query decides what to
+     * OFFER, the server decides what is ALLOWED. If they ever disagree the server wins and the user
+     * sees its message — which is the right way round.
+     */
+    private async loadCandidates(): Promise<void> {
+        if (!this.EditMode) { this.Candidates = []; return; }
+        this.CandidatesLoading = true;
+        try {
+            const parentID = this.Record?.ParentContractID ?? null;
+            const sameLevel = parentID === null ? 'ParentContractID IS NULL' : `ParentContractID = '${parentID}'`;
+            const rv = await this.scopedRunView();
+            const r = await rv.RunView<{ ID: string; ContractNumber: string; ContractType: string }>({
+                EntityName: MJC_ENTITIES.Contract,
+                Fields: ['ID', 'ContractNumber', 'ContractType'],
+                ExtraFilter: `${sameLevel} AND SupersededByContractID IS NULL AND ID <> '${this.Record!.ID}'`,
+                OrderBy: 'ContractNumber ASC',
+                ResultType: 'simple',
+            });
+            this.Candidates = r?.Success ? r.Results : [];
+        } catch {
+            this.Candidates = [];
+        } finally {
+            this.CandidatesLoading = false;
+        }
+    }
+
+    private async scopedRunView() {
+        const { ScopedRunView } = await import('../data/provider');
+        return ScopedRunView(this.FormComponent?.ProviderToUse);
     }
 }
 

@@ -16,8 +16,8 @@ import {
     ValidationErrorType,
     ValidationResult,
 } from '@memberjunction/core';
-import { RegisterClass } from '@memberjunction/global';
-import { ContractEntity } from '@mj-biz-apps/contracts-entities';
+import { RegisterClass, UUIDsEqual } from '@memberjunction/global';
+import { ContractEntity, IsSameContractLevel } from '@mj-biz-apps/contracts-entities';
 import { GuardedDelete, plural } from './delete-guard.js';
 
 /**
@@ -200,7 +200,11 @@ export class ContractEntityServer extends ContractEntity {
         await this.refuseUnusableTemplate(result);
 
         await this.refuseRetiredSelections(result);
+        // Runs BEFORE both lineage guards: each of them skips the self-referential case, and this call
+        // is what makes that skip a deduplication rather than an assumption.
+        this.refuseSelfReferences(result);
         await this.refuseLineageCycles(result);
+        await this.refuseCrossLevelSupersession(result);
 
         return result;
     }
@@ -418,8 +422,13 @@ export class ContractEntityServer extends ContractEntity {
             const proposed = axis.Proposed;
             if (!proposed) continue;
             if (!this.isNewlySelected(axis.Field)) continue;
-            // A -> A belongs to the generated CHECK validator.
-            if (String(proposed).toLowerCase() === String(this.ID).toLowerCase()) continue;
+            // A -> A is reported by `refuseSelfReferences`, called just before this method, so skipping
+            // it here deduplicates a failure THIS CLASS has already recorded. It previously said the
+            // error "belongs to the generated CHECK validator" — an assumption about code this class does
+            // not own, and that validator turns out to miss the case where the two UUIDs differ only in
+            // casing. `ParentContractID -> self` had NO other check here at all, so that axis was relying
+            // entirely on it.
+            if (UUIDsEqual(proposed, this.ID)) continue;
 
             const chain = await this.lineageReachesSelf(axis.Field, proposed);
             if (chain) {
@@ -429,6 +438,130 @@ export class ContractEntityServer extends ContractEntity {
                 );
             }
         }
+    }
+
+    /**
+     * A contract may not be its own parent, nor its own successor. Reported HERE, unconditionally.
+     *
+     * WHY THIS EXISTS when `CK_Contract_ParentNotSelf` / `CK_Contract_SupersededNotSelf` and their
+     * generated validators all cover it: because the generated validators DO NOT actually cover it.
+     * They are LLM-authored from the constraint text (`generateValidatorFunctionFromCheckConstraint`
+     * → the `CodeGen: Check Constraint Parser` prompt), and both emitted `===` on a `uniqueidentifier`:
+     *
+     *     if (this.SupersededByContractID != null && this.SupersededByContractID === this.ID) { ... }
+     *
+     * MJ returns UUIDs in either casing depending on how a row was loaded, so a lowercase value against
+     * an uppercase `ID` is the SAME contract and that check silently misses it. Filed in MJ-UPSTREAM.md.
+     *
+     * AND THE RULE IS CHECKED WHOLE, not only the part the generated code misses. Covering just the
+     * casing-differs case and deferring the rest would bless a genuinely invalid state on an assumption
+     * about code this class does not own — and the moment that code changes, an invalid state starts
+     * reading as success. The cost of overlap is one duplicated message; the cost of the gap is a wrong
+     * save. This is also why the two lineage guards below delegate here rather than each deciding: one
+     * owner, checked fully, in this file, where the skip can be verified by reading it.
+     */
+    private refuseSelfReferences(result: ValidationResult): void {
+        const axes: Array<{ Field: 'ParentContractID' | 'SupersededByContractID'; Value: string | null; Message: string }> = [
+            { Field: 'ParentContractID', Value: this.ParentContractID, Message: 'A contract cannot be its own parent.' },
+            { Field: 'SupersededByContractID', Value: this.SupersededByContractID, Message: 'A contract cannot be superseded by itself.' },
+        ];
+        for (const axis of axes) {
+            if (!axis.Value || !UUIDsEqual(axis.Value, this.ID)) continue;
+            result.Success = false;
+            result.Errors.push(new ValidationErrorInfo(axis.Field, axis.Message, axis.Value, ValidationErrorType.Failure));
+        }
+    }
+
+    /**
+     * A contract may only supersede a contract at the SAME LEVEL of the tree — same `ParentContractID`.
+     *
+     * WHY THIS IS NOT "ROOT ONLY" (ruled by Marcelo, 2026-08-20). The obvious-looking rule is that only
+     * a top-level agreement may be re-papered. It is wrong in both directions. A change order genuinely
+     * does get renegotiated and replaced by a second change order under the same order form — forbidding
+     * that would force somebody to DELETE the first one, destroying the history re-papering exists to
+     * preserve. And "root only" would still permit the incoherent case: a change order claiming to
+     * replace a whole order form, which asserts that a subordinate document replaced the agreement it
+     * hangs off.
+     *
+     * So the axis that matters is not depth, it is SIBLINGHOOD. `ParentContractID` says what a document
+     * sits under; `SupersededByContractID` says what replaced it. A supersession that crosses levels is
+     * the only genuinely meaningless combination, and same-parent is exactly the predicate that excludes
+     * it while allowing everything real: two roots (both NULL) or two siblings (same parent).
+     *
+     * TYPE IS DELIBERATELY NOT CONSTRAINED. An Order Form replaced by an Order Form is the common case,
+     * but a Payment Link customer graduating to signed paper is a real cross-type supersession — and
+     * `Payment Link -> Order Form` is precisely the upgrade path the two types exist to distinguish.
+     * Constraining `ContractTypeID` here would forbid it for no benefit.
+     *
+     * WHY THIS IS NOT A CHECK CONSTRAINT. The rule compares THIS row's `ParentContractID` with ANOTHER
+     * row's, and a CHECK sees only the row being written — the same reason `refuseLineageCycles` lives
+     * here. One indexed read of the target contract is the whole cost.
+     *
+     * RUNS ON CREATE TOO, unlike `refuseLineageCycles`. A cycle is impossible before the row exists
+     * (nothing can point at it yet), but a cross-level supersession is entirely possible on a brand-new
+     * contract — a successor composed in the browser names its predecessor before either is saved, which
+     * is the primary flow this rule exists to police. Gated on `isNewlySelected` instead, so an ordinary
+     * re-save of an existing chain is not re-policed and legacy rows are not retro-refused.
+     */
+    private async refuseCrossLevelSupersession(result: ValidationResult): Promise<void> {
+        if (!this.SupersededByContractID) return;
+        if (!this.isNewlySelected('SupersededByContractID')) return;
+
+        // Reported in full by `refuseSelfReferences`, which runs immediately before this method.
+        // Comparing a contract's level against its own is meaningless, so there is nothing further to
+        // say here — this skips a SECOND message for a failure this class has already recorded, which is
+        // not the same thing as trusting another layer to catch it.
+        if (UUIDsEqual(this.SupersededByContractID, this.ID)) return;
+
+        const target = await this.RunViewProviderToUse.RunView<{ ContractNumber: string; ParentContractID: string | null }>(
+            {
+                EntityName: 'MJ_BizApps_Contracts: Contracts',
+                ExtraFilter: `ID = '${this.SupersededByContractID}'`,
+                Fields: ['ContractNumber', 'ParentContractID'],
+                ResultType: 'simple',
+            },
+            this.ContextCurrentUser,
+        );
+        const row = target?.Results?.[0];
+        if (!row) {
+            // A contract cannot be superseded by one that does not exist — the successor must be saved
+            // before anything can point at it. `FK_Contract_SupersededBy` would refuse this too, but it
+            // reports a constraint name and no field, so the refusal is worth stating properly.
+            result.Success = false;
+            result.Errors.push(
+                new ValidationErrorInfo(
+                    'SupersededByContractID',
+                    `The contract named as replacing ${this.ContractNumber ?? this.ID} could not be found. It may ` +
+                        `have been deleted, or you may not have access to it. Pick an existing contract, or clear ` +
+                        `the field if this agreement has not been re-papered.`,
+                    this.SupersededByContractID,
+                    ValidationErrorType.Failure,
+                ),
+            );
+            return;
+        }
+
+        const myParentID = this.ParentContractID ?? null;
+        const theirParentID = row.ParentContractID ?? null;
+        if (IsSameContractLevel(myParentID, theirParentID)) return;
+
+        // Say which side is which, because "levels differ" leaves the reader to work out whether to move
+        // the parent or pick a different successor.
+        const describe = (parent: string | null, label: string): string =>
+            parent === null ? `${label} is a top-level agreement` : `${label} sits under another contract`;
+
+        result.Success = false;
+        result.Errors.push(
+            new ValidationErrorInfo(
+                'SupersededByContractID',
+                `Contract ${this.ContractNumber ?? this.ID} cannot be superseded by ${row.ContractNumber ?? 'that contract'}: ` +
+                    `${describe(myParentID, 'this contract')}, but ${describe(theirParentID, 'that one')}. A re-papering replaces an ` +
+                    `agreement with one at the same level — two top-level agreements, or two documents under the same ` +
+                    `parent. Pick a successor alongside this contract, or correct whichever parent is wrong.`,
+                this.SupersededByContractID,
+                ValidationErrorType.Failure,
+            ),
+        );
     }
 
     /**
