@@ -1,9 +1,9 @@
 ---
-'@mj-biz-apps/contracts-entities': minor
-'@mj-biz-apps/contracts-actions': minor
-'@mj-biz-apps/contracts-server': minor
-'@mj-biz-apps/contracts-core-entities-server': minor
-'@mj-biz-apps/contracts-ng': minor
+'@mj-biz-apps/contracts-entities': patch
+'@mj-biz-apps/contracts-actions': patch
+'@mj-biz-apps/contracts-server': patch
+'@mj-biz-apps/contracts-core-entities-server': patch
+'@mj-biz-apps/contracts-ng': patch
 ---
 
 MJ 6 and pnpm, matching the family baseline.

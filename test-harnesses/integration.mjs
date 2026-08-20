@@ -13,16 +13,14 @@
  *
  * Exit: 0 pass · 1 check failure · 2 bootstrap failure
  */
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
-import dotenv from 'dotenv';
 import sql from 'mssql';
+import { loadEnvFrom } from './load-env.mjs';
 
-const here = path.dirname(fileURLToPath(import.meta.url));
-// The instance's MJ worktree root — `here` is <mj>/packages/dev-apps/bizapps-contracts/test-harnesses,
-// so the root env is four levels up. The app's own .env, if present, wins.
-dotenv.config({ path: path.resolve(here, '..', '..', '..', '..', '.env'), quiet: true });
-dotenv.config({ path: path.resolve(here, '..', '.env'), quiet: true });
+// Finds the instance .env by walking UP rather than counting directories. The fixed four-level path
+// this used to hard-code was correct only for the pre-6.x nested layout; under the parent-workspace
+// topology it resolved to ~/MJDev and silently loaded nothing, so DB_PORT stayed undefined and the
+// script died with "Failed to connect to localhost:1433". See load-env.mjs.
+loadEnvFrom(import.meta.url);
 
 /** Every bundle, in presentational order — each owns its own fixture. */
 // The v2 bundles (plan item 13). v1's contracts-composition / -save-contract / -billing /
@@ -52,9 +50,14 @@ const pool = await new sql.ConnectionPool({
     requestTimeout: 60_000,
 }).connect();
 
-const { setupSQLServerClient, SQLServerProviderConfigData, UserCache } = await import(
-    '@memberjunction/sqlserver-dataprovider'
-);
+// UserCache moved to @memberjunction/generic-database-provider. It used to be re-exported from
+// @memberjunction/sqlserver-dataprovider, and importing it from there now yields `undefined` — so
+// `UserCache.Instance` throws "Cannot read properties of undefined (reading 'Instance')", which names
+// no package and reads like a broken provider. This is the same failure signature `mjdev app migrate`
+// and `mjdev app capture` produce on this instance (plans/WORKAROUNDS.md W-2), so it is very likely
+// the same moved export inside the mjdev-bundled engine.
+const { setupSQLServerClient, SQLServerProviderConfigData } = await import('@memberjunction/sqlserver-dataprovider');
+const { UserCache } = await import('@memberjunction/generic-database-provider');
 const provider = await setupSQLServerClient(
     new SQLServerProviderConfigData(pool, process.env.MJ_CORE_SCHEMA || '__mj'),
 );
@@ -68,9 +71,12 @@ if (!user) {
 // The entity subclasses under test register as a side effect of importing the server package.
 // Without this the checks would exercise the plain generated entities and pass while proving
 // nothing — every invariant in this suite lives in a subclass.
-await import('@memberjunction/server-bootstrap-lite');
-await import('@mj-biz-apps/common-entities');
-await import('@mj-biz-apps/orders-entities');
+// NOT importing @memberjunction/server-bootstrap-lite, @mj-biz-apps/common-entities or
+// @mj-biz-apps/orders-entities: none is a declared dependency of this repo, so under pnpm's strict
+// node_modules all three are unresolvable and the FIRST of them killed this script at bootstrap with
+// ERR_MODULE_NOT_FOUND — before it ever reached the registry, which is what made the harness look
+// unwired. bootstrap-lite only preloads MJ CORE class registrations and nothing here touches a core
+// subclass; the other two belong to sibling apps. Same reasoning as parent-requirement.mjs.
 await import('@mj-biz-apps/contracts-entities');
 await import('@mj-biz-apps/contracts-core-entities-server');
 

@@ -512,7 +512,8 @@ export class RecordFilesPanelBase extends BaseFormPanel implements OnInit {
         // `contributionRailKey()` returns null for a panel with no `relatedEntity` and chrome skips it,
         // so Documents could never be a rail item however it was configured.
         contributionKey: 'recordFiles',
-        inclusion: 'Primary',
+        // No `inclusion: 'Primary'` — see the long note in contract.panels.ts: Primary means
+        // "promote ahead of Details", which is the opposite of what this form wants.
     },
 })
 @Component({

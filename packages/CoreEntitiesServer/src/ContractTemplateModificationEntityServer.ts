@@ -9,7 +9,14 @@
  *
  * @module @mj-biz-apps/contracts-core-entities-server
  */
-import { BaseEntity, LogError, Metadata, ValidationErrorInfo, ValidationErrorType, ValidationResult } from '@memberjunction/core';
+import {
+    BaseEntity,
+    LogError,
+    Metadata,
+    ValidationErrorInfo,
+    ValidationErrorType,
+    ValidationResult,
+} from '@memberjunction/core';
 import { RegisterClass } from '@memberjunction/global';
 import { ContractEntity, mjBizAppsContractsContractTemplateModificationEntity } from '@mj-biz-apps/contracts-entities';
 
@@ -131,19 +138,40 @@ export class ContractTemplateModificationEntityServer extends mjBizAppsContracts
      * "invalid provision" sends the user back to a picker with no idea what to pick.
      */
     private async provisionOutsideContractTemplate(): Promise<{ ProvisionTemplate: string; ContractTemplate: string } | null> {
-        const provider = this.ProviderToUse as unknown as { ExecuteSQL: (sql: string, params?: unknown[]) => Promise<unknown> };
-        const rows = (await provider.ExecuteSQL(
-            `SELECT pt.[Name] AS ProvisionTemplate, ctt.[Name] AS ContractTemplate
-               FROM __mj_BizAppsContracts.ContractTemplateProvision p
-               JOIN __mj_BizAppsContracts.ContractTemplate pt ON pt.ID = p.ContractTemplateID
-               JOIN __mj_BizAppsContracts.Contract c ON c.ID = @p1
-               JOIN __mj_BizAppsContracts.ContractTemplate ctt ON ctt.ID = c.ContractTemplateID
-              WHERE p.ID = @p0
-                AND c.ContractTemplateID IS NOT NULL
-                AND p.ContractTemplateID <> c.ContractTemplateID;`,
-            [this.ContractTemplateProvisionID, this.ContractID],
-        )) as Array<{ ProvisionTemplate: string; ContractTemplate: string }>;
-        return rows?.[0] ?? null;
+        // TWO RunViews rather than one join. The raw SQL this replaces joined provision -> template and
+        // contract -> template in one statement, which is fewer round trips and the wrong trade: a join
+        // across entity base tables is invisible to entity permissions and is written in T-SQL, and this
+        // app has to run on PostgreSQL eventually. Two metadata-mediated reads of a single row each are
+        // cheap, and this path only runs when a modification is being saved.
+        const view = this.RunViewProviderToUse;   // MJ's own accessor — baseEntity.ts:2143
+        const [provision, contract] = await Promise.all([
+            view.RunView<{ ContractTemplate: string; ContractTemplateID: string }>(
+                {
+                    EntityName: 'MJ_BizApps_Contracts: Contract Template Provisions',
+                    ExtraFilter: `ID = '${this.ContractTemplateProvisionID}'`,
+                    Fields: ['ContractTemplateID', 'ContractTemplate'],
+                    ResultType: 'simple',
+                },
+                this.ContextCurrentUser,
+            ),
+            view.RunView<{ ContractTemplate: string; ContractTemplateID: string }>(
+                {
+                    EntityName: 'MJ_BizApps_Contracts: Contracts',
+                    ExtraFilter: `ID = '${this.ContractID}'`,
+                    Fields: ['ContractTemplateID', 'ContractTemplate'],
+                    ResultType: 'simple',
+                },
+                this.ContextCurrentUser,
+            ),
+        ]);
+
+        const p = provision?.Results?.[0];
+        const c = contract?.Results?.[0];
+        // A contract with no template incorporates no standard terms, so no provision can be outside
+        // them — the original SQL encoded this as `AND c.ContractTemplateID IS NOT NULL`.
+        if (!p || !c || !c.ContractTemplateID) return null;
+        if (p.ContractTemplateID === c.ContractTemplateID) return null;
+        return { ProvisionTemplate: p.ContractTemplate, ContractTemplate: c.ContractTemplate };
     }
 }
 

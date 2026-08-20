@@ -122,10 +122,14 @@ const CONFIG_TEMPLATE = `
     template: `
         <div class="mjc-page mjc-page--grid">
             <p class="mjc-page__intro">
-                What kind of document a contract is. One column here carries a rule:
-                <strong>Requires Executed Document</strong> is what makes a contract appear on the
-                <em>Awaiting documents</em> worklist, so a Payment Link — where nobody signs anything —
-                never reports as missing paper. Everything else about a type is a label.
+                What kind of document a contract is. Two columns here carry rules, and the rest is
+                labelling. <strong>Requires Executed Document</strong> is what makes a contract appear on
+                the <em>Awaiting documents</em> worklist, so a Payment Link — where nobody signs anything
+                — never reports as missing paper. <strong>Parent status requirement</strong> decides
+                whether a contract of this type must name the agreement it changes
+                (<em>Required</em> — a Change Order amends something, so it has to say what), must not
+                (<em>Prohibited</em> — it stands on its own), or may do either when left blank. Both are
+                enforced when a contract is saved, and neither is decided from the type's NAME.
             </p>
             <p class="mjc-page__intro">
                 Retire a type by setting its <strong>Status</strong> to <em>Inactive</em> rather than

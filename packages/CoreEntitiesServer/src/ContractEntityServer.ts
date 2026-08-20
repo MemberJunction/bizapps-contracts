@@ -7,7 +7,14 @@
  *
  * @module @mj-biz-apps/contracts-core-entities-server
  */
-import { BaseEntity, LogError, ValidationErrorInfo, ValidationErrorType, ValidationResult } from '@memberjunction/core';
+import {
+    BaseEntity,
+    type DatabaseProviderBase,
+    LogError,
+    ValidationErrorInfo,
+    ValidationErrorType,
+    ValidationResult,
+} from '@memberjunction/core';
 import { RegisterClass } from '@memberjunction/global';
 import { ContractEntity } from '@mj-biz-apps/contracts-entities';
 
@@ -54,15 +61,21 @@ export class ContractEntityServer extends ContractEntity {
      * ordinary save pays nothing. The message is the shared class's, deliberately — the user should
      * not be able to tell which tier refused them.
      *
-     * A CHANGE ORDER MUST NAME WHAT IT CHANGES. The rule needs the ContractType row to know whether
-     * this contract IS a change order, which is a join the browser has no business doing — so the
-     * shared class cannot carry it (ERD §7.1). Without the rule a change order with no parent is a
-     * contract that claims to amend something and names nothing, and the derived `IsChangeOrder`
-     * reads false on it, so it silently disappears from every lineage view.
+     * THE TYPE DECIDES WHETHER A PARENT IS ALLOWED. `ContractType.ParentStatusRequirement` is
+     * `'Required'`, `'Prohibited'` or NULL, and this reads it. The rule needs the type row, which is a
+     * join the browser has no business doing, so the shared class cannot carry it (ERD §7.1).
      *
-     * Deliberately keyed on the type NAME here, which is the one place that is correct: the check has
-     * to ask "is this the change-order type", and the type table carries no boolean for it —
-     * `RequiresExecutedDocument` is the only rule column, and it says something else entirely.
+     * ⚠ THIS USED TO COMPARE THE TYPE'S NAME TO THE STRING 'Change Order' — and that was the defect,
+     * not a shortcut. A display name is not a rule: renaming that lookup row, an ordinary thing to do,
+     * silently stopped the check from ever firing, with nothing failing and no error to notice. The
+     * column now carries the constraint, so the rule reads a rule (Marcelo, 2026-08-19).
+     *
+     * Both directions are enforced, because a column with three states that only ever checks one of
+     * them is two-thirds decoration: `'Required'` refuses a missing parent (a change order that amends
+     * nothing would never appear in the original agreement's lineage), and `'Prohibited'` refuses a
+     * present one (a root agreement sitting under another contract is a lineage cycle waiting to
+     * happen). NULL enforces nothing, which is the honest default for a type that can legitimately do
+     * either.
      */
     public override async ValidateAsync(): Promise<ValidationResult> {
         const result = await super.ValidateAsync();
@@ -81,21 +94,56 @@ export class ContractEntityServer extends ContractEntity {
             );
         }
 
-        if (this.ContractTypeID && !this.ParentContractID && (await this.isChangeOrderType())) {
-            result.Success = false;
-            result.Errors.push(
-                new ValidationErrorInfo(
-                    'ParentContractID',
-                    `Contract ${this.ContractNumber ?? ''} is a Change Order, so it must name the contract it ` +
-                        `changes. A change order with no parent amends nothing and would not appear in the ` +
-                        `original agreement's lineage.`,
-                    this.ParentContractID,
-                    ValidationErrorType.Failure,
-                ),
-            );
+        if (this.ContractTypeID) {
+            const requirement = await this.parentStatusRequirement();
+            if (requirement === 'Required' && !this.ParentContractID) {
+                result.Success = false;
+                result.Errors.push(
+                    new ValidationErrorInfo(
+                        'ParentContractID',
+                        `Contract ${this.ContractNumber ?? ''} is a ${await this.typeName()}, which must name the ` +
+                            `contract it changes. One that names nothing amends nothing, and would not appear in the ` +
+                            `original agreement's lineage.`,
+                        this.ParentContractID,
+                        ValidationErrorType.Failure,
+                    ),
+                );
+            } else if (requirement === 'Prohibited' && this.ParentContractID) {
+                result.Success = false;
+                result.Errors.push(
+                    new ValidationErrorInfo(
+                        'ParentContractID',
+                        `Contract ${this.ContractNumber ?? ''} is a ${await this.typeName()}, which stands on its own ` +
+                            `and cannot sit under another contract. Record the relationship the other way round, or ` +
+                            `change the contract type.`,
+                        this.ParentContractID,
+                        ValidationErrorType.Failure,
+                    ),
+                );
+            }
         }
 
         return result;
+    }
+
+    /**
+     * A shrotcut to get the datbaseProvider.
+     *
+     * `ExecuteSQL<T>(query, parameters?, options?, contextUser?)` is a public member of
+     * `DatabaseProviderBase`, which `@memberjunction/core` exports — so the four
+     * `as unknown as { ExecuteSQL: … }` casts this replaces were never necessary. Each of them
+     * re-declared a narrower signature than the real one: no generic (forcing a second cast on every
+     * result), and no `contextUser` parameter, which made the API look as though it could not carry a
+     * context user at all. Worse, `as unknown as` switches off checking, so a signature change
+     * upstream would have compiled here and failed at runtime.
+     *
+     * `ProviderToUse` is typed as the metadata-provider interface, which does not declare
+     * `ExecuteSQL`; this is a narrowing cast to the concrete base class, which is what a server-side
+     * entity subclass always has. It is one cast in one place instead of four scattered ones, and it
+     * keeps the real generic signature.
+     */
+    private get db(): DatabaseProviderBase {
+        return this.ProviderToUse as unknown as DatabaseProviderBase;
     }
 
     /**
@@ -104,61 +152,113 @@ export class ContractEntityServer extends ContractEntity {
      * know about. `TOP 1` because existence is the question, not the count.
      */
     private async modificationRowsExist(): Promise<boolean> {
-        const provider = this.ProviderToUse as unknown as { ExecuteSQL: (sql: string, params?: unknown[]) => Promise<unknown> };
-        const rows = (await provider.ExecuteSQL(
-            `SELECT TOP 1 1 AS Found FROM __mj_BizAppsContracts.ContractTemplateModification WHERE ContractID = @p0`,
-            [this.ID],
-        )) as Array<{ Found: number }>;
-        return (rows?.length ?? 0) > 0;
-    }
-
-    /** Whether this contract's type is the Change Order type. One scalar read, no entity load. */
-    private async isChangeOrderType(): Promise<boolean> {
-        const provider = this.ProviderToUse as unknown as { ExecuteSQL: (sql: string, params?: unknown[]) => Promise<unknown> };
-        const rows = (await provider.ExecuteSQL(
-            `SELECT [Name] FROM __mj_BizAppsContracts.ContractType WHERE ID = @p0`,
-            [this.ContractTypeID],
-        )) as Array<{ Name: string }>;
-        return rows?.[0]?.Name === 'Change Order';
+        // `count_only` returns no rows and populates TotalRowCount, which is exactly the question.
+        const result = await this.RunViewProviderToUse.RunView(
+            {
+                EntityName: 'MJ_BizApps_Contracts: Contract Template Modifications',
+                ExtraFilter: `ContractID = '${this.ID}'`,
+                ResultType: 'count_only',
+            },
+            this.ContextCurrentUser,
+        );
+        if (!result?.Success) {
+            // A failed read must not read as "no modifications" — that would let the flag be cleared
+            // on a contract whose rows simply could not be counted.
+            throw new Error(`Could not count modifications for contract ${this.ID}: ${result?.ErrorMessage ?? 'unknown error'}`);
+        }
+        return (result.TotalRowCount ?? 0) > 0;
     }
 
     /**
-     * Take the next value from the `ContractSequence` singleton and format it `CTR-000001`.
+     * What this contract's TYPE says about naming a parent: `'Required'`, `'Prohibited'` or null.
      *
-     * `UPDLOCK, HOLDLOCK` serialises concurrent creates on the counter row rather than letting them
-     * collide on the unique index.
+     * One scalar read, no entity load, and memoised for the call — `ValidateAsync` asks for the
+     * requirement and then for the type's name to build the message, and a validation pass should not
+     * make two round trips to say one thing.
+     */
+    private async typeRule(): Promise<{ Name: string; ParentStatusRequirement: string | null } | null> {
+        if (this.cachedTypeRule !== undefined) return this.cachedTypeRule;
+        const result = await this.RunViewProviderToUse.RunView<{ Name: string; ParentStatusRequirement: string | null }>(
+            {
+                EntityName: 'MJ_BizApps_Contracts: Contract Types',
+                ExtraFilter: `ID = '${this.ContractTypeID}'`,
+                Fields: ['Name', 'ParentStatusRequirement'],
+                ResultType: 'simple',
+            },
+            this.ContextCurrentUser,
+        );
+        this.cachedTypeRule = result?.Results?.[0] ?? null;
+        return this.cachedTypeRule;
+    }
+
+    /**
+     * Cleared on nothing, and that is safe: a contract's type can change between saves, but this cache
+     * lives only for the duration of one `ValidateAsync` call tree — the field is re-read from the
+     * database on the next validation because a new entity instance is what a new save uses.
+     */
+    private cachedTypeRule: { Name: string; ParentStatusRequirement: string | null } | null | undefined = undefined;
+
+    /** The type's parent restriction, or null when the type imposes none. */
+    private async parentStatusRequirement(): Promise<string | null> {
+        return (await this.typeRule())?.ParentStatusRequirement ?? null;
+    }
+
+    /** The type's display name, for the refusal message — naming the type the user chose. */
+    private async typeName(): Promise<string> {
+        return (await this.typeRule())?.Name ?? 'contract of this type';
+    }
+
+    /**
+     * Mint the next contract number by calling the database's own numbering procedure.
      *
-     * ⚠ It does NOT guarantee gap-free numbering, and an earlier version of this comment claimed it
-     * did. On a standalone save the counter `UPDATE` runs BEFORE `super.Save()` opens its transaction,
-     * so a save that then fails has already consumed a number. Inside a graph save that is already in
-     * a transaction, a rollback does release it. The effect is harmless — the unique index is the real
-     * guard and orders has the identical shape — but "gap-conscious" is a promise this cannot keep, so
-     * it is not made. Caught on review of PR #9.
+     * WHY A SPROC AND NOT `RunView` / `RunQuery` / `BaseEntity`. This is an atomic
+     * read-modify-write, and none of those can express one: `RunView` is read-only, `RunQuery` is a
+     * read surface (hiding DML inside a "query" would be worse than being honest about it), and the
+     * entity path removes the lock — two concurrent creates would both read N, both mint the same
+     * number, and the collision would surface later as a unique-index violation on the insert rather
+     * than as a serialised wait.
      *
-     * `OUTPUT … INTO` rather than a bare `OUTPUT`: CodeGen puts an `__mj_UpdatedAt` trigger on every
-     * table, and SQL Server forbids a bare OUTPUT clause on a table that has triggers. Copied
-     * verbatim from orders' `nextSequence`, including that constraint, because it is the same
-     * problem and getting it subtly different across two apps would be worse than duplicating it.
+     * So the lock stays in the database, in a DATABASE OBJECT rather than a TypeScript string.
+     * `spAssignNextContractNumber` (V202608192200) holds the `HOLDLOCK, UPDLOCK` and the format; this
+     * method is one dialect-free `EXEC`. That is accounting's pattern, adopted rather than invented —
+     * `SequenceService.ts` there keeps `spAssignNextJournalEntryNumber` at DB level for the same
+     * stated reason. Orders still inlines the same UPDATE in four places, which is what this stops
+     * doing.
+     *
+     * It also makes the PostgreSQL port a database exercise: write a PG function with this name and
+     * signature and no application code changes.
+     *
+     * `isMutation: true` matters and was missing while this was inline: MJ's SQL-statement logging
+     * uses it to know a statement CHANGED data, which is what lets a logging session capture the
+     * mutation. `description` names the operation in that log.
+     *
+     * ⚠ NOT gap-free. On a standalone save the number is consumed before the row's own transaction
+     * opens, so a later failure has already spent it; inside a graph save a rollback releases it. The
+     * unique index is the real guard.
      */
     private async assignContractNumber(): Promise<string> {
-        const provider = this.ProviderToUse as unknown as { ExecuteSQL: (sql: string, params?: unknown[]) => Promise<unknown> };
-        const rows = (await provider.ExecuteSQL(
-            `DECLARE @seq TABLE (Seq INT);
-             UPDATE __mj_BizAppsContracts.ContractSequence WITH (UPDLOCK, HOLDLOCK)
-             SET NextSequenceNumber = NextSequenceNumber + 1
-             OUTPUT deleted.NextSequenceNumber INTO @seq(Seq)
-             WHERE ID = 1;
-             SELECT Seq FROM @seq;`,
-        )) as Array<{ Seq: number }>;
+        const rows = await this.db.ExecuteSQL<{ ContractNumber: string }>(
+            `DECLARE @contractNumber NVARCHAR(50);
+             EXEC __mj_BizAppsContracts.spAssignNextContractNumber @ContractNumber = @contractNumber OUTPUT;
+             SELECT @contractNumber AS ContractNumber;`,
+            // No parameters: the sproc takes only an OUTPUT, declared in the batch above. Accounting
+            // passes an OBJECT here because its sprocs take inputs and `ExecuteSQL` binds objects BY
+            // NAME while an array binds positionally as @p0 — worth knowing before adding a parameter
+            // to this call, and worth noting that the object form needs the SQLServerDataProvider type
+            // rather than the DatabaseProviderBase one this uses.
+            undefined,
+            { isMutation: true, description: 'spAssignNextContractNumber' },
+            this.ContextCurrentUser,
+        );
 
-        const seq = rows?.[0]?.Seq;
-        if (!seq) {
+        const assigned = rows?.[0]?.ContractNumber; 
+        if (!assigned) {
             throw new Error(
-                `Could not obtain the next contract number — the ContractSequence singleton row (ID=1) is ` +
-                    `missing. It is seeded by the baseline migration.`,
+                `Could not obtain the next contract number — spAssignNextContractNumber returned nothing. ` +
+                    `The ContractSequence singleton row (ID=1) is seeded by the baseline migration.`,
             );
         }
-        return `CTR-${String(seq).padStart(6, '0')}`;
+        return assigned;
     }
 }
 

@@ -30,9 +30,21 @@ SELECT
     -- top to bottom: the first branch that matches wins, and the order encodes
     -- which fact outranks which.
     --
-    --   Terminated  outranks everything: somebody ended this agreement, and that is
-    --               a fact about what happened, not a projection of the term. It
-    --               stays Terminated even if the end date later passes.
+    --   Terminated  outranks everything ONCE IT HAS TAKEN EFFECT: somebody ended this
+    --               agreement, and that is a fact about what happened, not a projection
+    --               of the term. It stays Terminated even if the end date later passes.
+    --               The boundary is `< today`, NOT `IS NOT NULL`, and that is contract
+    --               law rather than a coding preference: a period ending on a date runs
+    --               through the END of that date (an agreement "terminating on 31
+    --               December" is in force all of 31 December), so a contract whose
+    --               TerminatedDate is TODAY is still in force today and reads Terminated
+    --               from tomorrow. A FUTURE TerminatedDate — notice served, effective
+    --               later — must therefore NOT read as already terminated; before this
+    --               fix it did. Same treatment as EndDate below, which is the point:
+    --               both are dates, and a `date` column carries no time, so end-of-day
+    --               is the only reading available. (A contract that specifies a TIME,
+    --               or an immediate for-cause termination, needs datetime2 — not
+    --               expressible here, and out of scope.)
     --   Superseded  the successor FK IS the superseded state — there is no separate
     --               column to disagree with it (R-18 dropped the tautological CHECK).
     --   Expired     the term ran out on its own.
@@ -50,7 +62,7 @@ SELECT
     -- no start date recorded is Executed, because the signature is the fact that
     -- moved it on.
     CASE
-        WHEN g.TerminatedDate IS NOT NULL                                  THEN 'Terminated'
+        WHEN g.TerminatedDate IS NOT NULL AND g.TerminatedDate < CAST(GETUTCDATE() AS date) THEN 'Terminated'
         WHEN g.SupersededByContractID IS NOT NULL                          THEN 'Superseded'
         WHEN g.EndDate IS NOT NULL AND g.EndDate < CAST(GETUTCDATE() AS date) THEN 'Expired'
         WHEN g.EffectiveDate IS NOT NULL AND g.EffectiveDate <= CAST(GETUTCDATE() AS date) THEN 'Active'
@@ -88,7 +100,6 @@ SELECT
     -- first-class contract that names what it amends; the ContractType row is how a
     -- person labels it, ParentContractID is the structural fact. Keeping the
     -- derivation on the FK means a mislabelled type cannot make the lineage lie.
-    CAST(CASE WHEN g.ParentContractID IS NOT NULL THEN 1 ELSE 0 END AS bit) AS [IsChangeOrder],
 
     -- DAYS TO END — signed, so an expired contract reads negative rather than
     -- clamping to zero and looking like it ends today.

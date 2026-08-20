@@ -1,6 +1,6 @@
 ---
-'@mj-biz-apps/contracts-entities': minor
-'@mj-biz-apps/contracts-ng': minor
+'@mj-biz-apps/contracts-entities': patch
+'@mj-biz-apps/contracts-ng': patch
 ---
 
 Modifications are editable, foreign-key links navigate, and provisions read by name.
