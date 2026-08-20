@@ -7,7 +7,7 @@
 Enforce the eight backend rules the schema promised and nothing checked.
 
 `plans/backend-requirements.md` audited every rule the ERD claims and found that most of them existed
-only as prose. Eight are now enforced, each at the cheapest tier that can hold it — CHECK constraint
+only as prose. **All ten ready items are now done**, each at the cheapest tier that can hold it — CHECK constraint
 where the rule reads one row, trigger where a bypass would be silent corruption, entity subclass where
 the point is a message a person can act on.
 
@@ -34,3 +34,13 @@ the point is a message a person can act on.
   and against saved rows.
 
 Four migrations, all idempotent and written for a database that already has data.
+- **R-11** provision ordering comes from `ProvisionNumber` via a derived, indexed collation key. The
+  hand-maintained `Sequence` column it replaces had **already collided** in the seeded data — `1` and
+  `1.1` both claiming position 1 — which is the failure mode of a second copy of an order the number
+  already states.
+- **R-12** `SourceURL` becomes nullable and a derived `IsUsable` says whether the standard terms can
+  actually be read. A template with neither a URL nor a file is *incomplete*, not invalid, so it gets a
+  chip rather than a refusal; the refusal lives one step downstream, where a contract would incorporate
+  terms nobody can read.
+
+Seven migrations, all idempotent and written for a database that already has data.
