@@ -26,5 +26,11 @@
   },
   "devDependencies": {
     "typescript": "^5.9.3"
+  },
+  "files": [
+    "/dist"
+  ],
+  "publishConfig": {
+    "access": "public"
   }
 }
