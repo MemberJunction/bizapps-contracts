@@ -38,6 +38,8 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RegisterClassEx } from '@memberjunction/global';
 import { BaseFormPanel, BaseFormsModule } from '@memberjunction/ng-base-forms';
+import { HierarchyTreeComponent, type HierarchyTreeConfig, type HierarchyNodeEvent } from '@memberjunction/ng-hierarchy-tree';
+import { NavigationService } from '@memberjunction/ng-shared';
 import { ContractEntity, type ContractState } from '@mj-biz-apps/contracts-entities';
 import { MJC_ENTITIES } from '../data/entity-names';
 
@@ -455,6 +457,216 @@ export class MJCContractDatesPanel extends BaseFormPanel<ContractEntity> {
         if (d < 0) return `ended ${Math.abs(d)} days ago`;
         if (d === 0) return 'ends today';
         return d < 60 ? `in ${d} days` : `in ${Math.round(d / 30)} months`;
+    }
+}
+
+/* ────────────────────────────────────────────────────────────────────────────
+ * 4 · Lineage — change orders and supersession, read-only
+ * ──────────────────────────────────────────────────────────────────────────── */
+
+@RegisterClassEx(BaseFormPanel, {
+    key: 'contracts:lineage',
+    skipNullKeyWarning: true,
+    metadata: {
+        entity: MJC_ENTITIES.Contract,
+        slot: 'after-related',
+        sortKey: 65,
+        contributionKey: 'lineage',
+        relatedEntity: MJC_ENTITIES.Contract,
+        relatedJoinField: 'ParentContractID',
+        // NO `inclusion: 'Primary'` — and that omission is what puts Details FIRST.
+        //
+        // The rail is assembled as fixed BANDS, not from a sortable flat list:
+        // `spec.Groups = [...leads, ...details, ...related, ...more]`
+        // (`resolve-form-chrome.ts:761`). A panel joins the LEAD band purely by declaring
+        // `inclusion: 'Primary'` (`isLeadContribution`, `:313`), and every lead therefore renders
+        // BEFORE Details. With all of these marked Primary, Details sat fourth.
+        //
+        // Reordering `spec.Groups` from a `BaseFormPolicy.DecorateChrome` cannot fix that:
+        // `StabilizeFirstClassGroupOrder` re-imposes the bands, and its own comment says it moves
+        // groups "into the lead band before Details" — so the reorder is silently undone. Only a
+        // user's drag order (`OrderChromeGroups`) outranks the bands, and that is a per-user
+        // preference an app cannot ship.
+        //
+        // Dropping Primary moves these into the `related` band, which sorts DESCENDING by sortKey
+        // (`:753`), so the numbers below are the running order after Details.
+    },
+})
+@Component({
+    selector: 'mjc-contract-lineage-panel',
+    standalone: true,
+    encapsulation: ViewEncapsulation.None,
+    // The tree needs a usable height of its own: it is an SVG canvas, not flow content, so with no
+    // intrinsic height it draws into a zero box (and logs translate(NaN,NaN) — MJ#3997).
+    // WHY THESE RULES EXIST — measured, not guessed, after reading FORMS_ARCHITECTURE_GUIDE §7d.
+    //
+    // `Variant="related-entity"` is what puts this section on the left-nav RAIL; removing it drops the
+    // rail item and the panel collapses into Details (confirmed both ways in the browser). But that
+    // variant's CSS was written for AG Grid: it sizes the content box with `height:auto; min-height:0;
+    // overflow:hidden` and restores a usable height for exactly ONE child selector —
+    //
+    //     .mj-forms-panel--related .mj-forms-panel-content > mj-explorer-entity-data-grid { height:100% }
+    //
+    // Any other child gets no height, and with `overflow:hidden` above it the panel renders BLANK while
+    // every node sits in the DOM. So this mirrors MJ's own rule for our content instead of inventing a
+    // different sizing scheme (an earlier attempt using `flex: 1 1 auto` was wrong — the content box is
+    // not the flex parent that assumes).
+    //
+    // The host and the slot are both `display: contents` BY DESIGN (§7d), so they contribute no box and
+    // `.mjc-body` is the real layout child of the content box. That is also why measuring the host's
+    // height proves nothing.
+    styles: [`
+        /* A PINNED FLOOR, not a percentage. height:100% cannot work here: it resolves against
+           .mj-forms-panel-content, which the variant sets to height:auto, and 100% of auto collapses
+           straight back to auto - measured blank. AG Grid escapes this because the grid supplies its
+           own intrinsic height; a plain div does not. A px min-height resolves regardless of what the
+           parent computes to, and stays under the variant's own 800px cap. */
+        /* DIRECT child only. As a descendant selector this also matched the nested .mjc-body wrapper
+           inside the panel, so the floor applied twice and left a tall empty block above the tree. */
+        mjc-contract-lineage-panel > .mjc-body {
+            min-height: 440px;
+            overflow-y: auto;
+        }
+        mjc-contract-lineage-panel mj-hierarchy-tree { display: block; min-height: 380px; }
+    `],
+    imports: [CommonModule, FormsModule, BaseFormsModule, HierarchyTreeComponent],
+    template: `
+        <mj-collapsible-panel
+            SectionKey="contractLineage"
+            SectionName="Lineage"
+            Icon="fa-solid fa-sitemap"
+            Variant="related-entity"
+            [BadgeCount]="Count"
+            [Form]="FormComponent"
+            [FormContext]="FormContext">
+
+            <div class="mjc-body" [class.mjc-body--flush]="HasChildren">
+                @if (ParentName) {
+                    <div class="mjc-body">
+                        @if (ParentName) {
+                            <p class="mjc-note">
+                                This is a change order to <strong>{{ ParentName }}</strong>.
+                            </p>
+                        }
+                    </div>
+                }
+
+                <!-- The parent/child tree is MJ's, not ours: ParentContractID is an ordinary
+                     self-referential hierarchy, which is exactly what mj-hierarchy-tree consumes. It
+                     loads its own data from the Config, highlights the contract being viewed, and its
+                     nodes NAVIGATE — the thing the hand-rolled table could never do. -->
+                <mj-hierarchy-tree
+                    [Config]="TreeConfig"
+                    [ActiveRecordID]="Record?.ID ?? undefined"
+                    (NodeDoubleClick)="OpenNode($event)" />
+
+                @if (!ParentName && !HasChildren) {
+                    <div class="mjc-empty">
+                        A standalone agreement — nothing above it, no change orders, and nothing has replaced it.
+                    </div>
+                }
+            </div>
+        </mj-collapsible-panel>
+    `,
+})
+export class MJCContractLineagePanel extends BaseFormPanel<ContractEntity> {
+    private readonly cdr = inject(ChangeDetectorRef);
+
+    private readonly navigation = inject(NavigationService);
+
+    /**
+     * The whole tree, declared rather than fetched.
+     *
+     * `ParentContractID` is an ordinary self-referential hierarchy, so MJ's tree does the recursive
+     * read, the expand/collapse state, the search box and — the part that matters — turns each node
+     * into something you can OPEN. The hand-rolled table this replaces could show a change order's
+     * number but gave no way to get to it, which is most of what a person wants from a lineage panel.
+     *
+     * NO `ExtraFilter`, deliberately — the component does the scoping better than a filter could. Given
+     * the whole entity plus `ActiveRecordID`, it focuses this contract's subtree on its own (the header
+     * reads "Focusing subtree: CTR-…") and offers "View Full Hierarchy" to widen. A filter rooted at
+     * the current record would hard-hide the parent a change order needs to show ABOVE it, with no way
+     * back out. Ordering is by contract number so siblings read in the order they were issued.
+     */
+    public get TreeConfig(): HierarchyTreeConfig {
+        return {
+            EntityName: MJC_ENTITIES.Contract,
+            ParentField: 'ParentContractID',
+            NameField: 'ContractNumber',
+            SubtitleField: 'Description',
+            OrderBy: 'ContractNumber ASC',
+            ShowSearch: true,
+            InitialExpandDepth: 2,
+        };
+    }
+
+    /** Whether anything hangs beneath this contract — drives the empty state, nothing else. */
+    public HasChildren = false;
+    private loadStarted = false;
+
+    /**
+     * Open the contract a node stands for.
+     *
+     * The node carries a real `CompositeKey`, so this does not have to guess that the primary key is
+     * called `ID` — the same reasoning as `MJCFkNavigateDirective`, which would break on the first
+     * natural-key entity it met, and would break as a WRONG-RECORD navigation rather than an error.
+     */
+    public OpenNode(e: HierarchyNodeEvent): void {
+        const key = e?.Node?.PrimaryKey;
+        if (!key) return;
+        this.navigation.OpenEntityRecord(MJC_ENTITIES.Contract, key);
+    }
+
+    public get ParentName(): string { return this.Record?.ParentContract ?? ''; }
+
+
+    public get Count(): number | undefined {
+        this.ensureLoaded();
+        return this.ChildCount > 0 ? this.ChildCount : undefined;
+    }
+
+    /** Direct children, for the badge. The TREE renders the hierarchy; this is just the count. */
+    public ChildCount = 0;
+
+    /**
+     * Read the children ONCE, lazily on first template read.
+     *
+     * `BaseFormPanel` has no lifecycle hook of its own and the slot host sets `Record` before view init,
+     * so the first template read is the earliest reliable moment. Read as a table rather than an
+     * embedded grid: a grid inside a panel inside a rail section is three nested scroll contexts, and
+     * the mockup renders four columns of read-only facts, which is a table.
+     */
+    private ensureLoaded(): void {
+        if (this.loadStarted || !this.Record?.ID) return;
+        this.loadStarted = true;
+        void this.load();
+    }
+
+    private async load(): Promise<void> {
+        const me = this.Record!.ID;
+        const rv = await this.scopedRunView();
+        // Only the COUNT, for the badge and the empty state — mj-hierarchy-tree reads the hierarchy
+        // itself from TreeConfig, so duplicating that read here would be a second source of truth.
+        try {
+            const r = await rv.RunView<{ ID: string }>({
+                EntityName: MJC_ENTITIES.Contract,
+                Fields: ['ID'],
+                ExtraFilter: `ParentContractID = '${me}'`,
+                ResultType: 'simple',
+            });
+            this.ChildCount = r?.Success ? r.Results.length : 0;
+            this.HasChildren = this.ChildCount > 0;
+        } catch {
+            this.ChildCount = 0;
+            this.HasChildren = false;
+        }
+
+        this.cdr.detectChanges();
+    }
+
+    private async scopedRunView() {
+        const { ScopedRunView } = await import('../data/provider');
+        return ScopedRunView(this.FormComponent?.ProviderToUse);
     }
 }
 

@@ -199,27 +199,19 @@
   },
   {
     "_comments": [
-      "Contracts -> Contracts via ParentContractID: PRIMARY. This grid lists the change orders and other",
-      "child documents hanging off this agreement.",
+      "Contracts -> Contracts via ParentContractID: PRIMARY, and this was WRONG before.",
       "",
-      "It is MJ'S STOCK related-entity grid now, not a custom panel. The panel that used to claim this",
-      "relationship rendered a hand-rolled table, was replaced by MJ's mj-hierarchy-tree (a real",
-      "improvement - declarative, searchable, and its nodes NAVIGATE), and then had to come back out:",
-      "@memberjunction/ng-hierarchy-tree is published only from 6.1.0-edge.3, while this app is pinned to",
-      "edge.2, so a standalone build cannot resolve it. Bumping the whole app to edge.3 is its own piece of",
-      "work (the MJ worktree is edge.2 too, so the pins would stop admitting the workspace copies and pnpm",
-      "would pull MJ from the registry - the two-copy trap). The tree returns with that bump.",
+      "I had it as 'None' reasoning that the lineage panel claims the relationship so the stock grid",
+      "should be suppressed. But 'None' means the ranker never sees it AT ALL — so the panel claiming",
+      "it got no chrome group, and under Layout:'left-nav' a contribution with no group folds into",
+      "Details. That is why the form had exactly one section.",
       "",
-      "Claiming a relationship SUPPRESSES the stock grid; it does not create a rail group. So deleting the",
-      "panel is what lets the stock grid mount here, and inclusion 'Primary' is what makes it first-class",
-      "on the rail rather than folded into Details.",
-      "",
-      "What the grid gives, none of which the hand-rolled table did: search, sort, refresh, export, and",
-      "each row opening the contract."
+      "Primary is what makes Lineage its own rail item. The panel still replaces the stock grid,",
+      "because that is what `relatedEntity` on the registration does — suppressing the grid and",
+      "having a rail entry are different mechanisms, and I had conflated them."
     ],
     "fields": {
       "DisplayName": "Lineage",
-      "DisplayInForm": true,
       "Configuration": {
         "UI": {
           "inclusion": "Primary"
@@ -230,8 +222,8 @@
       "ID": "@lookup:MJ: Entity Relationships.Entity=MJ_BizApps_Contracts: Contracts&RelatedEntity=MJ_BizApps_Contracts: Contracts&RelatedEntityJoinField=ParentContractID"
     },
     "sync": {
-      "lastModified": "2026-08-21T21:14:15.992Z",
-      "checksum": "c58a57aff9dda0abb09f9939f6b5584f7a96a079d8815764966e3410fae4ad3d"
+      "lastModified": "2026-08-19T15:26:20.369Z",
+      "checksum": "74b60675712ede6ae3d18863543e707d4ea37ab4a2dd515d1532ccd1da93b081"
     }
   },
   {
