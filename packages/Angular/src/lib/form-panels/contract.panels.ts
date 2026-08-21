@@ -38,9 +38,10 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RegisterClassEx } from '@memberjunction/global';
 import { BaseFormPanel, BaseFormsModule } from '@memberjunction/ng-base-forms';
+import { HierarchyTreeComponent, type HierarchyTreeConfig, type HierarchyNodeEvent } from '@memberjunction/ng-hierarchy-tree';
+import { NavigationService } from '@memberjunction/ng-shared';
 import { ContractEntity, type ContractState } from '@mj-biz-apps/contracts-entities';
 import { MJC_ENTITIES } from '../data/entity-names';
-import { MJCModificationEditorComponent } from '../custom/modification-editor.component';
 
 /** Chip variant per lifecycle state — colour carries meaning, so each state gets a considered one. */
 function chipClassFor(state: ContractState): string {
@@ -267,7 +268,7 @@ export class MJCContractHeroPanel extends BaseFormPanel<ContractEntity> {
                         }
                     </div>
                     <div class="mjc-field">
-                        <label>Renewal notice we owe</label>
+                        <label>Renewal notice we owe (days)</label>
                         @if (EditMode) {
                             <input type="number" min="0" style="width:100%" [ngModel]="Record.RenewalNoticeDays"
                                    (ngModelChange)="Set('RenewalNoticeDays', $event)" aria-label="Renewal notice days" />
@@ -279,7 +280,7 @@ export class MJCContractHeroPanel extends BaseFormPanel<ContractEntity> {
                         }
                     </div>
                     <div class="mjc-field">
-                        <label>Notice to cancel</label>
+                        <label>Notice to cancel (days)</label>
                         @if (EditMode) {
                             <input type="number" min="0" style="width:100%" [ngModel]="Record.CancellationWindowDays"
                                    (ngModelChange)="Set('CancellationWindowDays', $event)" aria-label="Cancellation window days" />
@@ -289,7 +290,7 @@ export class MJCContractHeroPanel extends BaseFormPanel<ContractEntity> {
                         @if (InCancellationWindow) { <div class="mjc-hint">the window is open now</div> }
                     </div>
                     <div class="mjc-field">
-                        <label>Annual increase</label>
+                        <label>Annual increase (%)</label>
                         @if (EditMode) {
                             <input type="number" min="0" step="0.01" style="width:100%" [ngModel]="Record.AnnualIncreasePercent"
                                    (ngModelChange)="Set('AnnualIncreasePercent', $event)" aria-label="Annual increase percent" />
@@ -460,74 +461,6 @@ export class MJCContractDatesPanel extends BaseFormPanel<ContractEntity> {
 }
 
 /* ────────────────────────────────────────────────────────────────────────────
- * 3 · Modifications — the D-15 centrepiece, hosting the shared editor
- * ──────────────────────────────────────────────────────────────────────────── */
-
-@RegisterClassEx(BaseFormPanel, {
-    key: 'contracts:modifications',
-    skipNullKeyWarning: true,
-    metadata: {
-        entity: MJC_ENTITIES.Contract,
-        slot: 'after-related',
-        sortKey: 75,
-        contributionKey: 'modifications',
-        relatedEntity: MJC_ENTITIES.ContractTemplateModification,
-        // NO `inclusion: 'Primary'` — and that omission is what puts Details FIRST.
-        //
-        // The rail is assembled as fixed BANDS, not from a sortable flat list:
-        // `spec.Groups = [...leads, ...details, ...related, ...more]`
-        // (`resolve-form-chrome.ts:761`). A panel joins the LEAD band purely by declaring
-        // `inclusion: 'Primary'` (`isLeadContribution`, `:313`), and every lead therefore renders
-        // BEFORE Details. With all of these marked Primary, Details sat fourth.
-        //
-        // Reordering `spec.Groups` from a `BaseFormPolicy.DecorateChrome` cannot fix that:
-        // `StabilizeFirstClassGroupOrder` re-imposes the bands, and its own comment says it moves
-        // groups "into the lead band before Details" — so the reorder is silently undone. Only a
-        // user's drag order (`OrderChromeGroups`) outranks the bands, and that is a per-user
-        // preference an app cannot ship.
-        //
-        // Dropping Primary moves these into the `related` band, which sorts DESCENDING by sortKey
-        // (`:753`), so the numbers below are the running order after Details.
-    },
-})
-@Component({
-    selector: 'mjc-contract-modifications-panel',
-    standalone: true,
-    encapsulation: ViewEncapsulation.None,
-    imports: [CommonModule, BaseFormsModule, MJCModificationEditorComponent],
-    template: `
-        <mj-collapsible-panel
-            SectionKey="contractModifications"
-            SectionName="Modifications"
-            Icon="fa-solid fa-pen-ruler"
-            Variant="related-entity"
-            [BadgeCount]="Count"
-            [Form]="FormComponent"
-            [FormContext]="FormContext">
-
-            <mjc-modification-editor
-                [Record]="Record"
-                [EditMode]="EditMode"
-                [Provider]="FormComponent.ProviderToUse"
-                (Changed)="onChanged()" />
-        </mj-collapsible-panel>
-    `,
-})
-export class MJCContractModificationsPanel extends BaseFormPanel<ContractEntity> {
-    private readonly cdr = inject(ChangeDetectorRef);
-
-    /** Drives the rail badge. Undefined rather than 0 so an empty section shows no badge. */
-    public get Count(): number | undefined {
-        const n = this.Record?.Modifications?.Count ?? 0;
-        return n > 0 ? n : undefined;
-    }
-
-    protected onChanged(): void {
-        this.cdr.detectChanges();
-    }
-}
-
-/* ────────────────────────────────────────────────────────────────────────────
  * 4 · Lineage — change orders and supersession, read-only
  * ──────────────────────────────────────────────────────────────────────────── */
 
@@ -563,7 +496,7 @@ export class MJCContractModificationsPanel extends BaseFormPanel<ContractEntity>
     selector: 'mjc-contract-lineage-panel',
     standalone: true,
     encapsulation: ViewEncapsulation.None,
-    imports: [CommonModule, FormsModule, BaseFormsModule],
+    imports: [CommonModule, FormsModule, BaseFormsModule, HierarchyTreeComponent],
     template: `
         <mj-collapsible-panel
             SectionKey="contractLineage"
@@ -574,7 +507,7 @@ export class MJCContractModificationsPanel extends BaseFormPanel<ContractEntity>
             [Form]="FormComponent"
             [FormContext]="FormContext">
 
-            <div class="mjc-body" [class.mjc-body--flush]="Children.length > 0">
+            <div class="mjc-body" [class.mjc-body--flush]="HasChildren">
                 @if (ParentName || SupersededBy) {
                     <div class="mjc-body">
                         @if (ParentName) {
@@ -645,28 +578,16 @@ export class MJCContractModificationsPanel extends BaseFormPanel<ContractEntity>
                     }
                 </div>
 
-                @if (Children.length) {
-                    <table class="mjc-grid">
-                        <thead>
-                            <tr>
-                                <th style="width:9rem">Contract</th>
-                                <th style="width:10rem">Relationship</th>
-                                <th>Summary</th>
-                                <th style="width:8rem">Executed</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @for (c of Children; track c.ID) {
-                                <tr>
-                                    <td class="mjc-mono">{{ c.ContractNumber }}</td>
-                                    <td><span class="mjc-chip mjc-chip--info">{{ c.ContractType || 'Change order' }}</span></td>
-                                    <td>{{ c.Description || '—' }}</td>
-                                    <td class="mjc-muted">{{ (c.ExecutedDate | date: 'd MMM y') || '—' }}</td>
-                                </tr>
-                            }
-                        </tbody>
-                    </table>
-                } @else if (!ParentName && !SupersededBy) {
+                <!-- The parent/child tree is MJ's, not ours: ParentContractID is an ordinary
+                     self-referential hierarchy, which is exactly what mj-hierarchy-tree consumes. It
+                     loads its own data from the Config, highlights the contract being viewed, and its
+                     nodes NAVIGATE — the thing the hand-rolled table could never do. -->
+                <mj-hierarchy-tree
+                    [Config]="TreeConfig"
+                    [ActiveRecordID]="Record?.ID ?? undefined"
+                    (NodeDoubleClick)="OpenNode($event)" />
+
+                @if (!ParentName && !SupersededBy && !HasChildren) {
                     <div class="mjc-empty">
                         A standalone agreement — nothing above it, no change orders, and nothing has replaced it.
                     </div>
@@ -678,9 +599,50 @@ export class MJCContractModificationsPanel extends BaseFormPanel<ContractEntity>
 export class MJCContractLineagePanel extends BaseFormPanel<ContractEntity> {
     private readonly cdr = inject(ChangeDetectorRef);
 
-    /** Change orders naming THIS contract as parent. */
-    public Children: Array<Record<string, string | null>> = [];
+    private readonly navigation = inject(NavigationService);
+
+    /**
+     * The whole tree, declared rather than fetched.
+     *
+     * `ParentContractID` is an ordinary self-referential hierarchy, so MJ's tree does the recursive
+     * read, the expand/collapse state, the search box and — the part that matters — turns each node
+     * into something you can OPEN. The hand-rolled table this replaces could show a change order's
+     * number but gave no way to get to it, which is most of what a person wants from a lineage panel.
+     *
+     * NO `ExtraFilter`, deliberately — the component does the scoping better than a filter could. Given
+     * the whole entity plus `ActiveRecordID`, it focuses this contract's subtree on its own (the header
+     * reads "Focusing subtree: CTR-…") and offers "View Full Hierarchy" to widen. A filter rooted at
+     * the current record would hard-hide the parent a change order needs to show ABOVE it, with no way
+     * back out. Ordering is by contract number so siblings read in the order they were issued.
+     */
+    public get TreeConfig(): HierarchyTreeConfig {
+        return {
+            EntityName: MJC_ENTITIES.Contract,
+            ParentField: 'ParentContractID',
+            NameField: 'ContractNumber',
+            SubtitleField: 'Description',
+            OrderBy: 'ContractNumber ASC',
+            ShowSearch: true,
+            InitialExpandDepth: 2,
+        };
+    }
+
+    /** Whether anything hangs beneath this contract — drives the empty state, nothing else. */
+    public HasChildren = false;
     private loadStarted = false;
+
+    /**
+     * Open the contract a node stands for.
+     *
+     * The node carries a real `CompositeKey`, so this does not have to guess that the primary key is
+     * called `ID` — the same reasoning as `MJCFkNavigateDirective`, which would break on the first
+     * natural-key entity it met, and would break as a WRONG-RECORD navigation rather than an error.
+     */
+    public OpenNode(e: HierarchyNodeEvent): void {
+        const key = e?.Node?.PrimaryKey;
+        if (!key) return;
+        this.navigation.OpenEntityRecord(MJC_ENTITIES.Contract, key);
+    }
 
     public get ParentName(): string { return this.Record?.ParentContract ?? ''; }
 
@@ -813,8 +775,11 @@ export class MJCContractLineagePanel extends BaseFormPanel<ContractEntity> {
 
     public get Count(): number | undefined {
         this.ensureLoaded();
-        return this.Children.length > 0 ? this.Children.length : undefined;
+        return this.ChildCount > 0 ? this.ChildCount : undefined;
     }
+
+    /** Direct children, for the badge. The TREE renders the hierarchy; this is just the count. */
+    public ChildCount = 0;
 
     /**
      * Read the children ONCE, lazily on first template read.
@@ -833,17 +798,20 @@ export class MJCContractLineagePanel extends BaseFormPanel<ContractEntity> {
     private async load(): Promise<void> {
         const me = this.Record!.ID;
         const rv = await this.scopedRunView();
+        // Only the COUNT, for the badge and the empty state — mj-hierarchy-tree reads the hierarchy
+        // itself from TreeConfig, so duplicating that read here would be a second source of truth.
         try {
-            const r = await rv.RunView<Record<string, string | null>>({
+            const r = await rv.RunView<{ ID: string }>({
                 EntityName: MJC_ENTITIES.Contract,
-                Fields: ['ID', 'ContractNumber', 'ContractType', 'Description', 'ExecutedDate'],
+                Fields: ['ID'],
                 ExtraFilter: `ParentContractID = '${me}'`,
-                OrderBy: 'ExecutedDate ASC',
                 ResultType: 'simple',
             });
-            this.Children = r?.Success ? r.Results : [];
+            this.ChildCount = r?.Success ? r.Results.length : 0;
+            this.HasChildren = this.ChildCount > 0;
         } catch {
-            this.Children = [];
+            this.ChildCount = 0;
+            this.HasChildren = false;
         }
 
         // What this contract replaces. The reverse of `SupersededByContractID`, so it is a query and

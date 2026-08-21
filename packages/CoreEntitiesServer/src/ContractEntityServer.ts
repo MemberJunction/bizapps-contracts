@@ -859,7 +859,8 @@ export class ContractEntityServer extends ContractEntity {
         if (!assigned) {
             throw new Error(
                 `Could not obtain the next contract number — spAssignNextContractNumber returned nothing. ` +
-                    `The ContractSequence singleton row (ID=1) is seeded by the baseline migration.`,
+                    `The number comes from the schema-owned SQL sequence seq_ContractNumber (V202608200200); ` +
+                    `check that the sequence and the procedure both exist in __mj_BizAppsContracts.`,
             );
         }
         return assigned;

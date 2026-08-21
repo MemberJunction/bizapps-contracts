@@ -66,10 +66,8 @@ import {
     MJCContractDatesPanel,
     MJCContractHeroPanel,
     MJCContractLineagePanel,
-    MJCContractModificationsPanel,
     MJCContractRenewalPanel,
 } from './lib/form-panels/contract.panels';
-import { MJCTemplateProvisionsPanel } from './lib/form-panels/template.panels';
 import { MJCOrganizationAgreementsPanel } from './lib/form-panels/organization.panels';
 
 export { RecordFilesPanelBase, ContractFilesPanel, ContractTemplateFilesPanel } from './lib/form-panels/record-files.panel';
@@ -77,10 +75,8 @@ export {
     MJCContractHeroPanel,
     MJCContractDatesPanel,
     MJCContractRenewalPanel,
-    MJCContractModificationsPanel,
     MJCContractLineagePanel,
 } from './lib/form-panels/contract.panels';
-export { MJCTemplateProvisionsPanel } from './lib/form-panels/template.panels';
 export { MJCOrganizationAgreementsPanel } from './lib/form-panels/organization.panels';
 
 /* ============================================================================
@@ -101,7 +97,6 @@ export { MJCOrganizationAgreementsPanel } from './lib/form-panels/organization.p
  * The lesson: replacing a form costs you every generated affordance (FK search, section grouping,
  * validation display). Reach for a PANEL unless you are replacing all of it deliberately.
  * ========================================================================== */
-export { MJCModificationEditorComponent } from './lib/custom/modification-editor.component';
 
 /* Pages are exported so another app (or a dashboard) can host one directly; the sections resolve them
  * internally, so nothing here depends on these being exported. */
@@ -132,8 +127,6 @@ export function LoadMjBizappsContractsClient(): void {
     void MJCContractHeroPanel;
     void MJCContractDatesPanel;
     void MJCContractRenewalPanel;
-    void MJCContractModificationsPanel;
     void MJCContractLineagePanel;
-    void MJCTemplateProvisionsPanel;
     void MJCOrganizationAgreementsPanel;
 }
