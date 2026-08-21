@@ -339,37 +339,3 @@ table.mjc-grid tbody tr:hover td { background: var(--mj-bg-surface-sunken); }
   border-radius: var(--mj-radius-md);
   text-align: center;
 }
-
-/* ============================================================================
-   Related-entity grids: give them a height to fill.
-
-   MJ's related-entity panel variant sizes its content box with `height: auto;
-   min-height: 0` and restores a usable height for exactly one selector:
-
-       .mj-forms-panel--related .mj-forms-panel-content > mj-explorer-entity-data-grid
-           { height: 100% }
-
-   `height: 100%` resolves against the parent, and the parent is `auto` — so it
-   collapses straight back to auto and the grid renders at whatever intrinsic
-   height AG Grid happens to have, which is two or three rows. That is why the
-   Supersedes and Template Provisions grids look compressed even though they hold
-   plenty of rows.
-
-   A pinned floor is the only thing that resolves against nothing, and it stays
-   under the variant's own 800px cap so the grid still scrolls internally rather
-   than growing without bound.
-
-   ⚠ THIS RULE IS GLOBAL, not scoped to this app — there is no app-specific
-   ancestor on a record form to hang it off. It therefore affects every
-   related-entity panel in the host, which is defensible only because the bug it
-   works around is equally global. Filed as MJ#3999; delete this block when the
-   variant sizes its own children.
-   ============================================================================ */
-.mj-forms-panel--related .mj-forms-panel-content {
-  min-height: 420px;
-}
-
-.mj-forms-panel--related .mj-forms-panel-content > mj-explorer-entity-data-grid,
-.mj-forms-panel--related .mj-forms-panel-content > .ng-star-inserted > mj-explorer-entity-data-grid {
-  min-height: 420px;
-}

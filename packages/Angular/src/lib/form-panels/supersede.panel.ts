@@ -26,8 +26,12 @@ import { FormsModule } from '@angular/forms';
 import { RegisterClassEx } from '@memberjunction/global';
 import { BaseFormPanel, BaseFormsModule } from '@memberjunction/ng-base-forms';
 import { MJComboboxComponent, MJButtonDirective, MJAlertComponent } from '@memberjunction/ng-ui-components';
+import type { IRemoteOperationProvider } from '@memberjunction/core';
 import { ContractEntity } from '@mj-biz-apps/contracts-entities';
 import { MJC_ENTITIES } from '../data/entity-names';
+
+/** The server-side operation key. One place, because RouteOperation is stringly typed. */
+const SUPERSEDE_OP = 'Contracts.Supersede';
 
 interface Candidate { ID: string; ContractNumber: string; ContractType: string; Label: string }
 
@@ -57,22 +61,6 @@ interface Candidate { ID: string; ContractNumber: string; ContractType: string; 
             [Form]="FormComponent"
             [FormContext]="FormContext">
 
-            <!-- WHAT REPLACED THIS ONE. Read-only, and a plain field line rather than a callout: it is
-                 simply the value of this record's own SupersededByContractID, shown by name. Moved here
-                 from the Lineage panel (Marcelo, 2026-08-21) so both directions of the re-papering
-                 relationship read side by side in Details - what replaced this, and what this replaced. -->
-            @if (SupersededBy) {
-                <div class="mj-forms-field">
-                    <label class="mj-forms-field-label">Superseded by</label>
-                    <div class="mj-forms-field-control">
-                        <span class="mj-forms-field-value">
-                            {{ SupersededBy }}
-                            <span class="mjc-chip mjc-chip--muted">this agreement's terms no longer govern</span>
-                        </span>
-                    </div>
-                </div>
-            }
-
             <!-- Mirrors mj-form-field's own markup (mj-forms-field / -label / -control / -value) so this
                  reads as an ordinary form line. It cannot BE an mj-form-field: that binds to a field on
                  THIS record, and the supersession FK lives on the predecessor. -->
@@ -80,7 +68,14 @@ interface Candidate { ID: string; ContractNumber: string; ContractType: string; 
                 <label class="mj-forms-field-label">Supersedes</label>
                 <div class="mj-forms-field-control">
 
-                    @if (!EditMode) {
+                    <!-- AVAILABLE WHEN NOT EDITING, unavailable while editing (Marcelo, 2026-08-21).
+                         Inverted from the usual field pattern on purpose: this control does not edit a
+                         field on THIS record, it writes the OTHER contract. It therefore needs this
+                         contract SAVED - a predecessor cannot point at a row that does not exist yet -
+                         and an in-progress edit is exactly when that is not true. So while the form is
+                         dirty/editing it shows the value read-only, and the picker returns when the
+                         edit is finished. -->
+                    @if (EditMode || !Record?.IsSaved) {
                         <span class="mj-forms-field-value">
                             @if (Supersedes.length) {
                                 @for (p of Supersedes; track p.ID) {
@@ -89,6 +84,9 @@ interface Candidate { ID: string; ContractNumber: string; ContractType: string; 
                             } @else {
                                 —
                             }
+                            <span class="mjc-chip mjc-chip--muted">
+                                {{ Record?.IsSaved ? 'finish editing to change this' : 'save this contract first' }}
+                            </span>
                         </span>
                     } @else {
                         <mj-combobox
@@ -122,6 +120,7 @@ interface Candidate { ID: string; ContractNumber: string; ContractType: string; 
 
                         @if (LoadError) { <mj-alert Variant="warning" Size="sm" [Message]="LoadError" /> }
                         @if (LinkError) { <mj-alert Variant="error" Size="sm" [Message]="LinkError" /> }
+                        @if (LinkOk) { <mj-alert Variant="success" Size="sm" [Message]="LinkOk" /> }
                         @if (!Candidates.length && !CandidatesLoading && !LoadError) {
                             <div class="mjc-hint">
                                 Nothing eligible: a predecessor must sit at the same level as this contract and
@@ -137,18 +136,11 @@ interface Candidate { ID: string; ContractNumber: string; ContractType: string; 
 export class MJCContractSupersedePanel extends BaseFormPanel<ContractEntity> {
     private readonly cdr = inject(ChangeDetectorRef);
 
-    /**
-     * The successor's NUMBER, from the generated virtual FK-name field rather than the id.
-     *
-     * ⚠ Known to go stale within one edit session: MJ's FK picker writes a read-only joined name field
-     * only ONCE and silently drops later writes (MJ#3996), so changing the successor twice before
-     * saving leaves the first name on screen. A save-and-reload corrects it.
-     */
-    public get SupersededBy(): string { return this.Record?.SupersededByContract ?? ''; }
-
     public PickedPredecessorID = '';
     public Busy = false;
     public LinkError = '';
+    /** Confirmation, so a working link is never indistinguishable from a silent no-op. */
+    public LinkOk = '';
     public CandidatesLoading = false;
     /** Why the candidate list is empty, when the reason is a failure rather than genuinely nothing. */
     public LoadError = '';
@@ -164,102 +156,62 @@ export class MJCContractSupersedePanel extends BaseFormPanel<ContractEntity> {
     }
 
     /**
-     * Point this agreement at the contract it replaces — and UN-point whichever it replaced before.
+     * Re-paper: ask the SERVER to point this agreement at the contract it replaces.
      *
-     * REPLACE, NOT ADD, and the distinction is load-bearing. The schema deliberately permits MANY
-     * predecessors to name one successor (three order forms consolidating into one master), so simply
-     * setting the new predecessor would leave the old one still pointing here and this agreement would
-     * silently supersede BOTH. That is a legal state in the model and the wrong one for a user who just
-     * changed their mind in a single-select control. So: clear the previous, set the new.
+     * WHY AN OPERATION AND NOT ENTITY CALLS FROM HERE. The write targets a different record — the FK
+     * lives on the predecessor — so this panel used to load and save a foreign contract itself, which
+     * is server work done in the client. It also could not work: in the browser MJ resolves the
+     * CodeGen-generated entity class rather than the app subclass, so `ContractEntity.Supersede()` is
+     * absent client-side (MJ#4002). Server-side the app subclass resolves correctly and every rule in
+     * `ContractEntityServer.ValidateAsync()` actually runs.
      *
-     * If genuine consolidation is ever wanted, it needs a multi-select, not this combobox — the control
-     * is what decides the semantics here, and a single-select means one predecessor.
+     * `RouteOperation` rather than a generated typed client: the server resolves an operation purely
+     * from the ClassFactory by key, so no `MJ: Remote Operations` metadata row and no CodeGen file run
+     * is needed for this to work. The trade is a stringly-typed key, kept in one place below.
      *
-     * ORDER: unlink first, then link. Not one transaction (a TransactionGroup defers writes until
-     * Submit(), so the predecessor would validate against a successor with an ID and no row, and the
-     * level guard could not tell an unwritten sibling from a bad reference). The failure modes are
-     * therefore visible rather than silent, and each is reported with what actually landed:
-     *   · unlink fails      -> nothing changed
-     *   · unlink ok, link fails -> the old link is gone and the new one is not set; the panel reloads
-     *     showing "Supersedes -" so the state on screen is true, and the user can pick again.
+     * The operation RETURNS the live list, which is what fixes the stale Unlink button: this panel no
+     * longer maintains its own cached idea of what the contract supersedes.
      */
     public async LinkSupersedes(): Promise<void> {
-        const predecessorID = this.PickedPredecessorID;
-        if (!predecessorID || !this.Record) return;
-        this.Busy = true;
-        this.LinkError = '';
-        try {
-            const { Metadata } = await import('@memberjunction/core');
-            const provider = this.FormComponent?.ProviderToUse ?? Metadata.Provider;
-
-            // The successor must exist before anything can point at it.
-            if (this.Record.Dirty || !this.Record.IsSaved) {
-                if (!(await this.Record.Save())) {
-                    throw new Error(this.Record.LatestResult?.Message ?? 'This contract could not be saved, so nothing was superseded.');
-                }
-            }
-
-            // Release any predecessor this agreement already replaces, except the one just chosen —
-            // re-picking the same contract must not clear and re-set it.
-            for (const previous of this.Supersedes) {
-                if (previous.ID.toLowerCase() === predecessorID.toLowerCase()) continue;
-                if (!(await this.setSuccessor(provider, previous.ID, null))) {
-                    throw new Error(
-                        `Could not release ${previous.ContractNumber}, so nothing was changed. ` +
-                            `It is still recorded as superseded by this agreement.`,
-                    );
-                }
-            }
-
-            if (!(await this.setSuccessor(provider, predecessorID, this.Record.ID))) {
-                throw new Error(
-                    `Could not mark that contract superseded. Any previous link was already released, ` +
-                        `so this agreement now supersedes nothing — pick a contract and try again.`,
-                );
-            }
-
-            this.PickedPredecessorID = '';
-            await this.load();
-        } catch (e) {
-            this.LinkError = e instanceof Error ? e.message : String(e);
-            await this.load(); // whatever the DB now says, show THAT rather than the optimistic view
-        } finally {
-            this.Busy = false;
-            this.cdr.detectChanges();
-        }
+        await this.invoke(this.PickedPredecessorID || null, 'Linked — that contract is now superseded by this agreement.');
     }
 
-    /**
-     * Set (or clear) one contract's successor FK. Returns false with the entity's own reason left on
-     * `LinkError` when the server refuses — the level guard's message is far more useful than "failed".
-     */
-    private async setSuccessor(provider: { GetEntityObject: <T>(n: string) => Promise<T> }, contractID: string, successorID: string | null): Promise<boolean> {
-        const target = await provider.GetEntityObject<ContractEntity>(MJC_ENTITIES.Contract);
-        if (!(await target.Load(contractID))) return false;
-        if (successorID === null) {
-            target.SupersededByContractID = null;
-        } else {
-            // Supersede() carries the intent-setter's own guards (saved, not self) rather than a bare
-            // field write, so the entity keeps owning the rule.
-            target.Supersede(this.Record!);
-        }
-        if (await target.Save()) return true;
-        const why = target.LatestResult?.Message;
-        if (why) this.LinkError = why;
-        return false;
+    /** Release one predecessor. `null` predecessor = release everything. */
+    public async UnlinkSupersedes(_predecessorID: string): Promise<void> {
+        await this.invoke(null, 'Unlinked — that agreement is no longer superseded by this one.');
     }
 
-    /** Undo a re-papering. Left available deliberately — supersedes is unlocked for now. */
-    public async UnlinkSupersedes(predecessorID: string): Promise<void> {
+    private async invoke(predecessorID: string | null, okMessage: string): Promise<void> {
+        if (!this.Record?.ID) return;
         this.Busy = true;
         this.LinkError = '';
+        this.LinkOk = '';
         try {
             const { Metadata } = await import('@memberjunction/core');
-            const provider = this.FormComponent?.ProviderToUse ?? Metadata.Provider;
-            if (!(await this.setSuccessor(provider, predecessorID, null))) {
-                throw new Error(this.LinkError || 'Could not unlink. Nothing was changed.');
+            // RouteOperation is declared on IRemoteOperationProvider, not IMetadataProvider — the same
+            // narrowing BaseRemotableOperation.Execute() does before calling it.
+            const provider = (this.FormComponent?.ProviderToUse ?? Metadata.Provider) as unknown as IRemoteOperationProvider;
+            if (typeof provider?.RouteOperation !== 'function') {
+                throw new Error('This provider cannot route remote operations, so re-papering is unavailable here.');
             }
-            await this.load();
+            const result = await provider.RouteOperation<
+                { SuccessorID: string; PredecessorID: string | null },
+                { Supersedes: Array<{ ID: string; ContractNumber: string }>; Released: string[]; Refused?: string }
+            >(SUPERSEDE_OP, { SuccessorID: this.Record.ID, PredecessorID: predecessorID });
+
+            if (!result?.Success) {
+                throw new Error(result?.ErrorMessage || 'The server did not complete the request.');
+            }
+            const out = result.Output;
+            // Trust the server's list over anything this panel believed.
+            this.Supersedes = out?.Supersedes ?? [];
+            if (out?.Refused) {
+                this.LinkError = out.Refused;
+            } else {
+                this.LinkOk = okMessage + (out?.Released?.length ? ` Released ${out.Released.join(', ')}.` : '');
+                this.PickedPredecessorID = '';
+            }
+            await this.loadCandidates();
         } catch (e) {
             this.LinkError = e instanceof Error ? e.message : String(e);
         } finally {
@@ -279,6 +231,12 @@ export class MJCContractSupersedePanel extends BaseFormPanel<ContractEntity> {
      * what to OFFER, the server decides what is ALLOWED, and if they disagree the server wins.
      */
     private async load(): Promise<void> {
+        await this.loadSupersedes();
+        await this.loadCandidates();
+    }
+
+    /** What this contract already replaces. Read live; the operation also returns it after a write. */
+    private async loadSupersedes(): Promise<void> {
         const me = this.Record!.ID;
         const { ScopedRunView } = await import('../data/provider');
         const rv = ScopedRunView(this.FormComponent?.ProviderToUse);
@@ -292,7 +250,18 @@ export class MJCContractSupersedePanel extends BaseFormPanel<ContractEntity> {
                 ResultType: 'simple',
             });
             this.Supersedes = mine?.Success ? mine.Results : [];
+        } catch {
+            this.Supersedes = [];
+        }
+    }
 
+    /** Eligible predecessors: same level, not already superseded, not this contract. */
+    private async loadCandidates(): Promise<void> {
+        const me = this.Record!.ID;
+        const { ScopedRunView } = await import('../data/provider');
+        const rv = ScopedRunView(this.FormComponent?.ProviderToUse);
+        this.CandidatesLoading = true;
+        try {
             const parentID = this.Record?.ParentContractID ?? null;
             const sameLevel = parentID === null ? 'ParentContractID IS NULL' : `ParentContractID = '${parentID}'`;
             const r = await rv.RunView<{ ID: string; ContractNumber: string; ContractType: string }>({

@@ -78,7 +78,16 @@ export class ContractEntityServer extends ContractEntity {
      */
     public override async Save(): Promise<boolean> {
         try {
-            if (!this.IsSaved && !this.ContractNumber) {
+            // MINT WHENEVER THE INCOMING VALUE IS ABSENT, and treat blank as absent.
+            //
+            // The column is NULLABLE as of V202608211200 — MJ cannot express "NOT NULL, assigned by the
+            // server on insert" (MJ#4001), and both workarounds broke creation: a DB DEFAULT stops
+            // spCreateContract from compiling (MJ#4000), and marking the field read-only drops it from
+            // the insert payload entirely. So the database no longer holds this invariant and THIS LINE
+            // does. That is the trade, and it is why blank is handled and not just null: a form that
+            // posts an empty string, a seed script, or an import would otherwise persist '' as a
+            // contract number and the filtered unique index would happily accept exactly one of them.
+            if (!this.IsSaved && !(this.ContractNumber ?? '').trim()) {
                 this.ContractNumber = await this.assignContractNumber();
                 // Tell the shared guard this CTR-… came from the sequence, not from a person. Without
                 // it, `refuseReservedContractNumber` would refuse the number we just minted — `Save()`

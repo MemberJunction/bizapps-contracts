@@ -619,14 +619,6 @@ export class MJCContractLineagePanel extends BaseFormPanel<ContractEntity> {
 
     public get ParentName(): string { return this.Record?.ParentContract ?? ''; }
 
-    /**
-     * The successor's NUMBER, not its id.
-     *
-     * Was `SupersededByContractID` — which rendered a raw UUID to the user in the one place the panel
-     * is trying to say something human ("replaced by newer paper"). `SupersededByContract` is the
-     * generated virtual FK-name field, so this costs nothing extra to read.
-     */
-    public get SupersededBy(): string { return this.Record?.SupersededByContract ?? ''; }
 
     public get Count(): number | undefined {
         this.ensureLoaded();

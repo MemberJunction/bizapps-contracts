@@ -23,6 +23,8 @@ import { LoadContractTemplateProvisionEntityServer } from './ContractTemplatePro
 import { LoadContractTypeEntityServers } from './ContractTypeEntityServers.js';
 import { LoadContractTemplateModificationEntityServer } from './ContractTemplateModificationEntityServer.js';
 
+import { LoadSupersedeOperation } from './SupersedeOperation.js';
+
 export { ContractEntityServer, IsNewlySelected, LoadContractEntityServer } from './ContractEntityServer.js';
 export {
     ContractTemplateModificationEntityServer,
@@ -47,6 +49,7 @@ export * from './delete-guard.js';
  */
 export function LoadMjBizappsContractsEntitiesServer(): void {
     LoadContractEntityServer();
+    LoadSupersedeOperation();
     LoadContractTemplateModificationEntityServer();
     // R-8's delete guards. These have NO Validate/Save rules at all, so a dropped registration is
     // completely silent: deletes keep being refused by the FK, just with a constraint name again.
@@ -54,3 +57,7 @@ export function LoadMjBizappsContractsEntitiesServer(): void {
     LoadContractTemplateProvisionEntityServer();
     LoadContractTypeEntityServers();
 }
+
+// Re-papering: the cross-record write the browser must not do itself (see the file header, and MJ#4002).
+export { SupersedeOperation, LoadSupersedeOperation } from './SupersedeOperation.js';
+export type { SupersedeInput, SupersedeOutput } from './SupersedeOperation.js';
