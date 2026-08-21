@@ -65,7 +65,6 @@ import { ContractFilesPanel, ContractTemplateFilesPanel } from './lib/form-panel
 import {
     MJCContractDatesPanel,
     MJCContractHeroPanel,
-    MJCContractLineagePanel,
     MJCContractRenewalPanel,
 } from './lib/form-panels/contract.panels';
 import { MJCContractSupersedePanel } from './lib/form-panels/supersede.panel';
@@ -76,7 +75,6 @@ export {
     MJCContractHeroPanel,
     MJCContractDatesPanel,
     MJCContractRenewalPanel,
-    MJCContractLineagePanel,
 } from './lib/form-panels/contract.panels';
 export { MJCContractSupersedePanel } from './lib/form-panels/supersede.panel';
 export { MJCOrganizationAgreementsPanel } from './lib/form-panels/organization.panels';
@@ -129,7 +127,6 @@ export function LoadMjBizappsContractsClient(): void {
     void MJCContractHeroPanel;
     void MJCContractDatesPanel;
     void MJCContractRenewalPanel;
-    void MJCContractLineagePanel;
     void MJCContractSupersedePanel;
     void MJCOrganizationAgreementsPanel;
 }
