@@ -80,6 +80,11 @@ export class ContractEntityServer extends ContractEntity {
         try {
             if (!this.IsSaved && !this.ContractNumber) {
                 this.ContractNumber = await this.assignContractNumber();
+                // Tell the shared guard this CTR-… came from the sequence, not from a person. Without
+                // it, `refuseReservedContractNumber` would refuse the number we just minted — `Save()`
+                // validates below, and on an unsaved record a system-assigned number is
+                // indistinguishable from a hand-typed one by shape alone.
+                this.NumberWasSystemAssigned = true;
             }
             return await super.Save();
         } catch (err) {

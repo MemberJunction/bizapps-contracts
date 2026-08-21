@@ -96,7 +96,7 @@ export class ContractEntity extends mjBizAppsContractsContractEntity {
      */
     public override Validate(): ValidationResult {
         const result = super.Validate();
-        this.dropSavePopulatedFieldErrors(result);
+        this.refuseReservedContractNumber(result);
 
         if (this.HasModifications === false && this.modificationsKnownToExist()) {
             result.Success = false;
@@ -171,13 +171,58 @@ export class ContractEntity extends mjBizAppsContractsContractEntity {
      * save-populated field, because nothing here prepares child rows the way orders stamps line
      * numbers and prices.
      */
-    private dropSavePopulatedFieldErrors(result: ValidationResult): void {
-        if (this.IsSaved) return;
-        const kept = result.Errors.filter((error) => (error.Source ?? '') !== 'ContractNumber');
-        if (kept.length === result.Errors.length) return;
-        result.Errors = kept;
-        result.Success = kept.every((error) => error.Type !== ValidationErrorType.Failure);
+    /**
+     * A hand-typed contract number may not look like a system-assigned one.
+     *
+     * WHY THIS REPLACED AN ERROR FILTER. This method sits where
+     * `dropSavePopulatedFieldErrors` used to: that one searched the validation result for
+     * `Source === 'ContractNumber'` and deleted it, so a new contract could be saved despite MJ
+     * correctly reporting a NOT NULL field as null. Deleting a real error because we believe
+     * something later will fix it is the same defect as blessing a self-reference because a
+     * generated validator "has it" — it converts an invalid state into a silent success the moment
+     * the belief stops holding. The cause is now removed instead: `V202608211000` gives the column a
+     * DEFAULT, which is how MJ models "NOT NULL but supplied on insert", so the error is never raised.
+     *
+     * WHAT THIS RULE IS. `Save()` honours a number the user typed, which is the right behaviour —
+     * migrated paper has its own references. But `CTR-<digits>` is the shape the sequence mints, so a
+     * hand-typed one can collide with a value the sequence has not reached yet. The collision would
+     * surface months later, on somebody else's save, as a unique-index violation with no explanation.
+     * So the namespaces are kept apart: type your own reference, or leave it blank.
+     *
+     * Note `\d+`, not `\d{6}`: `FORMAT(n,'D6')` pads to a MINIMUM of six digits and keeps growing
+     * past a million, so a seven-digit hand-typed number is just as collidable.
+     *
+     * ONLY ON AN UNSAVED RECORD, and only when the system did not assign it. An existing contract's
+     * stored number obviously matches the pattern and must not be retro-refused; and
+     * `ContractEntityServer.Save()` mints INTO this field before calling `super.Save()`, which
+     * validates — so without `NumberWasSystemAssigned` this rule would refuse the very numbers it is
+     * meant to protect.
+     */
+    private refuseReservedContractNumber(result: ValidationResult): void {
+        if (this.IsSaved || this.NumberWasSystemAssigned) return;
+        const typed = (this.ContractNumber ?? '').trim();
+        if (!typed || !/^CTR-\d+$/i.test(typed)) return;
+
+        result.Success = false;
+        result.Errors.push(
+            new ValidationErrorInfo(
+                'ContractNumber',
+                `The CTR-#### pattern is reserved for contract numbers the system assigns, so "${typed}" cannot be ` +
+                    `entered by hand — a number the sequence has not reached yet would collide with it later, on ` +
+                    `somebody else's save. Leave this blank to have one assigned, or enter your own reference in a ` +
+                    `different format.`,
+                this.ContractNumber,
+                ValidationErrorType.Failure,
+            ),
+        );
     }
+
+    /**
+     * Set by the server subclass when IT minted the number, so `refuseReservedContractNumber` can tell
+     * a system-assigned `CTR-…` from a hand-typed one. Protected rather than public: nothing outside
+     * the entity has any business claiming a number was system-assigned.
+     */
+    protected NumberWasSystemAssigned = false;
 
     /**
      * Whether modification rows are KNOWN to exist — as opposed to merely not known to be absent.

@@ -33,8 +33,7 @@
     "@memberjunction/ng-hierarchy-tree": "^6.1.0-edge.2",
     "@memberjunction/ng-link-directives": "^6.1.0-edge.2",
     "@memberjunction/ng-shared": "^6.1.0-edge.2",
-    "@memberjunction/ng-ui-components": "^6.1.0-edge.2",
-    "@mj-biz-apps/accounting-ng": ">=0.1.0"
+    "@memberjunction/ng-ui-components": "^6.1.0-edge.2"
   },
   "devDependencies": {
     "@angular/compiler": "21.1.3",
