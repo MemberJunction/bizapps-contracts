@@ -1,10 +1,15 @@
 ---
-'@mj-biz-apps/contracts-entities': patch
-'@mj-biz-apps/contracts-core-entities-server': patch
-'@mj-biz-apps/contracts-ng': patch
+'@mj-biz-apps/contracts-entities': minor
+'@mj-biz-apps/contracts-core-entities-server': minor
+'@mj-biz-apps/contracts-ng': minor
 ---
 
 A contract can be created without hand-typing its number, and re-papering runs as a remotable operation.
+
+**MINOR rather than patch**, unlike every other changeset in this repo: this PR ships migrations, and
+CI enforces at least a minor bump for those (`changes_and_migrations` → "Migrations require at least a
+'minor' version bump in the changeset"). That matches MJ's own convention that minor is reserved for
+migration/metadata branches. The `fixed` group carries every `@mj-biz-apps/contracts-*` package with it.
 
 **`ContractNumber` is now nullable, and the server holds the invariant.** MJ has no way to express
 "NOT NULL, assigned by the server on insert" (MJ#4001), and both available workarounds break creation
