@@ -14,34 +14,55 @@ development.
 - Use `${flyway:defaultSchema}` for THIS schema; literal `__mj` for MJ core rows.
 - Do **not** add `__mj_CreatedAt` / `__mj_UpdatedAt` columns or FK indexes — CodeGen does.
 
-## Why the baseline is ONE file
+## The train, and why it is four files
 
-`B…__Baseline.sql` carries everything: the schema, the `__mj.SchemaInfo` registration, all seven
-tables and their constraints, and the CodeGen output. Applying it to an empty database produces an
-**installed app**, not bare tables — `mj sync push` then seeds the reference vocabulary.
+| file | what it is |
+| --- | --- |
+| `B…__Baseline.sql` | schema, `__mj.SchemaInfo`, the sequence, the sort-key function, all seven tables + constraints, the two app-owned programmable objects, then the CodeGen capture |
+| `V…0002__Layered_base_view_flags.sql` | flips two entities to layered base views + the capture that re-points CodeGen to `vw*Generated` |
+| `V…0003__Layered_base_views_and_derived_fields.sql` | the two application-owned wrapper views + explicit registration of the 8 columns they add |
+| `V…0004__Metadata_Sync.sql` | the reference vocabulary `mj sync push` writes from `metadata/` |
 
-It used to be two files (`…__Schema_and_Types` + `…__Tables_and_Objects`), split following
-bizapps-orders so a user-defined table type would be COMMITTED before any trigger declaring a
-variable of it was compiled. **That hazard is real but this app does not have it — it declares no
-table types.** Carrying a second file for a problem we do not have cost a reader one more hop and
-bought nothing.
+**The count is forced, not stylistic.** Everything that CAN be folded into the baseline
+has been — 22 incremental files collapsed into it on 2026-08-23 (see below). What remains
+is a genuine sequence:
 
-**If this app ever adds a table type, split it back out**, and read this first:
+1. The layered-view flags live on `__mj.Entity` rows that **do not exist** until the
+   baseline's own capture inserts them, so the flags cannot be in the baseline.
+2. A wrapper view cannot be created before the view it selects `FROM` — SQL Server has
+   deferred name resolution for procedure bodies but **not** for views — so the wrappers
+   cannot share a file with the flags.
+3. Seed data has to follow the schema and the metadata it references.
 
-> A trigger declaring a variable of a user-defined table type cannot be compiled inside the
-> transaction that created the type — SQL Server needs a schema lock the creating transaction still
-> holds, and it dies with `Msg 1205 … deadlocked with another process` on a single-connection run.
-> It surfaces at an innocent-looking CodeGen `__mj_CreatedAt` backfill hundreds of batches later and
-> reads as server instability rather than an ordering bug.
+**An install runs migrations and NOTHING ELSE.** It never runs CodeGen and never runs
+`mj sync push`, which is why both of their outputs are captured here. Skipping either
+produces a database that looks installed and isn't: bare tables with no entity metadata,
+or entities with no vocabulary.
 
-Two things make that hazard survivable now, and both are recent:
+### What the 2026-08-23 flatten collapsed
 
-1. **Migrations run one transaction per FILE.** `@memberjunction/open-app-engine` did not set
-   `TransactionMode`, so skyway-core's `per-run` default wrapped an app's whole migration set in ONE
-   transaction — which silently defeated the split for every open app. Fixed in
-   `packages/OpenApp/Engine/src/install/migration-runner.ts`; see `MJ-UPSTREAM.md`.
-2. **The split only helps across files.** Putting a `CREATE TYPE` and a trigger that uses it in the
-   SAME file re-creates the deadlock even under `per-migration`.
+Pre-publish practice (below) was to edit the baseline in place; that slipped, and 22
+incremental files accumulated. Folding them back in removed real garbage rather than
+merely tidying: a `DEFAULT` added and reverted one file later (MJ#4000), a filtered
+unique index replaced by a plain one, a `ParentStatusRequirement` column added and then
+dropped for the `MustBeRoot`/`MustBeChild` flags that replaced it, a `ContractSequence`
+counter table created and then retired for a real `SEQUENCE`, three successive versions
+of one trigger, and two migrations patching `__mj.UserSetting` grid layouts that do not
+exist on a fresh install.
+
+It also **fixed three latent bugs**, all the same shape — a column added by `ALTER TABLE`
+with no CodeGen capture behind it, so a fresh install got a column MJ could not see.
+`ContractTemplate.Status`, `ContractTemplateProvision.ProvisionSortKey`, and
+`ContractType.MustBeRoot`/`MustBeChild`/`TemplateRequired` were all invisible to MJ on a
+from-zero install of the old train. They are registered now because their columns are
+part of `CREATE TABLE`, which the baseline's capture sees.
+
+Two CodeGen artifacts were **deliberately dropped**: `fnContractParentContractID_GetRootID`
+and `fnContractSupersededByContractID_GetRootID`, with their `Root*ID` metadata rows.
+Current CodeGen no longer generates them; the old train only had them because its captures
+were frozen output from an earlier version. Nothing reads them. This takes the
+"delete the metadata rows" branch of the open question in
+`plans/backend-requirements.md` (ruled by Marcelo, 2026-08-23).
 
 ## The 50-blank-line rule (where hand-written DDL stops and CodeGen output starts)
 
@@ -56,39 +77,50 @@ new run." A banner comment cannot be that mark, because banner comments appear *
 dozens of times. Fifty consecutive blank lines appear nowhere else in a SQL file, which is exactly why
 the number is absurd.
 
-Verify with a longest-blank-run check over `migrations/*.sql`: every file carrying a capture must report
-**50**, and `V202608182001` (hand-written wrapper, no capture) must report **1**. `bizapps-orders` is the
+Verify with a longest-blank-run check over `migrations/*.sql`. The two files carrying a capture —
+the baseline and `V…0002` — must report **50**; `V…0003` (hand-written wrappers, no capture) reports
+**1**. `V…0004` is entirely SQL-logger output and carries no separator. `bizapps-orders` is the
 reference implementation — `V202608131541`, `V202608131542`, `V202607061432`.
 
-## Standing pre-production practice
+## Baseline edits are CLOSED as of the 2026-08-23 flatten
 
-While nothing is deployed, schema changes **edit the original baseline in place** and rebuild
-on a clean database — no incremental fix-up migrations. This is only safe because rebuilding
-from zero is routine. **Switch to additive-only at first publish**, after which an applied
-migration is immutable.
+Pre-publish practice was to **edit the baseline in place** and rebuild from zero, which is safe
+only while no database anyone depends on has run it. The flatten above was the last exercise of
+that licence.
 
-The authoring loop:
+**From here the rule inverts, and the repo's `CLAUDE.md` states it as binding: schema changes are
+new `V` migrations.** An edit to the baseline is invisible to any database that already ran it —
+the column simply never appears, and nothing reports a problem — and Flyway checksums the script,
+so every existing database refuses to migrate until someone repairs the history by hand.
+
+The authoring loop is therefore:
 
 ```bash
-scripts/rebuild-db.sh                      # drop → MJ core → common → accounting → orders → contracts
+# write a new V migration, then:
+npm run mj:migrate                         # apply it
 npm run mj:codegen                         # regenerate entity metadata + SQL objects
-scripts/append-codegen.sh                  # fold that output BELOW the migration's banner
-npm run mj -- sync push --dir metadata     # seed ContractType et al.
+                                           # fold the capture in below 50 blank lines
+npm run mj -- sync push --dir metadata     # if the change is vocabulary, not schema
 ```
 
-`append-codegen.sh` is **not optional**. The generated half of the baseline — entity/field
-metadata, base views, CRUD procedures, permissions — is what makes a fresh `mj migrate` produce
-a *working* database rather than bare tables. Skipping it after a CodeGen run silently discards it.
+A CodeGen capture is **not optional** whenever a migration changes the shape of a table. Its
+absence is exactly what produced the three latent bugs the flatten fixed: the column exists in
+SQL and MJ cannot see it, on every fresh install, silently.
 
 ## Install-order dependency
 
-`bizapps-common`, `bizapps-accounting` and `bizapps-orders` **must** be installed first. The
-cross-app foreign keys in §4.A are the dependency check: applying this baseline without them
-fails there, deliberately, rather than producing a schema that looks installed and dangles.
+**`bizapps-common` only.** The baseline's cross-app foreign keys reference
+`__mj_BizAppsCommon.Organization` and `__mj_BizAppsCommon.Person`, plus `__mj.Company` and
+`__mj.Entity` in MJ core — and nothing else. A clean host carrying MJ core + `bizapps-common` is
+enough to apply this whole train, which is how it is verified.
 
-`bizapps-tasks` is a required dependency of this app but is **not yet in the chain**, which is
-why `ContractAmendment.ApprovalTaskID` is the one soft reference. See §4.B for the TODO that
-closes it.
+This previously read "`bizapps-common`, `bizapps-accounting` and `bizapps-orders` must be installed
+first", and also referred to a `ContractAmendment.ApprovalTaskID` soft reference and a `bizapps-tasks`
+dependency. None of that is true of the current schema: there is no `ContractAmendment` table (the
+v2 rebuild replaced it with `ParentContractID` on `Contract` itself), no soft reference anywhere, and
+no FK into accounting, orders or tasks. Corrected 2026-08-23 after measuring the baseline's actual
+`REFERENCES` clauses. Requiring two extra apps for an install that does not need them is not a
+harmless overstatement — it is two more failure points in someone's first install.
 
 ## Cross-app reference hardness
 
@@ -102,11 +134,26 @@ workaround for a tooling defect.
 
 ## Verification
 
-The baseline has been applied inside a transaction against a database carrying the full
-dependency chain and rolled back: **8 views, 21 CRUD procedures, 7 entities, 77 entity fields, 6 derived columns** — measured on a wiped database, 2026-08-18.
-Re-run that check after any edit:
+The train is proven **from zero**, not by inspection. The method, which any change to
+these files must repeat:
 
-```bash
-# concatenate both files between BEGIN TRANSACTION / ROLLBACK TRANSACTION and run with
-# sqlcmd -b against a DB that already has __mj + common + accounting + orders
-```
+1. Build a clean host — an empty database with MJ core + `bizapps-common` migrated into
+   it, and nothing else.
+2. Apply the migrations with `mj migrate --schema __mj_BizAppsContracts --dir ./migrations`.
+3. Compare against a from-zero replay of the previous train, object-by-object: columns
+   with types/nullability/defaults, CHECK constraints, indexes with their filters,
+   sequences, and every view/procedure/function/trigger; then the `__mj.Entity` and
+   `__mj.EntityField` rows.
+4. Prove the seed independently: apply the migrations to a second clean database, and
+   diff its seeded rows against a database seeded by a real `mj sync push`.
+
+Result on 2026-08-23 (MSSQL, MJ `6.1.0-edge.2`): **161 schema objects, zero differences**
+against the previous train except the two intentionally-dropped root-ID functions;
+**79 seed rows identical including every UUID**; `mj sync push` after migrating reports
+`created: 0`. `mj baseline compare --left <a> --right <b> --fail-on-diff` is the shipped
+MJ command for step 3 if you want it whole-database rather than schema-scoped.
+
+**Do not verify by re-reading the SQL.** The flatten's one real error — `SourceURL`
+silently reverting to `NOT NULL` — was invisible on inspection and caught immediately by
+step 3, because the `ALTER COLUMN` that relaxed it was buried inside an `IF EXISTS` block
+in a migration whose filename was about something else entirely.

@@ -47,8 +47,14 @@ database as part of ordinary development.
 Editing the baseline was correct while the schema changed constantly and nothing depended on it.
 That phase is over: an edit to the baseline is invisible to any database that already ran it — the
 column never appears and nothing reports a problem — and flyway checksums the script, so every
-existing database refuses to migrate until someone repairs it by hand. `scripts/rebuild-db.sh`
-remains only for standing up a brand-new empty database; it is not a development loop.
+existing database refuses to migrate until someone repairs it by hand.
+
+**The one sanctioned exception has already been used.** On 2026-08-23, immediately before the first
+publish, the 23-file train was flattened back into the baseline — collapsing added-then-reverted
+DDL, and fixing three columns that a fresh install left invisible to MJ. That was legitimate only
+because nothing had shipped yet. It is closed now; see `migrations/_README.md`. Standing up a clean
+database is a from-zero `mj migrate` against an empty database carrying MJ core + `bizapps-common`,
+not a script — there is no `rebuild-db.sh` in this repo, and the reference to one was stale.
 
 Write migrations idempotently (`IF NOT EXISTS`, `IF COL_LENGTH(...) IS NULL`) and assume the database
 already has data. A migration that reads `__mj.Entity` must skip cleanly when the row is absent —

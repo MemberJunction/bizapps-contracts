@@ -1,10 +1,20 @@
 -- =============================================================================
 -- BizApps Contracts — THE BASELINE (v0.1.0)
 -- =============================================================================
--- ONE FILE. Schema, SchemaInfo registration, seven tables and their constraints,
--- and the CodeGen output that turns bare tables into a working app. Applying this
--- file to an empty database produces an installed contracts app; nothing else is
--- required before `mj sync push` seeds the reference vocabulary.
+-- Schema, SchemaInfo registration, the contract-number SEQUENCE, the sort-key
+-- function, SIX tables and their constraints, the two app-owned programmable
+-- objects, and the CodeGen output that turns bare tables into a working app.
+--
+-- IT IS THE FIRST OF FOUR FILES, not the whole install. Three more follow, and the
+-- split is forced rather than stylistic: the layered-view flags live on __mj.Entity
+-- rows that this file's own capture creates (so they cannot precede it), a wrapper
+-- view cannot be created before the view it selects FROM (SQL Server defers name
+-- resolution for procedure bodies but not for views), and seed data has to follow
+-- both. See migrations/_README.md for the train.
+--
+-- Everything that COULD be folded in has been: 22 incremental migrations were
+-- collapsed back into this file on 2026-08-23, immediately before first publish.
+-- That licence is now closed — schema changes after this point are new V migrations.
 --
 -- THIS IS A CLEAN-SHEET REPLACEMENT of the v1 ten-table schema. v1 was an
 -- agreement ENGINE — it owned commitment, term structure, escalation, billing
@@ -91,6 +101,69 @@ GO
 -- batches later, reading as server instability rather than an ordering bug.
 
 -- =============================================================================
+-- 2.B FUNCTIONS REQUIRED BY COMPUTED COLUMNS
+-- =============================================================================
+-- fnProvisionSortKey is created BEFORE the tables because ContractTemplateProvision
+-- declares a PERSISTED computed column over it, and SQL Server resolves a computed
+-- column's expression at CREATE TABLE time -- there is no deferred name resolution
+-- for it as there is for a procedure body.
+
+CREATE OR ALTER FUNCTION [${flyway:defaultSchema}].[fnProvisionSortKey] (@ProvisionNumber NVARCHAR(20))
+RETURNS NVARCHAR(200)
+WITH SCHEMABINDING
+AS
+BEGIN
+    IF @ProvisionNumber IS NULL RETURN NULL;
+
+    DECLARE @out    NVARCHAR(200) = N'';
+    DECLARE @digits NVARCHAR(20)  = N'';
+    DECLARE @i      INT = 1;
+    DECLARE @len    INT = LEN(@ProvisionNumber);
+    DECLARE @c      NCHAR(1);
+
+    WHILE @i <= @len
+    BEGIN
+        SET @c = SUBSTRING(@ProvisionNumber, @i, 1);
+        IF @c LIKE N'[0-9]'
+            SET @digits = @digits + @c;
+        ELSE
+        BEGIN
+            IF LEN(@digits) > 0
+            BEGIN
+                -- Pad to 6, but never TRUNCATE a longer run: RIGHT(...,6) on a 7-digit run would
+                -- drop its leading digit and sort it wildly wrong. Runs that long do not exist
+                -- here, and the expression should not be the reason they cannot.
+                SET @out = @out + RIGHT(REPLICATE(N'0', 6) + @digits,
+                                        CASE WHEN LEN(@digits) > 6 THEN LEN(@digits) ELSE 6 END);
+                SET @digits = N'';
+            END
+            -- UPPER so '1.1a' and '1.1A' land together rather than in two places.
+            SET @out = @out + UPPER(@c);
+        END
+        SET @i = @i + 1;
+    END
+
+    IF LEN(@digits) > 0
+        SET @out = @out + RIGHT(REPLICATE(N'0', 6) + @digits,
+                                CASE WHEN LEN(@digits) > 6 THEN LEN(@digits) ELSE 6 END);
+
+    RETURN @out;
+END;
+GO
+
+-- =============================================================================
+-- 2.C SEQUENCES
+-- =============================================================================
+-- NO CACHE, deliberately: SQL Server caches a block of sequence values and an unclean
+-- shutdown discards the unused remainder, so the next value JUMPS. NO CACHE removes the
+-- skip at the cost of a catalog write per call -- free at a handful of contracts a day,
+-- and it makes the numbering easier to explain to finance. Ordinary gaps (a save that
+-- fails after taking a number) remain normal and are not something to fix.
+CREATE SEQUENCE __mj_BizAppsContracts.seq_ContractNumber
+    AS INT START WITH 1 INCREMENT BY 1 NO CACHE;
+GO
+
+-- =============================================================================
 -- 3. TABLES
 -- =============================================================================
 
@@ -118,10 +191,18 @@ GO
 --     that never goes away, so a customer who signed in June 2026 stays bound to
 --     the June 2026 text.
 --
---     SourceURL is NOT NULL: every template we have is a published dated URL, and
---     that is the whole mechanism. A template nobody can open is not a record of
---     anything. If a privately-held template ever arrives, relaxing this is a
---     one-line additive change made with the real case in hand (ERD §4.1).
+--     SourceURL IS NULLABLE, and the earlier NOT NULL is a corrected mistake rather
+--     than a relaxation (ruled by Marcelo, 2026-08-19). The ERD asked for "a public URL
+--     that never goes away" and REACHABILITY IS ENFORCEABLE BY NOTHING: whether a URL
+--     still resolves is a fact about the outside world, and format validation is weak
+--     because a well-formed dead link passes. The real requirement is "a URL OR an
+--     attached file" -- and a file attaches through __mj.FileEntityRecordLink keyed on
+--     RecordID, which cannot reference a record that does not exist yet. On CREATE the
+--     file half is unsatisfiable in principle, so no NOT NULL, CHECK or pre-save rule
+--     can express it without blocking the ordinary act of authoring a template. A
+--     template with neither is INCOMPLETE, not invalid -- an ordinary state to pass
+--     through -- and the derived IsUsable column on vwContractTemplates is what lets the
+--     UI say so, which a person can see and fix rather than an error that stops a save.
 --
 --     Carries no prose of its own — ContentText was removed (R-11) and every
 --     clause's standard wording lives on its provision row instead (R-15/D-16).
@@ -132,10 +213,14 @@ CREATE TABLE __mj_BizAppsContracts.ContractTemplate (
     ContractTemplateTypeID UNIQUEIDENTIFIER NOT NULL,
     VersionLabel NVARCHAR(50) NULL,
     IntroducedDate DATE NULL,
-    SourceURL NVARCHAR(1000) NOT NULL,
+    -- NULLABLE (Marcelo, 2026-08-19). See the header note above: the real rule is
+    -- "a URL OR an attached file", and the file half is unsatisfiable at CREATE time.
+    SourceURL NVARCHAR(1000) NULL,
     Description NVARCHAR(MAX) NULL,
+    Status NVARCHAR(20) NOT NULL CONSTRAINT DF_ContractTemplate_Status DEFAULT 'Draft',
     CONSTRAINT PK_ContractTemplate PRIMARY KEY (ID),
     CONSTRAINT UQ_ContractTemplate_Name UNIQUE (Name)
+    , CONSTRAINT CK_ContractTemplate_Status CHECK (Status IN ('Draft', 'Published'))
 );
 GO
 
@@ -147,21 +232,34 @@ GO
 --     numbering belongs to a VERSION: the moment v7 renumbers, a single global
 --     list is wrong.
 --
---     Sequence exists because ProvisionNumber does not sort as text — '3.10'
---     lands before '3.5' — and a legal document has a canonical order.
+--     ProvisionSortKey is a PERSISTED computed collation key, not a stored order:
+--     ProvisionNumber does not sort as text ('1.10' lands before '1.9'), and a legal
+--     document has a canonical order. A hand-maintained Sequence column held that job
+--     in v1 and had ALREADY collided in the seeded data -- '1' and '1.1' both claiming
+--     position 1 -- which is the failure mode of storing a projection of something the
+--     ProvisionNumber already states. Derived, it cannot disagree with itself.
 ---------------------------------------------------------------------------
 CREATE TABLE __mj_BizAppsContracts.ContractTemplateProvision (
     ID UNIQUEIDENTIFIER NOT NULL DEFAULT NEWSEQUENTIALID(),
     ContractTemplateID UNIQUEIDENTIFIER NOT NULL,
     ProvisionNumber NVARCHAR(20) NOT NULL,
     Title NVARCHAR(200) NOT NULL,
-    ProvisionText NVARCHAR(MAX) NULL,
+    ProvisionText NVARCHAR(MAX) NOT NULL,
     Description NVARCHAR(MAX) NULL,
-    Sequence INT NOT NULL DEFAULT 0,
+    -- Derived, PERSISTED so it can be indexed; see 2.B for the function and why it is
+    -- created first. Nobody can write a sort key, which is the point.
+    ProvisionSortKey AS (__mj_BizAppsContracts.fnProvisionSortKey(ProvisionNumber)) PERSISTED,
     CONSTRAINT PK_ContractTemplateProvision PRIMARY KEY (ID),
     CONSTRAINT UQ_ContractTemplateProvision_Template_Number
-        UNIQUE (ContractTemplateID, ProvisionNumber)
+        UNIQUE (ContractTemplateID, ProvisionNumber),
+    CONSTRAINT CK_ContractTemplateProvision_TextNotBlank
+        CHECK (LEN(LTRIM(RTRIM(ProvisionText))) > 0)
 );
+GO
+
+-- Template first: every real query is scoped to one template.
+CREATE INDEX IX_ContractTemplateProvision_SortKey
+    ON __mj_BizAppsContracts.ContractTemplateProvision (ContractTemplateID, ProvisionSortKey);
 GO
 
 ---------------------------------------------------------------------------
@@ -178,29 +276,32 @@ CREATE TABLE __mj_BizAppsContracts.ContractType (
     Description NVARCHAR(MAX) NULL,
     RequiresExecutedDocument BIT NOT NULL DEFAULT 1,
     Status NVARCHAR(10) NOT NULL DEFAULT 'Active',
+    -- Where in the contract tree this type may sit. Mutually exclusive; BOTH FALSE means
+    -- unrestricted, which is the honest default and what two of the four seeded types want.
+    -- These REPLACED a three-state ParentStatusRequirement string whose values invert the
+    -- rule if read in the wrong order.
+    MustBeRoot BIT NOT NULL CONSTRAINT DF_ContractType_MustBeRoot DEFAULT 0,
+    MustBeChild BIT NOT NULL CONSTRAINT DF_ContractType_MustBeChild DEFAULT 0,
+    -- Whether a contract of this type must carry its own ContractTemplateID.
+    TemplateRequired BIT NOT NULL CONSTRAINT DF_ContractType_TemplateRequired DEFAULT 0,
     CONSTRAINT PK_ContractType PRIMARY KEY (ID),
     CONSTRAINT UQ_ContractType_Name UNIQUE (Name),
-    CONSTRAINT CK_ContractType_Status CHECK (Status IN ('Active','Inactive'))
+    CONSTRAINT CK_ContractType_Status CHECK (Status IN ('Active','Inactive')),
+    CONSTRAINT CK_ContractType_RootOrChild CHECK (NOT (MustBeRoot = 1 AND MustBeChild = 1))
 );
 GO
 
+-----------------------------------------------------------------------------
+-- 3.5 (retired) ContractSequence -- the counter is a SEQUENCE, see 2.C.
+--     v1 used a singleton counter TABLE, copying the shape orders uses for ORD- and
+--     PAY-. A table is registered by CodeGen as an MJ ENTITY, which handed it a grid,
+--     a form and AllowUpdateAPI -- an editable surface whose only use was winding the
+--     counter backwards, after which numbers already in use get re-minted until
+--     UQ_Contract_ContractNumber starts refusing saves one contract at a time with no
+--     hint why. A SEQUENCE is not a table, so CodeGen never sees it: no entity, no
+--     grid, nothing to protect. It is also atomic, which retires the HOLDLOCK/UPDLOCK
+--     dance the old sproc needed.
 ---------------------------------------------------------------------------
--- 3.5 ContractSequence — singleton counter behind CTR-{seq}.
---     Same shape orders uses for ORD- and PAY-. Seeded here because it is a
---     counter, not vocabulary: it must exist before the first contract is written.
----------------------------------------------------------------------------
-CREATE TABLE __mj_BizAppsContracts.ContractSequence (
-    ID INT NOT NULL,
-    NextSequenceNumber INT NOT NULL DEFAULT 1,
-    CONSTRAINT PK_ContractSequence PRIMARY KEY (ID),
-    CONSTRAINT CK_ContractSequence_Singleton CHECK (ID = 1),
-    CONSTRAINT CK_ContractSequence_NextSeq CHECK (NextSequenceNumber > 0)
-);
-GO
-
-INSERT INTO __mj_BizAppsContracts.ContractSequence (ID, NextSequenceNumber)
-VALUES (1, 1);
-GO
 
 ---------------------------------------------------------------------------
 -- 3.6 Contract — the signed agreement. One row = one piece of signed (or
@@ -236,7 +337,18 @@ GO
 ---------------------------------------------------------------------------
 CREATE TABLE __mj_BizAppsContracts.Contract (
     ID UNIQUEIDENTIFIER NOT NULL DEFAULT NEWSEQUENTIALID(),
-    ContractNumber NVARCHAR(50) NOT NULL,
+    -- NULLABLE, and the server holds the invariant instead of the database.
+    -- ContractEntityServer.Save() mints a number whenever the incoming value is null or
+    -- blank, so the entity path never sends one. MJ has no way to declare "NOT NULL,
+    -- assigned by the server on insert" (MJ#4001), and both available workarounds break
+    -- creation in opposite directions: a DB DEFAULT makes CodeGen string-quote an
+    -- EXPRESSION default into spCreateContract, which then fails to compile and is left
+    -- DROPPED (MJ#4000); AllowUpdateAPI=0 silences the validator but omits the field from
+    -- the insert payload, so the procedure fails on a missing @ContractNumber.
+    -- UQ_Contract_ContractNumber below is PLAIN rather than filtered: SQL Server permits
+    -- exactly one NULL, and a second un-numbered row is precisely what should be refused
+    -- rather than accumulated. Ruled by Marcelo, 2026-08-21.
+    ContractNumber NVARCHAR(50) NULL,
     ContractTypeID UNIQUEIDENTIFIER NOT NULL,
     CompanyID UNIQUEIDENTIFIER NOT NULL,
     CustomerOrganizationID UNIQUEIDENTIFIER NOT NULL,
@@ -306,11 +418,14 @@ CREATE TABLE __mj_BizAppsContracts.ContractTemplateModification (
     ID UNIQUEIDENTIFIER NOT NULL DEFAULT NEWSEQUENTIALID(),
     ContractID UNIQUEIDENTIFIER NOT NULL,
     ContractTemplateProvisionID UNIQUEIDENTIFIER NOT NULL,
-    ModificationText NVARCHAR(MAX) NULL,
+    ModificationText NVARCHAR(MAX) NOT NULL,
     Notes NVARCHAR(MAX) NULL,
     CONSTRAINT PK_ContractTemplateModification PRIMARY KEY (ID),
     CONSTRAINT UQ_ContractTemplateModification_Contract_Provision
-        UNIQUE (ContractID, ContractTemplateProvisionID)
+        UNIQUE (ContractID, ContractTemplateProvisionID),
+    -- A modification that records no change is a row asserting nothing.
+    CONSTRAINT CK_ContractTemplateModification_TextNotBlank
+        CHECK (LEN(LTRIM(RTRIM(ModificationText))) > 0)
 );
 GO
 
@@ -410,27 +525,27 @@ GO
 EXEC sp_addextendedproperty @name=N'MS_Description', @value=N'One VERSION of a standard agreement — in practice the Master Agreement. Versions matter because each is published at its own dated URL that never goes away, so a customer stays bound to the text they signed. Carries no prose of its own: every clauses standard wording lives on its ContractTemplateProvision row.', @level0type=N'SCHEMA', @level0name=N'__mj_BizAppsContracts', @level1type=N'TABLE', @level1name=N'ContractTemplate';
 EXEC sp_addextendedproperty @name=N'MS_Description', @value=N'The version the document names itself, e.g. "v6". Free text, because it is the documents own label rather than something we derive.', @level0type=N'SCHEMA', @level0name=N'__mj_BizAppsContracts', @level1type=N'TABLE', @level1name=N'ContractTemplate', @level2type=N'COLUMN', @level2name=N'VersionLabel';
 EXEC sp_addextendedproperty @name=N'MS_Description', @value=N'When this version started being offered. NOT an effective date: a template becomes effective for a customer when THAT customer signs it, never on a calendar date. Naming it EffectiveDate would invite exactly the wrong query.', @level0type=N'SCHEMA', @level0name=N'__mj_BizAppsContracts', @level1type=N'TABLE', @level1name=N'ContractTemplate', @level2type=N'COLUMN', @level2name=N'IntroducedDate';
-EXEC sp_addextendedproperty @name=N'MS_Description', @value=N'The dated public URL. NOT NULL — every template we have is a published URL and it is what the executed PDF cites; a template nobody can open is not a record of anything.', @level0type=N'SCHEMA', @level0name=N'__mj_BizAppsContracts', @level1type=N'TABLE', @level1name=N'ContractTemplate', @level2type=N'COLUMN', @level2name=N'SourceURL';
+EXEC sp_addextendedproperty @name=N'MS_Description', @value=N'The dated public URL a customer can open to read the standard terms. NULLABLE: reachability is enforceable by nothing (a well-formed dead link passes any format check), and the real rule is "a URL OR an attached file" — the file half attaching through __mj.FileEntityRecordLink, which cannot reference a record that does not exist yet, so on CREATE it is unsatisfiable in principle. A template with neither is INCOMPLETE rather than invalid; the derived IsUsable column on vwContractTemplates is what says so.', @level0type=N'SCHEMA', @level0name=N'__mj_BizAppsContracts', @level1type=N'TABLE', @level1name=N'ContractTemplate', @level2type=N'COLUMN', @level2name=N'SourceURL';
+EXEC sp_addextendedproperty @name=N'MS_Description', @value=N'Publication lifecycle. ''Draft'' -- freely editable, provisions may be added, changed and removed, and a contract may not NEWLY reference it. ''Published'' -- the provisions are frozen against INSERT, UPDATE and DELETE by trg_ContractTemplateProvision_Immutability, and contracts may reference it. Publishing is ONE-WAY (enforced in ContractTemplateEntity): to change published terms, publish a new version -- that is what VersionLabel exists for. Existing references are never invalidated by this column; only new ones are policed, the same way ContractType.Status works.', @level0type=N'SCHEMA', @level0name=N'__mj_BizAppsContracts', @level1type=N'TABLE', @level1name=N'ContractTemplate', @level2type=N'COLUMN', @level2name=N'Status';
 GO
 
 EXEC sp_addextendedproperty @name=N'MS_Description', @value=N'The numbered clause list of a template version, and the home of all standard contract text. Hangs off ContractTemplate rather than standing alone because provision numbering belongs to a VERSION — the moment a new version renumbers, a single global list is wrong.', @level0type=N'SCHEMA', @level0name=N'__mj_BizAppsContracts', @level1type=N'TABLE', @level1name=N'ContractTemplateProvision';
 EXEC sp_addextendedproperty @name=N'MS_Description', @value=N'The clause number as the document writes it, e.g. "3.5(b)". Unique within its template.', @level0type=N'SCHEMA', @level0name=N'__mj_BizAppsContracts', @level1type=N'TABLE', @level1name=N'ContractTemplateProvision', @level2type=N'COLUMN', @level2name=N'ProvisionNumber';
 EXEC sp_addextendedproperty @name=N'MS_Description', @value=N'The clause heading, e.g. "Limitation of Liability". This plus the number is what a person picks from.', @level0type=N'SCHEMA', @level0name=N'__mj_BizAppsContracts', @level1type=N'TABLE', @level1name=N'ContractTemplateProvision', @level2type=N'COLUMN', @level2name=N'Title';
 EXEC sp_addextendedproperty @name=N'MS_Description', @value=N'The STANDARD wording of this clause. Read as a pair with ContractTemplateModification.ModificationText, which holds what a given contract says instead — a dispute needs the comparison, not either half.', @level0type=N'SCHEMA', @level0name=N'__mj_BizAppsContracts', @level1type=N'TABLE', @level1name=N'ContractTemplateProvision', @level2type=N'COLUMN', @level2name=N'ProvisionText';
-EXEC sp_addextendedproperty @name=N'MS_Description', @value=N'Display order. Earns its place because ProvisionNumber does not sort as text ("3.10" lands before "3.5") and a legal document has a canonical order.', @level0type=N'SCHEMA', @level0name=N'__mj_BizAppsContracts', @level1type=N'TABLE', @level1name=N'ContractTemplateProvision', @level2type=N'COLUMN', @level2name=N'Sequence';
+EXEC sp_addextendedproperty @name=N'MS_Description', @value=N'Collation key derived from ProvisionNumber: every run of digits zero-padded to six places, everything else upper-cased. Makes a plain SQL ORDER BY produce natural order (''1.9'' before ''1.10''), which ordering by ProvisionNumber cannot. READ-ONLY -- a persisted computed column; nobody should be able to set a sort key. Replaced the hand-maintained Sequence column, which had already collided in the seeded data.', @level0type=N'SCHEMA', @level0name=N'__mj_BizAppsContracts', @level1type=N'TABLE', @level1name=N'ContractTemplateProvision', @level2type=N'COLUMN', @level2name=N'ProvisionSortKey';
 GO
 
 EXEC sp_addextendedproperty @name=N'MS_Description', @value=N'The kind of paper: Order Form, Statement of Work, Payment Link, Change Order. A lookup TABLE for the same reason as ContractTemplateType.', @level0type=N'SCHEMA', @level0name=N'__mj_BizAppsContracts', @level1type=N'TABLE', @level1name=N'ContractType';
 EXEC sp_addextendedproperty @name=N'MS_Description', @value=N'Whether paper is ever expected for this kind of contract. No for a Payment Link, which has an implied agreement and no signature. This is what stops such a contract asking forever for a document that will never arrive: "awaiting the document" is DERIVED as requires-it AND no-linked-file, never stored and never a status value.', @level0type=N'SCHEMA', @level0name=N'__mj_BizAppsContracts', @level1type=N'TABLE', @level1name=N'ContractType', @level2type=N'COLUMN', @level2name=N'RequiresExecutedDocument';
 EXEC sp_addextendedproperty @name=N'MS_Description', @value=N'Active | Inactive.', @level0type=N'SCHEMA', @level0name=N'__mj_BizAppsContracts', @level1type=N'TABLE', @level1name=N'ContractType', @level2type=N'COLUMN', @level2name=N'Status';
-GO
-
-EXEC sp_addextendedproperty @name=N'MS_Description', @value=N'Singleton counter behind ContractNumber (CTR-{seq}), the same shape orders uses for ORD- and PAY-. Seeded in the baseline because it is a counter rather than vocabulary: it must exist before the first contract is written.', @level0type=N'SCHEMA', @level0name=N'__mj_BizAppsContracts', @level1type=N'TABLE', @level1name=N'ContractSequence';
-EXEC sp_addextendedproperty @name=N'MS_Description', @value=N'The next number to hand out. Advanced server-side by ContractEntityServer.Save().', @level0type=N'SCHEMA', @level0name=N'__mj_BizAppsContracts', @level1type=N'TABLE', @level1name=N'ContractSequence', @level2type=N'COLUMN', @level2name=N'NextSequenceNumber';
+EXEC sp_addextendedproperty @name=N'MS_Description', @value=N'This type of contract may NOT name a ParentContractID -- it is a root agreement. Enforced in ContractEntityServer.ValidateAsync. Mutually exclusive with MustBeChild (CK_ContractType_RootOrChild); both false means no restriction on where in the tree this type may sit, which is the honest default.', @level0type=N'SCHEMA', @level0name=N'__mj_BizAppsContracts', @level1type=N'TABLE', @level1name=N'ContractType', @level2type=N'COLUMN', @level2name=N'MustBeRoot';
+EXEC sp_addextendedproperty @name=N'MS_Description', @value=N'This type of contract MUST name a ParentContractID -- a Change Order that amends nothing is not a change order, and would never appear in the original agreement''s lineage. Enforced in ContractEntityServer.ValidateAsync. Mutually exclusive with MustBeRoot.', @level0type=N'SCHEMA', @level0name=N'__mj_BizAppsContracts', @level1type=N'TABLE', @level1name=N'ContractType', @level2type=N'COLUMN', @level2name=N'MustBeChild';
+EXEC sp_addextendedproperty @name=N'MS_Description', @value=N'This type of contract must carry its own ContractTemplateID -- the standard terms it incorporates. On the TYPE rather than inferred from the placement flags, because ''where in the tree'' and ''does it need its own paper'' are different questions and a future type could want any combination.', @level0type=N'SCHEMA', @level0name=N'__mj_BizAppsContracts', @level1type=N'TABLE', @level1name=N'ContractType', @level2type=N'COLUMN', @level2name=N'TemplateRequired';
 GO
 
 EXEC sp_addextendedproperty @name=N'MS_Description', @value=N'The signed agreement — one row per piece of signed (or implied) paper, and the centre of the app. Carries NO hard reference to a Deal: sales creates contracts, so sales depends on this app and a reference upward would invert the dependency graph. The link is the typed polymorphic pair CreatingEntityID + CreatingRecordID.', @level0type=N'SCHEMA', @level0name=N'__mj_BizAppsContracts', @level1type=N'TABLE', @level1name=N'Contract';
-EXEC sp_addextendedproperty @name=N'MS_Description', @value=N'CTR-{seq} from ContractSequence. Unique.', @level0type=N'SCHEMA', @level0name=N'__mj_BizAppsContracts', @level1type=N'TABLE', @level1name=N'Contract', @level2type=N'COLUMN', @level2name=N'ContractNumber';
+EXEC sp_addextendedproperty @name=N'MS_Description', @value=N'CTR-000001, minted by spAssignNextContractNumber from the seq_ContractNumber database SEQUENCE. Unique. NULLABLE at the schema level because MJ cannot express ''NOT NULL, assigned by the server on insert'' -- ContractEntityServer.Save() is what guarantees every contract has one. Gaps are normal and are not to be ''fixed'': a save that fails after taking a number leaves one behind, and UQ_Contract_ContractNumber is what guarantees no two contracts share a number.', @level0type=N'SCHEMA', @level0name=N'__mj_BizAppsContracts', @level1type=N'TABLE', @level1name=N'Contract', @level2type=N'COLUMN', @level2name=N'ContractNumber';
 EXEC sp_addextendedproperty @name=N'MS_Description', @value=N'The SELLING company (__mj.Company) — which of OUR entities holds this agreement. Not the customer. Stored rather than derived because it is not reliably recoverable from the deal.', @level0type=N'SCHEMA', @level0name=N'__mj_BizAppsContracts', @level1type=N'TABLE', @level1name=N'Contract', @level2type=N'COLUMN', @level2name=N'CompanyID';
 EXEC sp_addextendedproperty @name=N'MS_Description', @value=N'The customer. NOT NULL: contracts are B2B here by definition, and the individual case lives entirely in orders. v1 allowed an organization-or-person XOR; that is gone.', @level0type=N'SCHEMA', @level0name=N'__mj_BizAppsContracts', @level1type=N'TABLE', @level1name=N'Contract', @level2type=N'COLUMN', @level2name=N'CustomerOrganizationID';
 EXEC sp_addextendedproperty @name=N'MS_Description', @value=N'Their named contact, optional.', @level0type=N'SCHEMA', @level0name=N'__mj_BizAppsContracts', @level1type=N'TABLE', @level1name=N'Contract', @level2type=N'COLUMN', @level2name=N'PrimaryContactPersonID';
@@ -458,93 +573,163 @@ EXEC sp_addextendedproperty @name=N'MS_Description', @value=N'What this contract
 EXEC sp_addextendedproperty @name=N'MS_Description', @value=N'Optional working note, e.g. who negotiated it.', @level0type=N'SCHEMA', @level0name=N'__mj_BizAppsContracts', @level1type=N'TABLE', @level1name=N'ContractTemplateModification', @level2type=N'COLUMN', @level2name=N'Notes';
 GO
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 -- =============================================================================
--- SECTION 6 — CODEGEN CAPTURE
+-- 6. APP-OWNED PROGRAMMABLE OBJECTS
 -- =============================================================================
--- Everything above this line creates TABLES. Everything below is CodeGen's own
--- output, captured verbatim from the run that registered this schema: the
--- `__mj.Entity` and `__mj.EntityField` rows, the seven base views, the CRUD
--- procedures, the `__mj_UpdatedAt` triggers, the FK indexes, the permission
--- grants and the ApplicationEntity links.
+-- Everything here is written by hand and owned by this app -- CodeGen neither
+-- generates nor regenerates any of it. (CodeGen's own output is section 7.)
+-- The two layered base views that wrap CodeGen's generated views are NOT here:
+-- a view cannot be created before the view it selects from, so they follow the
+-- capture in their own migration. See the next V file.
+
+---------------------------------------------------------------------------
+-- 6.1 spAssignNextContractNumber -- the only place a contract number is minted.
+--     Keeps its name and signature across the counter-table-to-sequence change,
+--     so ContractEntityServer still calls EXEC spAssignNextContractNumber
+--     @ContractNumber OUTPUT. Putting the lock in a database object rather than a
+--     TypeScript string is what made that swap invisible to the application, and
+--     it makes the PostgreSQL port a database exercise.
+---------------------------------------------------------------------------
+CREATE PROCEDURE [${flyway:defaultSchema}].[spAssignNextContractNumber]
+    @ContractNumber NVARCHAR(50) OUTPUT
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    -- No HOLDLOCK, no UPDLOCK, no singleton row to be missing: NEXT VALUE FOR is atomic and
+    -- never hands the same value to two callers.
+    DECLARE @NextSeq INT = NEXT VALUE FOR [${flyway:defaultSchema}].[seq_ContractNumber];
+
+    -- FORMAT pads to six digits WITHOUT truncating a longer number. The previous
+    -- `RIGHT(N'000000' + CAST(@NextSeq AS NVARCHAR(6)), 6)` silently produced 'CTR-000000' at
+    -- 1,000,000 -- it kept the LAST six characters of an over-long string. Unreachable in
+    -- practice, and not worth carrying forward now that the line is being rewritten anyway.
+    SET @ContractNumber = N'CTR-' + FORMAT(@NextSeq, N'D6');
+END;
+GO
+
+---------------------------------------------------------------------------
+-- 6.2 trg_ContractTemplateProvision_Immutability -- a PUBLISHED agreement
+--     version neither gains, loses nor changes clauses (R-1).
 --
--- WITHOUT THIS SECTION THE BASELINE INSTALLS NOTHING USABLE. Proven, not
--- assumed: applying the file without it to a fresh database yielded 8 tables,
--- 0 views and 0 entity rows — bare tables that MJ cannot see, against which
--- `mj sync push` fails because no `MJ_BizApps_Contracts:*` entity exists for a
--- seed record to resolve. Caught on review of PR #9, 2026-08-18.
+--     THE INSERT BRANCH DELIBERATELY HAS NO ROLLBACK. MJ's provider calls the
+--     generated CRUD procedure as INSERT ... EXEC spCreate... so it can capture the
+--     returned row, and SQL Server forbids ROLLBACK TRANSACTION anywhere inside an
+--     INSERT-EXEC -- including in a trigger fired by it, which surfaced to users as
+--     "Cannot use the ROLLBACK statement within an INSERT-EXEC statement" instead of
+--     the real message. THROW alone dooms the transaction, so the row is still
+--     refused. UPDATE and DELETE keep their explicit ROLLBACK: spUpdate/spDelete are
+--     not invoked that way, and it is the documented shape for undoing a statement.
 --
--- HOW IT WAS PRODUCED (repeat this, do not hand-edit below):
---   1. `mjdev wipe-db <slug> --yes`
---   2. MJ core + common → tasks → accounting → orders → contracts migrations
---      (each app's own `pnpm run mj:migrate`; mjdev's app engine is broken
---      against MJ 6 next — MJDev#28)
---   3. `DOTENV_CONFIG_PATH=../mj/.env pnpm run mj:codegen`
---   4. append `migrations/codegen/CodeGen_Run_*.sql` below this banner
--- Schema names are already substituted with ${flyway:defaultSchema} /
--- ${mjSchema} by the SQLOutput.schemaPlaceholders config — do not re-run a
--- find-and-replace over it.
---
--- ⚠ CodeGen exits NON-ZERO even on success, because its AFTER commands shell out
--- to `npm` inside a pnpm workspace (WORKAROUNDS.md W-3). Never gate the append on
--- the exit code — check the output for `✔ MJ CodeGen complete` instead. A skipped
--- append is exactly the failure this section documents.
---
--- NOTE ON THE BASE VIEWS BELOW: they are generated at the PUBLIC names
--- (vwContracts, …), which is correct for this file. `Contracts` then becomes a
--- LAYERED base view in the next migration, which flips the flags and moves the
--- generated view to vwContractsGenerated so the app can own vwContracts as a
--- wrapper carrying State, IsAwaitingDocument and IsChangeOrder. That ordering is
--- deliberate and is orders' proven train (V202608131541/1542) — see those files.
--- =============================================================================
+--     The UPDATE branch compares VALUES, not merely "an UPDATE happened": mj sync
+--     push re-pushes every provision row and a trigger fires on identical values, so
+--     without the comparison a routine seed push would fail. Description and
+--     ProvisionSortKey stay outside the frozen set -- annotating a document, and a key
+--     derived from its own numbering, are not changing what it says (and the sort key
+--     cannot be written at all).
+---------------------------------------------------------------------------
+CREATE TRIGGER [${flyway:defaultSchema}].[trg_ContractTemplateProvision_Immutability]
+ON [${flyway:defaultSchema}].[ContractTemplateProvision]
+AFTER INSERT, UPDATE, DELETE
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    -- INSERT: no ROLLBACK here -- see the header. THROW dooms the transaction on its own.
+    IF NOT EXISTS (SELECT 1 FROM deleted)
+       AND EXISTS (
+            SELECT 1 FROM inserted i
+              JOIN [${flyway:defaultSchema}].[ContractTemplate] t ON t.[ID] = i.[ContractTemplateID]
+             WHERE t.[Status] = 'Published'
+       )
+    BEGIN
+        THROW 50104, 'A provision cannot be added to a PUBLISHED agreement version — that would silently grow the terms of every contract already referencing it. Publish a new version instead.', 1;
+    END;
+
+    -- DELETE: not reached through INSERT-EXEC, so the explicit ROLLBACK is both allowed and correct.
+    IF NOT EXISTS (SELECT 1 FROM inserted)
+       AND EXISTS (
+            SELECT 1 FROM deleted d
+              JOIN [${flyway:defaultSchema}].[ContractTemplate] t ON t.[ID] = d.[ContractTemplateID]
+             WHERE t.[Status] = 'Published'
+       )
+    BEGIN
+        ROLLBACK TRANSACTION;
+        THROW 50101, 'A provision cannot be deleted from a PUBLISHED agreement version — that would remove a clause from an agreement someone signed. Publish a new version instead; a published version is a historical record.', 1;
+    END;
+
+    -- UPDATE: value comparison, not mere "an UPDATE happened" — `mj sync push` re-pushes every
+    -- provision row and a trigger fires on identical values, so without this an ordinary seed push
+    -- would fail. NULL-safe on ProvisionText because `i.x <> d.x` is UNKNOWN when either side is NULL.
+    IF EXISTS (
+        SELECT 1
+          FROM deleted d
+          JOIN inserted i ON i.[ID] = d.[ID]
+          JOIN [${flyway:defaultSchema}].[ContractTemplate] t ON t.[ID] = d.[ContractTemplateID]
+         WHERE t.[Status] = 'Published'
+           AND (
+                    i.[ProvisionNumber] <> d.[ProvisionNumber]
+                 OR i.[Title]           <> d.[Title]
+                 OR ISNULL(CAST(i.[ProvisionText] AS NVARCHAR(MAX)), N'') <> ISNULL(CAST(d.[ProvisionText] AS NVARCHAR(MAX)), N'')
+                 OR ISNULL(i.[ContractTemplateID], '00000000-0000-0000-0000-000000000000')
+                    <> ISNULL(d.[ContractTemplateID], '00000000-0000-0000-0000-000000000000')
+               )
+    )
+    BEGIN
+        ROLLBACK TRANSACTION;
+        THROW 50102, 'ProvisionNumber, Title, ProvisionText and the owning template cannot change on a PUBLISHED agreement version — editing one rewrites what a customer agreed to. Publish a new version instead. (Description remains editable.)', 1;
+    END;
+END;
+GO
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 /* SQL generated to create new entity MJ_BizApps_Contracts: Contract Template Types */
 
@@ -572,7 +757,7 @@ GO
          , [__mj_UpdatedAt]
       )
       VALUES (
-         '8d50b054-0e15-48c2-907a-ba598e28ea25',
+         '4e3f97be-e196-4cc0-9b5d-cc50de8967a0',
          'MJ_BizApps_Contracts: Contract Template Types',
          'Contract Template Types',
          'The kind of standard agreement (Master Agreement, Statement of Work). A lookup TABLE rather than a CHECK because the list is additive at runtime and a business user should be able to add one without a migration. Carries no behaviour.',
@@ -597,62 +782,62 @@ GO
 
 /* SQL generated to create new application ${flyway:defaultSchema} */
 IF NOT EXISTS (
-      SELECT 1 FROM [${mjSchema}].[Application] WHERE [ID] = '976feb0c-7f26-4bc8-83f1-8b5c775e6cd1'
+      SELECT 1 FROM [${mjSchema}].[Application] WHERE [ID] = '891e92fe-561a-4fed-8edc-e2d96fb18541'
    )
    BEGIN
       INSERT INTO [${mjSchema}].[Application] (ID, Name, Description, SchemaAutoAddNewEntities, Path, AutoUpdatePath, DefaultForNewUser)
-                       VALUES ('976feb0c-7f26-4bc8-83f1-8b5c775e6cd1', '${flyway:defaultSchema}', 'Generated for schema', '${flyway:defaultSchema}', 'mjbizappscontracts', 1, 0)
+                       VALUES ('891e92fe-561a-4fed-8edc-e2d96fb18541', '${flyway:defaultSchema}', 'Generated for schema', '${flyway:defaultSchema}', 'mjbizappscontracts', 1, 0)
    END;
 
 /* Adding role UI to application ${flyway:defaultSchema} */
 IF NOT EXISTS (
-      SELECT 1 FROM [${mjSchema}].[ApplicationRole] WHERE [ApplicationID] = '976feb0c-7f26-4bc8-83f1-8b5c775e6cd1' AND [RoleID] = 'E0AFCCEC-6A37-EF11-86D4-000D3A4E707E'
+      SELECT 1 FROM [${mjSchema}].[ApplicationRole] WHERE [ApplicationID] = '891e92fe-561a-4fed-8edc-e2d96fb18541' AND [RoleID] = 'E0AFCCEC-6A37-EF11-86D4-000D3A4E707E'
    )
    BEGIN
       INSERT INTO [${mjSchema}].[ApplicationRole]
                                  ([ApplicationID], [RoleID], [CanAccess], [CanAdmin]) VALUES
-                                 ('976feb0c-7f26-4bc8-83f1-8b5c775e6cd1', 'E0AFCCEC-6A37-EF11-86D4-000D3A4E707E', 1, 0)
+                                 ('891e92fe-561a-4fed-8edc-e2d96fb18541', 'E0AFCCEC-6A37-EF11-86D4-000D3A4E707E', 1, 0)
    END;
 
 /* Adding role Developer to application ${flyway:defaultSchema} */
 IF NOT EXISTS (
-      SELECT 1 FROM [${mjSchema}].[ApplicationRole] WHERE [ApplicationID] = '976feb0c-7f26-4bc8-83f1-8b5c775e6cd1' AND [RoleID] = 'DEAFCCEC-6A37-EF11-86D4-000D3A4E707E'
+      SELECT 1 FROM [${mjSchema}].[ApplicationRole] WHERE [ApplicationID] = '891e92fe-561a-4fed-8edc-e2d96fb18541' AND [RoleID] = 'DEAFCCEC-6A37-EF11-86D4-000D3A4E707E'
    )
    BEGIN
       INSERT INTO [${mjSchema}].[ApplicationRole]
                                  ([ApplicationID], [RoleID], [CanAccess], [CanAdmin]) VALUES
-                                 ('976feb0c-7f26-4bc8-83f1-8b5c775e6cd1', 'DEAFCCEC-6A37-EF11-86D4-000D3A4E707E', 1, 1)
+                                 ('891e92fe-561a-4fed-8edc-e2d96fb18541', 'DEAFCCEC-6A37-EF11-86D4-000D3A4E707E', 1, 1)
    END;
 
 /* Adding role Integration to application ${flyway:defaultSchema} */
 IF NOT EXISTS (
-      SELECT 1 FROM [${mjSchema}].[ApplicationRole] WHERE [ApplicationID] = '976feb0c-7f26-4bc8-83f1-8b5c775e6cd1' AND [RoleID] = 'DFAFCCEC-6A37-EF11-86D4-000D3A4E707E'
+      SELECT 1 FROM [${mjSchema}].[ApplicationRole] WHERE [ApplicationID] = '891e92fe-561a-4fed-8edc-e2d96fb18541' AND [RoleID] = 'DFAFCCEC-6A37-EF11-86D4-000D3A4E707E'
    )
    BEGIN
       INSERT INTO [${mjSchema}].[ApplicationRole]
                                  ([ApplicationID], [RoleID], [CanAccess], [CanAdmin]) VALUES
-                                 ('976feb0c-7f26-4bc8-83f1-8b5c775e6cd1', 'DFAFCCEC-6A37-EF11-86D4-000D3A4E707E', 1, 0)
+                                 ('891e92fe-561a-4fed-8edc-e2d96fb18541', 'DFAFCCEC-6A37-EF11-86D4-000D3A4E707E', 1, 0)
    END;
 
-/* SQL generated to add new entity MJ_BizApps_Contracts: Contract Template Types to application ID: '976feb0c-7f26-4bc8-83f1-8b5c775e6cd1' */
+/* SQL generated to add new entity MJ_BizApps_Contracts: Contract Template Types to application ID: '891e92fe-561a-4fed-8edc-e2d96fb18541' */
 INSERT INTO [${mjSchema}].[ApplicationEntity]
                                        ([ApplicationID], [EntityID], [Sequence], [__mj_CreatedAt], [__mj_UpdatedAt]) VALUES
-                                       ('976feb0c-7f26-4bc8-83f1-8b5c775e6cd1', '8d50b054-0e15-48c2-907a-ba598e28ea25', (SELECT COALESCE(MAX([Sequence]),0)+1 FROM [${mjSchema}].[ApplicationEntity] WHERE [ApplicationID] = '976feb0c-7f26-4bc8-83f1-8b5c775e6cd1'), GETUTCDATE(), GETUTCDATE());
+                                       ('891e92fe-561a-4fed-8edc-e2d96fb18541', '4e3f97be-e196-4cc0-9b5d-cc50de8967a0', (SELECT COALESCE(MAX([Sequence]),0)+1 FROM [${mjSchema}].[ApplicationEntity] WHERE [ApplicationID] = '891e92fe-561a-4fed-8edc-e2d96fb18541'), GETUTCDATE(), GETUTCDATE());
 
 /* SQL generated to add new permission for entity MJ_BizApps_Contracts: Contract Template Types for role UI */
 INSERT INTO [${mjSchema}].[EntityPermission]
                                                    ([EntityID], [RoleID], [CanRead], [CanCreate], [CanUpdate], [CanDelete], [__mj_CreatedAt], [__mj_UpdatedAt]) VALUES
-                                                   ('8d50b054-0e15-48c2-907a-ba598e28ea25', 'E0AFCCEC-6A37-EF11-86D4-000D3A4E707E', 1, 0, 0, 0, GETUTCDATE(), GETUTCDATE());
+                                                   ('4e3f97be-e196-4cc0-9b5d-cc50de8967a0', 'E0AFCCEC-6A37-EF11-86D4-000D3A4E707E', 1, 0, 0, 0, GETUTCDATE(), GETUTCDATE());
 
 /* SQL generated to add new permission for entity MJ_BizApps_Contracts: Contract Template Types for role Developer */
 INSERT INTO [${mjSchema}].[EntityPermission]
                                                    ([EntityID], [RoleID], [CanRead], [CanCreate], [CanUpdate], [CanDelete], [__mj_CreatedAt], [__mj_UpdatedAt]) VALUES
-                                                   ('8d50b054-0e15-48c2-907a-ba598e28ea25', 'DEAFCCEC-6A37-EF11-86D4-000D3A4E707E', 1, 1, 1, 1, GETUTCDATE(), GETUTCDATE());
+                                                   ('4e3f97be-e196-4cc0-9b5d-cc50de8967a0', 'DEAFCCEC-6A37-EF11-86D4-000D3A4E707E', 1, 1, 1, 1, GETUTCDATE(), GETUTCDATE());
 
 /* SQL generated to add new permission for entity MJ_BizApps_Contracts: Contract Template Types for role Integration */
 INSERT INTO [${mjSchema}].[EntityPermission]
                                                    ([EntityID], [RoleID], [CanRead], [CanCreate], [CanUpdate], [CanDelete], [__mj_CreatedAt], [__mj_UpdatedAt]) VALUES
-                                                   ('8d50b054-0e15-48c2-907a-ba598e28ea25', 'DFAFCCEC-6A37-EF11-86D4-000D3A4E707E', 1, 1, 1, 1, GETUTCDATE(), GETUTCDATE());
+                                                   ('4e3f97be-e196-4cc0-9b5d-cc50de8967a0', 'DFAFCCEC-6A37-EF11-86D4-000D3A4E707E', 1, 1, 1, 1, GETUTCDATE(), GETUTCDATE());
 
 /* SQL generated to create new entity MJ_BizApps_Contracts: Contract Templates */
 
@@ -680,7 +865,7 @@ INSERT INTO [${mjSchema}].[EntityPermission]
          , [__mj_UpdatedAt]
       )
       VALUES (
-         '21c7d64a-28f3-4535-819a-e0dd384a5580',
+         '731f2890-1415-40de-9073-d22ea23392b3',
          'MJ_BizApps_Contracts: Contract Templates',
          'Contract Templates',
          'One VERSION of a standard agreement — in practice the Master Agreement. Versions matter because each is published at its own dated URL that never goes away, so a customer stays bound to the text they signed. Carries no prose of its own: every clauses standard wording lives on its ContractTemplateProvision row.',
@@ -703,25 +888,25 @@ INSERT INTO [${mjSchema}].[EntityPermission]
          , GETUTCDATE()
       );
 
-/* SQL generated to add new entity MJ_BizApps_Contracts: Contract Templates to application ID: '976FEB0C-7F26-4BC8-83F1-8B5C775E6CD1' */
+/* SQL generated to add new entity MJ_BizApps_Contracts: Contract Templates to application ID: '891E92FE-561A-4FED-8EDC-E2D96FB18541' */
 INSERT INTO [${mjSchema}].[ApplicationEntity]
                                        ([ApplicationID], [EntityID], [Sequence], [__mj_CreatedAt], [__mj_UpdatedAt]) VALUES
-                                       ('976FEB0C-7F26-4BC8-83F1-8B5C775E6CD1', '21c7d64a-28f3-4535-819a-e0dd384a5580', (SELECT COALESCE(MAX([Sequence]),0)+1 FROM [${mjSchema}].[ApplicationEntity] WHERE [ApplicationID] = '976FEB0C-7F26-4BC8-83F1-8B5C775E6CD1'), GETUTCDATE(), GETUTCDATE());
+                                       ('891E92FE-561A-4FED-8EDC-E2D96FB18541', '731f2890-1415-40de-9073-d22ea23392b3', (SELECT COALESCE(MAX([Sequence]),0)+1 FROM [${mjSchema}].[ApplicationEntity] WHERE [ApplicationID] = '891E92FE-561A-4FED-8EDC-E2D96FB18541'), GETUTCDATE(), GETUTCDATE());
 
 /* SQL generated to add new permission for entity MJ_BizApps_Contracts: Contract Templates for role UI */
 INSERT INTO [${mjSchema}].[EntityPermission]
                                                    ([EntityID], [RoleID], [CanRead], [CanCreate], [CanUpdate], [CanDelete], [__mj_CreatedAt], [__mj_UpdatedAt]) VALUES
-                                                   ('21c7d64a-28f3-4535-819a-e0dd384a5580', 'E0AFCCEC-6A37-EF11-86D4-000D3A4E707E', 1, 0, 0, 0, GETUTCDATE(), GETUTCDATE());
+                                                   ('731f2890-1415-40de-9073-d22ea23392b3', 'E0AFCCEC-6A37-EF11-86D4-000D3A4E707E', 1, 0, 0, 0, GETUTCDATE(), GETUTCDATE());
 
 /* SQL generated to add new permission for entity MJ_BizApps_Contracts: Contract Templates for role Developer */
 INSERT INTO [${mjSchema}].[EntityPermission]
                                                    ([EntityID], [RoleID], [CanRead], [CanCreate], [CanUpdate], [CanDelete], [__mj_CreatedAt], [__mj_UpdatedAt]) VALUES
-                                                   ('21c7d64a-28f3-4535-819a-e0dd384a5580', 'DEAFCCEC-6A37-EF11-86D4-000D3A4E707E', 1, 1, 1, 1, GETUTCDATE(), GETUTCDATE());
+                                                   ('731f2890-1415-40de-9073-d22ea23392b3', 'DEAFCCEC-6A37-EF11-86D4-000D3A4E707E', 1, 1, 1, 1, GETUTCDATE(), GETUTCDATE());
 
 /* SQL generated to add new permission for entity MJ_BizApps_Contracts: Contract Templates for role Integration */
 INSERT INTO [${mjSchema}].[EntityPermission]
                                                    ([EntityID], [RoleID], [CanRead], [CanCreate], [CanUpdate], [CanDelete], [__mj_CreatedAt], [__mj_UpdatedAt]) VALUES
-                                                   ('21c7d64a-28f3-4535-819a-e0dd384a5580', 'DFAFCCEC-6A37-EF11-86D4-000D3A4E707E', 1, 1, 1, 1, GETUTCDATE(), GETUTCDATE());
+                                                   ('731f2890-1415-40de-9073-d22ea23392b3', 'DFAFCCEC-6A37-EF11-86D4-000D3A4E707E', 1, 1, 1, 1, GETUTCDATE(), GETUTCDATE());
 
 /* SQL generated to create new entity MJ_BizApps_Contracts: Contract Template Provisions */
 
@@ -749,7 +934,7 @@ INSERT INTO [${mjSchema}].[EntityPermission]
          , [__mj_UpdatedAt]
       )
       VALUES (
-         '27a600ca-6a2e-4c85-84ae-924183ec1681',
+         '317df592-8c20-473d-b097-2ab239877438',
          'MJ_BizApps_Contracts: Contract Template Provisions',
          'Contract Template Provisions',
          'The numbered clause list of a template version, and the home of all standard contract text. Hangs off ContractTemplate rather than standing alone because provision numbering belongs to a VERSION — the moment a new version renumbers, a single global list is wrong.',
@@ -772,25 +957,25 @@ INSERT INTO [${mjSchema}].[EntityPermission]
          , GETUTCDATE()
       );
 
-/* SQL generated to add new entity MJ_BizApps_Contracts: Contract Template Provisions to application ID: '976FEB0C-7F26-4BC8-83F1-8B5C775E6CD1' */
+/* SQL generated to add new entity MJ_BizApps_Contracts: Contract Template Provisions to application ID: '891E92FE-561A-4FED-8EDC-E2D96FB18541' */
 INSERT INTO [${mjSchema}].[ApplicationEntity]
                                        ([ApplicationID], [EntityID], [Sequence], [__mj_CreatedAt], [__mj_UpdatedAt]) VALUES
-                                       ('976FEB0C-7F26-4BC8-83F1-8B5C775E6CD1', '27a600ca-6a2e-4c85-84ae-924183ec1681', (SELECT COALESCE(MAX([Sequence]),0)+1 FROM [${mjSchema}].[ApplicationEntity] WHERE [ApplicationID] = '976FEB0C-7F26-4BC8-83F1-8B5C775E6CD1'), GETUTCDATE(), GETUTCDATE());
+                                       ('891E92FE-561A-4FED-8EDC-E2D96FB18541', '317df592-8c20-473d-b097-2ab239877438', (SELECT COALESCE(MAX([Sequence]),0)+1 FROM [${mjSchema}].[ApplicationEntity] WHERE [ApplicationID] = '891E92FE-561A-4FED-8EDC-E2D96FB18541'), GETUTCDATE(), GETUTCDATE());
 
 /* SQL generated to add new permission for entity MJ_BizApps_Contracts: Contract Template Provisions for role UI */
 INSERT INTO [${mjSchema}].[EntityPermission]
                                                    ([EntityID], [RoleID], [CanRead], [CanCreate], [CanUpdate], [CanDelete], [__mj_CreatedAt], [__mj_UpdatedAt]) VALUES
-                                                   ('27a600ca-6a2e-4c85-84ae-924183ec1681', 'E0AFCCEC-6A37-EF11-86D4-000D3A4E707E', 1, 0, 0, 0, GETUTCDATE(), GETUTCDATE());
+                                                   ('317df592-8c20-473d-b097-2ab239877438', 'E0AFCCEC-6A37-EF11-86D4-000D3A4E707E', 1, 0, 0, 0, GETUTCDATE(), GETUTCDATE());
 
 /* SQL generated to add new permission for entity MJ_BizApps_Contracts: Contract Template Provisions for role Developer */
 INSERT INTO [${mjSchema}].[EntityPermission]
                                                    ([EntityID], [RoleID], [CanRead], [CanCreate], [CanUpdate], [CanDelete], [__mj_CreatedAt], [__mj_UpdatedAt]) VALUES
-                                                   ('27a600ca-6a2e-4c85-84ae-924183ec1681', 'DEAFCCEC-6A37-EF11-86D4-000D3A4E707E', 1, 1, 1, 1, GETUTCDATE(), GETUTCDATE());
+                                                   ('317df592-8c20-473d-b097-2ab239877438', 'DEAFCCEC-6A37-EF11-86D4-000D3A4E707E', 1, 1, 1, 1, GETUTCDATE(), GETUTCDATE());
 
 /* SQL generated to add new permission for entity MJ_BizApps_Contracts: Contract Template Provisions for role Integration */
 INSERT INTO [${mjSchema}].[EntityPermission]
                                                    ([EntityID], [RoleID], [CanRead], [CanCreate], [CanUpdate], [CanDelete], [__mj_CreatedAt], [__mj_UpdatedAt]) VALUES
-                                                   ('27a600ca-6a2e-4c85-84ae-924183ec1681', 'DFAFCCEC-6A37-EF11-86D4-000D3A4E707E', 1, 1, 1, 1, GETUTCDATE(), GETUTCDATE());
+                                                   ('317df592-8c20-473d-b097-2ab239877438', 'DFAFCCEC-6A37-EF11-86D4-000D3A4E707E', 1, 1, 1, 1, GETUTCDATE(), GETUTCDATE());
 
 /* SQL generated to create new entity MJ_BizApps_Contracts: Contract Types */
 
@@ -818,7 +1003,7 @@ INSERT INTO [${mjSchema}].[EntityPermission]
          , [__mj_UpdatedAt]
       )
       VALUES (
-         'ebb3f628-267e-44d6-8f18-258ac28ff981',
+         'c8909a57-6ddb-4585-be00-e707c5b4f262',
          'MJ_BizApps_Contracts: Contract Types',
          'Contract Types',
          'The kind of paper: Order Form, Statement of Work, Payment Link, Change Order. A lookup TABLE for the same reason as ContractTemplateType.',
@@ -841,94 +1026,25 @@ INSERT INTO [${mjSchema}].[EntityPermission]
          , GETUTCDATE()
       );
 
-/* SQL generated to add new entity MJ_BizApps_Contracts: Contract Types to application ID: '976FEB0C-7F26-4BC8-83F1-8B5C775E6CD1' */
+/* SQL generated to add new entity MJ_BizApps_Contracts: Contract Types to application ID: '891E92FE-561A-4FED-8EDC-E2D96FB18541' */
 INSERT INTO [${mjSchema}].[ApplicationEntity]
                                        ([ApplicationID], [EntityID], [Sequence], [__mj_CreatedAt], [__mj_UpdatedAt]) VALUES
-                                       ('976FEB0C-7F26-4BC8-83F1-8B5C775E6CD1', 'ebb3f628-267e-44d6-8f18-258ac28ff981', (SELECT COALESCE(MAX([Sequence]),0)+1 FROM [${mjSchema}].[ApplicationEntity] WHERE [ApplicationID] = '976FEB0C-7F26-4BC8-83F1-8B5C775E6CD1'), GETUTCDATE(), GETUTCDATE());
+                                       ('891E92FE-561A-4FED-8EDC-E2D96FB18541', 'c8909a57-6ddb-4585-be00-e707c5b4f262', (SELECT COALESCE(MAX([Sequence]),0)+1 FROM [${mjSchema}].[ApplicationEntity] WHERE [ApplicationID] = '891E92FE-561A-4FED-8EDC-E2D96FB18541'), GETUTCDATE(), GETUTCDATE());
 
 /* SQL generated to add new permission for entity MJ_BizApps_Contracts: Contract Types for role UI */
 INSERT INTO [${mjSchema}].[EntityPermission]
                                                    ([EntityID], [RoleID], [CanRead], [CanCreate], [CanUpdate], [CanDelete], [__mj_CreatedAt], [__mj_UpdatedAt]) VALUES
-                                                   ('ebb3f628-267e-44d6-8f18-258ac28ff981', 'E0AFCCEC-6A37-EF11-86D4-000D3A4E707E', 1, 0, 0, 0, GETUTCDATE(), GETUTCDATE());
+                                                   ('c8909a57-6ddb-4585-be00-e707c5b4f262', 'E0AFCCEC-6A37-EF11-86D4-000D3A4E707E', 1, 0, 0, 0, GETUTCDATE(), GETUTCDATE());
 
 /* SQL generated to add new permission for entity MJ_BizApps_Contracts: Contract Types for role Developer */
 INSERT INTO [${mjSchema}].[EntityPermission]
                                                    ([EntityID], [RoleID], [CanRead], [CanCreate], [CanUpdate], [CanDelete], [__mj_CreatedAt], [__mj_UpdatedAt]) VALUES
-                                                   ('ebb3f628-267e-44d6-8f18-258ac28ff981', 'DEAFCCEC-6A37-EF11-86D4-000D3A4E707E', 1, 1, 1, 1, GETUTCDATE(), GETUTCDATE());
+                                                   ('c8909a57-6ddb-4585-be00-e707c5b4f262', 'DEAFCCEC-6A37-EF11-86D4-000D3A4E707E', 1, 1, 1, 1, GETUTCDATE(), GETUTCDATE());
 
 /* SQL generated to add new permission for entity MJ_BizApps_Contracts: Contract Types for role Integration */
 INSERT INTO [${mjSchema}].[EntityPermission]
                                                    ([EntityID], [RoleID], [CanRead], [CanCreate], [CanUpdate], [CanDelete], [__mj_CreatedAt], [__mj_UpdatedAt]) VALUES
-                                                   ('ebb3f628-267e-44d6-8f18-258ac28ff981', 'DFAFCCEC-6A37-EF11-86D4-000D3A4E707E', 1, 1, 1, 1, GETUTCDATE(), GETUTCDATE());
-
-/* SQL generated to create new entity MJ_BizApps_Contracts: Contract Sequences */
-
-      INSERT INTO [${mjSchema}].[Entity] (
-         [ID],
-         [Name],
-         [DisplayName],
-         [Description],
-         [NameSuffix],
-         [BaseTable],
-         [BaseView],
-         [SchemaName],
-         [IncludeInAPI],
-         [AllowUserSearchAPI],
-         [AllowCaching]
-         , [TrackRecordChanges]
-         , [AuditRecordAccess]
-         , [AuditViewRuns]
-         , [AllowAllRowsAPI]
-         , [AllowCreateAPI]
-         , [AllowUpdateAPI]
-         , [AllowDeleteAPI]
-         , [UserViewMaxRows]
-         , [__mj_CreatedAt]
-         , [__mj_UpdatedAt]
-      )
-      VALUES (
-         '96271f4a-ac8d-47c8-bb5d-c7180910b2c7',
-         'MJ_BizApps_Contracts: Contract Sequences',
-         'Contract Sequences',
-         'Singleton counter behind ContractNumber (CTR-{seq}), the same shape orders uses for ORD- and PAY-. Seeded in the baseline because it is a counter rather than vocabulary: it must exist before the first contract is written.',
-         NULL,
-         'ContractSequence',
-         'vwContractSequences',
-         '${flyway:defaultSchema}',
-         1,
-         1,
-         0
-         , 1
-         , 0
-         , 0
-         , 0
-         , 1
-         , 1
-         , 1
-         , 1000
-         , GETUTCDATE()
-         , GETUTCDATE()
-      );
-
-/* SQL generated to add new entity MJ_BizApps_Contracts: Contract Sequences to application ID: '976FEB0C-7F26-4BC8-83F1-8B5C775E6CD1' */
-INSERT INTO [${mjSchema}].[ApplicationEntity]
-                                       ([ApplicationID], [EntityID], [Sequence], [__mj_CreatedAt], [__mj_UpdatedAt]) VALUES
-                                       ('976FEB0C-7F26-4BC8-83F1-8B5C775E6CD1', '96271f4a-ac8d-47c8-bb5d-c7180910b2c7', (SELECT COALESCE(MAX([Sequence]),0)+1 FROM [${mjSchema}].[ApplicationEntity] WHERE [ApplicationID] = '976FEB0C-7F26-4BC8-83F1-8B5C775E6CD1'), GETUTCDATE(), GETUTCDATE());
-
-/* SQL generated to add new permission for entity MJ_BizApps_Contracts: Contract Sequences for role UI */
-INSERT INTO [${mjSchema}].[EntityPermission]
-                                                   ([EntityID], [RoleID], [CanRead], [CanCreate], [CanUpdate], [CanDelete], [__mj_CreatedAt], [__mj_UpdatedAt]) VALUES
-                                                   ('96271f4a-ac8d-47c8-bb5d-c7180910b2c7', 'E0AFCCEC-6A37-EF11-86D4-000D3A4E707E', 1, 0, 0, 0, GETUTCDATE(), GETUTCDATE());
-
-/* SQL generated to add new permission for entity MJ_BizApps_Contracts: Contract Sequences for role Developer */
-INSERT INTO [${mjSchema}].[EntityPermission]
-                                                   ([EntityID], [RoleID], [CanRead], [CanCreate], [CanUpdate], [CanDelete], [__mj_CreatedAt], [__mj_UpdatedAt]) VALUES
-                                                   ('96271f4a-ac8d-47c8-bb5d-c7180910b2c7', 'DEAFCCEC-6A37-EF11-86D4-000D3A4E707E', 1, 1, 1, 1, GETUTCDATE(), GETUTCDATE());
-
-/* SQL generated to add new permission for entity MJ_BizApps_Contracts: Contract Sequences for role Integration */
-INSERT INTO [${mjSchema}].[EntityPermission]
-                                                   ([EntityID], [RoleID], [CanRead], [CanCreate], [CanUpdate], [CanDelete], [__mj_CreatedAt], [__mj_UpdatedAt]) VALUES
-                                                   ('96271f4a-ac8d-47c8-bb5d-c7180910b2c7', 'DFAFCCEC-6A37-EF11-86D4-000D3A4E707E', 1, 1, 1, 1, GETUTCDATE(), GETUTCDATE());
+                                                   ('c8909a57-6ddb-4585-be00-e707c5b4f262', 'DFAFCCEC-6A37-EF11-86D4-000D3A4E707E', 1, 1, 1, 1, GETUTCDATE(), GETUTCDATE());
 
 /* SQL generated to create new entity MJ_BizApps_Contracts: Contracts */
 
@@ -956,7 +1072,7 @@ INSERT INTO [${mjSchema}].[EntityPermission]
          , [__mj_UpdatedAt]
       )
       VALUES (
-         '4cc3db2d-f01f-405e-a47d-b14ba2f1ab20',
+         '5deb0b11-ed6c-48b3-9200-f4441396c5e2',
          'MJ_BizApps_Contracts: Contracts',
          'Contracts',
          'The signed agreement — one row per piece of signed (or implied) paper, and the centre of the app. Carries NO hard reference to a Deal: sales creates contracts, so sales depends on this app and a reference upward would invert the dependency graph. The link is the typed polymorphic pair CreatingEntityID + CreatingRecordID.',
@@ -979,25 +1095,25 @@ INSERT INTO [${mjSchema}].[EntityPermission]
          , GETUTCDATE()
       );
 
-/* SQL generated to add new entity MJ_BizApps_Contracts: Contracts to application ID: '976FEB0C-7F26-4BC8-83F1-8B5C775E6CD1' */
+/* SQL generated to add new entity MJ_BizApps_Contracts: Contracts to application ID: '891E92FE-561A-4FED-8EDC-E2D96FB18541' */
 INSERT INTO [${mjSchema}].[ApplicationEntity]
                                        ([ApplicationID], [EntityID], [Sequence], [__mj_CreatedAt], [__mj_UpdatedAt]) VALUES
-                                       ('976FEB0C-7F26-4BC8-83F1-8B5C775E6CD1', '4cc3db2d-f01f-405e-a47d-b14ba2f1ab20', (SELECT COALESCE(MAX([Sequence]),0)+1 FROM [${mjSchema}].[ApplicationEntity] WHERE [ApplicationID] = '976FEB0C-7F26-4BC8-83F1-8B5C775E6CD1'), GETUTCDATE(), GETUTCDATE());
+                                       ('891E92FE-561A-4FED-8EDC-E2D96FB18541', '5deb0b11-ed6c-48b3-9200-f4441396c5e2', (SELECT COALESCE(MAX([Sequence]),0)+1 FROM [${mjSchema}].[ApplicationEntity] WHERE [ApplicationID] = '891E92FE-561A-4FED-8EDC-E2D96FB18541'), GETUTCDATE(), GETUTCDATE());
 
 /* SQL generated to add new permission for entity MJ_BizApps_Contracts: Contracts for role UI */
 INSERT INTO [${mjSchema}].[EntityPermission]
                                                    ([EntityID], [RoleID], [CanRead], [CanCreate], [CanUpdate], [CanDelete], [__mj_CreatedAt], [__mj_UpdatedAt]) VALUES
-                                                   ('4cc3db2d-f01f-405e-a47d-b14ba2f1ab20', 'E0AFCCEC-6A37-EF11-86D4-000D3A4E707E', 1, 0, 0, 0, GETUTCDATE(), GETUTCDATE());
+                                                   ('5deb0b11-ed6c-48b3-9200-f4441396c5e2', 'E0AFCCEC-6A37-EF11-86D4-000D3A4E707E', 1, 0, 0, 0, GETUTCDATE(), GETUTCDATE());
 
 /* SQL generated to add new permission for entity MJ_BizApps_Contracts: Contracts for role Developer */
 INSERT INTO [${mjSchema}].[EntityPermission]
                                                    ([EntityID], [RoleID], [CanRead], [CanCreate], [CanUpdate], [CanDelete], [__mj_CreatedAt], [__mj_UpdatedAt]) VALUES
-                                                   ('4cc3db2d-f01f-405e-a47d-b14ba2f1ab20', 'DEAFCCEC-6A37-EF11-86D4-000D3A4E707E', 1, 1, 1, 1, GETUTCDATE(), GETUTCDATE());
+                                                   ('5deb0b11-ed6c-48b3-9200-f4441396c5e2', 'DEAFCCEC-6A37-EF11-86D4-000D3A4E707E', 1, 1, 1, 1, GETUTCDATE(), GETUTCDATE());
 
 /* SQL generated to add new permission for entity MJ_BizApps_Contracts: Contracts for role Integration */
 INSERT INTO [${mjSchema}].[EntityPermission]
                                                    ([EntityID], [RoleID], [CanRead], [CanCreate], [CanUpdate], [CanDelete], [__mj_CreatedAt], [__mj_UpdatedAt]) VALUES
-                                                   ('4cc3db2d-f01f-405e-a47d-b14ba2f1ab20', 'DFAFCCEC-6A37-EF11-86D4-000D3A4E707E', 1, 1, 1, 1, GETUTCDATE(), GETUTCDATE());
+                                                   ('5deb0b11-ed6c-48b3-9200-f4441396c5e2', 'DFAFCCEC-6A37-EF11-86D4-000D3A4E707E', 1, 1, 1, 1, GETUTCDATE(), GETUTCDATE());
 
 /* SQL generated to create new entity MJ_BizApps_Contracts: Contract Template Modifications */
 
@@ -1025,7 +1141,7 @@ INSERT INTO [${mjSchema}].[EntityPermission]
          , [__mj_UpdatedAt]
       )
       VALUES (
-         '2e611a7d-2fbb-4a45-a9c8-103834bf026a',
+         'b05a480f-f7c5-4d45-8ea3-c90e9a14f225',
          'MJ_BizApps_Contracts: Contract Template Modifications',
          'Contract Template Modifications',
          'What THIS contract changed about the standard agreement. Deliberately lean: it names a provision and carries what the contract says instead. Carries no ContractTemplateID — the provision belongs to exactly one template in every future, so the template derives through the provision, and a stored copy of a derivation can only agree or lie.',
@@ -1048,92 +1164,28 @@ INSERT INTO [${mjSchema}].[EntityPermission]
          , GETUTCDATE()
       );
 
-/* SQL generated to add new entity MJ_BizApps_Contracts: Contract Template Modifications to application ID: '976FEB0C-7F26-4BC8-83F1-8B5C775E6CD1' */
+/* SQL generated to add new entity MJ_BizApps_Contracts: Contract Template Modifications to application ID: '891E92FE-561A-4FED-8EDC-E2D96FB18541' */
 INSERT INTO [${mjSchema}].[ApplicationEntity]
                                        ([ApplicationID], [EntityID], [Sequence], [__mj_CreatedAt], [__mj_UpdatedAt]) VALUES
-                                       ('976FEB0C-7F26-4BC8-83F1-8B5C775E6CD1', '2e611a7d-2fbb-4a45-a9c8-103834bf026a', (SELECT COALESCE(MAX([Sequence]),0)+1 FROM [${mjSchema}].[ApplicationEntity] WHERE [ApplicationID] = '976FEB0C-7F26-4BC8-83F1-8B5C775E6CD1'), GETUTCDATE(), GETUTCDATE());
+                                       ('891E92FE-561A-4FED-8EDC-E2D96FB18541', 'b05a480f-f7c5-4d45-8ea3-c90e9a14f225', (SELECT COALESCE(MAX([Sequence]),0)+1 FROM [${mjSchema}].[ApplicationEntity] WHERE [ApplicationID] = '891E92FE-561A-4FED-8EDC-E2D96FB18541'), GETUTCDATE(), GETUTCDATE());
 
 /* SQL generated to add new permission for entity MJ_BizApps_Contracts: Contract Template Modifications for role UI */
 INSERT INTO [${mjSchema}].[EntityPermission]
                                                    ([EntityID], [RoleID], [CanRead], [CanCreate], [CanUpdate], [CanDelete], [__mj_CreatedAt], [__mj_UpdatedAt]) VALUES
-                                                   ('2e611a7d-2fbb-4a45-a9c8-103834bf026a', 'E0AFCCEC-6A37-EF11-86D4-000D3A4E707E', 1, 0, 0, 0, GETUTCDATE(), GETUTCDATE());
+                                                   ('b05a480f-f7c5-4d45-8ea3-c90e9a14f225', 'E0AFCCEC-6A37-EF11-86D4-000D3A4E707E', 1, 0, 0, 0, GETUTCDATE(), GETUTCDATE());
 
 /* SQL generated to add new permission for entity MJ_BizApps_Contracts: Contract Template Modifications for role Developer */
 INSERT INTO [${mjSchema}].[EntityPermission]
                                                    ([EntityID], [RoleID], [CanRead], [CanCreate], [CanUpdate], [CanDelete], [__mj_CreatedAt], [__mj_UpdatedAt]) VALUES
-                                                   ('2e611a7d-2fbb-4a45-a9c8-103834bf026a', 'DEAFCCEC-6A37-EF11-86D4-000D3A4E707E', 1, 1, 1, 1, GETUTCDATE(), GETUTCDATE());
+                                                   ('b05a480f-f7c5-4d45-8ea3-c90e9a14f225', 'DEAFCCEC-6A37-EF11-86D4-000D3A4E707E', 1, 1, 1, 1, GETUTCDATE(), GETUTCDATE());
 
 /* SQL generated to add new permission for entity MJ_BizApps_Contracts: Contract Template Modifications for role Integration */
 INSERT INTO [${mjSchema}].[EntityPermission]
                                                    ([EntityID], [RoleID], [CanRead], [CanCreate], [CanUpdate], [CanDelete], [__mj_CreatedAt], [__mj_UpdatedAt]) VALUES
-                                                   ('2e611a7d-2fbb-4a45-a9c8-103834bf026a', 'DFAFCCEC-6A37-EF11-86D4-000D3A4E707E', 1, 1, 1, 1, GETUTCDATE(), GETUTCDATE());
+                                                   ('b05a480f-f7c5-4d45-8ea3-c90e9a14f225', 'DFAFCCEC-6A37-EF11-86D4-000D3A4E707E', 1, 1, 1, 1, GETUTCDATE(), GETUTCDATE());
 
 /* SQL text to update existing entities from schema */
-EXEC [${mjSchema}].[spUpdateExistingEntitiesFromSchema] @ExcludedSchemaNames='sys,staging,dbo,${mjSchema},${mjSchema}_BizAppsAccounting,${mjSchema}_BizAppsCommon,${mjSchema}_BizAppsOrders,${mjSchema}_BizAppsTasks';
-
-/* SQL text to add special date field __mj_CreatedAt to entity ${flyway:defaultSchema}.ContractTemplateModification */
-ALTER TABLE [${flyway:defaultSchema}].[ContractTemplateModification] ADD [__mj_CreatedAt] DATETIMEOFFSET NULL;
-GO
-
-/* SQL text to add special date field __mj_CreatedAt to entity ${flyway:defaultSchema}.ContractTemplateModification */
-UPDATE [${flyway:defaultSchema}].[ContractTemplateModification] SET [__mj_CreatedAt] = GETUTCDATE() WHERE [__mj_CreatedAt] IS NULL;
-GO
-
-/* SQL text to add special date field __mj_CreatedAt to entity ${flyway:defaultSchema}.ContractTemplateModification */
-ALTER TABLE [${flyway:defaultSchema}].[ContractTemplateModification] ALTER COLUMN [__mj_CreatedAt] DATETIMEOFFSET NOT NULL;
-GO
-
-/* SQL text to add special date field __mj_CreatedAt to entity ${flyway:defaultSchema}.ContractTemplateModification */
-ALTER TABLE [${flyway:defaultSchema}].[ContractTemplateModification] ADD CONSTRAINT [DF___mj_BizAppsContracts_ContractTemplateModification___mj_CreatedAt] DEFAULT GETUTCDATE() FOR [__mj_CreatedAt];
-GO
-
-/* SQL text to add special date field __mj_UpdatedAt to entity ${flyway:defaultSchema}.ContractTemplateModification */
-ALTER TABLE [${flyway:defaultSchema}].[ContractTemplateModification] ADD [__mj_UpdatedAt] DATETIMEOFFSET NULL;
-GO
-
-/* SQL text to add special date field __mj_UpdatedAt to entity ${flyway:defaultSchema}.ContractTemplateModification */
-UPDATE [${flyway:defaultSchema}].[ContractTemplateModification] SET [__mj_UpdatedAt] = GETUTCDATE() WHERE [__mj_UpdatedAt] IS NULL;
-GO
-
-/* SQL text to add special date field __mj_UpdatedAt to entity ${flyway:defaultSchema}.ContractTemplateModification */
-ALTER TABLE [${flyway:defaultSchema}].[ContractTemplateModification] ALTER COLUMN [__mj_UpdatedAt] DATETIMEOFFSET NOT NULL;
-GO
-
-/* SQL text to add special date field __mj_UpdatedAt to entity ${flyway:defaultSchema}.ContractTemplateModification */
-ALTER TABLE [${flyway:defaultSchema}].[ContractTemplateModification] ADD CONSTRAINT [DF___mj_BizAppsContracts_ContractTemplateModification___mj_UpdatedAt] DEFAULT GETUTCDATE() FOR [__mj_UpdatedAt];
-GO
-
-/* SQL text to add special date field __mj_CreatedAt to entity ${flyway:defaultSchema}.ContractType */
-ALTER TABLE [${flyway:defaultSchema}].[ContractType] ADD [__mj_CreatedAt] DATETIMEOFFSET NULL;
-GO
-
-/* SQL text to add special date field __mj_CreatedAt to entity ${flyway:defaultSchema}.ContractType */
-UPDATE [${flyway:defaultSchema}].[ContractType] SET [__mj_CreatedAt] = GETUTCDATE() WHERE [__mj_CreatedAt] IS NULL;
-GO
-
-/* SQL text to add special date field __mj_CreatedAt to entity ${flyway:defaultSchema}.ContractType */
-ALTER TABLE [${flyway:defaultSchema}].[ContractType] ALTER COLUMN [__mj_CreatedAt] DATETIMEOFFSET NOT NULL;
-GO
-
-/* SQL text to add special date field __mj_CreatedAt to entity ${flyway:defaultSchema}.ContractType */
-ALTER TABLE [${flyway:defaultSchema}].[ContractType] ADD CONSTRAINT [DF___mj_BizAppsContracts_ContractType___mj_CreatedAt] DEFAULT GETUTCDATE() FOR [__mj_CreatedAt];
-GO
-
-/* SQL text to add special date field __mj_UpdatedAt to entity ${flyway:defaultSchema}.ContractType */
-ALTER TABLE [${flyway:defaultSchema}].[ContractType] ADD [__mj_UpdatedAt] DATETIMEOFFSET NULL;
-GO
-
-/* SQL text to add special date field __mj_UpdatedAt to entity ${flyway:defaultSchema}.ContractType */
-UPDATE [${flyway:defaultSchema}].[ContractType] SET [__mj_UpdatedAt] = GETUTCDATE() WHERE [__mj_UpdatedAt] IS NULL;
-GO
-
-/* SQL text to add special date field __mj_UpdatedAt to entity ${flyway:defaultSchema}.ContractType */
-ALTER TABLE [${flyway:defaultSchema}].[ContractType] ALTER COLUMN [__mj_UpdatedAt] DATETIMEOFFSET NOT NULL;
-GO
-
-/* SQL text to add special date field __mj_UpdatedAt to entity ${flyway:defaultSchema}.ContractType */
-ALTER TABLE [${flyway:defaultSchema}].[ContractType] ADD CONSTRAINT [DF___mj_BizAppsContracts_ContractType___mj_UpdatedAt] DEFAULT GETUTCDATE() FOR [__mj_UpdatedAt];
-GO
+EXEC [${mjSchema}].[spUpdateExistingEntitiesFromSchema] @ExcludedSchemaNames='sys,staging,dbo,${mjSchema},${mjSchema}_BizAppsCommon,${mjSchema}_BizAppsTasks,${mjSchema}_BizAppsAccounting,${mjSchema}_BizAppsOrders,${mjSchema}';
 
 /* SQL text to add special date field __mj_CreatedAt to entity ${flyway:defaultSchema}.ContractTemplateProvision */
 ALTER TABLE [${flyway:defaultSchema}].[ContractTemplateProvision] ADD [__mj_CreatedAt] DATETIMEOFFSET NULL;
@@ -1167,36 +1219,36 @@ GO
 ALTER TABLE [${flyway:defaultSchema}].[ContractTemplateProvision] ADD CONSTRAINT [DF___mj_BizAppsContracts_ContractTemplateProvision___mj_UpdatedAt] DEFAULT GETUTCDATE() FOR [__mj_UpdatedAt];
 GO
 
-/* SQL text to add special date field __mj_CreatedAt to entity ${flyway:defaultSchema}.Contract */
-ALTER TABLE [${flyway:defaultSchema}].[Contract] ADD [__mj_CreatedAt] DATETIMEOFFSET NULL;
+/* SQL text to add special date field __mj_CreatedAt to entity ${flyway:defaultSchema}.ContractTemplateModification */
+ALTER TABLE [${flyway:defaultSchema}].[ContractTemplateModification] ADD [__mj_CreatedAt] DATETIMEOFFSET NULL;
 GO
 
-/* SQL text to add special date field __mj_CreatedAt to entity ${flyway:defaultSchema}.Contract */
-UPDATE [${flyway:defaultSchema}].[Contract] SET [__mj_CreatedAt] = GETUTCDATE() WHERE [__mj_CreatedAt] IS NULL;
+/* SQL text to add special date field __mj_CreatedAt to entity ${flyway:defaultSchema}.ContractTemplateModification */
+UPDATE [${flyway:defaultSchema}].[ContractTemplateModification] SET [__mj_CreatedAt] = GETUTCDATE() WHERE [__mj_CreatedAt] IS NULL;
 GO
 
-/* SQL text to add special date field __mj_CreatedAt to entity ${flyway:defaultSchema}.Contract */
-ALTER TABLE [${flyway:defaultSchema}].[Contract] ALTER COLUMN [__mj_CreatedAt] DATETIMEOFFSET NOT NULL;
+/* SQL text to add special date field __mj_CreatedAt to entity ${flyway:defaultSchema}.ContractTemplateModification */
+ALTER TABLE [${flyway:defaultSchema}].[ContractTemplateModification] ALTER COLUMN [__mj_CreatedAt] DATETIMEOFFSET NOT NULL;
 GO
 
-/* SQL text to add special date field __mj_CreatedAt to entity ${flyway:defaultSchema}.Contract */
-ALTER TABLE [${flyway:defaultSchema}].[Contract] ADD CONSTRAINT [DF___mj_BizAppsContracts_Contract___mj_CreatedAt] DEFAULT GETUTCDATE() FOR [__mj_CreatedAt];
+/* SQL text to add special date field __mj_CreatedAt to entity ${flyway:defaultSchema}.ContractTemplateModification */
+ALTER TABLE [${flyway:defaultSchema}].[ContractTemplateModification] ADD CONSTRAINT [DF___mj_BizAppsContracts_ContractTemplateModification___mj_CreatedAt] DEFAULT GETUTCDATE() FOR [__mj_CreatedAt];
 GO
 
-/* SQL text to add special date field __mj_UpdatedAt to entity ${flyway:defaultSchema}.Contract */
-ALTER TABLE [${flyway:defaultSchema}].[Contract] ADD [__mj_UpdatedAt] DATETIMEOFFSET NULL;
+/* SQL text to add special date field __mj_UpdatedAt to entity ${flyway:defaultSchema}.ContractTemplateModification */
+ALTER TABLE [${flyway:defaultSchema}].[ContractTemplateModification] ADD [__mj_UpdatedAt] DATETIMEOFFSET NULL;
 GO
 
-/* SQL text to add special date field __mj_UpdatedAt to entity ${flyway:defaultSchema}.Contract */
-UPDATE [${flyway:defaultSchema}].[Contract] SET [__mj_UpdatedAt] = GETUTCDATE() WHERE [__mj_UpdatedAt] IS NULL;
+/* SQL text to add special date field __mj_UpdatedAt to entity ${flyway:defaultSchema}.ContractTemplateModification */
+UPDATE [${flyway:defaultSchema}].[ContractTemplateModification] SET [__mj_UpdatedAt] = GETUTCDATE() WHERE [__mj_UpdatedAt] IS NULL;
 GO
 
-/* SQL text to add special date field __mj_UpdatedAt to entity ${flyway:defaultSchema}.Contract */
-ALTER TABLE [${flyway:defaultSchema}].[Contract] ALTER COLUMN [__mj_UpdatedAt] DATETIMEOFFSET NOT NULL;
+/* SQL text to add special date field __mj_UpdatedAt to entity ${flyway:defaultSchema}.ContractTemplateModification */
+ALTER TABLE [${flyway:defaultSchema}].[ContractTemplateModification] ALTER COLUMN [__mj_UpdatedAt] DATETIMEOFFSET NOT NULL;
 GO
 
-/* SQL text to add special date field __mj_UpdatedAt to entity ${flyway:defaultSchema}.Contract */
-ALTER TABLE [${flyway:defaultSchema}].[Contract] ADD CONSTRAINT [DF___mj_BizAppsContracts_Contract___mj_UpdatedAt] DEFAULT GETUTCDATE() FOR [__mj_UpdatedAt];
+/* SQL text to add special date field __mj_UpdatedAt to entity ${flyway:defaultSchema}.ContractTemplateModification */
+ALTER TABLE [${flyway:defaultSchema}].[ContractTemplateModification] ADD CONSTRAINT [DF___mj_BizAppsContracts_ContractTemplateModification___mj_UpdatedAt] DEFAULT GETUTCDATE() FOR [__mj_UpdatedAt];
 GO
 
 /* SQL text to add special date field __mj_CreatedAt to entity ${flyway:defaultSchema}.ContractTemplateType */
@@ -1231,38 +1283,6 @@ GO
 ALTER TABLE [${flyway:defaultSchema}].[ContractTemplateType] ADD CONSTRAINT [DF___mj_BizAppsContracts_ContractTemplateType___mj_UpdatedAt] DEFAULT GETUTCDATE() FOR [__mj_UpdatedAt];
 GO
 
-/* SQL text to add special date field __mj_CreatedAt to entity ${flyway:defaultSchema}.ContractSequence */
-ALTER TABLE [${flyway:defaultSchema}].[ContractSequence] ADD [__mj_CreatedAt] DATETIMEOFFSET NULL;
-GO
-
-/* SQL text to add special date field __mj_CreatedAt to entity ${flyway:defaultSchema}.ContractSequence */
-UPDATE [${flyway:defaultSchema}].[ContractSequence] SET [__mj_CreatedAt] = GETUTCDATE() WHERE [__mj_CreatedAt] IS NULL;
-GO
-
-/* SQL text to add special date field __mj_CreatedAt to entity ${flyway:defaultSchema}.ContractSequence */
-ALTER TABLE [${flyway:defaultSchema}].[ContractSequence] ALTER COLUMN [__mj_CreatedAt] DATETIMEOFFSET NOT NULL;
-GO
-
-/* SQL text to add special date field __mj_CreatedAt to entity ${flyway:defaultSchema}.ContractSequence */
-ALTER TABLE [${flyway:defaultSchema}].[ContractSequence] ADD CONSTRAINT [DF___mj_BizAppsContracts_ContractSequence___mj_CreatedAt] DEFAULT GETUTCDATE() FOR [__mj_CreatedAt];
-GO
-
-/* SQL text to add special date field __mj_UpdatedAt to entity ${flyway:defaultSchema}.ContractSequence */
-ALTER TABLE [${flyway:defaultSchema}].[ContractSequence] ADD [__mj_UpdatedAt] DATETIMEOFFSET NULL;
-GO
-
-/* SQL text to add special date field __mj_UpdatedAt to entity ${flyway:defaultSchema}.ContractSequence */
-UPDATE [${flyway:defaultSchema}].[ContractSequence] SET [__mj_UpdatedAt] = GETUTCDATE() WHERE [__mj_UpdatedAt] IS NULL;
-GO
-
-/* SQL text to add special date field __mj_UpdatedAt to entity ${flyway:defaultSchema}.ContractSequence */
-ALTER TABLE [${flyway:defaultSchema}].[ContractSequence] ALTER COLUMN [__mj_UpdatedAt] DATETIMEOFFSET NOT NULL;
-GO
-
-/* SQL text to add special date field __mj_UpdatedAt to entity ${flyway:defaultSchema}.ContractSequence */
-ALTER TABLE [${flyway:defaultSchema}].[ContractSequence] ADD CONSTRAINT [DF___mj_BizAppsContracts_ContractSequence___mj_UpdatedAt] DEFAULT GETUTCDATE() FOR [__mj_UpdatedAt];
-GO
-
 /* SQL text to add special date field __mj_CreatedAt to entity ${flyway:defaultSchema}.ContractTemplate */
 ALTER TABLE [${flyway:defaultSchema}].[ContractTemplate] ADD [__mj_CreatedAt] DATETIMEOFFSET NULL;
 GO
@@ -1295,9 +1315,73 @@ GO
 ALTER TABLE [${flyway:defaultSchema}].[ContractTemplate] ADD CONSTRAINT [DF___mj_BizAppsContracts_ContractTemplate___mj_UpdatedAt] DEFAULT GETUTCDATE() FOR [__mj_UpdatedAt];
 GO
 
+/* SQL text to add special date field __mj_CreatedAt to entity ${flyway:defaultSchema}.ContractType */
+ALTER TABLE [${flyway:defaultSchema}].[ContractType] ADD [__mj_CreatedAt] DATETIMEOFFSET NULL;
+GO
+
+/* SQL text to add special date field __mj_CreatedAt to entity ${flyway:defaultSchema}.ContractType */
+UPDATE [${flyway:defaultSchema}].[ContractType] SET [__mj_CreatedAt] = GETUTCDATE() WHERE [__mj_CreatedAt] IS NULL;
+GO
+
+/* SQL text to add special date field __mj_CreatedAt to entity ${flyway:defaultSchema}.ContractType */
+ALTER TABLE [${flyway:defaultSchema}].[ContractType] ALTER COLUMN [__mj_CreatedAt] DATETIMEOFFSET NOT NULL;
+GO
+
+/* SQL text to add special date field __mj_CreatedAt to entity ${flyway:defaultSchema}.ContractType */
+ALTER TABLE [${flyway:defaultSchema}].[ContractType] ADD CONSTRAINT [DF___mj_BizAppsContracts_ContractType___mj_CreatedAt] DEFAULT GETUTCDATE() FOR [__mj_CreatedAt];
+GO
+
+/* SQL text to add special date field __mj_UpdatedAt to entity ${flyway:defaultSchema}.ContractType */
+ALTER TABLE [${flyway:defaultSchema}].[ContractType] ADD [__mj_UpdatedAt] DATETIMEOFFSET NULL;
+GO
+
+/* SQL text to add special date field __mj_UpdatedAt to entity ${flyway:defaultSchema}.ContractType */
+UPDATE [${flyway:defaultSchema}].[ContractType] SET [__mj_UpdatedAt] = GETUTCDATE() WHERE [__mj_UpdatedAt] IS NULL;
+GO
+
+/* SQL text to add special date field __mj_UpdatedAt to entity ${flyway:defaultSchema}.ContractType */
+ALTER TABLE [${flyway:defaultSchema}].[ContractType] ALTER COLUMN [__mj_UpdatedAt] DATETIMEOFFSET NOT NULL;
+GO
+
+/* SQL text to add special date field __mj_UpdatedAt to entity ${flyway:defaultSchema}.ContractType */
+ALTER TABLE [${flyway:defaultSchema}].[ContractType] ADD CONSTRAINT [DF___mj_BizAppsContracts_ContractType___mj_UpdatedAt] DEFAULT GETUTCDATE() FOR [__mj_UpdatedAt];
+GO
+
+/* SQL text to add special date field __mj_CreatedAt to entity ${flyway:defaultSchema}.Contract */
+ALTER TABLE [${flyway:defaultSchema}].[Contract] ADD [__mj_CreatedAt] DATETIMEOFFSET NULL;
+GO
+
+/* SQL text to add special date field __mj_CreatedAt to entity ${flyway:defaultSchema}.Contract */
+UPDATE [${flyway:defaultSchema}].[Contract] SET [__mj_CreatedAt] = GETUTCDATE() WHERE [__mj_CreatedAt] IS NULL;
+GO
+
+/* SQL text to add special date field __mj_CreatedAt to entity ${flyway:defaultSchema}.Contract */
+ALTER TABLE [${flyway:defaultSchema}].[Contract] ALTER COLUMN [__mj_CreatedAt] DATETIMEOFFSET NOT NULL;
+GO
+
+/* SQL text to add special date field __mj_CreatedAt to entity ${flyway:defaultSchema}.Contract */
+ALTER TABLE [${flyway:defaultSchema}].[Contract] ADD CONSTRAINT [DF___mj_BizAppsContracts_Contract___mj_CreatedAt] DEFAULT GETUTCDATE() FOR [__mj_CreatedAt];
+GO
+
+/* SQL text to add special date field __mj_UpdatedAt to entity ${flyway:defaultSchema}.Contract */
+ALTER TABLE [${flyway:defaultSchema}].[Contract] ADD [__mj_UpdatedAt] DATETIMEOFFSET NULL;
+GO
+
+/* SQL text to add special date field __mj_UpdatedAt to entity ${flyway:defaultSchema}.Contract */
+UPDATE [${flyway:defaultSchema}].[Contract] SET [__mj_UpdatedAt] = GETUTCDATE() WHERE [__mj_UpdatedAt] IS NULL;
+GO
+
+/* SQL text to add special date field __mj_UpdatedAt to entity ${flyway:defaultSchema}.Contract */
+ALTER TABLE [${flyway:defaultSchema}].[Contract] ALTER COLUMN [__mj_UpdatedAt] DATETIMEOFFSET NOT NULL;
+GO
+
+/* SQL text to add special date field __mj_UpdatedAt to entity ${flyway:defaultSchema}.Contract */
+ALTER TABLE [${flyway:defaultSchema}].[Contract] ADD CONSTRAINT [DF___mj_BizAppsContracts_Contract___mj_UpdatedAt] DEFAULT GETUTCDATE() FOR [__mj_UpdatedAt];
+GO
+
 /* SQL text to insert 67 new entity field(s) */
 
-      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = 'fd9c658f-66ce-43a1-ae3a-40db31530608' OR (EntityID = '2E611A7D-2FBB-4A45-A9C8-103834BF026A' AND Name = 'ID')) BEGIN
+      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = 'da55d974-f70e-42d0-a12a-04f2efd46a85' OR (EntityID = '317DF592-8C20-473D-B097-2AB239877438' AND Name = 'ID')) BEGIN
          INSERT INTO [${mjSchema}].[EntityField]
          (
             [ID],
@@ -1330,9 +1414,9 @@ GO
          )
          VALUES
          (
-            'fd9c658f-66ce-43a1-ae3a-40db31530608',
-            '2E611A7D-2FBB-4A45-A9C8-103834BF026A', -- Entity: MJ_BizApps_Contracts: Contract Template Modifications
-            (SELECT COALESCE(MAX([Sequence]), 0) FROM [${mjSchema}].[EntityField] WHERE [EntityID] = '2E611A7D-2FBB-4A45-A9C8-103834BF026A') + 1,
+            'da55d974-f70e-42d0-a12a-04f2efd46a85',
+            '317DF592-8C20-473D-B097-2AB239877438', -- Entity: MJ_BizApps_Contracts: Contract Template Provisions
+            (SELECT COALESCE(MAX([Sequence]), 0) FROM [${mjSchema}].[EntityField] WHERE [EntityID] = '317DF592-8C20-473D-B097-2AB239877438') + 1,
             'ID',
             'ID',
             NULL,
@@ -1360,7 +1444,7 @@ GO
          )
       END;
 
-      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = '9d1ecade-25c0-4a9c-912a-6b993c5afd35' OR (EntityID = '2E611A7D-2FBB-4A45-A9C8-103834BF026A' AND Name = 'ContractID')) BEGIN
+      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = 'fd673fee-72ab-4109-89b1-db5bcee9eb3e' OR (EntityID = '317DF592-8C20-473D-B097-2AB239877438' AND Name = 'ContractTemplateID')) BEGIN
          INSERT INTO [${mjSchema}].[EntityField]
          (
             [ID],
@@ -1393,891 +1477,9 @@ GO
          )
          VALUES
          (
-            '9d1ecade-25c0-4a9c-912a-6b993c5afd35',
-            '2E611A7D-2FBB-4A45-A9C8-103834BF026A', -- Entity: MJ_BizApps_Contracts: Contract Template Modifications
-            (SELECT COALESCE(MAX([Sequence]), 0) FROM [${mjSchema}].[EntityField] WHERE [EntityID] = '2E611A7D-2FBB-4A45-A9C8-103834BF026A') + 2,
-            'ContractID',
-            'Contract ID',
-            NULL,
-            'uniqueidentifier',
-            16,
-            0,
-            0,
-            0,
-            NULL,
-            0,
-            1,
-            0,
-            0,
-            '4CC3DB2D-F01F-405E-A47D-B14BA2F1AB20',
-            'ID',
-            0,
-            0,
-            1,
-            0,
-            0,
-            1,
-            'Search',
-            GETUTCDATE(),
-            GETUTCDATE()
-         )
-      END;
-
-      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = '51331345-4ae4-4882-959a-6046cbbddace' OR (EntityID = '2E611A7D-2FBB-4A45-A9C8-103834BF026A' AND Name = 'ContractTemplateProvisionID')) BEGIN
-         INSERT INTO [${mjSchema}].[EntityField]
-         (
-            [ID],
-            [EntityID],
-            [Sequence],
-            [Name],
-            [DisplayName],
-            [Description],
-            [Type],
-            [Length],
-            [Precision],
-            [Scale],
-            [AllowsNull],
-            [DefaultValue],
-            [AutoIncrement],
-            [AllowUpdateAPI],
-            [IsVirtual],
-            [IsComputed],
-            [RelatedEntityID],
-            [RelatedEntityFieldName],
-            [IsNameField],
-            [IncludeInUserSearchAPI],
-            [IncludeRelatedEntityNameFieldInBaseView],
-            [DefaultInView],
-            [IsPrimaryKey],
-            [IsUnique],
-            [RelatedEntityDisplayType],
-            [__mj_CreatedAt],
-            [__mj_UpdatedAt]
-         )
-         VALUES
-         (
-            '51331345-4ae4-4882-959a-6046cbbddace',
-            '2E611A7D-2FBB-4A45-A9C8-103834BF026A', -- Entity: MJ_BizApps_Contracts: Contract Template Modifications
-            (SELECT COALESCE(MAX([Sequence]), 0) FROM [${mjSchema}].[EntityField] WHERE [EntityID] = '2E611A7D-2FBB-4A45-A9C8-103834BF026A') + 3,
-            'ContractTemplateProvisionID',
-            'Contract Template Provision ID',
-            'The provision being modified — the structured identifier, and the only one. A server rule enforces what this replaces: the provision must belong to a template this contract incorporates.',
-            'uniqueidentifier',
-            16,
-            0,
-            0,
-            0,
-            NULL,
-            0,
-            1,
-            0,
-            0,
-            '27A600CA-6A2E-4C85-84AE-924183EC1681',
-            'ID',
-            0,
-            0,
-            1,
-            0,
-            0,
-            1,
-            'Search',
-            GETUTCDATE(),
-            GETUTCDATE()
-         )
-      END;
-
-      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = '8178cf5d-d3a4-4405-8fda-90d79b627d55' OR (EntityID = '2E611A7D-2FBB-4A45-A9C8-103834BF026A' AND Name = 'ModificationText')) BEGIN
-         INSERT INTO [${mjSchema}].[EntityField]
-         (
-            [ID],
-            [EntityID],
-            [Sequence],
-            [Name],
-            [DisplayName],
-            [Description],
-            [Type],
-            [Length],
-            [Precision],
-            [Scale],
-            [AllowsNull],
-            [DefaultValue],
-            [AutoIncrement],
-            [AllowUpdateAPI],
-            [IsVirtual],
-            [IsComputed],
-            [RelatedEntityID],
-            [RelatedEntityFieldName],
-            [IsNameField],
-            [IncludeInUserSearchAPI],
-            [IncludeRelatedEntityNameFieldInBaseView],
-            [DefaultInView],
-            [IsPrimaryKey],
-            [IsUnique],
-            [RelatedEntityDisplayType],
-            [__mj_CreatedAt],
-            [__mj_UpdatedAt]
-         )
-         VALUES
-         (
-            '8178cf5d-d3a4-4405-8fda-90d79b627d55',
-            '2E611A7D-2FBB-4A45-A9C8-103834BF026A', -- Entity: MJ_BizApps_Contracts: Contract Template Modifications
-            (SELECT COALESCE(MAX([Sequence]), 0) FROM [${mjSchema}].[EntityField] WHERE [EntityID] = '2E611A7D-2FBB-4A45-A9C8-103834BF026A') + 4,
-            'ModificationText',
-            'Modification Text',
-            'What this contract says INSTEAD of the standard clause. Read as a pair with ContractTemplateProvision.ProvisionText.',
-            'nvarchar',
-            -1,
-            0,
-            0,
-            1,
-            NULL,
-            0,
-            1,
-            0,
-            0,
-            NULL,
-            NULL,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            'Search',
-            GETUTCDATE(),
-            GETUTCDATE()
-         )
-      END;
-
-      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = '8dab9c2d-48b0-4c25-8bd3-4dd74029d29a' OR (EntityID = '2E611A7D-2FBB-4A45-A9C8-103834BF026A' AND Name = 'Notes')) BEGIN
-         INSERT INTO [${mjSchema}].[EntityField]
-         (
-            [ID],
-            [EntityID],
-            [Sequence],
-            [Name],
-            [DisplayName],
-            [Description],
-            [Type],
-            [Length],
-            [Precision],
-            [Scale],
-            [AllowsNull],
-            [DefaultValue],
-            [AutoIncrement],
-            [AllowUpdateAPI],
-            [IsVirtual],
-            [IsComputed],
-            [RelatedEntityID],
-            [RelatedEntityFieldName],
-            [IsNameField],
-            [IncludeInUserSearchAPI],
-            [IncludeRelatedEntityNameFieldInBaseView],
-            [DefaultInView],
-            [IsPrimaryKey],
-            [IsUnique],
-            [RelatedEntityDisplayType],
-            [__mj_CreatedAt],
-            [__mj_UpdatedAt]
-         )
-         VALUES
-         (
-            '8dab9c2d-48b0-4c25-8bd3-4dd74029d29a',
-            '2E611A7D-2FBB-4A45-A9C8-103834BF026A', -- Entity: MJ_BizApps_Contracts: Contract Template Modifications
-            (SELECT COALESCE(MAX([Sequence]), 0) FROM [${mjSchema}].[EntityField] WHERE [EntityID] = '2E611A7D-2FBB-4A45-A9C8-103834BF026A') + 5,
-            'Notes',
-            'Notes',
-            'Optional working note, e.g. who negotiated it.',
-            'nvarchar',
-            -1,
-            0,
-            0,
-            1,
-            NULL,
-            0,
-            1,
-            0,
-            0,
-            NULL,
-            NULL,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            'Search',
-            GETUTCDATE(),
-            GETUTCDATE()
-         )
-      END;
-
-      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = 'c89c9aa4-4c51-4623-a042-f475c18b415a' OR (EntityID = '2E611A7D-2FBB-4A45-A9C8-103834BF026A' AND Name = '__mj_CreatedAt')) BEGIN
-         INSERT INTO [${mjSchema}].[EntityField]
-         (
-            [ID],
-            [EntityID],
-            [Sequence],
-            [Name],
-            [DisplayName],
-            [Description],
-            [Type],
-            [Length],
-            [Precision],
-            [Scale],
-            [AllowsNull],
-            [DefaultValue],
-            [AutoIncrement],
-            [AllowUpdateAPI],
-            [IsVirtual],
-            [IsComputed],
-            [RelatedEntityID],
-            [RelatedEntityFieldName],
-            [IsNameField],
-            [IncludeInUserSearchAPI],
-            [IncludeRelatedEntityNameFieldInBaseView],
-            [DefaultInView],
-            [IsPrimaryKey],
-            [IsUnique],
-            [RelatedEntityDisplayType],
-            [__mj_CreatedAt],
-            [__mj_UpdatedAt]
-         )
-         VALUES
-         (
-            'c89c9aa4-4c51-4623-a042-f475c18b415a',
-            '2E611A7D-2FBB-4A45-A9C8-103834BF026A', -- Entity: MJ_BizApps_Contracts: Contract Template Modifications
-            (SELECT COALESCE(MAX([Sequence]), 0) FROM [${mjSchema}].[EntityField] WHERE [EntityID] = '2E611A7D-2FBB-4A45-A9C8-103834BF026A') + 6,
-            '__mj_CreatedAt',
-            'Created At',
-            NULL,
-            'datetimeoffset',
-            10,
-            34,
-            7,
-            0,
-            'getutcdate()',
-            0,
-            0,
-            0,
-            0,
-            NULL,
-            NULL,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            'Search',
-            GETUTCDATE(),
-            GETUTCDATE()
-         )
-      END;
-
-      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = '9987b09c-fffa-460c-9b86-f1692c1728aa' OR (EntityID = '2E611A7D-2FBB-4A45-A9C8-103834BF026A' AND Name = '__mj_UpdatedAt')) BEGIN
-         INSERT INTO [${mjSchema}].[EntityField]
-         (
-            [ID],
-            [EntityID],
-            [Sequence],
-            [Name],
-            [DisplayName],
-            [Description],
-            [Type],
-            [Length],
-            [Precision],
-            [Scale],
-            [AllowsNull],
-            [DefaultValue],
-            [AutoIncrement],
-            [AllowUpdateAPI],
-            [IsVirtual],
-            [IsComputed],
-            [RelatedEntityID],
-            [RelatedEntityFieldName],
-            [IsNameField],
-            [IncludeInUserSearchAPI],
-            [IncludeRelatedEntityNameFieldInBaseView],
-            [DefaultInView],
-            [IsPrimaryKey],
-            [IsUnique],
-            [RelatedEntityDisplayType],
-            [__mj_CreatedAt],
-            [__mj_UpdatedAt]
-         )
-         VALUES
-         (
-            '9987b09c-fffa-460c-9b86-f1692c1728aa',
-            '2E611A7D-2FBB-4A45-A9C8-103834BF026A', -- Entity: MJ_BizApps_Contracts: Contract Template Modifications
-            (SELECT COALESCE(MAX([Sequence]), 0) FROM [${mjSchema}].[EntityField] WHERE [EntityID] = '2E611A7D-2FBB-4A45-A9C8-103834BF026A') + 7,
-            '__mj_UpdatedAt',
-            'Updated At',
-            NULL,
-            'datetimeoffset',
-            10,
-            34,
-            7,
-            0,
-            'getutcdate()',
-            0,
-            0,
-            0,
-            0,
-            NULL,
-            NULL,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            'Search',
-            GETUTCDATE(),
-            GETUTCDATE()
-         )
-      END;
-
-      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = '05cfd8f7-b9cf-4a9c-83e4-d1a2d5ad5105' OR (EntityID = 'EBB3F628-267E-44D6-8F18-258AC28FF981' AND Name = 'ID')) BEGIN
-         INSERT INTO [${mjSchema}].[EntityField]
-         (
-            [ID],
-            [EntityID],
-            [Sequence],
-            [Name],
-            [DisplayName],
-            [Description],
-            [Type],
-            [Length],
-            [Precision],
-            [Scale],
-            [AllowsNull],
-            [DefaultValue],
-            [AutoIncrement],
-            [AllowUpdateAPI],
-            [IsVirtual],
-            [IsComputed],
-            [RelatedEntityID],
-            [RelatedEntityFieldName],
-            [IsNameField],
-            [IncludeInUserSearchAPI],
-            [IncludeRelatedEntityNameFieldInBaseView],
-            [DefaultInView],
-            [IsPrimaryKey],
-            [IsUnique],
-            [RelatedEntityDisplayType],
-            [__mj_CreatedAt],
-            [__mj_UpdatedAt]
-         )
-         VALUES
-         (
-            '05cfd8f7-b9cf-4a9c-83e4-d1a2d5ad5105',
-            'EBB3F628-267E-44D6-8F18-258AC28FF981', -- Entity: MJ_BizApps_Contracts: Contract Types
-            (SELECT COALESCE(MAX([Sequence]), 0) FROM [${mjSchema}].[EntityField] WHERE [EntityID] = 'EBB3F628-267E-44D6-8F18-258AC28FF981') + 1,
-            'ID',
-            'ID',
-            NULL,
-            'uniqueidentifier',
-            16,
-            0,
-            0,
-            0,
-            'newsequentialid()',
-            0,
-            0,
-            0,
-            0,
-            NULL,
-            NULL,
-            0,
-            1,
-            0,
-            0,
-            1,
-            1,
-            'Search',
-            GETUTCDATE(),
-            GETUTCDATE()
-         )
-      END;
-
-      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = '2c9e961b-6a55-4ce7-9a24-b7c3dfdcb2ff' OR (EntityID = 'EBB3F628-267E-44D6-8F18-258AC28FF981' AND Name = 'Name')) BEGIN
-         INSERT INTO [${mjSchema}].[EntityField]
-         (
-            [ID],
-            [EntityID],
-            [Sequence],
-            [Name],
-            [DisplayName],
-            [Description],
-            [Type],
-            [Length],
-            [Precision],
-            [Scale],
-            [AllowsNull],
-            [DefaultValue],
-            [AutoIncrement],
-            [AllowUpdateAPI],
-            [IsVirtual],
-            [IsComputed],
-            [RelatedEntityID],
-            [RelatedEntityFieldName],
-            [IsNameField],
-            [IncludeInUserSearchAPI],
-            [IncludeRelatedEntityNameFieldInBaseView],
-            [DefaultInView],
-            [IsPrimaryKey],
-            [IsUnique],
-            [RelatedEntityDisplayType],
-            [__mj_CreatedAt],
-            [__mj_UpdatedAt]
-         )
-         VALUES
-         (
-            '2c9e961b-6a55-4ce7-9a24-b7c3dfdcb2ff',
-            'EBB3F628-267E-44D6-8F18-258AC28FF981', -- Entity: MJ_BizApps_Contracts: Contract Types
-            (SELECT COALESCE(MAX([Sequence]), 0) FROM [${mjSchema}].[EntityField] WHERE [EntityID] = 'EBB3F628-267E-44D6-8F18-258AC28FF981') + 2,
-            'Name',
-            'Name',
-            NULL,
-            'nvarchar',
-            200,
-            0,
-            0,
-            0,
-            NULL,
-            0,
-            1,
-            0,
-            0,
-            NULL,
-            NULL,
-            1,
-            1,
-            0,
-            1,
-            0,
-            1,
-            'Search',
-            GETUTCDATE(),
-            GETUTCDATE()
-         )
-      END;
-
-      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = '238b5941-dc97-43f2-a464-4ed207dda3fe' OR (EntityID = 'EBB3F628-267E-44D6-8F18-258AC28FF981' AND Name = 'Description')) BEGIN
-         INSERT INTO [${mjSchema}].[EntityField]
-         (
-            [ID],
-            [EntityID],
-            [Sequence],
-            [Name],
-            [DisplayName],
-            [Description],
-            [Type],
-            [Length],
-            [Precision],
-            [Scale],
-            [AllowsNull],
-            [DefaultValue],
-            [AutoIncrement],
-            [AllowUpdateAPI],
-            [IsVirtual],
-            [IsComputed],
-            [RelatedEntityID],
-            [RelatedEntityFieldName],
-            [IsNameField],
-            [IncludeInUserSearchAPI],
-            [IncludeRelatedEntityNameFieldInBaseView],
-            [DefaultInView],
-            [IsPrimaryKey],
-            [IsUnique],
-            [RelatedEntityDisplayType],
-            [__mj_CreatedAt],
-            [__mj_UpdatedAt]
-         )
-         VALUES
-         (
-            '238b5941-dc97-43f2-a464-4ed207dda3fe',
-            'EBB3F628-267E-44D6-8F18-258AC28FF981', -- Entity: MJ_BizApps_Contracts: Contract Types
-            (SELECT COALESCE(MAX([Sequence]), 0) FROM [${mjSchema}].[EntityField] WHERE [EntityID] = 'EBB3F628-267E-44D6-8F18-258AC28FF981') + 3,
-            'Description',
-            'Description',
-            NULL,
-            'nvarchar',
-            -1,
-            0,
-            0,
-            1,
-            NULL,
-            0,
-            1,
-            0,
-            0,
-            NULL,
-            NULL,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            'Search',
-            GETUTCDATE(),
-            GETUTCDATE()
-         )
-      END;
-
-      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = '8c5a7de7-0ecf-42dd-a733-9b18bec29c2b' OR (EntityID = 'EBB3F628-267E-44D6-8F18-258AC28FF981' AND Name = 'RequiresExecutedDocument')) BEGIN
-         INSERT INTO [${mjSchema}].[EntityField]
-         (
-            [ID],
-            [EntityID],
-            [Sequence],
-            [Name],
-            [DisplayName],
-            [Description],
-            [Type],
-            [Length],
-            [Precision],
-            [Scale],
-            [AllowsNull],
-            [DefaultValue],
-            [AutoIncrement],
-            [AllowUpdateAPI],
-            [IsVirtual],
-            [IsComputed],
-            [RelatedEntityID],
-            [RelatedEntityFieldName],
-            [IsNameField],
-            [IncludeInUserSearchAPI],
-            [IncludeRelatedEntityNameFieldInBaseView],
-            [DefaultInView],
-            [IsPrimaryKey],
-            [IsUnique],
-            [RelatedEntityDisplayType],
-            [__mj_CreatedAt],
-            [__mj_UpdatedAt]
-         )
-         VALUES
-         (
-            '8c5a7de7-0ecf-42dd-a733-9b18bec29c2b',
-            'EBB3F628-267E-44D6-8F18-258AC28FF981', -- Entity: MJ_BizApps_Contracts: Contract Types
-            (SELECT COALESCE(MAX([Sequence]), 0) FROM [${mjSchema}].[EntityField] WHERE [EntityID] = 'EBB3F628-267E-44D6-8F18-258AC28FF981') + 4,
-            'RequiresExecutedDocument',
-            'Requires Executed Document',
-            'Whether paper is ever expected for this kind of contract. No for a Payment Link, which has an implied agreement and no signature. This is what stops such a contract asking forever for a document that will never arrive: "awaiting the document" is DERIVED as requires-it AND no-linked-file, never stored and never a status value.',
-            'bit',
-            1,
-            1,
-            0,
-            0,
-            '(1)',
-            0,
-            1,
-            0,
-            0,
-            NULL,
-            NULL,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            'Search',
-            GETUTCDATE(),
-            GETUTCDATE()
-         )
-      END;
-
-      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = '9a369d85-8c82-4399-885d-837575e37f3c' OR (EntityID = 'EBB3F628-267E-44D6-8F18-258AC28FF981' AND Name = 'Status')) BEGIN
-         INSERT INTO [${mjSchema}].[EntityField]
-         (
-            [ID],
-            [EntityID],
-            [Sequence],
-            [Name],
-            [DisplayName],
-            [Description],
-            [Type],
-            [Length],
-            [Precision],
-            [Scale],
-            [AllowsNull],
-            [DefaultValue],
-            [AutoIncrement],
-            [AllowUpdateAPI],
-            [IsVirtual],
-            [IsComputed],
-            [RelatedEntityID],
-            [RelatedEntityFieldName],
-            [IsNameField],
-            [IncludeInUserSearchAPI],
-            [IncludeRelatedEntityNameFieldInBaseView],
-            [DefaultInView],
-            [IsPrimaryKey],
-            [IsUnique],
-            [RelatedEntityDisplayType],
-            [__mj_CreatedAt],
-            [__mj_UpdatedAt]
-         )
-         VALUES
-         (
-            '9a369d85-8c82-4399-885d-837575e37f3c',
-            'EBB3F628-267E-44D6-8F18-258AC28FF981', -- Entity: MJ_BizApps_Contracts: Contract Types
-            (SELECT COALESCE(MAX([Sequence]), 0) FROM [${mjSchema}].[EntityField] WHERE [EntityID] = 'EBB3F628-267E-44D6-8F18-258AC28FF981') + 5,
-            'Status',
-            'Status',
-            'Active | Inactive.',
-            'nvarchar',
-            20,
-            0,
-            0,
-            0,
-            'Active',
-            0,
-            1,
-            0,
-            0,
-            NULL,
-            NULL,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            'Search',
-            GETUTCDATE(),
-            GETUTCDATE()
-         )
-      END;
-
-      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = '550a2932-55a8-496e-a3f2-84529afeb12f' OR (EntityID = 'EBB3F628-267E-44D6-8F18-258AC28FF981' AND Name = '__mj_CreatedAt')) BEGIN
-         INSERT INTO [${mjSchema}].[EntityField]
-         (
-            [ID],
-            [EntityID],
-            [Sequence],
-            [Name],
-            [DisplayName],
-            [Description],
-            [Type],
-            [Length],
-            [Precision],
-            [Scale],
-            [AllowsNull],
-            [DefaultValue],
-            [AutoIncrement],
-            [AllowUpdateAPI],
-            [IsVirtual],
-            [IsComputed],
-            [RelatedEntityID],
-            [RelatedEntityFieldName],
-            [IsNameField],
-            [IncludeInUserSearchAPI],
-            [IncludeRelatedEntityNameFieldInBaseView],
-            [DefaultInView],
-            [IsPrimaryKey],
-            [IsUnique],
-            [RelatedEntityDisplayType],
-            [__mj_CreatedAt],
-            [__mj_UpdatedAt]
-         )
-         VALUES
-         (
-            '550a2932-55a8-496e-a3f2-84529afeb12f',
-            'EBB3F628-267E-44D6-8F18-258AC28FF981', -- Entity: MJ_BizApps_Contracts: Contract Types
-            (SELECT COALESCE(MAX([Sequence]), 0) FROM [${mjSchema}].[EntityField] WHERE [EntityID] = 'EBB3F628-267E-44D6-8F18-258AC28FF981') + 6,
-            '__mj_CreatedAt',
-            'Created At',
-            NULL,
-            'datetimeoffset',
-            10,
-            34,
-            7,
-            0,
-            'getutcdate()',
-            0,
-            0,
-            0,
-            0,
-            NULL,
-            NULL,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            'Search',
-            GETUTCDATE(),
-            GETUTCDATE()
-         )
-      END;
-
-      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = 'c967e14d-7969-4060-a44b-7ed6783c67bd' OR (EntityID = 'EBB3F628-267E-44D6-8F18-258AC28FF981' AND Name = '__mj_UpdatedAt')) BEGIN
-         INSERT INTO [${mjSchema}].[EntityField]
-         (
-            [ID],
-            [EntityID],
-            [Sequence],
-            [Name],
-            [DisplayName],
-            [Description],
-            [Type],
-            [Length],
-            [Precision],
-            [Scale],
-            [AllowsNull],
-            [DefaultValue],
-            [AutoIncrement],
-            [AllowUpdateAPI],
-            [IsVirtual],
-            [IsComputed],
-            [RelatedEntityID],
-            [RelatedEntityFieldName],
-            [IsNameField],
-            [IncludeInUserSearchAPI],
-            [IncludeRelatedEntityNameFieldInBaseView],
-            [DefaultInView],
-            [IsPrimaryKey],
-            [IsUnique],
-            [RelatedEntityDisplayType],
-            [__mj_CreatedAt],
-            [__mj_UpdatedAt]
-         )
-         VALUES
-         (
-            'c967e14d-7969-4060-a44b-7ed6783c67bd',
-            'EBB3F628-267E-44D6-8F18-258AC28FF981', -- Entity: MJ_BizApps_Contracts: Contract Types
-            (SELECT COALESCE(MAX([Sequence]), 0) FROM [${mjSchema}].[EntityField] WHERE [EntityID] = 'EBB3F628-267E-44D6-8F18-258AC28FF981') + 7,
-            '__mj_UpdatedAt',
-            'Updated At',
-            NULL,
-            'datetimeoffset',
-            10,
-            34,
-            7,
-            0,
-            'getutcdate()',
-            0,
-            0,
-            0,
-            0,
-            NULL,
-            NULL,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            'Search',
-            GETUTCDATE(),
-            GETUTCDATE()
-         )
-      END;
-
-      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = '03fab201-6a05-4f84-a3f4-ad6de9aa4a62' OR (EntityID = '27A600CA-6A2E-4C85-84AE-924183EC1681' AND Name = 'ID')) BEGIN
-         INSERT INTO [${mjSchema}].[EntityField]
-         (
-            [ID],
-            [EntityID],
-            [Sequence],
-            [Name],
-            [DisplayName],
-            [Description],
-            [Type],
-            [Length],
-            [Precision],
-            [Scale],
-            [AllowsNull],
-            [DefaultValue],
-            [AutoIncrement],
-            [AllowUpdateAPI],
-            [IsVirtual],
-            [IsComputed],
-            [RelatedEntityID],
-            [RelatedEntityFieldName],
-            [IsNameField],
-            [IncludeInUserSearchAPI],
-            [IncludeRelatedEntityNameFieldInBaseView],
-            [DefaultInView],
-            [IsPrimaryKey],
-            [IsUnique],
-            [RelatedEntityDisplayType],
-            [__mj_CreatedAt],
-            [__mj_UpdatedAt]
-         )
-         VALUES
-         (
-            '03fab201-6a05-4f84-a3f4-ad6de9aa4a62',
-            '27A600CA-6A2E-4C85-84AE-924183EC1681', -- Entity: MJ_BizApps_Contracts: Contract Template Provisions
-            (SELECT COALESCE(MAX([Sequence]), 0) FROM [${mjSchema}].[EntityField] WHERE [EntityID] = '27A600CA-6A2E-4C85-84AE-924183EC1681') + 1,
-            'ID',
-            'ID',
-            NULL,
-            'uniqueidentifier',
-            16,
-            0,
-            0,
-            0,
-            'newsequentialid()',
-            0,
-            0,
-            0,
-            0,
-            NULL,
-            NULL,
-            0,
-            1,
-            0,
-            0,
-            1,
-            1,
-            'Search',
-            GETUTCDATE(),
-            GETUTCDATE()
-         )
-      END;
-
-      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = 'b17d0f3b-300e-4c9b-b466-7dfcb5612ec3' OR (EntityID = '27A600CA-6A2E-4C85-84AE-924183EC1681' AND Name = 'ContractTemplateID')) BEGIN
-         INSERT INTO [${mjSchema}].[EntityField]
-         (
-            [ID],
-            [EntityID],
-            [Sequence],
-            [Name],
-            [DisplayName],
-            [Description],
-            [Type],
-            [Length],
-            [Precision],
-            [Scale],
-            [AllowsNull],
-            [DefaultValue],
-            [AutoIncrement],
-            [AllowUpdateAPI],
-            [IsVirtual],
-            [IsComputed],
-            [RelatedEntityID],
-            [RelatedEntityFieldName],
-            [IsNameField],
-            [IncludeInUserSearchAPI],
-            [IncludeRelatedEntityNameFieldInBaseView],
-            [DefaultInView],
-            [IsPrimaryKey],
-            [IsUnique],
-            [RelatedEntityDisplayType],
-            [__mj_CreatedAt],
-            [__mj_UpdatedAt]
-         )
-         VALUES
-         (
-            'b17d0f3b-300e-4c9b-b466-7dfcb5612ec3',
-            '27A600CA-6A2E-4C85-84AE-924183EC1681', -- Entity: MJ_BizApps_Contracts: Contract Template Provisions
-            (SELECT COALESCE(MAX([Sequence]), 0) FROM [${mjSchema}].[EntityField] WHERE [EntityID] = '27A600CA-6A2E-4C85-84AE-924183EC1681') + 2,
+            'fd673fee-72ab-4109-89b1-db5bcee9eb3e',
+            '317DF592-8C20-473D-B097-2AB239877438', -- Entity: MJ_BizApps_Contracts: Contract Template Provisions
+            (SELECT COALESCE(MAX([Sequence]), 0) FROM [${mjSchema}].[EntityField] WHERE [EntityID] = '317DF592-8C20-473D-B097-2AB239877438') + 2,
             'ContractTemplateID',
             'Contract Template ID',
             NULL,
@@ -2291,7 +1493,7 @@ GO
             1,
             0,
             0,
-            '21C7D64A-28F3-4535-819A-E0DD384A5580',
+            '731F2890-1415-40DE-9073-D22EA23392B3',
             'ID',
             0,
             0,
@@ -2305,7 +1507,7 @@ GO
          )
       END;
 
-      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = '8399a578-ade9-4c82-a02c-8b7c8efdacb8' OR (EntityID = '27A600CA-6A2E-4C85-84AE-924183EC1681' AND Name = 'ProvisionNumber')) BEGIN
+      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = 'cfb7315f-8759-4728-bd30-faae93f97106' OR (EntityID = '317DF592-8C20-473D-B097-2AB239877438' AND Name = 'ProvisionNumber')) BEGIN
          INSERT INTO [${mjSchema}].[EntityField]
          (
             [ID],
@@ -2338,9 +1540,9 @@ GO
          )
          VALUES
          (
-            '8399a578-ade9-4c82-a02c-8b7c8efdacb8',
-            '27A600CA-6A2E-4C85-84AE-924183EC1681', -- Entity: MJ_BizApps_Contracts: Contract Template Provisions
-            (SELECT COALESCE(MAX([Sequence]), 0) FROM [${mjSchema}].[EntityField] WHERE [EntityID] = '27A600CA-6A2E-4C85-84AE-924183EC1681') + 3,
+            'cfb7315f-8759-4728-bd30-faae93f97106',
+            '317DF592-8C20-473D-B097-2AB239877438', -- Entity: MJ_BizApps_Contracts: Contract Template Provisions
+            (SELECT COALESCE(MAX([Sequence]), 0) FROM [${mjSchema}].[EntityField] WHERE [EntityID] = '317DF592-8C20-473D-B097-2AB239877438') + 3,
             'ProvisionNumber',
             'Provision Number',
             'The clause number as the document writes it, e.g. "3.5(b)". Unique within its template.',
@@ -2368,7 +1570,7 @@ GO
          )
       END;
 
-      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = 'dca6d2e5-a043-4407-9a1c-2af676b06d7b' OR (EntityID = '27A600CA-6A2E-4C85-84AE-924183EC1681' AND Name = 'Title')) BEGIN
+      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = 'ce9ce69a-95cf-4cf0-bda8-f5f5e661a40b' OR (EntityID = '317DF592-8C20-473D-B097-2AB239877438' AND Name = 'Title')) BEGIN
          INSERT INTO [${mjSchema}].[EntityField]
          (
             [ID],
@@ -2401,9 +1603,9 @@ GO
          )
          VALUES
          (
-            'dca6d2e5-a043-4407-9a1c-2af676b06d7b',
-            '27A600CA-6A2E-4C85-84AE-924183EC1681', -- Entity: MJ_BizApps_Contracts: Contract Template Provisions
-            (SELECT COALESCE(MAX([Sequence]), 0) FROM [${mjSchema}].[EntityField] WHERE [EntityID] = '27A600CA-6A2E-4C85-84AE-924183EC1681') + 4,
+            'ce9ce69a-95cf-4cf0-bda8-f5f5e661a40b',
+            '317DF592-8C20-473D-B097-2AB239877438', -- Entity: MJ_BizApps_Contracts: Contract Template Provisions
+            (SELECT COALESCE(MAX([Sequence]), 0) FROM [${mjSchema}].[EntityField] WHERE [EntityID] = '317DF592-8C20-473D-B097-2AB239877438') + 4,
             'Title',
             'Title',
             'The clause heading, e.g. "Limitation of Liability". This plus the number is what a person picks from.',
@@ -2431,7 +1633,7 @@ GO
          )
       END;
 
-      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = '73b20d56-83dd-4e73-be91-d7fda3cacb25' OR (EntityID = '27A600CA-6A2E-4C85-84AE-924183EC1681' AND Name = 'ProvisionText')) BEGIN
+      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = 'd2cd9029-4db4-4ad1-85a2-abbfda35eafd' OR (EntityID = '317DF592-8C20-473D-B097-2AB239877438' AND Name = 'ProvisionText')) BEGIN
          INSERT INTO [${mjSchema}].[EntityField]
          (
             [ID],
@@ -2464,9 +1666,9 @@ GO
          )
          VALUES
          (
-            '73b20d56-83dd-4e73-be91-d7fda3cacb25',
-            '27A600CA-6A2E-4C85-84AE-924183EC1681', -- Entity: MJ_BizApps_Contracts: Contract Template Provisions
-            (SELECT COALESCE(MAX([Sequence]), 0) FROM [${mjSchema}].[EntityField] WHERE [EntityID] = '27A600CA-6A2E-4C85-84AE-924183EC1681') + 5,
+            'd2cd9029-4db4-4ad1-85a2-abbfda35eafd',
+            '317DF592-8C20-473D-B097-2AB239877438', -- Entity: MJ_BizApps_Contracts: Contract Template Provisions
+            (SELECT COALESCE(MAX([Sequence]), 0) FROM [${mjSchema}].[EntityField] WHERE [EntityID] = '317DF592-8C20-473D-B097-2AB239877438') + 5,
             'ProvisionText',
             'Provision Text',
             'The STANDARD wording of this clause. Read as a pair with ContractTemplateModification.ModificationText, which holds what a given contract says instead — a dispute needs the comparison, not either half.',
@@ -2474,7 +1676,7 @@ GO
             -1,
             0,
             0,
-            1,
+            0,
             NULL,
             0,
             1,
@@ -2494,7 +1696,7 @@ GO
          )
       END;
 
-      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = '901d4a8e-91e0-4cdc-b072-98f78d8383eb' OR (EntityID = '27A600CA-6A2E-4C85-84AE-924183EC1681' AND Name = 'Description')) BEGIN
+      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = '1bfda475-470f-4f3c-8b5d-b0dbdced2ee3' OR (EntityID = '317DF592-8C20-473D-B097-2AB239877438' AND Name = 'Description')) BEGIN
          INSERT INTO [${mjSchema}].[EntityField]
          (
             [ID],
@@ -2527,9 +1729,9 @@ GO
          )
          VALUES
          (
-            '901d4a8e-91e0-4cdc-b072-98f78d8383eb',
-            '27A600CA-6A2E-4C85-84AE-924183EC1681', -- Entity: MJ_BizApps_Contracts: Contract Template Provisions
-            (SELECT COALESCE(MAX([Sequence]), 0) FROM [${mjSchema}].[EntityField] WHERE [EntityID] = '27A600CA-6A2E-4C85-84AE-924183EC1681') + 6,
+            '1bfda475-470f-4f3c-8b5d-b0dbdced2ee3',
+            '317DF592-8C20-473D-B097-2AB239877438', -- Entity: MJ_BizApps_Contracts: Contract Template Provisions
+            (SELECT COALESCE(MAX([Sequence]), 0) FROM [${mjSchema}].[EntityField] WHERE [EntityID] = '317DF592-8C20-473D-B097-2AB239877438') + 6,
             'Description',
             'Description',
             NULL,
@@ -2557,7 +1759,7 @@ GO
          )
       END;
 
-      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = '2278bcb3-6241-45b9-a353-858ec91ff45e' OR (EntityID = '27A600CA-6A2E-4C85-84AE-924183EC1681' AND Name = 'Sequence')) BEGIN
+      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = '2e082ebc-4a00-4c39-8f6d-f7b680f5b345' OR (EntityID = '317DF592-8C20-473D-B097-2AB239877438' AND Name = 'ProvisionSortKey')) BEGIN
          INSERT INTO [${mjSchema}].[EntityField]
          (
             [ID],
@@ -2590,22 +1792,22 @@ GO
          )
          VALUES
          (
-            '2278bcb3-6241-45b9-a353-858ec91ff45e',
-            '27A600CA-6A2E-4C85-84AE-924183EC1681', -- Entity: MJ_BizApps_Contracts: Contract Template Provisions
-            (SELECT COALESCE(MAX([Sequence]), 0) FROM [${mjSchema}].[EntityField] WHERE [EntityID] = '27A600CA-6A2E-4C85-84AE-924183EC1681') + 7,
-            'Sequence',
-            'Sequence',
-            'Display order. Earns its place because ProvisionNumber does not sort as text ("3.10" lands before "3.5") and a legal document has a canonical order.',
-            'int',
-            4,
-            10,
+            '2e082ebc-4a00-4c39-8f6d-f7b680f5b345',
+            '317DF592-8C20-473D-B097-2AB239877438', -- Entity: MJ_BizApps_Contracts: Contract Template Provisions
+            (SELECT COALESCE(MAX([Sequence]), 0) FROM [${mjSchema}].[EntityField] WHERE [EntityID] = '317DF592-8C20-473D-B097-2AB239877438') + 7,
+            'ProvisionSortKey',
+            'Provision Sort Key',
+            'Collation key derived from ProvisionNumber: every run of digits zero-padded to six places, everything else upper-cased. Makes a plain SQL ORDER BY produce natural order (''1.9'' before ''1.10''), which ordering by ProvisionNumber cannot. READ-ONLY -- a persisted computed column; nobody should be able to set a sort key. Replaced the hand-maintained Sequence column, which had already collided in the seeded data.',
+            'nvarchar',
+            400,
             0,
-            0,
-            '(0)',
             0,
             1,
+            NULL,
             0,
             0,
+            1,
+            1,
             NULL,
             NULL,
             0,
@@ -2620,7 +1822,7 @@ GO
          )
       END;
 
-      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = '0c64db7b-30ee-4fff-8ea8-51bf362d50d0' OR (EntityID = '27A600CA-6A2E-4C85-84AE-924183EC1681' AND Name = '__mj_CreatedAt')) BEGIN
+      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = '6b098c7f-9119-4c60-94b5-ca2aca14309f' OR (EntityID = '317DF592-8C20-473D-B097-2AB239877438' AND Name = '__mj_CreatedAt')) BEGIN
          INSERT INTO [${mjSchema}].[EntityField]
          (
             [ID],
@@ -2653,9 +1855,9 @@ GO
          )
          VALUES
          (
-            '0c64db7b-30ee-4fff-8ea8-51bf362d50d0',
-            '27A600CA-6A2E-4C85-84AE-924183EC1681', -- Entity: MJ_BizApps_Contracts: Contract Template Provisions
-            (SELECT COALESCE(MAX([Sequence]), 0) FROM [${mjSchema}].[EntityField] WHERE [EntityID] = '27A600CA-6A2E-4C85-84AE-924183EC1681') + 8,
+            '6b098c7f-9119-4c60-94b5-ca2aca14309f',
+            '317DF592-8C20-473D-B097-2AB239877438', -- Entity: MJ_BizApps_Contracts: Contract Template Provisions
+            (SELECT COALESCE(MAX([Sequence]), 0) FROM [${mjSchema}].[EntityField] WHERE [EntityID] = '317DF592-8C20-473D-B097-2AB239877438') + 8,
             '__mj_CreatedAt',
             'Created At',
             NULL,
@@ -2683,7 +1885,7 @@ GO
          )
       END;
 
-      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = 'cf6f8b7c-9560-4770-b07b-32327c139c7f' OR (EntityID = '27A600CA-6A2E-4C85-84AE-924183EC1681' AND Name = '__mj_UpdatedAt')) BEGIN
+      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = '9f515edd-be69-4955-9c10-eb1819ddfd2c' OR (EntityID = '317DF592-8C20-473D-B097-2AB239877438' AND Name = '__mj_UpdatedAt')) BEGIN
          INSERT INTO [${mjSchema}].[EntityField]
          (
             [ID],
@@ -2716,9 +1918,9 @@ GO
          )
          VALUES
          (
-            'cf6f8b7c-9560-4770-b07b-32327c139c7f',
-            '27A600CA-6A2E-4C85-84AE-924183EC1681', -- Entity: MJ_BizApps_Contracts: Contract Template Provisions
-            (SELECT COALESCE(MAX([Sequence]), 0) FROM [${mjSchema}].[EntityField] WHERE [EntityID] = '27A600CA-6A2E-4C85-84AE-924183EC1681') + 9,
+            '9f515edd-be69-4955-9c10-eb1819ddfd2c',
+            '317DF592-8C20-473D-B097-2AB239877438', -- Entity: MJ_BizApps_Contracts: Contract Template Provisions
+            (SELECT COALESCE(MAX([Sequence]), 0) FROM [${mjSchema}].[EntityField] WHERE [EntityID] = '317DF592-8C20-473D-B097-2AB239877438') + 9,
             '__mj_UpdatedAt',
             'Updated At',
             NULL,
@@ -2746,7 +1948,7 @@ GO
          )
       END;
 
-      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = '3509fda6-f406-42df-805a-a0a7028a2726' OR (EntityID = '4CC3DB2D-F01F-405E-A47D-B14BA2F1AB20' AND Name = 'ID')) BEGIN
+      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = '4796bc59-bf1a-41cf-83b5-29e8f8880c47' OR (EntityID = 'B05A480F-F7C5-4D45-8EA3-C90E9A14F225' AND Name = 'ID')) BEGIN
          INSERT INTO [${mjSchema}].[EntityField]
          (
             [ID],
@@ -2779,9 +1981,9 @@ GO
          )
          VALUES
          (
-            '3509fda6-f406-42df-805a-a0a7028a2726',
-            '4CC3DB2D-F01F-405E-A47D-B14BA2F1AB20', -- Entity: MJ_BizApps_Contracts: Contracts
-            (SELECT COALESCE(MAX([Sequence]), 0) FROM [${mjSchema}].[EntityField] WHERE [EntityID] = '4CC3DB2D-F01F-405E-A47D-B14BA2F1AB20') + 1,
+            '4796bc59-bf1a-41cf-83b5-29e8f8880c47',
+            'B05A480F-F7C5-4D45-8EA3-C90E9A14F225', -- Entity: MJ_BizApps_Contracts: Contract Template Modifications
+            (SELECT COALESCE(MAX([Sequence]), 0) FROM [${mjSchema}].[EntityField] WHERE [EntityID] = 'B05A480F-F7C5-4D45-8EA3-C90E9A14F225') + 1,
             'ID',
             'ID',
             NULL,
@@ -2809,7 +2011,7 @@ GO
          )
       END;
 
-      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = '0dfe97cd-d90a-4b2c-9b9a-281e0fc10d7c' OR (EntityID = '4CC3DB2D-F01F-405E-A47D-B14BA2F1AB20' AND Name = 'ContractNumber')) BEGIN
+      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = '982e307b-667c-4955-99de-f9a96fab2cb2' OR (EntityID = 'B05A480F-F7C5-4D45-8EA3-C90E9A14F225' AND Name = 'ContractID')) BEGIN
          INSERT INTO [${mjSchema}].[EntityField]
          (
             [ID],
@@ -2842,14 +2044,140 @@ GO
          )
          VALUES
          (
-            '0dfe97cd-d90a-4b2c-9b9a-281e0fc10d7c',
-            '4CC3DB2D-F01F-405E-A47D-B14BA2F1AB20', -- Entity: MJ_BizApps_Contracts: Contracts
-            (SELECT COALESCE(MAX([Sequence]), 0) FROM [${mjSchema}].[EntityField] WHERE [EntityID] = '4CC3DB2D-F01F-405E-A47D-B14BA2F1AB20') + 2,
-            'ContractNumber',
-            'Contract Number',
-            'CTR-{seq} from ContractSequence. Unique.',
+            '982e307b-667c-4955-99de-f9a96fab2cb2',
+            'B05A480F-F7C5-4D45-8EA3-C90E9A14F225', -- Entity: MJ_BizApps_Contracts: Contract Template Modifications
+            (SELECT COALESCE(MAX([Sequence]), 0) FROM [${mjSchema}].[EntityField] WHERE [EntityID] = 'B05A480F-F7C5-4D45-8EA3-C90E9A14F225') + 2,
+            'ContractID',
+            'Contract ID',
+            NULL,
+            'uniqueidentifier',
+            16,
+            0,
+            0,
+            0,
+            NULL,
+            0,
+            1,
+            0,
+            0,
+            '5DEB0B11-ED6C-48B3-9200-F4441396C5E2',
+            'ID',
+            0,
+            0,
+            1,
+            0,
+            0,
+            1,
+            'Search',
+            GETUTCDATE(),
+            GETUTCDATE()
+         )
+      END;
+
+      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = '0864cb7f-e532-402f-9f16-102ec14993c6' OR (EntityID = 'B05A480F-F7C5-4D45-8EA3-C90E9A14F225' AND Name = 'ContractTemplateProvisionID')) BEGIN
+         INSERT INTO [${mjSchema}].[EntityField]
+         (
+            [ID],
+            [EntityID],
+            [Sequence],
+            [Name],
+            [DisplayName],
+            [Description],
+            [Type],
+            [Length],
+            [Precision],
+            [Scale],
+            [AllowsNull],
+            [DefaultValue],
+            [AutoIncrement],
+            [AllowUpdateAPI],
+            [IsVirtual],
+            [IsComputed],
+            [RelatedEntityID],
+            [RelatedEntityFieldName],
+            [IsNameField],
+            [IncludeInUserSearchAPI],
+            [IncludeRelatedEntityNameFieldInBaseView],
+            [DefaultInView],
+            [IsPrimaryKey],
+            [IsUnique],
+            [RelatedEntityDisplayType],
+            [__mj_CreatedAt],
+            [__mj_UpdatedAt]
+         )
+         VALUES
+         (
+            '0864cb7f-e532-402f-9f16-102ec14993c6',
+            'B05A480F-F7C5-4D45-8EA3-C90E9A14F225', -- Entity: MJ_BizApps_Contracts: Contract Template Modifications
+            (SELECT COALESCE(MAX([Sequence]), 0) FROM [${mjSchema}].[EntityField] WHERE [EntityID] = 'B05A480F-F7C5-4D45-8EA3-C90E9A14F225') + 3,
+            'ContractTemplateProvisionID',
+            'Contract Template Provision ID',
+            'The provision being modified — the structured identifier, and the only one. A server rule enforces what this replaces: the provision must belong to a template this contract incorporates.',
+            'uniqueidentifier',
+            16,
+            0,
+            0,
+            0,
+            NULL,
+            0,
+            1,
+            0,
+            0,
+            '317DF592-8C20-473D-B097-2AB239877438',
+            'ID',
+            0,
+            0,
+            1,
+            0,
+            0,
+            1,
+            'Search',
+            GETUTCDATE(),
+            GETUTCDATE()
+         )
+      END;
+
+      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = '0d2fc779-82ca-4d68-a711-3d871a356164' OR (EntityID = 'B05A480F-F7C5-4D45-8EA3-C90E9A14F225' AND Name = 'ModificationText')) BEGIN
+         INSERT INTO [${mjSchema}].[EntityField]
+         (
+            [ID],
+            [EntityID],
+            [Sequence],
+            [Name],
+            [DisplayName],
+            [Description],
+            [Type],
+            [Length],
+            [Precision],
+            [Scale],
+            [AllowsNull],
+            [DefaultValue],
+            [AutoIncrement],
+            [AllowUpdateAPI],
+            [IsVirtual],
+            [IsComputed],
+            [RelatedEntityID],
+            [RelatedEntityFieldName],
+            [IsNameField],
+            [IncludeInUserSearchAPI],
+            [IncludeRelatedEntityNameFieldInBaseView],
+            [DefaultInView],
+            [IsPrimaryKey],
+            [IsUnique],
+            [RelatedEntityDisplayType],
+            [__mj_CreatedAt],
+            [__mj_UpdatedAt]
+         )
+         VALUES
+         (
+            '0d2fc779-82ca-4d68-a711-3d871a356164',
+            'B05A480F-F7C5-4D45-8EA3-C90E9A14F225', -- Entity: MJ_BizApps_Contracts: Contract Template Modifications
+            (SELECT COALESCE(MAX([Sequence]), 0) FROM [${mjSchema}].[EntityField] WHERE [EntityID] = 'B05A480F-F7C5-4D45-8EA3-C90E9A14F225') + 4,
+            'ModificationText',
+            'Modification Text',
+            'What this contract says INSTEAD of the standard clause. Read as a pair with ContractTemplateProvision.ProvisionText.',
             'nvarchar',
-            100,
+            -1,
             0,
             0,
             0,
@@ -2865,14 +2193,14 @@ GO
             0,
             0,
             0,
-            1,
+            0,
             'Search',
             GETUTCDATE(),
             GETUTCDATE()
          )
       END;
 
-      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = 'd4c3be29-b422-41a9-8678-d14a5f43c47d' OR (EntityID = '4CC3DB2D-F01F-405E-A47D-B14BA2F1AB20' AND Name = 'ContractTypeID')) BEGIN
+      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = '87bb27cb-98b7-4704-bdc5-7871f8f394eb' OR (EntityID = 'B05A480F-F7C5-4D45-8EA3-C90E9A14F225' AND Name = 'Notes')) BEGIN
          INSERT INTO [${mjSchema}].[EntityField]
          (
             [ID],
@@ -2905,1209 +2233,12 @@ GO
          )
          VALUES
          (
-            'd4c3be29-b422-41a9-8678-d14a5f43c47d',
-            '4CC3DB2D-F01F-405E-A47D-B14BA2F1AB20', -- Entity: MJ_BizApps_Contracts: Contracts
-            (SELECT COALESCE(MAX([Sequence]), 0) FROM [${mjSchema}].[EntityField] WHERE [EntityID] = '4CC3DB2D-F01F-405E-A47D-B14BA2F1AB20') + 3,
-            'ContractTypeID',
-            'Contract Type ID',
-            NULL,
-            'uniqueidentifier',
-            16,
-            0,
-            0,
-            0,
-            NULL,
-            0,
-            1,
-            0,
-            0,
-            'EBB3F628-267E-44D6-8F18-258AC28FF981',
-            'ID',
-            0,
-            0,
-            1,
-            0,
-            0,
-            0,
-            'Search',
-            GETUTCDATE(),
-            GETUTCDATE()
-         )
-      END;
-
-      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = '03540125-572c-432b-8e73-2c568464b563' OR (EntityID = '4CC3DB2D-F01F-405E-A47D-B14BA2F1AB20' AND Name = 'CompanyID')) BEGIN
-         INSERT INTO [${mjSchema}].[EntityField]
-         (
-            [ID],
-            [EntityID],
-            [Sequence],
-            [Name],
-            [DisplayName],
-            [Description],
-            [Type],
-            [Length],
-            [Precision],
-            [Scale],
-            [AllowsNull],
-            [DefaultValue],
-            [AutoIncrement],
-            [AllowUpdateAPI],
-            [IsVirtual],
-            [IsComputed],
-            [RelatedEntityID],
-            [RelatedEntityFieldName],
-            [IsNameField],
-            [IncludeInUserSearchAPI],
-            [IncludeRelatedEntityNameFieldInBaseView],
-            [DefaultInView],
-            [IsPrimaryKey],
-            [IsUnique],
-            [RelatedEntityDisplayType],
-            [__mj_CreatedAt],
-            [__mj_UpdatedAt]
-         )
-         VALUES
-         (
-            '03540125-572c-432b-8e73-2c568464b563',
-            '4CC3DB2D-F01F-405E-A47D-B14BA2F1AB20', -- Entity: MJ_BizApps_Contracts: Contracts
-            (SELECT COALESCE(MAX([Sequence]), 0) FROM [${mjSchema}].[EntityField] WHERE [EntityID] = '4CC3DB2D-F01F-405E-A47D-B14BA2F1AB20') + 4,
-            'CompanyID',
-            'Company ID',
-            'The SELLING company (${mjSchema}.Company) — which of OUR entities holds this agreement. Not the customer. Stored rather than derived because it is not reliably recoverable from the deal.',
-            'uniqueidentifier',
-            16,
-            0,
-            0,
-            0,
-            NULL,
-            0,
-            1,
-            0,
-            0,
-            'D4238F34-2837-EF11-86D4-6045BDEE16E6',
-            'ID',
-            0,
-            0,
-            1,
-            0,
-            0,
-            0,
-            'Search',
-            GETUTCDATE(),
-            GETUTCDATE()
-         )
-      END;
-
-      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = '8cf73c13-3cde-4175-a5ff-f8e361476946' OR (EntityID = '4CC3DB2D-F01F-405E-A47D-B14BA2F1AB20' AND Name = 'CustomerOrganizationID')) BEGIN
-         INSERT INTO [${mjSchema}].[EntityField]
-         (
-            [ID],
-            [EntityID],
-            [Sequence],
-            [Name],
-            [DisplayName],
-            [Description],
-            [Type],
-            [Length],
-            [Precision],
-            [Scale],
-            [AllowsNull],
-            [DefaultValue],
-            [AutoIncrement],
-            [AllowUpdateAPI],
-            [IsVirtual],
-            [IsComputed],
-            [RelatedEntityID],
-            [RelatedEntityFieldName],
-            [IsNameField],
-            [IncludeInUserSearchAPI],
-            [IncludeRelatedEntityNameFieldInBaseView],
-            [DefaultInView],
-            [IsPrimaryKey],
-            [IsUnique],
-            [RelatedEntityDisplayType],
-            [__mj_CreatedAt],
-            [__mj_UpdatedAt]
-         )
-         VALUES
-         (
-            '8cf73c13-3cde-4175-a5ff-f8e361476946',
-            '4CC3DB2D-F01F-405E-A47D-B14BA2F1AB20', -- Entity: MJ_BizApps_Contracts: Contracts
-            (SELECT COALESCE(MAX([Sequence]), 0) FROM [${mjSchema}].[EntityField] WHERE [EntityID] = '4CC3DB2D-F01F-405E-A47D-B14BA2F1AB20') + 5,
-            'CustomerOrganizationID',
-            'Customer Organization ID',
-            'The customer. NOT NULL: contracts are B2B here by definition, and the individual case lives entirely in orders. v1 allowed an organization-or-person XOR; that is gone.',
-            'uniqueidentifier',
-            16,
-            0,
-            0,
-            0,
-            NULL,
-            0,
-            1,
-            0,
-            0,
-            'C70448F9-9792-41D7-A82C-784B66429D54',
-            'ID',
-            0,
-            0,
-            1,
-            0,
-            0,
-            0,
-            'Search',
-            GETUTCDATE(),
-            GETUTCDATE()
-         )
-      END;
-
-      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = 'bdc1ade5-d9c2-4405-9785-dab3818bb0cd' OR (EntityID = '4CC3DB2D-F01F-405E-A47D-B14BA2F1AB20' AND Name = 'PrimaryContactPersonID')) BEGIN
-         INSERT INTO [${mjSchema}].[EntityField]
-         (
-            [ID],
-            [EntityID],
-            [Sequence],
-            [Name],
-            [DisplayName],
-            [Description],
-            [Type],
-            [Length],
-            [Precision],
-            [Scale],
-            [AllowsNull],
-            [DefaultValue],
-            [AutoIncrement],
-            [AllowUpdateAPI],
-            [IsVirtual],
-            [IsComputed],
-            [RelatedEntityID],
-            [RelatedEntityFieldName],
-            [IsNameField],
-            [IncludeInUserSearchAPI],
-            [IncludeRelatedEntityNameFieldInBaseView],
-            [DefaultInView],
-            [IsPrimaryKey],
-            [IsUnique],
-            [RelatedEntityDisplayType],
-            [__mj_CreatedAt],
-            [__mj_UpdatedAt]
-         )
-         VALUES
-         (
-            'bdc1ade5-d9c2-4405-9785-dab3818bb0cd',
-            '4CC3DB2D-F01F-405E-A47D-B14BA2F1AB20', -- Entity: MJ_BizApps_Contracts: Contracts
-            (SELECT COALESCE(MAX([Sequence]), 0) FROM [${mjSchema}].[EntityField] WHERE [EntityID] = '4CC3DB2D-F01F-405E-A47D-B14BA2F1AB20') + 6,
-            'PrimaryContactPersonID',
-            'Primary Contact Person ID',
-            'Their named contact, optional.',
-            'uniqueidentifier',
-            16,
-            0,
-            0,
-            1,
-            NULL,
-            0,
-            1,
-            0,
-            0,
-            '7A94ADA9-7880-4FAE-97D8-DB0E934C3F5F',
-            'ID',
-            0,
-            0,
-            1,
-            0,
-            0,
-            0,
-            'Search',
-            GETUTCDATE(),
-            GETUTCDATE()
-         )
-      END;
-
-      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = '49623009-21ad-45e6-9b40-cb4182fe8e35' OR (EntityID = '4CC3DB2D-F01F-405E-A47D-B14BA2F1AB20' AND Name = 'ContractTemplateID')) BEGIN
-         INSERT INTO [${mjSchema}].[EntityField]
-         (
-            [ID],
-            [EntityID],
-            [Sequence],
-            [Name],
-            [DisplayName],
-            [Description],
-            [Type],
-            [Length],
-            [Precision],
-            [Scale],
-            [AllowsNull],
-            [DefaultValue],
-            [AutoIncrement],
-            [AllowUpdateAPI],
-            [IsVirtual],
-            [IsComputed],
-            [RelatedEntityID],
-            [RelatedEntityFieldName],
-            [IsNameField],
-            [IncludeInUserSearchAPI],
-            [IncludeRelatedEntityNameFieldInBaseView],
-            [DefaultInView],
-            [IsPrimaryKey],
-            [IsUnique],
-            [RelatedEntityDisplayType],
-            [__mj_CreatedAt],
-            [__mj_UpdatedAt]
-         )
-         VALUES
-         (
-            '49623009-21ad-45e6-9b40-cb4182fe8e35',
-            '4CC3DB2D-F01F-405E-A47D-B14BA2F1AB20', -- Entity: MJ_BizApps_Contracts: Contracts
-            (SELECT COALESCE(MAX([Sequence]), 0) FROM [${mjSchema}].[EntityField] WHERE [EntityID] = '4CC3DB2D-F01F-405E-A47D-B14BA2F1AB20') + 7,
-            'ContractTemplateID',
-            'Contract Template ID',
-            'The agreement version this contract incorporates. Nullable because a contract created automatically at Closed Won has none until finance reads the PDF.',
-            'uniqueidentifier',
-            16,
-            0,
-            0,
-            1,
-            NULL,
-            0,
-            1,
-            0,
-            0,
-            '21C7D64A-28F3-4535-819A-E0DD384A5580',
-            'ID',
-            0,
-            0,
-            1,
-            0,
-            0,
-            0,
-            'Search',
-            GETUTCDATE(),
-            GETUTCDATE()
-         )
-      END;
-
-      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = '8ac97591-0971-45d9-82e9-6bbae6ececd3' OR (EntityID = '4CC3DB2D-F01F-405E-A47D-B14BA2F1AB20' AND Name = 'CreatingEntityID')) BEGIN
-         INSERT INTO [${mjSchema}].[EntityField]
-         (
-            [ID],
-            [EntityID],
-            [Sequence],
-            [Name],
-            [DisplayName],
-            [Description],
-            [Type],
-            [Length],
-            [Precision],
-            [Scale],
-            [AllowsNull],
-            [DefaultValue],
-            [AutoIncrement],
-            [AllowUpdateAPI],
-            [IsVirtual],
-            [IsComputed],
-            [RelatedEntityID],
-            [RelatedEntityFieldName],
-            [IsNameField],
-            [IncludeInUserSearchAPI],
-            [IncludeRelatedEntityNameFieldInBaseView],
-            [DefaultInView],
-            [IsPrimaryKey],
-            [IsUnique],
-            [RelatedEntityDisplayType],
-            [__mj_CreatedAt],
-            [__mj_UpdatedAt]
-         )
-         VALUES
-         (
-            '8ac97591-0971-45d9-82e9-6bbae6ececd3',
-            '4CC3DB2D-F01F-405E-A47D-B14BA2F1AB20', -- Entity: MJ_BizApps_Contracts: Contracts
-            (SELECT COALESCE(MAX([Sequence]), 0) FROM [${mjSchema}].[EntityField] WHERE [EntityID] = '4CC3DB2D-F01F-405E-A47D-B14BA2F1AB20') + 8,
-            'CreatingEntityID',
-            'Creating Entity ID',
-            'Polymorphic reference part 1: the MJ Entity of the record that CREATED this contract, in practice Deals. A real foreign key to ${mjSchema}.Entity — this is the half that is enforced, and the half that lets MJ resolve the pair generically. Same pattern accounting uses for JournalEntry provenance.',
-            'uniqueidentifier',
-            16,
-            0,
-            0,
-            1,
-            NULL,
-            0,
-            1,
-            0,
-            0,
-            'E0238F34-2837-EF11-86D4-6045BDEE16E6',
-            'ID',
-            0,
-            0,
-            1,
-            0,
-            0,
-            0,
-            'Search',
-            GETUTCDATE(),
-            GETUTCDATE()
-         )
-      END;
-
-      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = 'e2ed938e-b1d8-485b-b964-00cb44615977' OR (EntityID = '4CC3DB2D-F01F-405E-A47D-B14BA2F1AB20' AND Name = 'CreatingRecordID')) BEGIN
-         INSERT INTO [${mjSchema}].[EntityField]
-         (
-            [ID],
-            [EntityID],
-            [Sequence],
-            [Name],
-            [DisplayName],
-            [Description],
-            [Type],
-            [Length],
-            [Precision],
-            [Scale],
-            [AllowsNull],
-            [DefaultValue],
-            [AutoIncrement],
-            [AllowUpdateAPI],
-            [IsVirtual],
-            [IsComputed],
-            [RelatedEntityID],
-            [RelatedEntityFieldName],
-            [IsNameField],
-            [IncludeInUserSearchAPI],
-            [IncludeRelatedEntityNameFieldInBaseView],
-            [DefaultInView],
-            [IsPrimaryKey],
-            [IsUnique],
-            [RelatedEntityDisplayType],
-            [__mj_CreatedAt],
-            [__mj_UpdatedAt]
-         )
-         VALUES
-         (
-            'e2ed938e-b1d8-485b-b964-00cb44615977',
-            '4CC3DB2D-F01F-405E-A47D-B14BA2F1AB20', -- Entity: MJ_BizApps_Contracts: Contracts
-            (SELECT COALESCE(MAX([Sequence]), 0) FROM [${mjSchema}].[EntityField] WHERE [EntityID] = '4CC3DB2D-F01F-405E-A47D-B14BA2F1AB20') + 9,
-            'CreatingRecordID',
-            'Creating Record ID',
-            'Polymorphic reference part 2: the creating records id. Soft by nature — it points at a record owned by an app this repo has no knowledge of. Set together with CreatingEntityID or not at all.',
-            'nvarchar',
-            900,
-            0,
-            0,
-            1,
-            NULL,
-            0,
-            1,
-            0,
-            0,
-            NULL,
-            NULL,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            'Search',
-            GETUTCDATE(),
-            GETUTCDATE()
-         )
-      END;
-
-      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = '433e610e-1199-4a89-a3be-23eee91bb6b3' OR (EntityID = '4CC3DB2D-F01F-405E-A47D-B14BA2F1AB20' AND Name = 'ParentContractID')) BEGIN
-         INSERT INTO [${mjSchema}].[EntityField]
-         (
-            [ID],
-            [EntityID],
-            [Sequence],
-            [Name],
-            [DisplayName],
-            [Description],
-            [Type],
-            [Length],
-            [Precision],
-            [Scale],
-            [AllowsNull],
-            [DefaultValue],
-            [AutoIncrement],
-            [AllowUpdateAPI],
-            [IsVirtual],
-            [IsComputed],
-            [RelatedEntityID],
-            [RelatedEntityFieldName],
-            [IsNameField],
-            [IncludeInUserSearchAPI],
-            [IncludeRelatedEntityNameFieldInBaseView],
-            [DefaultInView],
-            [IsPrimaryKey],
-            [IsUnique],
-            [RelatedEntityDisplayType],
-            [__mj_CreatedAt],
-            [__mj_UpdatedAt]
-         )
-         VALUES
-         (
-            '433e610e-1199-4a89-a3be-23eee91bb6b3',
-            '4CC3DB2D-F01F-405E-A47D-B14BA2F1AB20', -- Entity: MJ_BizApps_Contracts: Contracts
-            (SELECT COALESCE(MAX([Sequence]), 0) FROM [${mjSchema}].[EntityField] WHERE [EntityID] = '4CC3DB2D-F01F-405E-A47D-B14BA2F1AB20') + 10,
-            'ParentContractID',
-            'Parent Contract ID',
-            'The contract this one amends. How a change order attaches: a change order is signed paper with its own PDF, dates and modifications, so it reuses this entity rather than getting one of its own. The original stays in force.',
-            'uniqueidentifier',
-            16,
-            0,
-            0,
-            1,
-            NULL,
-            0,
-            1,
-            0,
-            0,
-            '4CC3DB2D-F01F-405E-A47D-B14BA2F1AB20',
-            'ID',
-            0,
-            0,
-            1,
-            0,
-            0,
-            0,
-            'Search',
-            GETUTCDATE(),
-            GETUTCDATE()
-         )
-      END;
-
-      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = 'fda34007-6e79-4a3d-ac5a-3813db33e863' OR (EntityID = '4CC3DB2D-F01F-405E-A47D-B14BA2F1AB20' AND Name = 'SupersededByContractID')) BEGIN
-         INSERT INTO [${mjSchema}].[EntityField]
-         (
-            [ID],
-            [EntityID],
-            [Sequence],
-            [Name],
-            [DisplayName],
-            [Description],
-            [Type],
-            [Length],
-            [Precision],
-            [Scale],
-            [AllowsNull],
-            [DefaultValue],
-            [AutoIncrement],
-            [AllowUpdateAPI],
-            [IsVirtual],
-            [IsComputed],
-            [RelatedEntityID],
-            [RelatedEntityFieldName],
-            [IsNameField],
-            [IncludeInUserSearchAPI],
-            [IncludeRelatedEntityNameFieldInBaseView],
-            [DefaultInView],
-            [IsPrimaryKey],
-            [IsUnique],
-            [RelatedEntityDisplayType],
-            [__mj_CreatedAt],
-            [__mj_UpdatedAt]
-         )
-         VALUES
-         (
-            'fda34007-6e79-4a3d-ac5a-3813db33e863',
-            '4CC3DB2D-F01F-405E-A47D-B14BA2F1AB20', -- Entity: MJ_BizApps_Contracts: Contracts
-            (SELECT COALESCE(MAX([Sequence]), 0) FROM [${mjSchema}].[EntityField] WHERE [EntityID] = '4CC3DB2D-F01F-405E-A47D-B14BA2F1AB20') + 11,
-            'SupersededByContractID',
-            'Superseded By Contract ID',
-            'The contract that REPLACED this one, where an agreement was re-papered rather than amended. Also the sole source of the derived Superseded state, which is why the old CHECK tying it to a Status column disappeared with that column.',
-            'uniqueidentifier',
-            16,
-            0,
-            0,
-            1,
-            NULL,
-            0,
-            1,
-            0,
-            0,
-            '4CC3DB2D-F01F-405E-A47D-B14BA2F1AB20',
-            'ID',
-            0,
-            0,
-            1,
-            0,
-            0,
-            0,
-            'Search',
-            GETUTCDATE(),
-            GETUTCDATE()
-         )
-      END;
-
-      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = 'fe229628-c86b-4319-aa97-c7dfe82a34fa' OR (EntityID = '4CC3DB2D-F01F-405E-A47D-B14BA2F1AB20' AND Name = 'SigningProviderURL')) BEGIN
-         INSERT INTO [${mjSchema}].[EntityField]
-         (
-            [ID],
-            [EntityID],
-            [Sequence],
-            [Name],
-            [DisplayName],
-            [Description],
-            [Type],
-            [Length],
-            [Precision],
-            [Scale],
-            [AllowsNull],
-            [DefaultValue],
-            [AutoIncrement],
-            [AllowUpdateAPI],
-            [IsVirtual],
-            [IsComputed],
-            [RelatedEntityID],
-            [RelatedEntityFieldName],
-            [IsNameField],
-            [IncludeInUserSearchAPI],
-            [IncludeRelatedEntityNameFieldInBaseView],
-            [DefaultInView],
-            [IsPrimaryKey],
-            [IsUnique],
-            [RelatedEntityDisplayType],
-            [__mj_CreatedAt],
-            [__mj_UpdatedAt]
-         )
-         VALUES
-         (
-            'fe229628-c86b-4319-aa97-c7dfe82a34fa',
-            '4CC3DB2D-F01F-405E-A47D-B14BA2F1AB20', -- Entity: MJ_BizApps_Contracts: Contracts
-            (SELECT COALESCE(MAX([Sequence]), 0) FROM [${mjSchema}].[EntityField] WHERE [EntityID] = '4CC3DB2D-F01F-405E-A47D-B14BA2F1AB20') + 12,
-            'SigningProviderURL',
-            'Signing Provider URL',
-            'Direct link to the document in the signing provider (PandaDoc). The fallback that works before any integration exists, and when a storage sync has broken.',
-            'nvarchar',
-            2000,
-            0,
-            0,
-            1,
-            NULL,
-            0,
-            1,
-            0,
-            0,
-            NULL,
-            NULL,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            'Search',
-            GETUTCDATE(),
-            GETUTCDATE()
-         )
-      END;
-
-      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = '85c2054c-4939-415f-bcb1-a29385b881ad' OR (EntityID = '4CC3DB2D-F01F-405E-A47D-B14BA2F1AB20' AND Name = 'EffectiveDate')) BEGIN
-         INSERT INTO [${mjSchema}].[EntityField]
-         (
-            [ID],
-            [EntityID],
-            [Sequence],
-            [Name],
-            [DisplayName],
-            [Description],
-            [Type],
-            [Length],
-            [Precision],
-            [Scale],
-            [AllowsNull],
-            [DefaultValue],
-            [AutoIncrement],
-            [AllowUpdateAPI],
-            [IsVirtual],
-            [IsComputed],
-            [RelatedEntityID],
-            [RelatedEntityFieldName],
-            [IsNameField],
-            [IncludeInUserSearchAPI],
-            [IncludeRelatedEntityNameFieldInBaseView],
-            [DefaultInView],
-            [IsPrimaryKey],
-            [IsUnique],
-            [RelatedEntityDisplayType],
-            [__mj_CreatedAt],
-            [__mj_UpdatedAt]
-         )
-         VALUES
-         (
-            '85c2054c-4939-415f-bcb1-a29385b881ad',
-            '4CC3DB2D-F01F-405E-A47D-B14BA2F1AB20', -- Entity: MJ_BizApps_Contracts: Contracts
-            (SELECT COALESCE(MAX([Sequence]), 0) FROM [${mjSchema}].[EntityField] WHERE [EntityID] = '4CC3DB2D-F01F-405E-A47D-B14BA2F1AB20') + 13,
-            'EffectiveDate',
-            'Effective Date',
-            'When the agreement takes effect.',
-            'date',
-            3,
-            10,
-            0,
-            1,
-            NULL,
-            0,
-            1,
-            0,
-            0,
-            NULL,
-            NULL,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            'Search',
-            GETUTCDATE(),
-            GETUTCDATE()
-         )
-      END;
-
-      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = 'c24027f0-5986-4183-ac69-cdd31e60c934' OR (EntityID = '4CC3DB2D-F01F-405E-A47D-B14BA2F1AB20' AND Name = 'ExecutedDate')) BEGIN
-         INSERT INTO [${mjSchema}].[EntityField]
-         (
-            [ID],
-            [EntityID],
-            [Sequence],
-            [Name],
-            [DisplayName],
-            [Description],
-            [Type],
-            [Length],
-            [Precision],
-            [Scale],
-            [AllowsNull],
-            [DefaultValue],
-            [AutoIncrement],
-            [AllowUpdateAPI],
-            [IsVirtual],
-            [IsComputed],
-            [RelatedEntityID],
-            [RelatedEntityFieldName],
-            [IsNameField],
-            [IncludeInUserSearchAPI],
-            [IncludeRelatedEntityNameFieldInBaseView],
-            [DefaultInView],
-            [IsPrimaryKey],
-            [IsUnique],
-            [RelatedEntityDisplayType],
-            [__mj_CreatedAt],
-            [__mj_UpdatedAt]
-         )
-         VALUES
-         (
-            'c24027f0-5986-4183-ac69-cdd31e60c934',
-            '4CC3DB2D-F01F-405E-A47D-B14BA2F1AB20', -- Entity: MJ_BizApps_Contracts: Contracts
-            (SELECT COALESCE(MAX([Sequence]), 0) FROM [${mjSchema}].[EntityField] WHERE [EntityID] = '4CC3DB2D-F01F-405E-A47D-B14BA2F1AB20') + 14,
-            'ExecutedDate',
-            'Executed Date',
-            'When it was signed. May legitimately PRECEDE EffectiveDate — sign in December for a January start is the ordinary case. There is deliberately no constraint ordering the two; v1 had one and it rejected exactly the data a correct contract produces.',
-            'date',
-            3,
-            10,
-            0,
-            1,
-            NULL,
-            0,
-            1,
-            0,
-            0,
-            NULL,
-            NULL,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            'Search',
-            GETUTCDATE(),
-            GETUTCDATE()
-         )
-      END;
-
-      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = '368a7e42-7c2c-41dd-8de8-dbd1ad2fc7a1' OR (EntityID = '4CC3DB2D-F01F-405E-A47D-B14BA2F1AB20' AND Name = 'EndDate')) BEGIN
-         INSERT INTO [${mjSchema}].[EntityField]
-         (
-            [ID],
-            [EntityID],
-            [Sequence],
-            [Name],
-            [DisplayName],
-            [Description],
-            [Type],
-            [Length],
-            [Precision],
-            [Scale],
-            [AllowsNull],
-            [DefaultValue],
-            [AutoIncrement],
-            [AllowUpdateAPI],
-            [IsVirtual],
-            [IsComputed],
-            [RelatedEntityID],
-            [RelatedEntityFieldName],
-            [IsNameField],
-            [IncludeInUserSearchAPI],
-            [IncludeRelatedEntityNameFieldInBaseView],
-            [DefaultInView],
-            [IsPrimaryKey],
-            [IsUnique],
-            [RelatedEntityDisplayType],
-            [__mj_CreatedAt],
-            [__mj_UpdatedAt]
-         )
-         VALUES
-         (
-            '368a7e42-7c2c-41dd-8de8-dbd1ad2fc7a1',
-            '4CC3DB2D-F01F-405E-A47D-B14BA2F1AB20', -- Entity: MJ_BizApps_Contracts: Contracts
-            (SELECT COALESCE(MAX([Sequence]), 0) FROM [${mjSchema}].[EntityField] WHERE [EntityID] = '4CC3DB2D-F01F-405E-A47D-B14BA2F1AB20') + 15,
-            'EndDate',
-            'End Date',
-            'When the current term ends. This is what drives the renewal watchlist and every expiry projection.',
-            'date',
-            3,
-            10,
-            0,
-            1,
-            NULL,
-            0,
-            1,
-            0,
-            0,
-            NULL,
-            NULL,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            'Search',
-            GETUTCDATE(),
-            GETUTCDATE()
-         )
-      END;
-
-      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = '390191a8-15ab-4ece-aebf-9de1beeda25d' OR (EntityID = '4CC3DB2D-F01F-405E-A47D-B14BA2F1AB20' AND Name = 'TerminatedDate')) BEGIN
-         INSERT INTO [${mjSchema}].[EntityField]
-         (
-            [ID],
-            [EntityID],
-            [Sequence],
-            [Name],
-            [DisplayName],
-            [Description],
-            [Type],
-            [Length],
-            [Precision],
-            [Scale],
-            [AllowsNull],
-            [DefaultValue],
-            [AutoIncrement],
-            [AllowUpdateAPI],
-            [IsVirtual],
-            [IsComputed],
-            [RelatedEntityID],
-            [RelatedEntityFieldName],
-            [IsNameField],
-            [IncludeInUserSearchAPI],
-            [IncludeRelatedEntityNameFieldInBaseView],
-            [DefaultInView],
-            [IsPrimaryKey],
-            [IsUnique],
-            [RelatedEntityDisplayType],
-            [__mj_CreatedAt],
-            [__mj_UpdatedAt]
-         )
-         VALUES
-         (
-            '390191a8-15ab-4ece-aebf-9de1beeda25d',
-            '4CC3DB2D-F01F-405E-A47D-B14BA2F1AB20', -- Entity: MJ_BizApps_Contracts: Contracts
-            (SELECT COALESCE(MAX([Sequence]), 0) FROM [${mjSchema}].[EntityField] WHERE [EntityID] = '4CC3DB2D-F01F-405E-A47D-B14BA2F1AB20') + 16,
-            'TerminatedDate',
-            'Terminated Date',
-            'When the agreement ended early. Stored rather than derived: it is only recoverable from a successors effective date, and a contract can end with no successor at all when a customer simply leaves.',
-            'date',
-            3,
-            10,
-            0,
-            1,
-            NULL,
-            0,
-            1,
-            0,
-            0,
-            NULL,
-            NULL,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            'Search',
-            GETUTCDATE(),
-            GETUTCDATE()
-         )
-      END;
-
-      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = '418fdbd3-daf6-45af-a89b-581e3921c2bd' OR (EntityID = '4CC3DB2D-F01F-405E-A47D-B14BA2F1AB20' AND Name = 'AutoRenew')) BEGIN
-         INSERT INTO [${mjSchema}].[EntityField]
-         (
-            [ID],
-            [EntityID],
-            [Sequence],
-            [Name],
-            [DisplayName],
-            [Description],
-            [Type],
-            [Length],
-            [Precision],
-            [Scale],
-            [AllowsNull],
-            [DefaultValue],
-            [AutoIncrement],
-            [AllowUpdateAPI],
-            [IsVirtual],
-            [IsComputed],
-            [RelatedEntityID],
-            [RelatedEntityFieldName],
-            [IsNameField],
-            [IncludeInUserSearchAPI],
-            [IncludeRelatedEntityNameFieldInBaseView],
-            [DefaultInView],
-            [IsPrimaryKey],
-            [IsUnique],
-            [RelatedEntityDisplayType],
-            [__mj_CreatedAt],
-            [__mj_UpdatedAt]
-         )
-         VALUES
-         (
-            '418fdbd3-daf6-45af-a89b-581e3921c2bd',
-            '4CC3DB2D-F01F-405E-A47D-B14BA2F1AB20', -- Entity: MJ_BizApps_Contracts: Contracts
-            (SELECT COALESCE(MAX([Sequence]), 0) FROM [${mjSchema}].[EntityField] WHERE [EntityID] = '4CC3DB2D-F01F-405E-A47D-B14BA2F1AB20') + 17,
-            'AutoRenew',
-            'Auto Renew',
-            'Whether the agreement auto-renews, AS THE PAPER STATES IT. True or false, no third state. Distinct from the subscriptions operational setting in orders, which someone can change later; when the two disagree that is a finding, not a bug.',
-            'bit',
-            1,
-            1,
-            0,
-            0,
-            '(0)',
-            0,
-            1,
-            0,
-            0,
-            NULL,
-            NULL,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            'Search',
-            GETUTCDATE(),
-            GETUTCDATE()
-         )
-      END;
-
-      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = '472d4155-f2b0-4b06-b6e7-2f58a90314e0' OR (EntityID = '4CC3DB2D-F01F-405E-A47D-B14BA2F1AB20' AND Name = 'RenewalNoticeDays')) BEGIN
-         INSERT INTO [${mjSchema}].[EntityField]
-         (
-            [ID],
-            [EntityID],
-            [Sequence],
-            [Name],
-            [DisplayName],
-            [Description],
-            [Type],
-            [Length],
-            [Precision],
-            [Scale],
-            [AllowsNull],
-            [DefaultValue],
-            [AutoIncrement],
-            [AllowUpdateAPI],
-            [IsVirtual],
-            [IsComputed],
-            [RelatedEntityID],
-            [RelatedEntityFieldName],
-            [IsNameField],
-            [IncludeInUserSearchAPI],
-            [IncludeRelatedEntityNameFieldInBaseView],
-            [DefaultInView],
-            [IsPrimaryKey],
-            [IsUnique],
-            [RelatedEntityDisplayType],
-            [__mj_CreatedAt],
-            [__mj_UpdatedAt]
-         )
-         VALUES
-         (
-            '472d4155-f2b0-4b06-b6e7-2f58a90314e0',
-            '4CC3DB2D-F01F-405E-A47D-B14BA2F1AB20', -- Entity: MJ_BizApps_Contracts: Contracts
-            (SELECT COALESCE(MAX([Sequence]), 0) FROM [${mjSchema}].[EntityField] WHERE [EntityID] = '4CC3DB2D-F01F-405E-A47D-B14BA2F1AB20') + 18,
-            'RenewalNoticeDays',
-            'Renewal Notice Days',
-            'Days of written notice we owe before a renewal price change, as stated in the agreement. NOT the same field as CancellationWindowDays even though many agreements set them equal — conflating them silently is how a notice obligation gets missed.',
-            'int',
-            4,
-            10,
-            0,
-            1,
-            NULL,
-            0,
-            1,
-            0,
-            0,
-            NULL,
-            NULL,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            'Search',
-            GETUTCDATE(),
-            GETUTCDATE()
-         )
-      END;
-
-      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = 'fdee00c3-9a3b-4d05-a67c-d296289d9dbd' OR (EntityID = '4CC3DB2D-F01F-405E-A47D-B14BA2F1AB20' AND Name = 'CancellationWindowDays')) BEGIN
-         INSERT INTO [${mjSchema}].[EntityField]
-         (
-            [ID],
-            [EntityID],
-            [Sequence],
-            [Name],
-            [DisplayName],
-            [Description],
-            [Type],
-            [Length],
-            [Precision],
-            [Scale],
-            [AllowsNull],
-            [DefaultValue],
-            [AutoIncrement],
-            [AllowUpdateAPI],
-            [IsVirtual],
-            [IsComputed],
-            [RelatedEntityID],
-            [RelatedEntityFieldName],
-            [IsNameField],
-            [IncludeInUserSearchAPI],
-            [IncludeRelatedEntityNameFieldInBaseView],
-            [DefaultInView],
-            [IsPrimaryKey],
-            [IsUnique],
-            [RelatedEntityDisplayType],
-            [__mj_CreatedAt],
-            [__mj_UpdatedAt]
-         )
-         VALUES
-         (
-            'fdee00c3-9a3b-4d05-a67c-d296289d9dbd',
-            '4CC3DB2D-F01F-405E-A47D-B14BA2F1AB20', -- Entity: MJ_BizApps_Contracts: Contracts
-            (SELECT COALESCE(MAX([Sequence]), 0) FROM [${mjSchema}].[EntityField] WHERE [EntityID] = '4CC3DB2D-F01F-405E-A47D-B14BA2F1AB20') + 19,
-            'CancellationWindowDays',
-            'Cancellation Window Days',
-            'Days of notice the customer owes to cancel without renewing.',
-            'int',
-            4,
-            10,
-            0,
-            1,
-            NULL,
-            0,
-            1,
-            0,
-            0,
-            NULL,
-            NULL,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            'Search',
-            GETUTCDATE(),
-            GETUTCDATE()
-         )
-      END;
-
-      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = '547b4e55-e673-465f-b8d3-ca1286745190' OR (EntityID = '4CC3DB2D-F01F-405E-A47D-B14BA2F1AB20' AND Name = 'AnnualIncreasePercent')) BEGIN
-         INSERT INTO [${mjSchema}].[EntityField]
-         (
-            [ID],
-            [EntityID],
-            [Sequence],
-            [Name],
-            [DisplayName],
-            [Description],
-            [Type],
-            [Length],
-            [Precision],
-            [Scale],
-            [AllowsNull],
-            [DefaultValue],
-            [AutoIncrement],
-            [AllowUpdateAPI],
-            [IsVirtual],
-            [IsComputed],
-            [RelatedEntityID],
-            [RelatedEntityFieldName],
-            [IsNameField],
-            [IncludeInUserSearchAPI],
-            [IncludeRelatedEntityNameFieldInBaseView],
-            [DefaultInView],
-            [IsPrimaryKey],
-            [IsUnique],
-            [RelatedEntityDisplayType],
-            [__mj_CreatedAt],
-            [__mj_UpdatedAt]
-         )
-         VALUES
-         (
-            '547b4e55-e673-465f-b8d3-ca1286745190',
-            '4CC3DB2D-F01F-405E-A47D-B14BA2F1AB20', -- Entity: MJ_BizApps_Contracts: Contracts
-            (SELECT COALESCE(MAX([Sequence]), 0) FROM [${mjSchema}].[EntityField] WHERE [EntityID] = '4CC3DB2D-F01F-405E-A47D-B14BA2F1AB20') + 20,
-            'AnnualIncreasePercent',
-            'Annual Increase Percent',
-            'The negotiated year-over-year uplift. Exists here because it exists nowhere else: the orders schema has no escalation concept of any kind, which is why a two-year agreement stepping up 10% in year two is recorded in no other system.',
-            'decimal',
-            5,
-            7,
-            4,
-            1,
-            NULL,
-            0,
-            1,
-            0,
-            0,
-            NULL,
-            NULL,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            'Search',
-            GETUTCDATE(),
-            GETUTCDATE()
-         )
-      END;
-
-      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = '629927e7-6f7a-43f3-81fa-cdecedfd62e5' OR (EntityID = '4CC3DB2D-F01F-405E-A47D-B14BA2F1AB20' AND Name = 'HasModifications')) BEGIN
-         INSERT INTO [${mjSchema}].[EntityField]
-         (
-            [ID],
-            [EntityID],
-            [Sequence],
-            [Name],
-            [DisplayName],
-            [Description],
-            [Type],
-            [Length],
-            [Precision],
-            [Scale],
-            [AllowsNull],
-            [DefaultValue],
-            [AutoIncrement],
-            [AllowUpdateAPI],
-            [IsVirtual],
-            [IsComputed],
-            [RelatedEntityID],
-            [RelatedEntityFieldName],
-            [IsNameField],
-            [IncludeInUserSearchAPI],
-            [IncludeRelatedEntityNameFieldInBaseView],
-            [DefaultInView],
-            [IsPrimaryKey],
-            [IsUnique],
-            [RelatedEntityDisplayType],
-            [__mj_CreatedAt],
-            [__mj_UpdatedAt]
-         )
-         VALUES
-         (
-            '629927e7-6f7a-43f3-81fa-cdecedfd62e5',
-            '4CC3DB2D-F01F-405E-A47D-B14BA2F1AB20', -- Entity: MJ_BizApps_Contracts: Contracts
-            (SELECT COALESCE(MAX([Sequence]), 0) FROM [${mjSchema}].[EntityField] WHERE [EntityID] = '4CC3DB2D-F01F-405E-A47D-B14BA2F1AB20') + 21,
-            'HasModifications',
-            'Has Modifications',
-            'Whether the standard agreement was changed for this customer. ASSERTED by a person, not derived — its job is to say "go read the PDF" BEFORE anyone has recorded the modifications, and a derived flag would read false for every contract nobody has processed yet. One direction IS enforced server-side: if modification rows exist this must be true. It is never cleared automatically.',
-            'bit',
-            1,
-            1,
-            0,
-            0,
-            '(0)',
-            0,
-            1,
-            0,
-            0,
-            NULL,
-            NULL,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            'Search',
-            GETUTCDATE(),
-            GETUTCDATE()
-         )
-      END;
-
-      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = '88857639-49fe-4aa8-8581-b696375b159b' OR (EntityID = '4CC3DB2D-F01F-405E-A47D-B14BA2F1AB20' AND Name = 'Description')) BEGIN
-         INSERT INTO [${mjSchema}].[EntityField]
-         (
-            [ID],
-            [EntityID],
-            [Sequence],
-            [Name],
-            [DisplayName],
-            [Description],
-            [Type],
-            [Length],
-            [Precision],
-            [Scale],
-            [AllowsNull],
-            [DefaultValue],
-            [AutoIncrement],
-            [AllowUpdateAPI],
-            [IsVirtual],
-            [IsComputed],
-            [RelatedEntityID],
-            [RelatedEntityFieldName],
-            [IsNameField],
-            [IncludeInUserSearchAPI],
-            [IncludeRelatedEntityNameFieldInBaseView],
-            [DefaultInView],
-            [IsPrimaryKey],
-            [IsUnique],
-            [RelatedEntityDisplayType],
-            [__mj_CreatedAt],
-            [__mj_UpdatedAt]
-         )
-         VALUES
-         (
-            '88857639-49fe-4aa8-8581-b696375b159b',
-            '4CC3DB2D-F01F-405E-A47D-B14BA2F1AB20', -- Entity: MJ_BizApps_Contracts: Contracts
-            (SELECT COALESCE(MAX([Sequence]), 0) FROM [${mjSchema}].[EntityField] WHERE [EntityID] = '4CC3DB2D-F01F-405E-A47D-B14BA2F1AB20') + 22,
-            'Description',
-            'Description',
-            NULL,
+            '87bb27cb-98b7-4704-bdc5-7871f8f394eb',
+            'B05A480F-F7C5-4D45-8EA3-C90E9A14F225', -- Entity: MJ_BizApps_Contracts: Contract Template Modifications
+            (SELECT COALESCE(MAX([Sequence]), 0) FROM [${mjSchema}].[EntityField] WHERE [EntityID] = 'B05A480F-F7C5-4D45-8EA3-C90E9A14F225') + 5,
+            'Notes',
+            'Notes',
+            'Optional working note, e.g. who negotiated it.',
             'nvarchar',
             -1,
             0,
@@ -4132,7 +2263,7 @@ GO
          )
       END;
 
-      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = 'ce64dafd-b5fe-4eff-a70f-53072e819b84' OR (EntityID = '4CC3DB2D-F01F-405E-A47D-B14BA2F1AB20' AND Name = 'Notes')) BEGIN
+      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = '18518499-1dd3-4369-bd76-59b62eeba5b8' OR (EntityID = 'B05A480F-F7C5-4D45-8EA3-C90E9A14F225' AND Name = '__mj_CreatedAt')) BEGIN
          INSERT INTO [${mjSchema}].[EntityField]
          (
             [ID],
@@ -4165,72 +2296,9 @@ GO
          )
          VALUES
          (
-            'ce64dafd-b5fe-4eff-a70f-53072e819b84',
-            '4CC3DB2D-F01F-405E-A47D-B14BA2F1AB20', -- Entity: MJ_BizApps_Contracts: Contracts
-            (SELECT COALESCE(MAX([Sequence]), 0) FROM [${mjSchema}].[EntityField] WHERE [EntityID] = '4CC3DB2D-F01F-405E-A47D-B14BA2F1AB20') + 23,
-            'Notes',
-            'Notes',
-            'Free-text working notes for whoever is processing the contract.',
-            'nvarchar',
-            -1,
-            0,
-            0,
-            1,
-            NULL,
-            0,
-            1,
-            0,
-            0,
-            NULL,
-            NULL,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            'Search',
-            GETUTCDATE(),
-            GETUTCDATE()
-         )
-      END;
-
-      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = 'd2fb1812-df75-423a-911e-de5df46ff664' OR (EntityID = '4CC3DB2D-F01F-405E-A47D-B14BA2F1AB20' AND Name = '__mj_CreatedAt')) BEGIN
-         INSERT INTO [${mjSchema}].[EntityField]
-         (
-            [ID],
-            [EntityID],
-            [Sequence],
-            [Name],
-            [DisplayName],
-            [Description],
-            [Type],
-            [Length],
-            [Precision],
-            [Scale],
-            [AllowsNull],
-            [DefaultValue],
-            [AutoIncrement],
-            [AllowUpdateAPI],
-            [IsVirtual],
-            [IsComputed],
-            [RelatedEntityID],
-            [RelatedEntityFieldName],
-            [IsNameField],
-            [IncludeInUserSearchAPI],
-            [IncludeRelatedEntityNameFieldInBaseView],
-            [DefaultInView],
-            [IsPrimaryKey],
-            [IsUnique],
-            [RelatedEntityDisplayType],
-            [__mj_CreatedAt],
-            [__mj_UpdatedAt]
-         )
-         VALUES
-         (
-            'd2fb1812-df75-423a-911e-de5df46ff664',
-            '4CC3DB2D-F01F-405E-A47D-B14BA2F1AB20', -- Entity: MJ_BizApps_Contracts: Contracts
-            (SELECT COALESCE(MAX([Sequence]), 0) FROM [${mjSchema}].[EntityField] WHERE [EntityID] = '4CC3DB2D-F01F-405E-A47D-B14BA2F1AB20') + 24,
+            '18518499-1dd3-4369-bd76-59b62eeba5b8',
+            'B05A480F-F7C5-4D45-8EA3-C90E9A14F225', -- Entity: MJ_BizApps_Contracts: Contract Template Modifications
+            (SELECT COALESCE(MAX([Sequence]), 0) FROM [${mjSchema}].[EntityField] WHERE [EntityID] = 'B05A480F-F7C5-4D45-8EA3-C90E9A14F225') + 6,
             '__mj_CreatedAt',
             'Created At',
             NULL,
@@ -4258,7 +2326,7 @@ GO
          )
       END;
 
-      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = '324dd9b0-514c-4f1a-a1d0-69569f6e31d8' OR (EntityID = '4CC3DB2D-F01F-405E-A47D-B14BA2F1AB20' AND Name = '__mj_UpdatedAt')) BEGIN
+      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = '54072096-c4e2-450c-97fa-bf162e2485d6' OR (EntityID = 'B05A480F-F7C5-4D45-8EA3-C90E9A14F225' AND Name = '__mj_UpdatedAt')) BEGIN
          INSERT INTO [${mjSchema}].[EntityField]
          (
             [ID],
@@ -4291,9 +2359,9 @@ GO
          )
          VALUES
          (
-            '324dd9b0-514c-4f1a-a1d0-69569f6e31d8',
-            '4CC3DB2D-F01F-405E-A47D-B14BA2F1AB20', -- Entity: MJ_BizApps_Contracts: Contracts
-            (SELECT COALESCE(MAX([Sequence]), 0) FROM [${mjSchema}].[EntityField] WHERE [EntityID] = '4CC3DB2D-F01F-405E-A47D-B14BA2F1AB20') + 25,
+            '54072096-c4e2-450c-97fa-bf162e2485d6',
+            'B05A480F-F7C5-4D45-8EA3-C90E9A14F225', -- Entity: MJ_BizApps_Contracts: Contract Template Modifications
+            (SELECT COALESCE(MAX([Sequence]), 0) FROM [${mjSchema}].[EntityField] WHERE [EntityID] = 'B05A480F-F7C5-4D45-8EA3-C90E9A14F225') + 7,
             '__mj_UpdatedAt',
             'Updated At',
             NULL,
@@ -4321,7 +2389,7 @@ GO
          )
       END;
 
-      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = 'c8ba6c3a-441d-4413-b663-019c586f31fe' OR (EntityID = '8D50B054-0E15-48C2-907A-BA598E28EA25' AND Name = 'ID')) BEGIN
+      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = 'b592f895-7e87-480a-8663-9d3c70f812d5' OR (EntityID = '4E3F97BE-E196-4CC0-9B5D-CC50DE8967A0' AND Name = 'ID')) BEGIN
          INSERT INTO [${mjSchema}].[EntityField]
          (
             [ID],
@@ -4354,9 +2422,9 @@ GO
          )
          VALUES
          (
-            'c8ba6c3a-441d-4413-b663-019c586f31fe',
-            '8D50B054-0E15-48C2-907A-BA598E28EA25', -- Entity: MJ_BizApps_Contracts: Contract Template Types
-            (SELECT COALESCE(MAX([Sequence]), 0) FROM [${mjSchema}].[EntityField] WHERE [EntityID] = '8D50B054-0E15-48C2-907A-BA598E28EA25') + 1,
+            'b592f895-7e87-480a-8663-9d3c70f812d5',
+            '4E3F97BE-E196-4CC0-9B5D-CC50DE8967A0', -- Entity: MJ_BizApps_Contracts: Contract Template Types
+            (SELECT COALESCE(MAX([Sequence]), 0) FROM [${mjSchema}].[EntityField] WHERE [EntityID] = '4E3F97BE-E196-4CC0-9B5D-CC50DE8967A0') + 1,
             'ID',
             'ID',
             NULL,
@@ -4384,7 +2452,7 @@ GO
          )
       END;
 
-      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = '0e90c2b4-35ea-4baf-8e1d-3b84c2ac04ef' OR (EntityID = '8D50B054-0E15-48C2-907A-BA598E28EA25' AND Name = 'Name')) BEGIN
+      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = 'eece216e-ec2b-4630-9e17-3fcde668f32a' OR (EntityID = '4E3F97BE-E196-4CC0-9B5D-CC50DE8967A0' AND Name = 'Name')) BEGIN
          INSERT INTO [${mjSchema}].[EntityField]
          (
             [ID],
@@ -4417,9 +2485,9 @@ GO
          )
          VALUES
          (
-            '0e90c2b4-35ea-4baf-8e1d-3b84c2ac04ef',
-            '8D50B054-0E15-48C2-907A-BA598E28EA25', -- Entity: MJ_BizApps_Contracts: Contract Template Types
-            (SELECT COALESCE(MAX([Sequence]), 0) FROM [${mjSchema}].[EntityField] WHERE [EntityID] = '8D50B054-0E15-48C2-907A-BA598E28EA25') + 2,
+            'eece216e-ec2b-4630-9e17-3fcde668f32a',
+            '4E3F97BE-E196-4CC0-9B5D-CC50DE8967A0', -- Entity: MJ_BizApps_Contracts: Contract Template Types
+            (SELECT COALESCE(MAX([Sequence]), 0) FROM [${mjSchema}].[EntityField] WHERE [EntityID] = '4E3F97BE-E196-4CC0-9B5D-CC50DE8967A0') + 2,
             'Name',
             'Name',
             NULL,
@@ -4447,7 +2515,7 @@ GO
          )
       END;
 
-      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = '0a73a8b4-bf4c-41e2-8519-c796bab1d4be' OR (EntityID = '8D50B054-0E15-48C2-907A-BA598E28EA25' AND Name = 'Description')) BEGIN
+      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = '3ec31ca1-a410-4a25-bb23-1e668a16a125' OR (EntityID = '4E3F97BE-E196-4CC0-9B5D-CC50DE8967A0' AND Name = 'Description')) BEGIN
          INSERT INTO [${mjSchema}].[EntityField]
          (
             [ID],
@@ -4480,9 +2548,9 @@ GO
          )
          VALUES
          (
-            '0a73a8b4-bf4c-41e2-8519-c796bab1d4be',
-            '8D50B054-0E15-48C2-907A-BA598E28EA25', -- Entity: MJ_BizApps_Contracts: Contract Template Types
-            (SELECT COALESCE(MAX([Sequence]), 0) FROM [${mjSchema}].[EntityField] WHERE [EntityID] = '8D50B054-0E15-48C2-907A-BA598E28EA25') + 3,
+            '3ec31ca1-a410-4a25-bb23-1e668a16a125',
+            '4E3F97BE-E196-4CC0-9B5D-CC50DE8967A0', -- Entity: MJ_BizApps_Contracts: Contract Template Types
+            (SELECT COALESCE(MAX([Sequence]), 0) FROM [${mjSchema}].[EntityField] WHERE [EntityID] = '4E3F97BE-E196-4CC0-9B5D-CC50DE8967A0') + 3,
             'Description',
             'Description',
             NULL,
@@ -4510,7 +2578,7 @@ GO
          )
       END;
 
-      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = 'ab630039-0c2b-48aa-bb8e-8462cf310418' OR (EntityID = '8D50B054-0E15-48C2-907A-BA598E28EA25' AND Name = 'Status')) BEGIN
+      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = '0e2ab42b-29f2-4151-a424-aba78bba163b' OR (EntityID = '4E3F97BE-E196-4CC0-9B5D-CC50DE8967A0' AND Name = 'Status')) BEGIN
          INSERT INTO [${mjSchema}].[EntityField]
          (
             [ID],
@@ -4543,9 +2611,9 @@ GO
          )
          VALUES
          (
-            'ab630039-0c2b-48aa-bb8e-8462cf310418',
-            '8D50B054-0E15-48C2-907A-BA598E28EA25', -- Entity: MJ_BizApps_Contracts: Contract Template Types
-            (SELECT COALESCE(MAX([Sequence]), 0) FROM [${mjSchema}].[EntityField] WHERE [EntityID] = '8D50B054-0E15-48C2-907A-BA598E28EA25') + 4,
+            '0e2ab42b-29f2-4151-a424-aba78bba163b',
+            '4E3F97BE-E196-4CC0-9B5D-CC50DE8967A0', -- Entity: MJ_BizApps_Contracts: Contract Template Types
+            (SELECT COALESCE(MAX([Sequence]), 0) FROM [${mjSchema}].[EntityField] WHERE [EntityID] = '4E3F97BE-E196-4CC0-9B5D-CC50DE8967A0') + 4,
             'Status',
             'Status',
             'Active | Inactive. Retiring a type hides it from pickers without touching the templates that used it.',
@@ -4573,7 +2641,7 @@ GO
          )
       END;
 
-      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = '90811d6b-1399-4560-976e-61b1b508eb39' OR (EntityID = '8D50B054-0E15-48C2-907A-BA598E28EA25' AND Name = '__mj_CreatedAt')) BEGIN
+      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = 'e7d55020-c93e-46b9-89e5-19088cbedb0a' OR (EntityID = '4E3F97BE-E196-4CC0-9B5D-CC50DE8967A0' AND Name = '__mj_CreatedAt')) BEGIN
          INSERT INTO [${mjSchema}].[EntityField]
          (
             [ID],
@@ -4606,9 +2674,9 @@ GO
          )
          VALUES
          (
-            '90811d6b-1399-4560-976e-61b1b508eb39',
-            '8D50B054-0E15-48C2-907A-BA598E28EA25', -- Entity: MJ_BizApps_Contracts: Contract Template Types
-            (SELECT COALESCE(MAX([Sequence]), 0) FROM [${mjSchema}].[EntityField] WHERE [EntityID] = '8D50B054-0E15-48C2-907A-BA598E28EA25') + 5,
+            'e7d55020-c93e-46b9-89e5-19088cbedb0a',
+            '4E3F97BE-E196-4CC0-9B5D-CC50DE8967A0', -- Entity: MJ_BizApps_Contracts: Contract Template Types
+            (SELECT COALESCE(MAX([Sequence]), 0) FROM [${mjSchema}].[EntityField] WHERE [EntityID] = '4E3F97BE-E196-4CC0-9B5D-CC50DE8967A0') + 5,
             '__mj_CreatedAt',
             'Created At',
             NULL,
@@ -4636,7 +2704,7 @@ GO
          )
       END;
 
-      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = '7c15e29a-c176-4945-bd90-335f51d442e5' OR (EntityID = '8D50B054-0E15-48C2-907A-BA598E28EA25' AND Name = '__mj_UpdatedAt')) BEGIN
+      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = '26168480-7c59-4436-b954-4979f44f7014' OR (EntityID = '4E3F97BE-E196-4CC0-9B5D-CC50DE8967A0' AND Name = '__mj_UpdatedAt')) BEGIN
          INSERT INTO [${mjSchema}].[EntityField]
          (
             [ID],
@@ -4669,9 +2737,9 @@ GO
          )
          VALUES
          (
-            '7c15e29a-c176-4945-bd90-335f51d442e5',
-            '8D50B054-0E15-48C2-907A-BA598E28EA25', -- Entity: MJ_BizApps_Contracts: Contract Template Types
-            (SELECT COALESCE(MAX([Sequence]), 0) FROM [${mjSchema}].[EntityField] WHERE [EntityID] = '8D50B054-0E15-48C2-907A-BA598E28EA25') + 6,
+            '26168480-7c59-4436-b954-4979f44f7014',
+            '4E3F97BE-E196-4CC0-9B5D-CC50DE8967A0', -- Entity: MJ_BizApps_Contracts: Contract Template Types
+            (SELECT COALESCE(MAX([Sequence]), 0) FROM [${mjSchema}].[EntityField] WHERE [EntityID] = '4E3F97BE-E196-4CC0-9B5D-CC50DE8967A0') + 6,
             '__mj_UpdatedAt',
             'Updated At',
             NULL,
@@ -4699,7 +2767,7 @@ GO
          )
       END;
 
-      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = '9f76a3fc-f70d-4299-8a95-51f210c2d0c7' OR (EntityID = '96271F4A-AC8D-47C8-BB5D-C7180910B2C7' AND Name = 'ID')) BEGIN
+      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = 'a8bf5461-4a41-4388-8761-50b79fc598b4' OR (EntityID = '731F2890-1415-40DE-9073-D22EA23392B3' AND Name = 'ID')) BEGIN
          INSERT INTO [${mjSchema}].[EntityField]
          (
             [ID],
@@ -4732,261 +2800,9 @@ GO
          )
          VALUES
          (
-            '9f76a3fc-f70d-4299-8a95-51f210c2d0c7',
-            '96271F4A-AC8D-47C8-BB5D-C7180910B2C7', -- Entity: MJ_BizApps_Contracts: Contract Sequences
-            (SELECT COALESCE(MAX([Sequence]), 0) FROM [${mjSchema}].[EntityField] WHERE [EntityID] = '96271F4A-AC8D-47C8-BB5D-C7180910B2C7') + 1,
-            'ID',
-            'ID',
-            NULL,
-            'int',
-            4,
-            10,
-            0,
-            0,
-            NULL,
-            0,
-            0,
-            0,
-            0,
-            NULL,
-            NULL,
-            0,
-            1,
-            0,
-            0,
-            1,
-            1,
-            'Search',
-            GETUTCDATE(),
-            GETUTCDATE()
-         )
-      END;
-
-      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = '8abc07ae-5b21-4e8e-a8f5-8ca85c4a1086' OR (EntityID = '96271F4A-AC8D-47C8-BB5D-C7180910B2C7' AND Name = 'NextSequenceNumber')) BEGIN
-         INSERT INTO [${mjSchema}].[EntityField]
-         (
-            [ID],
-            [EntityID],
-            [Sequence],
-            [Name],
-            [DisplayName],
-            [Description],
-            [Type],
-            [Length],
-            [Precision],
-            [Scale],
-            [AllowsNull],
-            [DefaultValue],
-            [AutoIncrement],
-            [AllowUpdateAPI],
-            [IsVirtual],
-            [IsComputed],
-            [RelatedEntityID],
-            [RelatedEntityFieldName],
-            [IsNameField],
-            [IncludeInUserSearchAPI],
-            [IncludeRelatedEntityNameFieldInBaseView],
-            [DefaultInView],
-            [IsPrimaryKey],
-            [IsUnique],
-            [RelatedEntityDisplayType],
-            [__mj_CreatedAt],
-            [__mj_UpdatedAt]
-         )
-         VALUES
-         (
-            '8abc07ae-5b21-4e8e-a8f5-8ca85c4a1086',
-            '96271F4A-AC8D-47C8-BB5D-C7180910B2C7', -- Entity: MJ_BizApps_Contracts: Contract Sequences
-            (SELECT COALESCE(MAX([Sequence]), 0) FROM [${mjSchema}].[EntityField] WHERE [EntityID] = '96271F4A-AC8D-47C8-BB5D-C7180910B2C7') + 2,
-            'NextSequenceNumber',
-            'Next Sequence Number',
-            'The next number to hand out. Advanced server-side by ContractEntityServer.Save().',
-            'int',
-            4,
-            10,
-            0,
-            0,
-            '(1)',
-            0,
-            1,
-            0,
-            0,
-            NULL,
-            NULL,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            'Search',
-            GETUTCDATE(),
-            GETUTCDATE()
-         )
-      END;
-
-      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = '666c1337-41c4-4e43-9e14-7fb95213f703' OR (EntityID = '96271F4A-AC8D-47C8-BB5D-C7180910B2C7' AND Name = '__mj_CreatedAt')) BEGIN
-         INSERT INTO [${mjSchema}].[EntityField]
-         (
-            [ID],
-            [EntityID],
-            [Sequence],
-            [Name],
-            [DisplayName],
-            [Description],
-            [Type],
-            [Length],
-            [Precision],
-            [Scale],
-            [AllowsNull],
-            [DefaultValue],
-            [AutoIncrement],
-            [AllowUpdateAPI],
-            [IsVirtual],
-            [IsComputed],
-            [RelatedEntityID],
-            [RelatedEntityFieldName],
-            [IsNameField],
-            [IncludeInUserSearchAPI],
-            [IncludeRelatedEntityNameFieldInBaseView],
-            [DefaultInView],
-            [IsPrimaryKey],
-            [IsUnique],
-            [RelatedEntityDisplayType],
-            [__mj_CreatedAt],
-            [__mj_UpdatedAt]
-         )
-         VALUES
-         (
-            '666c1337-41c4-4e43-9e14-7fb95213f703',
-            '96271F4A-AC8D-47C8-BB5D-C7180910B2C7', -- Entity: MJ_BizApps_Contracts: Contract Sequences
-            (SELECT COALESCE(MAX([Sequence]), 0) FROM [${mjSchema}].[EntityField] WHERE [EntityID] = '96271F4A-AC8D-47C8-BB5D-C7180910B2C7') + 3,
-            '__mj_CreatedAt',
-            'Created At',
-            NULL,
-            'datetimeoffset',
-            10,
-            34,
-            7,
-            0,
-            'getutcdate()',
-            0,
-            0,
-            0,
-            0,
-            NULL,
-            NULL,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            'Search',
-            GETUTCDATE(),
-            GETUTCDATE()
-         )
-      END;
-
-      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = 'd047bbd2-777b-49d8-9396-7327c80e6697' OR (EntityID = '96271F4A-AC8D-47C8-BB5D-C7180910B2C7' AND Name = '__mj_UpdatedAt')) BEGIN
-         INSERT INTO [${mjSchema}].[EntityField]
-         (
-            [ID],
-            [EntityID],
-            [Sequence],
-            [Name],
-            [DisplayName],
-            [Description],
-            [Type],
-            [Length],
-            [Precision],
-            [Scale],
-            [AllowsNull],
-            [DefaultValue],
-            [AutoIncrement],
-            [AllowUpdateAPI],
-            [IsVirtual],
-            [IsComputed],
-            [RelatedEntityID],
-            [RelatedEntityFieldName],
-            [IsNameField],
-            [IncludeInUserSearchAPI],
-            [IncludeRelatedEntityNameFieldInBaseView],
-            [DefaultInView],
-            [IsPrimaryKey],
-            [IsUnique],
-            [RelatedEntityDisplayType],
-            [__mj_CreatedAt],
-            [__mj_UpdatedAt]
-         )
-         VALUES
-         (
-            'd047bbd2-777b-49d8-9396-7327c80e6697',
-            '96271F4A-AC8D-47C8-BB5D-C7180910B2C7', -- Entity: MJ_BizApps_Contracts: Contract Sequences
-            (SELECT COALESCE(MAX([Sequence]), 0) FROM [${mjSchema}].[EntityField] WHERE [EntityID] = '96271F4A-AC8D-47C8-BB5D-C7180910B2C7') + 4,
-            '__mj_UpdatedAt',
-            'Updated At',
-            NULL,
-            'datetimeoffset',
-            10,
-            34,
-            7,
-            0,
-            'getutcdate()',
-            0,
-            0,
-            0,
-            0,
-            NULL,
-            NULL,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            'Search',
-            GETUTCDATE(),
-            GETUTCDATE()
-         )
-      END;
-
-      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = '66a5d587-22a3-4067-9952-130a308424ac' OR (EntityID = '21C7D64A-28F3-4535-819A-E0DD384A5580' AND Name = 'ID')) BEGIN
-         INSERT INTO [${mjSchema}].[EntityField]
-         (
-            [ID],
-            [EntityID],
-            [Sequence],
-            [Name],
-            [DisplayName],
-            [Description],
-            [Type],
-            [Length],
-            [Precision],
-            [Scale],
-            [AllowsNull],
-            [DefaultValue],
-            [AutoIncrement],
-            [AllowUpdateAPI],
-            [IsVirtual],
-            [IsComputed],
-            [RelatedEntityID],
-            [RelatedEntityFieldName],
-            [IsNameField],
-            [IncludeInUserSearchAPI],
-            [IncludeRelatedEntityNameFieldInBaseView],
-            [DefaultInView],
-            [IsPrimaryKey],
-            [IsUnique],
-            [RelatedEntityDisplayType],
-            [__mj_CreatedAt],
-            [__mj_UpdatedAt]
-         )
-         VALUES
-         (
-            '66a5d587-22a3-4067-9952-130a308424ac',
-            '21C7D64A-28F3-4535-819A-E0DD384A5580', -- Entity: MJ_BizApps_Contracts: Contract Templates
-            (SELECT COALESCE(MAX([Sequence]), 0) FROM [${mjSchema}].[EntityField] WHERE [EntityID] = '21C7D64A-28F3-4535-819A-E0DD384A5580') + 1,
+            'a8bf5461-4a41-4388-8761-50b79fc598b4',
+            '731F2890-1415-40DE-9073-D22EA23392B3', -- Entity: MJ_BizApps_Contracts: Contract Templates
+            (SELECT COALESCE(MAX([Sequence]), 0) FROM [${mjSchema}].[EntityField] WHERE [EntityID] = '731F2890-1415-40DE-9073-D22EA23392B3') + 1,
             'ID',
             'ID',
             NULL,
@@ -5014,7 +2830,7 @@ GO
          )
       END;
 
-      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = 'c3469c04-ae31-47a4-a208-8bc2e1c8b227' OR (EntityID = '21C7D64A-28F3-4535-819A-E0DD384A5580' AND Name = 'Name')) BEGIN
+      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = '1fc39118-f7f8-4ba7-9940-f341e35f4fdb' OR (EntityID = '731F2890-1415-40DE-9073-D22EA23392B3' AND Name = 'Name')) BEGIN
          INSERT INTO [${mjSchema}].[EntityField]
          (
             [ID],
@@ -5047,9 +2863,9 @@ GO
          )
          VALUES
          (
-            'c3469c04-ae31-47a4-a208-8bc2e1c8b227',
-            '21C7D64A-28F3-4535-819A-E0DD384A5580', -- Entity: MJ_BizApps_Contracts: Contract Templates
-            (SELECT COALESCE(MAX([Sequence]), 0) FROM [${mjSchema}].[EntityField] WHERE [EntityID] = '21C7D64A-28F3-4535-819A-E0DD384A5580') + 2,
+            '1fc39118-f7f8-4ba7-9940-f341e35f4fdb',
+            '731F2890-1415-40DE-9073-D22EA23392B3', -- Entity: MJ_BizApps_Contracts: Contract Templates
+            (SELECT COALESCE(MAX([Sequence]), 0) FROM [${mjSchema}].[EntityField] WHERE [EntityID] = '731F2890-1415-40DE-9073-D22EA23392B3') + 2,
             'Name',
             'Name',
             NULL,
@@ -5077,7 +2893,7 @@ GO
          )
       END;
 
-      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = 'a243f09c-98f4-4ac3-8319-50505000c0c4' OR (EntityID = '21C7D64A-28F3-4535-819A-E0DD384A5580' AND Name = 'ContractTemplateTypeID')) BEGIN
+      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = '7b8ec82e-cf52-4f4c-980d-47a15194ea12' OR (EntityID = '731F2890-1415-40DE-9073-D22EA23392B3' AND Name = 'ContractTemplateTypeID')) BEGIN
          INSERT INTO [${mjSchema}].[EntityField]
          (
             [ID],
@@ -5110,9 +2926,9 @@ GO
          )
          VALUES
          (
-            'a243f09c-98f4-4ac3-8319-50505000c0c4',
-            '21C7D64A-28F3-4535-819A-E0DD384A5580', -- Entity: MJ_BizApps_Contracts: Contract Templates
-            (SELECT COALESCE(MAX([Sequence]), 0) FROM [${mjSchema}].[EntityField] WHERE [EntityID] = '21C7D64A-28F3-4535-819A-E0DD384A5580') + 3,
+            '7b8ec82e-cf52-4f4c-980d-47a15194ea12',
+            '731F2890-1415-40DE-9073-D22EA23392B3', -- Entity: MJ_BizApps_Contracts: Contract Templates
+            (SELECT COALESCE(MAX([Sequence]), 0) FROM [${mjSchema}].[EntityField] WHERE [EntityID] = '731F2890-1415-40DE-9073-D22EA23392B3') + 3,
             'ContractTemplateTypeID',
             'Contract Template Type ID',
             NULL,
@@ -5126,7 +2942,7 @@ GO
             1,
             0,
             0,
-            '8D50B054-0E15-48C2-907A-BA598E28EA25',
+            '4E3F97BE-E196-4CC0-9B5D-CC50DE8967A0',
             'ID',
             0,
             0,
@@ -5140,7 +2956,7 @@ GO
          )
       END;
 
-      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = '2e50007b-b763-4d1d-80b3-979e5530ed89' OR (EntityID = '21C7D64A-28F3-4535-819A-E0DD384A5580' AND Name = 'VersionLabel')) BEGIN
+      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = 'd4e48fff-2f10-4e2e-a036-4d98bdafca99' OR (EntityID = '731F2890-1415-40DE-9073-D22EA23392B3' AND Name = 'VersionLabel')) BEGIN
          INSERT INTO [${mjSchema}].[EntityField]
          (
             [ID],
@@ -5173,9 +2989,9 @@ GO
          )
          VALUES
          (
-            '2e50007b-b763-4d1d-80b3-979e5530ed89',
-            '21C7D64A-28F3-4535-819A-E0DD384A5580', -- Entity: MJ_BizApps_Contracts: Contract Templates
-            (SELECT COALESCE(MAX([Sequence]), 0) FROM [${mjSchema}].[EntityField] WHERE [EntityID] = '21C7D64A-28F3-4535-819A-E0DD384A5580') + 4,
+            'd4e48fff-2f10-4e2e-a036-4d98bdafca99',
+            '731F2890-1415-40DE-9073-D22EA23392B3', -- Entity: MJ_BizApps_Contracts: Contract Templates
+            (SELECT COALESCE(MAX([Sequence]), 0) FROM [${mjSchema}].[EntityField] WHERE [EntityID] = '731F2890-1415-40DE-9073-D22EA23392B3') + 4,
             'VersionLabel',
             'Version Label',
             'The version the document names itself, e.g. "v6". Free text, because it is the documents own label rather than something we derive.',
@@ -5203,7 +3019,7 @@ GO
          )
       END;
 
-      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = '0e75c05a-3ac9-4e05-a559-cda0d1b2dc46' OR (EntityID = '21C7D64A-28F3-4535-819A-E0DD384A5580' AND Name = 'IntroducedDate')) BEGIN
+      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = 'd20b1f02-4f4b-4a8e-894d-4d74f32a6282' OR (EntityID = '731F2890-1415-40DE-9073-D22EA23392B3' AND Name = 'IntroducedDate')) BEGIN
          INSERT INTO [${mjSchema}].[EntityField]
          (
             [ID],
@@ -5236,9 +3052,9 @@ GO
          )
          VALUES
          (
-            '0e75c05a-3ac9-4e05-a559-cda0d1b2dc46',
-            '21C7D64A-28F3-4535-819A-E0DD384A5580', -- Entity: MJ_BizApps_Contracts: Contract Templates
-            (SELECT COALESCE(MAX([Sequence]), 0) FROM [${mjSchema}].[EntityField] WHERE [EntityID] = '21C7D64A-28F3-4535-819A-E0DD384A5580') + 5,
+            'd20b1f02-4f4b-4a8e-894d-4d74f32a6282',
+            '731F2890-1415-40DE-9073-D22EA23392B3', -- Entity: MJ_BizApps_Contracts: Contract Templates
+            (SELECT COALESCE(MAX([Sequence]), 0) FROM [${mjSchema}].[EntityField] WHERE [EntityID] = '731F2890-1415-40DE-9073-D22EA23392B3') + 5,
             'IntroducedDate',
             'Introduced Date',
             'When this version started being offered. NOT an effective date: a template becomes effective for a customer when THAT customer signs it, never on a calendar date. Naming it EffectiveDate would invite exactly the wrong query.',
@@ -5266,7 +3082,7 @@ GO
          )
       END;
 
-      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = '76cebf85-736b-485a-8b3e-cfbe6f91d266' OR (EntityID = '21C7D64A-28F3-4535-819A-E0DD384A5580' AND Name = 'SourceURL')) BEGIN
+      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = '5f27fb9a-a089-46ce-a332-f7e7de745bcf' OR (EntityID = '731F2890-1415-40DE-9073-D22EA23392B3' AND Name = 'SourceURL')) BEGIN
          INSERT INTO [${mjSchema}].[EntityField]
          (
             [ID],
@@ -5299,17 +3115,17 @@ GO
          )
          VALUES
          (
-            '76cebf85-736b-485a-8b3e-cfbe6f91d266',
-            '21C7D64A-28F3-4535-819A-E0DD384A5580', -- Entity: MJ_BizApps_Contracts: Contract Templates
-            (SELECT COALESCE(MAX([Sequence]), 0) FROM [${mjSchema}].[EntityField] WHERE [EntityID] = '21C7D64A-28F3-4535-819A-E0DD384A5580') + 6,
+            '5f27fb9a-a089-46ce-a332-f7e7de745bcf',
+            '731F2890-1415-40DE-9073-D22EA23392B3', -- Entity: MJ_BizApps_Contracts: Contract Templates
+            (SELECT COALESCE(MAX([Sequence]), 0) FROM [${mjSchema}].[EntityField] WHERE [EntityID] = '731F2890-1415-40DE-9073-D22EA23392B3') + 6,
             'SourceURL',
             'Source URL',
-            'The dated public URL. NOT NULL — every template we have is a published URL and it is what the executed PDF cites; a template nobody can open is not a record of anything.',
+            'The dated public URL a customer can open to read the standard terms. NULLABLE: reachability is enforceable by nothing (a well-formed dead link passes any format check), and the real rule is "a URL OR an attached file" — the file half attaching through ${mjSchema}.FileEntityRecordLink, which cannot reference a record that does not exist yet, so on CREATE it is unsatisfiable in principle. A template with neither is INCOMPLETE rather than invalid; the derived IsUsable column on vwContractTemplates is what says so.',
             'nvarchar',
             2000,
             0,
             0,
-            0,
+            1,
             NULL,
             0,
             1,
@@ -5329,7 +3145,7 @@ GO
          )
       END;
 
-      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = '90bfa9ba-7a5a-4aa2-b33e-254cc4cde43b' OR (EntityID = '21C7D64A-28F3-4535-819A-E0DD384A5580' AND Name = 'Description')) BEGIN
+      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = '7f9a6927-ca1d-441b-9682-7035c95393d8' OR (EntityID = '731F2890-1415-40DE-9073-D22EA23392B3' AND Name = 'Description')) BEGIN
          INSERT INTO [${mjSchema}].[EntityField]
          (
             [ID],
@@ -5362,9 +3178,9 @@ GO
          )
          VALUES
          (
-            '90bfa9ba-7a5a-4aa2-b33e-254cc4cde43b',
-            '21C7D64A-28F3-4535-819A-E0DD384A5580', -- Entity: MJ_BizApps_Contracts: Contract Templates
-            (SELECT COALESCE(MAX([Sequence]), 0) FROM [${mjSchema}].[EntityField] WHERE [EntityID] = '21C7D64A-28F3-4535-819A-E0DD384A5580') + 7,
+            '7f9a6927-ca1d-441b-9682-7035c95393d8',
+            '731F2890-1415-40DE-9073-D22EA23392B3', -- Entity: MJ_BizApps_Contracts: Contract Templates
+            (SELECT COALESCE(MAX([Sequence]), 0) FROM [${mjSchema}].[EntityField] WHERE [EntityID] = '731F2890-1415-40DE-9073-D22EA23392B3') + 7,
             'Description',
             'Description',
             NULL,
@@ -5392,7 +3208,7 @@ GO
          )
       END;
 
-      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = '0326bef3-855a-443b-a0a2-3749030c99e5' OR (EntityID = '21C7D64A-28F3-4535-819A-E0DD384A5580' AND Name = '__mj_CreatedAt')) BEGIN
+      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = 'e84e1c35-41c9-4a59-8ad2-6d426fdb7e6b' OR (EntityID = '731F2890-1415-40DE-9073-D22EA23392B3' AND Name = 'Status')) BEGIN
          INSERT INTO [${mjSchema}].[EntityField]
          (
             [ID],
@@ -5425,9 +3241,72 @@ GO
          )
          VALUES
          (
-            '0326bef3-855a-443b-a0a2-3749030c99e5',
-            '21C7D64A-28F3-4535-819A-E0DD384A5580', -- Entity: MJ_BizApps_Contracts: Contract Templates
-            (SELECT COALESCE(MAX([Sequence]), 0) FROM [${mjSchema}].[EntityField] WHERE [EntityID] = '21C7D64A-28F3-4535-819A-E0DD384A5580') + 8,
+            'e84e1c35-41c9-4a59-8ad2-6d426fdb7e6b',
+            '731F2890-1415-40DE-9073-D22EA23392B3', -- Entity: MJ_BizApps_Contracts: Contract Templates
+            (SELECT COALESCE(MAX([Sequence]), 0) FROM [${mjSchema}].[EntityField] WHERE [EntityID] = '731F2890-1415-40DE-9073-D22EA23392B3') + 8,
+            'Status',
+            'Status',
+            'Publication lifecycle. ''Draft'' -- freely editable, provisions may be added, changed and removed, and a contract may not NEWLY reference it. ''Published'' -- the provisions are frozen against INSERT, UPDATE and DELETE by trg_ContractTemplateProvision_Immutability, and contracts may reference it. Publishing is ONE-WAY (enforced in ContractTemplateEntity): to change published terms, publish a new version -- that is what VersionLabel exists for. Existing references are never invalidated by this column; only new ones are policed, the same way ContractType.Status works.',
+            'nvarchar',
+            40,
+            0,
+            0,
+            0,
+            'Draft',
+            0,
+            1,
+            0,
+            0,
+            NULL,
+            NULL,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            'Search',
+            GETUTCDATE(),
+            GETUTCDATE()
+         )
+      END;
+
+      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = 'e586db3a-8fca-424f-bb0f-ae34be10c686' OR (EntityID = '731F2890-1415-40DE-9073-D22EA23392B3' AND Name = '__mj_CreatedAt')) BEGIN
+         INSERT INTO [${mjSchema}].[EntityField]
+         (
+            [ID],
+            [EntityID],
+            [Sequence],
+            [Name],
+            [DisplayName],
+            [Description],
+            [Type],
+            [Length],
+            [Precision],
+            [Scale],
+            [AllowsNull],
+            [DefaultValue],
+            [AutoIncrement],
+            [AllowUpdateAPI],
+            [IsVirtual],
+            [IsComputed],
+            [RelatedEntityID],
+            [RelatedEntityFieldName],
+            [IsNameField],
+            [IncludeInUserSearchAPI],
+            [IncludeRelatedEntityNameFieldInBaseView],
+            [DefaultInView],
+            [IsPrimaryKey],
+            [IsUnique],
+            [RelatedEntityDisplayType],
+            [__mj_CreatedAt],
+            [__mj_UpdatedAt]
+         )
+         VALUES
+         (
+            'e586db3a-8fca-424f-bb0f-ae34be10c686',
+            '731F2890-1415-40DE-9073-D22EA23392B3', -- Entity: MJ_BizApps_Contracts: Contract Templates
+            (SELECT COALESCE(MAX([Sequence]), 0) FROM [${mjSchema}].[EntityField] WHERE [EntityID] = '731F2890-1415-40DE-9073-D22EA23392B3') + 9,
             '__mj_CreatedAt',
             'Created At',
             NULL,
@@ -5455,7 +3334,7 @@ GO
          )
       END;
 
-      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = '0595ead0-a56c-4222-8e37-86677705e3e4' OR (EntityID = '21C7D64A-28F3-4535-819A-E0DD384A5580' AND Name = '__mj_UpdatedAt')) BEGIN
+      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = 'b0e8e57c-69a5-4a3f-bad2-ccbf75f2ff30' OR (EntityID = '731F2890-1415-40DE-9073-D22EA23392B3' AND Name = '__mj_UpdatedAt')) BEGIN
          INSERT INTO [${mjSchema}].[EntityField]
          (
             [ID],
@@ -5488,9 +3367,2214 @@ GO
          )
          VALUES
          (
-            '0595ead0-a56c-4222-8e37-86677705e3e4',
-            '21C7D64A-28F3-4535-819A-E0DD384A5580', -- Entity: MJ_BizApps_Contracts: Contract Templates
-            (SELECT COALESCE(MAX([Sequence]), 0) FROM [${mjSchema}].[EntityField] WHERE [EntityID] = '21C7D64A-28F3-4535-819A-E0DD384A5580') + 9,
+            'b0e8e57c-69a5-4a3f-bad2-ccbf75f2ff30',
+            '731F2890-1415-40DE-9073-D22EA23392B3', -- Entity: MJ_BizApps_Contracts: Contract Templates
+            (SELECT COALESCE(MAX([Sequence]), 0) FROM [${mjSchema}].[EntityField] WHERE [EntityID] = '731F2890-1415-40DE-9073-D22EA23392B3') + 10,
+            '__mj_UpdatedAt',
+            'Updated At',
+            NULL,
+            'datetimeoffset',
+            10,
+            34,
+            7,
+            0,
+            'getutcdate()',
+            0,
+            0,
+            0,
+            0,
+            NULL,
+            NULL,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            'Search',
+            GETUTCDATE(),
+            GETUTCDATE()
+         )
+      END;
+
+      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = '9c8643d3-2b82-41a6-80f6-d29abb68d1cb' OR (EntityID = 'C8909A57-6DDB-4585-BE00-E707C5B4F262' AND Name = 'ID')) BEGIN
+         INSERT INTO [${mjSchema}].[EntityField]
+         (
+            [ID],
+            [EntityID],
+            [Sequence],
+            [Name],
+            [DisplayName],
+            [Description],
+            [Type],
+            [Length],
+            [Precision],
+            [Scale],
+            [AllowsNull],
+            [DefaultValue],
+            [AutoIncrement],
+            [AllowUpdateAPI],
+            [IsVirtual],
+            [IsComputed],
+            [RelatedEntityID],
+            [RelatedEntityFieldName],
+            [IsNameField],
+            [IncludeInUserSearchAPI],
+            [IncludeRelatedEntityNameFieldInBaseView],
+            [DefaultInView],
+            [IsPrimaryKey],
+            [IsUnique],
+            [RelatedEntityDisplayType],
+            [__mj_CreatedAt],
+            [__mj_UpdatedAt]
+         )
+         VALUES
+         (
+            '9c8643d3-2b82-41a6-80f6-d29abb68d1cb',
+            'C8909A57-6DDB-4585-BE00-E707C5B4F262', -- Entity: MJ_BizApps_Contracts: Contract Types
+            (SELECT COALESCE(MAX([Sequence]), 0) FROM [${mjSchema}].[EntityField] WHERE [EntityID] = 'C8909A57-6DDB-4585-BE00-E707C5B4F262') + 1,
+            'ID',
+            'ID',
+            NULL,
+            'uniqueidentifier',
+            16,
+            0,
+            0,
+            0,
+            'newsequentialid()',
+            0,
+            0,
+            0,
+            0,
+            NULL,
+            NULL,
+            0,
+            1,
+            0,
+            0,
+            1,
+            1,
+            'Search',
+            GETUTCDATE(),
+            GETUTCDATE()
+         )
+      END;
+
+      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = '84119ad2-cba8-466b-b20a-8a94c20fce3f' OR (EntityID = 'C8909A57-6DDB-4585-BE00-E707C5B4F262' AND Name = 'Name')) BEGIN
+         INSERT INTO [${mjSchema}].[EntityField]
+         (
+            [ID],
+            [EntityID],
+            [Sequence],
+            [Name],
+            [DisplayName],
+            [Description],
+            [Type],
+            [Length],
+            [Precision],
+            [Scale],
+            [AllowsNull],
+            [DefaultValue],
+            [AutoIncrement],
+            [AllowUpdateAPI],
+            [IsVirtual],
+            [IsComputed],
+            [RelatedEntityID],
+            [RelatedEntityFieldName],
+            [IsNameField],
+            [IncludeInUserSearchAPI],
+            [IncludeRelatedEntityNameFieldInBaseView],
+            [DefaultInView],
+            [IsPrimaryKey],
+            [IsUnique],
+            [RelatedEntityDisplayType],
+            [__mj_CreatedAt],
+            [__mj_UpdatedAt]
+         )
+         VALUES
+         (
+            '84119ad2-cba8-466b-b20a-8a94c20fce3f',
+            'C8909A57-6DDB-4585-BE00-E707C5B4F262', -- Entity: MJ_BizApps_Contracts: Contract Types
+            (SELECT COALESCE(MAX([Sequence]), 0) FROM [${mjSchema}].[EntityField] WHERE [EntityID] = 'C8909A57-6DDB-4585-BE00-E707C5B4F262') + 2,
+            'Name',
+            'Name',
+            NULL,
+            'nvarchar',
+            200,
+            0,
+            0,
+            0,
+            NULL,
+            0,
+            1,
+            0,
+            0,
+            NULL,
+            NULL,
+            1,
+            1,
+            0,
+            1,
+            0,
+            1,
+            'Search',
+            GETUTCDATE(),
+            GETUTCDATE()
+         )
+      END;
+
+      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = '46b195b4-ea25-41a4-bb78-83b2014a930c' OR (EntityID = 'C8909A57-6DDB-4585-BE00-E707C5B4F262' AND Name = 'Description')) BEGIN
+         INSERT INTO [${mjSchema}].[EntityField]
+         (
+            [ID],
+            [EntityID],
+            [Sequence],
+            [Name],
+            [DisplayName],
+            [Description],
+            [Type],
+            [Length],
+            [Precision],
+            [Scale],
+            [AllowsNull],
+            [DefaultValue],
+            [AutoIncrement],
+            [AllowUpdateAPI],
+            [IsVirtual],
+            [IsComputed],
+            [RelatedEntityID],
+            [RelatedEntityFieldName],
+            [IsNameField],
+            [IncludeInUserSearchAPI],
+            [IncludeRelatedEntityNameFieldInBaseView],
+            [DefaultInView],
+            [IsPrimaryKey],
+            [IsUnique],
+            [RelatedEntityDisplayType],
+            [__mj_CreatedAt],
+            [__mj_UpdatedAt]
+         )
+         VALUES
+         (
+            '46b195b4-ea25-41a4-bb78-83b2014a930c',
+            'C8909A57-6DDB-4585-BE00-E707C5B4F262', -- Entity: MJ_BizApps_Contracts: Contract Types
+            (SELECT COALESCE(MAX([Sequence]), 0) FROM [${mjSchema}].[EntityField] WHERE [EntityID] = 'C8909A57-6DDB-4585-BE00-E707C5B4F262') + 3,
+            'Description',
+            'Description',
+            NULL,
+            'nvarchar',
+            -1,
+            0,
+            0,
+            1,
+            NULL,
+            0,
+            1,
+            0,
+            0,
+            NULL,
+            NULL,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            'Search',
+            GETUTCDATE(),
+            GETUTCDATE()
+         )
+      END;
+
+      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = '62afa042-4658-4d78-b9c3-1bdd0b3997d4' OR (EntityID = 'C8909A57-6DDB-4585-BE00-E707C5B4F262' AND Name = 'RequiresExecutedDocument')) BEGIN
+         INSERT INTO [${mjSchema}].[EntityField]
+         (
+            [ID],
+            [EntityID],
+            [Sequence],
+            [Name],
+            [DisplayName],
+            [Description],
+            [Type],
+            [Length],
+            [Precision],
+            [Scale],
+            [AllowsNull],
+            [DefaultValue],
+            [AutoIncrement],
+            [AllowUpdateAPI],
+            [IsVirtual],
+            [IsComputed],
+            [RelatedEntityID],
+            [RelatedEntityFieldName],
+            [IsNameField],
+            [IncludeInUserSearchAPI],
+            [IncludeRelatedEntityNameFieldInBaseView],
+            [DefaultInView],
+            [IsPrimaryKey],
+            [IsUnique],
+            [RelatedEntityDisplayType],
+            [__mj_CreatedAt],
+            [__mj_UpdatedAt]
+         )
+         VALUES
+         (
+            '62afa042-4658-4d78-b9c3-1bdd0b3997d4',
+            'C8909A57-6DDB-4585-BE00-E707C5B4F262', -- Entity: MJ_BizApps_Contracts: Contract Types
+            (SELECT COALESCE(MAX([Sequence]), 0) FROM [${mjSchema}].[EntityField] WHERE [EntityID] = 'C8909A57-6DDB-4585-BE00-E707C5B4F262') + 4,
+            'RequiresExecutedDocument',
+            'Requires Executed Document',
+            'Whether paper is ever expected for this kind of contract. No for a Payment Link, which has an implied agreement and no signature. This is what stops such a contract asking forever for a document that will never arrive: "awaiting the document" is DERIVED as requires-it AND no-linked-file, never stored and never a status value.',
+            'bit',
+            1,
+            1,
+            0,
+            0,
+            '(1)',
+            0,
+            1,
+            0,
+            0,
+            NULL,
+            NULL,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            'Search',
+            GETUTCDATE(),
+            GETUTCDATE()
+         )
+      END;
+
+      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = '59601a28-9aed-4e62-8b3b-ea21b769b9eb' OR (EntityID = 'C8909A57-6DDB-4585-BE00-E707C5B4F262' AND Name = 'Status')) BEGIN
+         INSERT INTO [${mjSchema}].[EntityField]
+         (
+            [ID],
+            [EntityID],
+            [Sequence],
+            [Name],
+            [DisplayName],
+            [Description],
+            [Type],
+            [Length],
+            [Precision],
+            [Scale],
+            [AllowsNull],
+            [DefaultValue],
+            [AutoIncrement],
+            [AllowUpdateAPI],
+            [IsVirtual],
+            [IsComputed],
+            [RelatedEntityID],
+            [RelatedEntityFieldName],
+            [IsNameField],
+            [IncludeInUserSearchAPI],
+            [IncludeRelatedEntityNameFieldInBaseView],
+            [DefaultInView],
+            [IsPrimaryKey],
+            [IsUnique],
+            [RelatedEntityDisplayType],
+            [__mj_CreatedAt],
+            [__mj_UpdatedAt]
+         )
+         VALUES
+         (
+            '59601a28-9aed-4e62-8b3b-ea21b769b9eb',
+            'C8909A57-6DDB-4585-BE00-E707C5B4F262', -- Entity: MJ_BizApps_Contracts: Contract Types
+            (SELECT COALESCE(MAX([Sequence]), 0) FROM [${mjSchema}].[EntityField] WHERE [EntityID] = 'C8909A57-6DDB-4585-BE00-E707C5B4F262') + 5,
+            'Status',
+            'Status',
+            'Active | Inactive.',
+            'nvarchar',
+            20,
+            0,
+            0,
+            0,
+            'Active',
+            0,
+            1,
+            0,
+            0,
+            NULL,
+            NULL,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            'Search',
+            GETUTCDATE(),
+            GETUTCDATE()
+         )
+      END;
+
+      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = 'd252cc6d-3196-4616-aaef-93ffc7ce6887' OR (EntityID = 'C8909A57-6DDB-4585-BE00-E707C5B4F262' AND Name = 'MustBeRoot')) BEGIN
+         INSERT INTO [${mjSchema}].[EntityField]
+         (
+            [ID],
+            [EntityID],
+            [Sequence],
+            [Name],
+            [DisplayName],
+            [Description],
+            [Type],
+            [Length],
+            [Precision],
+            [Scale],
+            [AllowsNull],
+            [DefaultValue],
+            [AutoIncrement],
+            [AllowUpdateAPI],
+            [IsVirtual],
+            [IsComputed],
+            [RelatedEntityID],
+            [RelatedEntityFieldName],
+            [IsNameField],
+            [IncludeInUserSearchAPI],
+            [IncludeRelatedEntityNameFieldInBaseView],
+            [DefaultInView],
+            [IsPrimaryKey],
+            [IsUnique],
+            [RelatedEntityDisplayType],
+            [__mj_CreatedAt],
+            [__mj_UpdatedAt]
+         )
+         VALUES
+         (
+            'd252cc6d-3196-4616-aaef-93ffc7ce6887',
+            'C8909A57-6DDB-4585-BE00-E707C5B4F262', -- Entity: MJ_BizApps_Contracts: Contract Types
+            (SELECT COALESCE(MAX([Sequence]), 0) FROM [${mjSchema}].[EntityField] WHERE [EntityID] = 'C8909A57-6DDB-4585-BE00-E707C5B4F262') + 6,
+            'MustBeRoot',
+            'Must Be Root',
+            'This type of contract may NOT name a ParentContractID -- it is a root agreement. Enforced in ContractEntityServer.ValidateAsync. Mutually exclusive with MustBeChild (CK_ContractType_RootOrChild); both false means no restriction on where in the tree this type may sit, which is the honest default.',
+            'bit',
+            1,
+            1,
+            0,
+            0,
+            '(0)',
+            0,
+            1,
+            0,
+            0,
+            NULL,
+            NULL,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            'Search',
+            GETUTCDATE(),
+            GETUTCDATE()
+         )
+      END;
+
+      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = '04ba23cd-ec7a-495b-81df-47474ef8c0eb' OR (EntityID = 'C8909A57-6DDB-4585-BE00-E707C5B4F262' AND Name = 'MustBeChild')) BEGIN
+         INSERT INTO [${mjSchema}].[EntityField]
+         (
+            [ID],
+            [EntityID],
+            [Sequence],
+            [Name],
+            [DisplayName],
+            [Description],
+            [Type],
+            [Length],
+            [Precision],
+            [Scale],
+            [AllowsNull],
+            [DefaultValue],
+            [AutoIncrement],
+            [AllowUpdateAPI],
+            [IsVirtual],
+            [IsComputed],
+            [RelatedEntityID],
+            [RelatedEntityFieldName],
+            [IsNameField],
+            [IncludeInUserSearchAPI],
+            [IncludeRelatedEntityNameFieldInBaseView],
+            [DefaultInView],
+            [IsPrimaryKey],
+            [IsUnique],
+            [RelatedEntityDisplayType],
+            [__mj_CreatedAt],
+            [__mj_UpdatedAt]
+         )
+         VALUES
+         (
+            '04ba23cd-ec7a-495b-81df-47474ef8c0eb',
+            'C8909A57-6DDB-4585-BE00-E707C5B4F262', -- Entity: MJ_BizApps_Contracts: Contract Types
+            (SELECT COALESCE(MAX([Sequence]), 0) FROM [${mjSchema}].[EntityField] WHERE [EntityID] = 'C8909A57-6DDB-4585-BE00-E707C5B4F262') + 7,
+            'MustBeChild',
+            'Must Be Child',
+            'This type of contract MUST name a ParentContractID -- a Change Order that amends nothing is not a change order, and would never appear in the original agreement''s lineage. Enforced in ContractEntityServer.ValidateAsync. Mutually exclusive with MustBeRoot.',
+            'bit',
+            1,
+            1,
+            0,
+            0,
+            '(0)',
+            0,
+            1,
+            0,
+            0,
+            NULL,
+            NULL,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            'Search',
+            GETUTCDATE(),
+            GETUTCDATE()
+         )
+      END;
+
+      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = '444fc85a-bd7a-4967-8633-a4e1f8acb4ce' OR (EntityID = 'C8909A57-6DDB-4585-BE00-E707C5B4F262' AND Name = 'TemplateRequired')) BEGIN
+         INSERT INTO [${mjSchema}].[EntityField]
+         (
+            [ID],
+            [EntityID],
+            [Sequence],
+            [Name],
+            [DisplayName],
+            [Description],
+            [Type],
+            [Length],
+            [Precision],
+            [Scale],
+            [AllowsNull],
+            [DefaultValue],
+            [AutoIncrement],
+            [AllowUpdateAPI],
+            [IsVirtual],
+            [IsComputed],
+            [RelatedEntityID],
+            [RelatedEntityFieldName],
+            [IsNameField],
+            [IncludeInUserSearchAPI],
+            [IncludeRelatedEntityNameFieldInBaseView],
+            [DefaultInView],
+            [IsPrimaryKey],
+            [IsUnique],
+            [RelatedEntityDisplayType],
+            [__mj_CreatedAt],
+            [__mj_UpdatedAt]
+         )
+         VALUES
+         (
+            '444fc85a-bd7a-4967-8633-a4e1f8acb4ce',
+            'C8909A57-6DDB-4585-BE00-E707C5B4F262', -- Entity: MJ_BizApps_Contracts: Contract Types
+            (SELECT COALESCE(MAX([Sequence]), 0) FROM [${mjSchema}].[EntityField] WHERE [EntityID] = 'C8909A57-6DDB-4585-BE00-E707C5B4F262') + 8,
+            'TemplateRequired',
+            'Template Required',
+            'This type of contract must carry its own ContractTemplateID -- the standard terms it incorporates. On the TYPE rather than inferred from the placement flags, because ''where in the tree'' and ''does it need its own paper'' are different questions and a future type could want any combination.',
+            'bit',
+            1,
+            1,
+            0,
+            0,
+            '(0)',
+            0,
+            1,
+            0,
+            0,
+            NULL,
+            NULL,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            'Search',
+            GETUTCDATE(),
+            GETUTCDATE()
+         )
+      END;
+
+      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = '6a869a40-c89a-43f5-bc80-94a104e9fc46' OR (EntityID = 'C8909A57-6DDB-4585-BE00-E707C5B4F262' AND Name = '__mj_CreatedAt')) BEGIN
+         INSERT INTO [${mjSchema}].[EntityField]
+         (
+            [ID],
+            [EntityID],
+            [Sequence],
+            [Name],
+            [DisplayName],
+            [Description],
+            [Type],
+            [Length],
+            [Precision],
+            [Scale],
+            [AllowsNull],
+            [DefaultValue],
+            [AutoIncrement],
+            [AllowUpdateAPI],
+            [IsVirtual],
+            [IsComputed],
+            [RelatedEntityID],
+            [RelatedEntityFieldName],
+            [IsNameField],
+            [IncludeInUserSearchAPI],
+            [IncludeRelatedEntityNameFieldInBaseView],
+            [DefaultInView],
+            [IsPrimaryKey],
+            [IsUnique],
+            [RelatedEntityDisplayType],
+            [__mj_CreatedAt],
+            [__mj_UpdatedAt]
+         )
+         VALUES
+         (
+            '6a869a40-c89a-43f5-bc80-94a104e9fc46',
+            'C8909A57-6DDB-4585-BE00-E707C5B4F262', -- Entity: MJ_BizApps_Contracts: Contract Types
+            (SELECT COALESCE(MAX([Sequence]), 0) FROM [${mjSchema}].[EntityField] WHERE [EntityID] = 'C8909A57-6DDB-4585-BE00-E707C5B4F262') + 9,
+            '__mj_CreatedAt',
+            'Created At',
+            NULL,
+            'datetimeoffset',
+            10,
+            34,
+            7,
+            0,
+            'getutcdate()',
+            0,
+            0,
+            0,
+            0,
+            NULL,
+            NULL,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            'Search',
+            GETUTCDATE(),
+            GETUTCDATE()
+         )
+      END;
+
+      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = '68821111-317c-4ab8-922e-f1ec8aea0973' OR (EntityID = 'C8909A57-6DDB-4585-BE00-E707C5B4F262' AND Name = '__mj_UpdatedAt')) BEGIN
+         INSERT INTO [${mjSchema}].[EntityField]
+         (
+            [ID],
+            [EntityID],
+            [Sequence],
+            [Name],
+            [DisplayName],
+            [Description],
+            [Type],
+            [Length],
+            [Precision],
+            [Scale],
+            [AllowsNull],
+            [DefaultValue],
+            [AutoIncrement],
+            [AllowUpdateAPI],
+            [IsVirtual],
+            [IsComputed],
+            [RelatedEntityID],
+            [RelatedEntityFieldName],
+            [IsNameField],
+            [IncludeInUserSearchAPI],
+            [IncludeRelatedEntityNameFieldInBaseView],
+            [DefaultInView],
+            [IsPrimaryKey],
+            [IsUnique],
+            [RelatedEntityDisplayType],
+            [__mj_CreatedAt],
+            [__mj_UpdatedAt]
+         )
+         VALUES
+         (
+            '68821111-317c-4ab8-922e-f1ec8aea0973',
+            'C8909A57-6DDB-4585-BE00-E707C5B4F262', -- Entity: MJ_BizApps_Contracts: Contract Types
+            (SELECT COALESCE(MAX([Sequence]), 0) FROM [${mjSchema}].[EntityField] WHERE [EntityID] = 'C8909A57-6DDB-4585-BE00-E707C5B4F262') + 10,
+            '__mj_UpdatedAt',
+            'Updated At',
+            NULL,
+            'datetimeoffset',
+            10,
+            34,
+            7,
+            0,
+            'getutcdate()',
+            0,
+            0,
+            0,
+            0,
+            NULL,
+            NULL,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            'Search',
+            GETUTCDATE(),
+            GETUTCDATE()
+         )
+      END;
+
+      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = '04e8aa9d-c2dc-489d-b081-75c4e6ddfa6b' OR (EntityID = '5DEB0B11-ED6C-48B3-9200-F4441396C5E2' AND Name = 'ID')) BEGIN
+         INSERT INTO [${mjSchema}].[EntityField]
+         (
+            [ID],
+            [EntityID],
+            [Sequence],
+            [Name],
+            [DisplayName],
+            [Description],
+            [Type],
+            [Length],
+            [Precision],
+            [Scale],
+            [AllowsNull],
+            [DefaultValue],
+            [AutoIncrement],
+            [AllowUpdateAPI],
+            [IsVirtual],
+            [IsComputed],
+            [RelatedEntityID],
+            [RelatedEntityFieldName],
+            [IsNameField],
+            [IncludeInUserSearchAPI],
+            [IncludeRelatedEntityNameFieldInBaseView],
+            [DefaultInView],
+            [IsPrimaryKey],
+            [IsUnique],
+            [RelatedEntityDisplayType],
+            [__mj_CreatedAt],
+            [__mj_UpdatedAt]
+         )
+         VALUES
+         (
+            '04e8aa9d-c2dc-489d-b081-75c4e6ddfa6b',
+            '5DEB0B11-ED6C-48B3-9200-F4441396C5E2', -- Entity: MJ_BizApps_Contracts: Contracts
+            (SELECT COALESCE(MAX([Sequence]), 0) FROM [${mjSchema}].[EntityField] WHERE [EntityID] = '5DEB0B11-ED6C-48B3-9200-F4441396C5E2') + 1,
+            'ID',
+            'ID',
+            NULL,
+            'uniqueidentifier',
+            16,
+            0,
+            0,
+            0,
+            'newsequentialid()',
+            0,
+            0,
+            0,
+            0,
+            NULL,
+            NULL,
+            0,
+            1,
+            0,
+            0,
+            1,
+            1,
+            'Search',
+            GETUTCDATE(),
+            GETUTCDATE()
+         )
+      END;
+
+      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = '8677055b-2482-4250-98c1-afc3dae57393' OR (EntityID = '5DEB0B11-ED6C-48B3-9200-F4441396C5E2' AND Name = 'ContractNumber')) BEGIN
+         INSERT INTO [${mjSchema}].[EntityField]
+         (
+            [ID],
+            [EntityID],
+            [Sequence],
+            [Name],
+            [DisplayName],
+            [Description],
+            [Type],
+            [Length],
+            [Precision],
+            [Scale],
+            [AllowsNull],
+            [DefaultValue],
+            [AutoIncrement],
+            [AllowUpdateAPI],
+            [IsVirtual],
+            [IsComputed],
+            [RelatedEntityID],
+            [RelatedEntityFieldName],
+            [IsNameField],
+            [IncludeInUserSearchAPI],
+            [IncludeRelatedEntityNameFieldInBaseView],
+            [DefaultInView],
+            [IsPrimaryKey],
+            [IsUnique],
+            [RelatedEntityDisplayType],
+            [__mj_CreatedAt],
+            [__mj_UpdatedAt]
+         )
+         VALUES
+         (
+            '8677055b-2482-4250-98c1-afc3dae57393',
+            '5DEB0B11-ED6C-48B3-9200-F4441396C5E2', -- Entity: MJ_BizApps_Contracts: Contracts
+            (SELECT COALESCE(MAX([Sequence]), 0) FROM [${mjSchema}].[EntityField] WHERE [EntityID] = '5DEB0B11-ED6C-48B3-9200-F4441396C5E2') + 2,
+            'ContractNumber',
+            'Contract Number',
+            'CTR-000001, minted by spAssignNextContractNumber from the seq_ContractNumber database SEQUENCE. Unique. NULLABLE at the schema level because MJ cannot express ''NOT NULL, assigned by the server on insert'' -- ContractEntityServer.Save() is what guarantees every contract has one. Gaps are normal and are not to be ''fixed'': a save that fails after taking a number leaves one behind, and UQ_Contract_ContractNumber is what guarantees no two contracts share a number.',
+            'nvarchar',
+            100,
+            0,
+            0,
+            1,
+            NULL,
+            0,
+            1,
+            0,
+            0,
+            NULL,
+            NULL,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1,
+            'Search',
+            GETUTCDATE(),
+            GETUTCDATE()
+         )
+      END;
+
+      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = 'df26a6b1-eb6c-42d8-b236-cd13f58c9b78' OR (EntityID = '5DEB0B11-ED6C-48B3-9200-F4441396C5E2' AND Name = 'ContractTypeID')) BEGIN
+         INSERT INTO [${mjSchema}].[EntityField]
+         (
+            [ID],
+            [EntityID],
+            [Sequence],
+            [Name],
+            [DisplayName],
+            [Description],
+            [Type],
+            [Length],
+            [Precision],
+            [Scale],
+            [AllowsNull],
+            [DefaultValue],
+            [AutoIncrement],
+            [AllowUpdateAPI],
+            [IsVirtual],
+            [IsComputed],
+            [RelatedEntityID],
+            [RelatedEntityFieldName],
+            [IsNameField],
+            [IncludeInUserSearchAPI],
+            [IncludeRelatedEntityNameFieldInBaseView],
+            [DefaultInView],
+            [IsPrimaryKey],
+            [IsUnique],
+            [RelatedEntityDisplayType],
+            [__mj_CreatedAt],
+            [__mj_UpdatedAt]
+         )
+         VALUES
+         (
+            'df26a6b1-eb6c-42d8-b236-cd13f58c9b78',
+            '5DEB0B11-ED6C-48B3-9200-F4441396C5E2', -- Entity: MJ_BizApps_Contracts: Contracts
+            (SELECT COALESCE(MAX([Sequence]), 0) FROM [${mjSchema}].[EntityField] WHERE [EntityID] = '5DEB0B11-ED6C-48B3-9200-F4441396C5E2') + 3,
+            'ContractTypeID',
+            'Contract Type ID',
+            NULL,
+            'uniqueidentifier',
+            16,
+            0,
+            0,
+            0,
+            NULL,
+            0,
+            1,
+            0,
+            0,
+            'C8909A57-6DDB-4585-BE00-E707C5B4F262',
+            'ID',
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            'Search',
+            GETUTCDATE(),
+            GETUTCDATE()
+         )
+      END;
+
+      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = 'bad7aa2f-ee2b-430a-b182-b7e4b7e09f8a' OR (EntityID = '5DEB0B11-ED6C-48B3-9200-F4441396C5E2' AND Name = 'CompanyID')) BEGIN
+         INSERT INTO [${mjSchema}].[EntityField]
+         (
+            [ID],
+            [EntityID],
+            [Sequence],
+            [Name],
+            [DisplayName],
+            [Description],
+            [Type],
+            [Length],
+            [Precision],
+            [Scale],
+            [AllowsNull],
+            [DefaultValue],
+            [AutoIncrement],
+            [AllowUpdateAPI],
+            [IsVirtual],
+            [IsComputed],
+            [RelatedEntityID],
+            [RelatedEntityFieldName],
+            [IsNameField],
+            [IncludeInUserSearchAPI],
+            [IncludeRelatedEntityNameFieldInBaseView],
+            [DefaultInView],
+            [IsPrimaryKey],
+            [IsUnique],
+            [RelatedEntityDisplayType],
+            [__mj_CreatedAt],
+            [__mj_UpdatedAt]
+         )
+         VALUES
+         (
+            'bad7aa2f-ee2b-430a-b182-b7e4b7e09f8a',
+            '5DEB0B11-ED6C-48B3-9200-F4441396C5E2', -- Entity: MJ_BizApps_Contracts: Contracts
+            (SELECT COALESCE(MAX([Sequence]), 0) FROM [${mjSchema}].[EntityField] WHERE [EntityID] = '5DEB0B11-ED6C-48B3-9200-F4441396C5E2') + 4,
+            'CompanyID',
+            'Company ID',
+            'The SELLING company (${mjSchema}.Company) — which of OUR entities holds this agreement. Not the customer. Stored rather than derived because it is not reliably recoverable from the deal.',
+            'uniqueidentifier',
+            16,
+            0,
+            0,
+            0,
+            NULL,
+            0,
+            1,
+            0,
+            0,
+            'D4238F34-2837-EF11-86D4-6045BDEE16E6',
+            'ID',
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            'Search',
+            GETUTCDATE(),
+            GETUTCDATE()
+         )
+      END;
+
+      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = 'f11c9543-f483-4bed-a9ce-3e7659d24011' OR (EntityID = '5DEB0B11-ED6C-48B3-9200-F4441396C5E2' AND Name = 'CustomerOrganizationID')) BEGIN
+         INSERT INTO [${mjSchema}].[EntityField]
+         (
+            [ID],
+            [EntityID],
+            [Sequence],
+            [Name],
+            [DisplayName],
+            [Description],
+            [Type],
+            [Length],
+            [Precision],
+            [Scale],
+            [AllowsNull],
+            [DefaultValue],
+            [AutoIncrement],
+            [AllowUpdateAPI],
+            [IsVirtual],
+            [IsComputed],
+            [RelatedEntityID],
+            [RelatedEntityFieldName],
+            [IsNameField],
+            [IncludeInUserSearchAPI],
+            [IncludeRelatedEntityNameFieldInBaseView],
+            [DefaultInView],
+            [IsPrimaryKey],
+            [IsUnique],
+            [RelatedEntityDisplayType],
+            [__mj_CreatedAt],
+            [__mj_UpdatedAt]
+         )
+         VALUES
+         (
+            'f11c9543-f483-4bed-a9ce-3e7659d24011',
+            '5DEB0B11-ED6C-48B3-9200-F4441396C5E2', -- Entity: MJ_BizApps_Contracts: Contracts
+            (SELECT COALESCE(MAX([Sequence]), 0) FROM [${mjSchema}].[EntityField] WHERE [EntityID] = '5DEB0B11-ED6C-48B3-9200-F4441396C5E2') + 5,
+            'CustomerOrganizationID',
+            'Customer Organization ID',
+            'The customer. NOT NULL: contracts are B2B here by definition, and the individual case lives entirely in orders. v1 allowed an organization-or-person XOR; that is gone.',
+            'uniqueidentifier',
+            16,
+            0,
+            0,
+            0,
+            NULL,
+            0,
+            1,
+            0,
+            0,
+            'C70448F9-9792-41D7-A82C-784B66429D54',
+            'ID',
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            'Search',
+            GETUTCDATE(),
+            GETUTCDATE()
+         )
+      END;
+
+      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = 'd47233ed-0ebf-4329-b270-99f70589cd7f' OR (EntityID = '5DEB0B11-ED6C-48B3-9200-F4441396C5E2' AND Name = 'PrimaryContactPersonID')) BEGIN
+         INSERT INTO [${mjSchema}].[EntityField]
+         (
+            [ID],
+            [EntityID],
+            [Sequence],
+            [Name],
+            [DisplayName],
+            [Description],
+            [Type],
+            [Length],
+            [Precision],
+            [Scale],
+            [AllowsNull],
+            [DefaultValue],
+            [AutoIncrement],
+            [AllowUpdateAPI],
+            [IsVirtual],
+            [IsComputed],
+            [RelatedEntityID],
+            [RelatedEntityFieldName],
+            [IsNameField],
+            [IncludeInUserSearchAPI],
+            [IncludeRelatedEntityNameFieldInBaseView],
+            [DefaultInView],
+            [IsPrimaryKey],
+            [IsUnique],
+            [RelatedEntityDisplayType],
+            [__mj_CreatedAt],
+            [__mj_UpdatedAt]
+         )
+         VALUES
+         (
+            'd47233ed-0ebf-4329-b270-99f70589cd7f',
+            '5DEB0B11-ED6C-48B3-9200-F4441396C5E2', -- Entity: MJ_BizApps_Contracts: Contracts
+            (SELECT COALESCE(MAX([Sequence]), 0) FROM [${mjSchema}].[EntityField] WHERE [EntityID] = '5DEB0B11-ED6C-48B3-9200-F4441396C5E2') + 6,
+            'PrimaryContactPersonID',
+            'Primary Contact Person ID',
+            'Their named contact, optional.',
+            'uniqueidentifier',
+            16,
+            0,
+            0,
+            1,
+            NULL,
+            0,
+            1,
+            0,
+            0,
+            '7A94ADA9-7880-4FAE-97D8-DB0E934C3F5F',
+            'ID',
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            'Search',
+            GETUTCDATE(),
+            GETUTCDATE()
+         )
+      END;
+
+      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = 'b4e3a6bf-a9c0-4005-b759-f7623fd5a7fa' OR (EntityID = '5DEB0B11-ED6C-48B3-9200-F4441396C5E2' AND Name = 'ContractTemplateID')) BEGIN
+         INSERT INTO [${mjSchema}].[EntityField]
+         (
+            [ID],
+            [EntityID],
+            [Sequence],
+            [Name],
+            [DisplayName],
+            [Description],
+            [Type],
+            [Length],
+            [Precision],
+            [Scale],
+            [AllowsNull],
+            [DefaultValue],
+            [AutoIncrement],
+            [AllowUpdateAPI],
+            [IsVirtual],
+            [IsComputed],
+            [RelatedEntityID],
+            [RelatedEntityFieldName],
+            [IsNameField],
+            [IncludeInUserSearchAPI],
+            [IncludeRelatedEntityNameFieldInBaseView],
+            [DefaultInView],
+            [IsPrimaryKey],
+            [IsUnique],
+            [RelatedEntityDisplayType],
+            [__mj_CreatedAt],
+            [__mj_UpdatedAt]
+         )
+         VALUES
+         (
+            'b4e3a6bf-a9c0-4005-b759-f7623fd5a7fa',
+            '5DEB0B11-ED6C-48B3-9200-F4441396C5E2', -- Entity: MJ_BizApps_Contracts: Contracts
+            (SELECT COALESCE(MAX([Sequence]), 0) FROM [${mjSchema}].[EntityField] WHERE [EntityID] = '5DEB0B11-ED6C-48B3-9200-F4441396C5E2') + 7,
+            'ContractTemplateID',
+            'Contract Template ID',
+            'The agreement version this contract incorporates. Nullable because a contract created automatically at Closed Won has none until finance reads the PDF.',
+            'uniqueidentifier',
+            16,
+            0,
+            0,
+            1,
+            NULL,
+            0,
+            1,
+            0,
+            0,
+            '731F2890-1415-40DE-9073-D22EA23392B3',
+            'ID',
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            'Search',
+            GETUTCDATE(),
+            GETUTCDATE()
+         )
+      END;
+
+      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = '316a9f07-54f1-4038-862a-c25a2084f274' OR (EntityID = '5DEB0B11-ED6C-48B3-9200-F4441396C5E2' AND Name = 'CreatingEntityID')) BEGIN
+         INSERT INTO [${mjSchema}].[EntityField]
+         (
+            [ID],
+            [EntityID],
+            [Sequence],
+            [Name],
+            [DisplayName],
+            [Description],
+            [Type],
+            [Length],
+            [Precision],
+            [Scale],
+            [AllowsNull],
+            [DefaultValue],
+            [AutoIncrement],
+            [AllowUpdateAPI],
+            [IsVirtual],
+            [IsComputed],
+            [RelatedEntityID],
+            [RelatedEntityFieldName],
+            [IsNameField],
+            [IncludeInUserSearchAPI],
+            [IncludeRelatedEntityNameFieldInBaseView],
+            [DefaultInView],
+            [IsPrimaryKey],
+            [IsUnique],
+            [RelatedEntityDisplayType],
+            [__mj_CreatedAt],
+            [__mj_UpdatedAt]
+         )
+         VALUES
+         (
+            '316a9f07-54f1-4038-862a-c25a2084f274',
+            '5DEB0B11-ED6C-48B3-9200-F4441396C5E2', -- Entity: MJ_BizApps_Contracts: Contracts
+            (SELECT COALESCE(MAX([Sequence]), 0) FROM [${mjSchema}].[EntityField] WHERE [EntityID] = '5DEB0B11-ED6C-48B3-9200-F4441396C5E2') + 8,
+            'CreatingEntityID',
+            'Creating Entity ID',
+            'Polymorphic reference part 1: the MJ Entity of the record that CREATED this contract, in practice Deals. A real foreign key to ${mjSchema}.Entity — this is the half that is enforced, and the half that lets MJ resolve the pair generically. Same pattern accounting uses for JournalEntry provenance.',
+            'uniqueidentifier',
+            16,
+            0,
+            0,
+            1,
+            NULL,
+            0,
+            1,
+            0,
+            0,
+            'E0238F34-2837-EF11-86D4-6045BDEE16E6',
+            'ID',
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            'Search',
+            GETUTCDATE(),
+            GETUTCDATE()
+         )
+      END;
+
+      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = '611650f5-bfc3-4809-b9b1-80ac9979b450' OR (EntityID = '5DEB0B11-ED6C-48B3-9200-F4441396C5E2' AND Name = 'CreatingRecordID')) BEGIN
+         INSERT INTO [${mjSchema}].[EntityField]
+         (
+            [ID],
+            [EntityID],
+            [Sequence],
+            [Name],
+            [DisplayName],
+            [Description],
+            [Type],
+            [Length],
+            [Precision],
+            [Scale],
+            [AllowsNull],
+            [DefaultValue],
+            [AutoIncrement],
+            [AllowUpdateAPI],
+            [IsVirtual],
+            [IsComputed],
+            [RelatedEntityID],
+            [RelatedEntityFieldName],
+            [IsNameField],
+            [IncludeInUserSearchAPI],
+            [IncludeRelatedEntityNameFieldInBaseView],
+            [DefaultInView],
+            [IsPrimaryKey],
+            [IsUnique],
+            [RelatedEntityDisplayType],
+            [__mj_CreatedAt],
+            [__mj_UpdatedAt]
+         )
+         VALUES
+         (
+            '611650f5-bfc3-4809-b9b1-80ac9979b450',
+            '5DEB0B11-ED6C-48B3-9200-F4441396C5E2', -- Entity: MJ_BizApps_Contracts: Contracts
+            (SELECT COALESCE(MAX([Sequence]), 0) FROM [${mjSchema}].[EntityField] WHERE [EntityID] = '5DEB0B11-ED6C-48B3-9200-F4441396C5E2') + 9,
+            'CreatingRecordID',
+            'Creating Record ID',
+            'Polymorphic reference part 2: the creating records id. Soft by nature — it points at a record owned by an app this repo has no knowledge of. Set together with CreatingEntityID or not at all.',
+            'nvarchar',
+            900,
+            0,
+            0,
+            1,
+            NULL,
+            0,
+            1,
+            0,
+            0,
+            NULL,
+            NULL,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            'Search',
+            GETUTCDATE(),
+            GETUTCDATE()
+         )
+      END;
+
+      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = '6db0692a-42cd-4ac5-a43b-49ecc81ef370' OR (EntityID = '5DEB0B11-ED6C-48B3-9200-F4441396C5E2' AND Name = 'ParentContractID')) BEGIN
+         INSERT INTO [${mjSchema}].[EntityField]
+         (
+            [ID],
+            [EntityID],
+            [Sequence],
+            [Name],
+            [DisplayName],
+            [Description],
+            [Type],
+            [Length],
+            [Precision],
+            [Scale],
+            [AllowsNull],
+            [DefaultValue],
+            [AutoIncrement],
+            [AllowUpdateAPI],
+            [IsVirtual],
+            [IsComputed],
+            [RelatedEntityID],
+            [RelatedEntityFieldName],
+            [IsNameField],
+            [IncludeInUserSearchAPI],
+            [IncludeRelatedEntityNameFieldInBaseView],
+            [DefaultInView],
+            [IsPrimaryKey],
+            [IsUnique],
+            [RelatedEntityDisplayType],
+            [__mj_CreatedAt],
+            [__mj_UpdatedAt]
+         )
+         VALUES
+         (
+            '6db0692a-42cd-4ac5-a43b-49ecc81ef370',
+            '5DEB0B11-ED6C-48B3-9200-F4441396C5E2', -- Entity: MJ_BizApps_Contracts: Contracts
+            (SELECT COALESCE(MAX([Sequence]), 0) FROM [${mjSchema}].[EntityField] WHERE [EntityID] = '5DEB0B11-ED6C-48B3-9200-F4441396C5E2') + 10,
+            'ParentContractID',
+            'Parent Contract ID',
+            'The contract this one amends. How a change order attaches: a change order is signed paper with its own PDF, dates and modifications, so it reuses this entity rather than getting one of its own. The original stays in force.',
+            'uniqueidentifier',
+            16,
+            0,
+            0,
+            1,
+            NULL,
+            0,
+            1,
+            0,
+            0,
+            '5DEB0B11-ED6C-48B3-9200-F4441396C5E2',
+            'ID',
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            'Search',
+            GETUTCDATE(),
+            GETUTCDATE()
+         )
+      END;
+
+      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = '44bc44ef-a6f2-4630-a899-487ce0e3cc56' OR (EntityID = '5DEB0B11-ED6C-48B3-9200-F4441396C5E2' AND Name = 'SupersededByContractID')) BEGIN
+         INSERT INTO [${mjSchema}].[EntityField]
+         (
+            [ID],
+            [EntityID],
+            [Sequence],
+            [Name],
+            [DisplayName],
+            [Description],
+            [Type],
+            [Length],
+            [Precision],
+            [Scale],
+            [AllowsNull],
+            [DefaultValue],
+            [AutoIncrement],
+            [AllowUpdateAPI],
+            [IsVirtual],
+            [IsComputed],
+            [RelatedEntityID],
+            [RelatedEntityFieldName],
+            [IsNameField],
+            [IncludeInUserSearchAPI],
+            [IncludeRelatedEntityNameFieldInBaseView],
+            [DefaultInView],
+            [IsPrimaryKey],
+            [IsUnique],
+            [RelatedEntityDisplayType],
+            [__mj_CreatedAt],
+            [__mj_UpdatedAt]
+         )
+         VALUES
+         (
+            '44bc44ef-a6f2-4630-a899-487ce0e3cc56',
+            '5DEB0B11-ED6C-48B3-9200-F4441396C5E2', -- Entity: MJ_BizApps_Contracts: Contracts
+            (SELECT COALESCE(MAX([Sequence]), 0) FROM [${mjSchema}].[EntityField] WHERE [EntityID] = '5DEB0B11-ED6C-48B3-9200-F4441396C5E2') + 11,
+            'SupersededByContractID',
+            'Superseded By Contract ID',
+            'The contract that REPLACED this one, where an agreement was re-papered rather than amended. Also the sole source of the derived Superseded state, which is why the old CHECK tying it to a Status column disappeared with that column.',
+            'uniqueidentifier',
+            16,
+            0,
+            0,
+            1,
+            NULL,
+            0,
+            1,
+            0,
+            0,
+            '5DEB0B11-ED6C-48B3-9200-F4441396C5E2',
+            'ID',
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            'Search',
+            GETUTCDATE(),
+            GETUTCDATE()
+         )
+      END;
+
+      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = '131ce82f-ac93-4dcf-95c0-3ea4fc681c2c' OR (EntityID = '5DEB0B11-ED6C-48B3-9200-F4441396C5E2' AND Name = 'SigningProviderURL')) BEGIN
+         INSERT INTO [${mjSchema}].[EntityField]
+         (
+            [ID],
+            [EntityID],
+            [Sequence],
+            [Name],
+            [DisplayName],
+            [Description],
+            [Type],
+            [Length],
+            [Precision],
+            [Scale],
+            [AllowsNull],
+            [DefaultValue],
+            [AutoIncrement],
+            [AllowUpdateAPI],
+            [IsVirtual],
+            [IsComputed],
+            [RelatedEntityID],
+            [RelatedEntityFieldName],
+            [IsNameField],
+            [IncludeInUserSearchAPI],
+            [IncludeRelatedEntityNameFieldInBaseView],
+            [DefaultInView],
+            [IsPrimaryKey],
+            [IsUnique],
+            [RelatedEntityDisplayType],
+            [__mj_CreatedAt],
+            [__mj_UpdatedAt]
+         )
+         VALUES
+         (
+            '131ce82f-ac93-4dcf-95c0-3ea4fc681c2c',
+            '5DEB0B11-ED6C-48B3-9200-F4441396C5E2', -- Entity: MJ_BizApps_Contracts: Contracts
+            (SELECT COALESCE(MAX([Sequence]), 0) FROM [${mjSchema}].[EntityField] WHERE [EntityID] = '5DEB0B11-ED6C-48B3-9200-F4441396C5E2') + 12,
+            'SigningProviderURL',
+            'Signing Provider URL',
+            'Direct link to the document in the signing provider (PandaDoc). The fallback that works before any integration exists, and when a storage sync has broken.',
+            'nvarchar',
+            2000,
+            0,
+            0,
+            1,
+            NULL,
+            0,
+            1,
+            0,
+            0,
+            NULL,
+            NULL,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            'Search',
+            GETUTCDATE(),
+            GETUTCDATE()
+         )
+      END;
+
+      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = '5605ab79-a11a-4561-8b34-b7567a36f27a' OR (EntityID = '5DEB0B11-ED6C-48B3-9200-F4441396C5E2' AND Name = 'EffectiveDate')) BEGIN
+         INSERT INTO [${mjSchema}].[EntityField]
+         (
+            [ID],
+            [EntityID],
+            [Sequence],
+            [Name],
+            [DisplayName],
+            [Description],
+            [Type],
+            [Length],
+            [Precision],
+            [Scale],
+            [AllowsNull],
+            [DefaultValue],
+            [AutoIncrement],
+            [AllowUpdateAPI],
+            [IsVirtual],
+            [IsComputed],
+            [RelatedEntityID],
+            [RelatedEntityFieldName],
+            [IsNameField],
+            [IncludeInUserSearchAPI],
+            [IncludeRelatedEntityNameFieldInBaseView],
+            [DefaultInView],
+            [IsPrimaryKey],
+            [IsUnique],
+            [RelatedEntityDisplayType],
+            [__mj_CreatedAt],
+            [__mj_UpdatedAt]
+         )
+         VALUES
+         (
+            '5605ab79-a11a-4561-8b34-b7567a36f27a',
+            '5DEB0B11-ED6C-48B3-9200-F4441396C5E2', -- Entity: MJ_BizApps_Contracts: Contracts
+            (SELECT COALESCE(MAX([Sequence]), 0) FROM [${mjSchema}].[EntityField] WHERE [EntityID] = '5DEB0B11-ED6C-48B3-9200-F4441396C5E2') + 13,
+            'EffectiveDate',
+            'Effective Date',
+            'When the agreement takes effect.',
+            'date',
+            3,
+            10,
+            0,
+            1,
+            NULL,
+            0,
+            1,
+            0,
+            0,
+            NULL,
+            NULL,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            'Search',
+            GETUTCDATE(),
+            GETUTCDATE()
+         )
+      END;
+
+      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = '9ed4a8cc-e0b8-4880-945a-4bd6dd6368c6' OR (EntityID = '5DEB0B11-ED6C-48B3-9200-F4441396C5E2' AND Name = 'ExecutedDate')) BEGIN
+         INSERT INTO [${mjSchema}].[EntityField]
+         (
+            [ID],
+            [EntityID],
+            [Sequence],
+            [Name],
+            [DisplayName],
+            [Description],
+            [Type],
+            [Length],
+            [Precision],
+            [Scale],
+            [AllowsNull],
+            [DefaultValue],
+            [AutoIncrement],
+            [AllowUpdateAPI],
+            [IsVirtual],
+            [IsComputed],
+            [RelatedEntityID],
+            [RelatedEntityFieldName],
+            [IsNameField],
+            [IncludeInUserSearchAPI],
+            [IncludeRelatedEntityNameFieldInBaseView],
+            [DefaultInView],
+            [IsPrimaryKey],
+            [IsUnique],
+            [RelatedEntityDisplayType],
+            [__mj_CreatedAt],
+            [__mj_UpdatedAt]
+         )
+         VALUES
+         (
+            '9ed4a8cc-e0b8-4880-945a-4bd6dd6368c6',
+            '5DEB0B11-ED6C-48B3-9200-F4441396C5E2', -- Entity: MJ_BizApps_Contracts: Contracts
+            (SELECT COALESCE(MAX([Sequence]), 0) FROM [${mjSchema}].[EntityField] WHERE [EntityID] = '5DEB0B11-ED6C-48B3-9200-F4441396C5E2') + 14,
+            'ExecutedDate',
+            'Executed Date',
+            'When it was signed. May legitimately PRECEDE EffectiveDate — sign in December for a January start is the ordinary case. There is deliberately no constraint ordering the two; v1 had one and it rejected exactly the data a correct contract produces.',
+            'date',
+            3,
+            10,
+            0,
+            1,
+            NULL,
+            0,
+            1,
+            0,
+            0,
+            NULL,
+            NULL,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            'Search',
+            GETUTCDATE(),
+            GETUTCDATE()
+         )
+      END;
+
+      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = '343becbd-079b-443a-998c-2e7ddccd8a01' OR (EntityID = '5DEB0B11-ED6C-48B3-9200-F4441396C5E2' AND Name = 'EndDate')) BEGIN
+         INSERT INTO [${mjSchema}].[EntityField]
+         (
+            [ID],
+            [EntityID],
+            [Sequence],
+            [Name],
+            [DisplayName],
+            [Description],
+            [Type],
+            [Length],
+            [Precision],
+            [Scale],
+            [AllowsNull],
+            [DefaultValue],
+            [AutoIncrement],
+            [AllowUpdateAPI],
+            [IsVirtual],
+            [IsComputed],
+            [RelatedEntityID],
+            [RelatedEntityFieldName],
+            [IsNameField],
+            [IncludeInUserSearchAPI],
+            [IncludeRelatedEntityNameFieldInBaseView],
+            [DefaultInView],
+            [IsPrimaryKey],
+            [IsUnique],
+            [RelatedEntityDisplayType],
+            [__mj_CreatedAt],
+            [__mj_UpdatedAt]
+         )
+         VALUES
+         (
+            '343becbd-079b-443a-998c-2e7ddccd8a01',
+            '5DEB0B11-ED6C-48B3-9200-F4441396C5E2', -- Entity: MJ_BizApps_Contracts: Contracts
+            (SELECT COALESCE(MAX([Sequence]), 0) FROM [${mjSchema}].[EntityField] WHERE [EntityID] = '5DEB0B11-ED6C-48B3-9200-F4441396C5E2') + 15,
+            'EndDate',
+            'End Date',
+            'When the current term ends. This is what drives the renewal watchlist and every expiry projection.',
+            'date',
+            3,
+            10,
+            0,
+            1,
+            NULL,
+            0,
+            1,
+            0,
+            0,
+            NULL,
+            NULL,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            'Search',
+            GETUTCDATE(),
+            GETUTCDATE()
+         )
+      END;
+
+      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = 'd312f0c4-ad4d-4f0b-b54a-1051ec735464' OR (EntityID = '5DEB0B11-ED6C-48B3-9200-F4441396C5E2' AND Name = 'TerminatedDate')) BEGIN
+         INSERT INTO [${mjSchema}].[EntityField]
+         (
+            [ID],
+            [EntityID],
+            [Sequence],
+            [Name],
+            [DisplayName],
+            [Description],
+            [Type],
+            [Length],
+            [Precision],
+            [Scale],
+            [AllowsNull],
+            [DefaultValue],
+            [AutoIncrement],
+            [AllowUpdateAPI],
+            [IsVirtual],
+            [IsComputed],
+            [RelatedEntityID],
+            [RelatedEntityFieldName],
+            [IsNameField],
+            [IncludeInUserSearchAPI],
+            [IncludeRelatedEntityNameFieldInBaseView],
+            [DefaultInView],
+            [IsPrimaryKey],
+            [IsUnique],
+            [RelatedEntityDisplayType],
+            [__mj_CreatedAt],
+            [__mj_UpdatedAt]
+         )
+         VALUES
+         (
+            'd312f0c4-ad4d-4f0b-b54a-1051ec735464',
+            '5DEB0B11-ED6C-48B3-9200-F4441396C5E2', -- Entity: MJ_BizApps_Contracts: Contracts
+            (SELECT COALESCE(MAX([Sequence]), 0) FROM [${mjSchema}].[EntityField] WHERE [EntityID] = '5DEB0B11-ED6C-48B3-9200-F4441396C5E2') + 16,
+            'TerminatedDate',
+            'Terminated Date',
+            'When the agreement ended early. Stored rather than derived: it is only recoverable from a successors effective date, and a contract can end with no successor at all when a customer simply leaves.',
+            'date',
+            3,
+            10,
+            0,
+            1,
+            NULL,
+            0,
+            1,
+            0,
+            0,
+            NULL,
+            NULL,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            'Search',
+            GETUTCDATE(),
+            GETUTCDATE()
+         )
+      END;
+
+      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = '8b3c517c-ff01-4121-a740-632df75f3c05' OR (EntityID = '5DEB0B11-ED6C-48B3-9200-F4441396C5E2' AND Name = 'AutoRenew')) BEGIN
+         INSERT INTO [${mjSchema}].[EntityField]
+         (
+            [ID],
+            [EntityID],
+            [Sequence],
+            [Name],
+            [DisplayName],
+            [Description],
+            [Type],
+            [Length],
+            [Precision],
+            [Scale],
+            [AllowsNull],
+            [DefaultValue],
+            [AutoIncrement],
+            [AllowUpdateAPI],
+            [IsVirtual],
+            [IsComputed],
+            [RelatedEntityID],
+            [RelatedEntityFieldName],
+            [IsNameField],
+            [IncludeInUserSearchAPI],
+            [IncludeRelatedEntityNameFieldInBaseView],
+            [DefaultInView],
+            [IsPrimaryKey],
+            [IsUnique],
+            [RelatedEntityDisplayType],
+            [__mj_CreatedAt],
+            [__mj_UpdatedAt]
+         )
+         VALUES
+         (
+            '8b3c517c-ff01-4121-a740-632df75f3c05',
+            '5DEB0B11-ED6C-48B3-9200-F4441396C5E2', -- Entity: MJ_BizApps_Contracts: Contracts
+            (SELECT COALESCE(MAX([Sequence]), 0) FROM [${mjSchema}].[EntityField] WHERE [EntityID] = '5DEB0B11-ED6C-48B3-9200-F4441396C5E2') + 17,
+            'AutoRenew',
+            'Auto Renew',
+            'Whether the agreement auto-renews, AS THE PAPER STATES IT. True or false, no third state. Distinct from the subscriptions operational setting in orders, which someone can change later; when the two disagree that is a finding, not a bug.',
+            'bit',
+            1,
+            1,
+            0,
+            0,
+            '(0)',
+            0,
+            1,
+            0,
+            0,
+            NULL,
+            NULL,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            'Search',
+            GETUTCDATE(),
+            GETUTCDATE()
+         )
+      END;
+
+      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = '573064ac-38a8-42a2-95b2-ccbd605004ea' OR (EntityID = '5DEB0B11-ED6C-48B3-9200-F4441396C5E2' AND Name = 'RenewalNoticeDays')) BEGIN
+         INSERT INTO [${mjSchema}].[EntityField]
+         (
+            [ID],
+            [EntityID],
+            [Sequence],
+            [Name],
+            [DisplayName],
+            [Description],
+            [Type],
+            [Length],
+            [Precision],
+            [Scale],
+            [AllowsNull],
+            [DefaultValue],
+            [AutoIncrement],
+            [AllowUpdateAPI],
+            [IsVirtual],
+            [IsComputed],
+            [RelatedEntityID],
+            [RelatedEntityFieldName],
+            [IsNameField],
+            [IncludeInUserSearchAPI],
+            [IncludeRelatedEntityNameFieldInBaseView],
+            [DefaultInView],
+            [IsPrimaryKey],
+            [IsUnique],
+            [RelatedEntityDisplayType],
+            [__mj_CreatedAt],
+            [__mj_UpdatedAt]
+         )
+         VALUES
+         (
+            '573064ac-38a8-42a2-95b2-ccbd605004ea',
+            '5DEB0B11-ED6C-48B3-9200-F4441396C5E2', -- Entity: MJ_BizApps_Contracts: Contracts
+            (SELECT COALESCE(MAX([Sequence]), 0) FROM [${mjSchema}].[EntityField] WHERE [EntityID] = '5DEB0B11-ED6C-48B3-9200-F4441396C5E2') + 18,
+            'RenewalNoticeDays',
+            'Renewal Notice Days',
+            'Days of written notice we owe before a renewal price change, as stated in the agreement. NOT the same field as CancellationWindowDays even though many agreements set them equal — conflating them silently is how a notice obligation gets missed.',
+            'int',
+            4,
+            10,
+            0,
+            1,
+            NULL,
+            0,
+            1,
+            0,
+            0,
+            NULL,
+            NULL,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            'Search',
+            GETUTCDATE(),
+            GETUTCDATE()
+         )
+      END;
+
+      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = 'c6464adc-6683-4d4b-aa7a-64f9e052d225' OR (EntityID = '5DEB0B11-ED6C-48B3-9200-F4441396C5E2' AND Name = 'CancellationWindowDays')) BEGIN
+         INSERT INTO [${mjSchema}].[EntityField]
+         (
+            [ID],
+            [EntityID],
+            [Sequence],
+            [Name],
+            [DisplayName],
+            [Description],
+            [Type],
+            [Length],
+            [Precision],
+            [Scale],
+            [AllowsNull],
+            [DefaultValue],
+            [AutoIncrement],
+            [AllowUpdateAPI],
+            [IsVirtual],
+            [IsComputed],
+            [RelatedEntityID],
+            [RelatedEntityFieldName],
+            [IsNameField],
+            [IncludeInUserSearchAPI],
+            [IncludeRelatedEntityNameFieldInBaseView],
+            [DefaultInView],
+            [IsPrimaryKey],
+            [IsUnique],
+            [RelatedEntityDisplayType],
+            [__mj_CreatedAt],
+            [__mj_UpdatedAt]
+         )
+         VALUES
+         (
+            'c6464adc-6683-4d4b-aa7a-64f9e052d225',
+            '5DEB0B11-ED6C-48B3-9200-F4441396C5E2', -- Entity: MJ_BizApps_Contracts: Contracts
+            (SELECT COALESCE(MAX([Sequence]), 0) FROM [${mjSchema}].[EntityField] WHERE [EntityID] = '5DEB0B11-ED6C-48B3-9200-F4441396C5E2') + 19,
+            'CancellationWindowDays',
+            'Cancellation Window Days',
+            'Days of notice the customer owes to cancel without renewing.',
+            'int',
+            4,
+            10,
+            0,
+            1,
+            NULL,
+            0,
+            1,
+            0,
+            0,
+            NULL,
+            NULL,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            'Search',
+            GETUTCDATE(),
+            GETUTCDATE()
+         )
+      END;
+
+      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = '3b2625e1-c5ab-462c-aa7e-533c5f40646d' OR (EntityID = '5DEB0B11-ED6C-48B3-9200-F4441396C5E2' AND Name = 'AnnualIncreasePercent')) BEGIN
+         INSERT INTO [${mjSchema}].[EntityField]
+         (
+            [ID],
+            [EntityID],
+            [Sequence],
+            [Name],
+            [DisplayName],
+            [Description],
+            [Type],
+            [Length],
+            [Precision],
+            [Scale],
+            [AllowsNull],
+            [DefaultValue],
+            [AutoIncrement],
+            [AllowUpdateAPI],
+            [IsVirtual],
+            [IsComputed],
+            [RelatedEntityID],
+            [RelatedEntityFieldName],
+            [IsNameField],
+            [IncludeInUserSearchAPI],
+            [IncludeRelatedEntityNameFieldInBaseView],
+            [DefaultInView],
+            [IsPrimaryKey],
+            [IsUnique],
+            [RelatedEntityDisplayType],
+            [__mj_CreatedAt],
+            [__mj_UpdatedAt]
+         )
+         VALUES
+         (
+            '3b2625e1-c5ab-462c-aa7e-533c5f40646d',
+            '5DEB0B11-ED6C-48B3-9200-F4441396C5E2', -- Entity: MJ_BizApps_Contracts: Contracts
+            (SELECT COALESCE(MAX([Sequence]), 0) FROM [${mjSchema}].[EntityField] WHERE [EntityID] = '5DEB0B11-ED6C-48B3-9200-F4441396C5E2') + 20,
+            'AnnualIncreasePercent',
+            'Annual Increase Percent',
+            'The negotiated year-over-year uplift. Exists here because it exists nowhere else: the orders schema has no escalation concept of any kind, which is why a two-year agreement stepping up 10% in year two is recorded in no other system.',
+            'decimal',
+            5,
+            7,
+            4,
+            1,
+            NULL,
+            0,
+            1,
+            0,
+            0,
+            NULL,
+            NULL,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            'Search',
+            GETUTCDATE(),
+            GETUTCDATE()
+         )
+      END;
+
+      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = 'd54ddebd-615b-4d29-a995-246c3c0f7408' OR (EntityID = '5DEB0B11-ED6C-48B3-9200-F4441396C5E2' AND Name = 'HasModifications')) BEGIN
+         INSERT INTO [${mjSchema}].[EntityField]
+         (
+            [ID],
+            [EntityID],
+            [Sequence],
+            [Name],
+            [DisplayName],
+            [Description],
+            [Type],
+            [Length],
+            [Precision],
+            [Scale],
+            [AllowsNull],
+            [DefaultValue],
+            [AutoIncrement],
+            [AllowUpdateAPI],
+            [IsVirtual],
+            [IsComputed],
+            [RelatedEntityID],
+            [RelatedEntityFieldName],
+            [IsNameField],
+            [IncludeInUserSearchAPI],
+            [IncludeRelatedEntityNameFieldInBaseView],
+            [DefaultInView],
+            [IsPrimaryKey],
+            [IsUnique],
+            [RelatedEntityDisplayType],
+            [__mj_CreatedAt],
+            [__mj_UpdatedAt]
+         )
+         VALUES
+         (
+            'd54ddebd-615b-4d29-a995-246c3c0f7408',
+            '5DEB0B11-ED6C-48B3-9200-F4441396C5E2', -- Entity: MJ_BizApps_Contracts: Contracts
+            (SELECT COALESCE(MAX([Sequence]), 0) FROM [${mjSchema}].[EntityField] WHERE [EntityID] = '5DEB0B11-ED6C-48B3-9200-F4441396C5E2') + 21,
+            'HasModifications',
+            'Has Modifications',
+            'Whether the standard agreement was changed for this customer. ASSERTED by a person, not derived — its job is to say "go read the PDF" BEFORE anyone has recorded the modifications, and a derived flag would read false for every contract nobody has processed yet. One direction IS enforced server-side: if modification rows exist this must be true. It is never cleared automatically.',
+            'bit',
+            1,
+            1,
+            0,
+            0,
+            '(0)',
+            0,
+            1,
+            0,
+            0,
+            NULL,
+            NULL,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            'Search',
+            GETUTCDATE(),
+            GETUTCDATE()
+         )
+      END;
+
+      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = '30b733e2-70e1-4d55-ba83-73fedba848fa' OR (EntityID = '5DEB0B11-ED6C-48B3-9200-F4441396C5E2' AND Name = 'Description')) BEGIN
+         INSERT INTO [${mjSchema}].[EntityField]
+         (
+            [ID],
+            [EntityID],
+            [Sequence],
+            [Name],
+            [DisplayName],
+            [Description],
+            [Type],
+            [Length],
+            [Precision],
+            [Scale],
+            [AllowsNull],
+            [DefaultValue],
+            [AutoIncrement],
+            [AllowUpdateAPI],
+            [IsVirtual],
+            [IsComputed],
+            [RelatedEntityID],
+            [RelatedEntityFieldName],
+            [IsNameField],
+            [IncludeInUserSearchAPI],
+            [IncludeRelatedEntityNameFieldInBaseView],
+            [DefaultInView],
+            [IsPrimaryKey],
+            [IsUnique],
+            [RelatedEntityDisplayType],
+            [__mj_CreatedAt],
+            [__mj_UpdatedAt]
+         )
+         VALUES
+         (
+            '30b733e2-70e1-4d55-ba83-73fedba848fa',
+            '5DEB0B11-ED6C-48B3-9200-F4441396C5E2', -- Entity: MJ_BizApps_Contracts: Contracts
+            (SELECT COALESCE(MAX([Sequence]), 0) FROM [${mjSchema}].[EntityField] WHERE [EntityID] = '5DEB0B11-ED6C-48B3-9200-F4441396C5E2') + 22,
+            'Description',
+            'Description',
+            NULL,
+            'nvarchar',
+            -1,
+            0,
+            0,
+            1,
+            NULL,
+            0,
+            1,
+            0,
+            0,
+            NULL,
+            NULL,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            'Search',
+            GETUTCDATE(),
+            GETUTCDATE()
+         )
+      END;
+
+      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = '68e70227-d818-4f11-8fe4-553f5c84be53' OR (EntityID = '5DEB0B11-ED6C-48B3-9200-F4441396C5E2' AND Name = 'Notes')) BEGIN
+         INSERT INTO [${mjSchema}].[EntityField]
+         (
+            [ID],
+            [EntityID],
+            [Sequence],
+            [Name],
+            [DisplayName],
+            [Description],
+            [Type],
+            [Length],
+            [Precision],
+            [Scale],
+            [AllowsNull],
+            [DefaultValue],
+            [AutoIncrement],
+            [AllowUpdateAPI],
+            [IsVirtual],
+            [IsComputed],
+            [RelatedEntityID],
+            [RelatedEntityFieldName],
+            [IsNameField],
+            [IncludeInUserSearchAPI],
+            [IncludeRelatedEntityNameFieldInBaseView],
+            [DefaultInView],
+            [IsPrimaryKey],
+            [IsUnique],
+            [RelatedEntityDisplayType],
+            [__mj_CreatedAt],
+            [__mj_UpdatedAt]
+         )
+         VALUES
+         (
+            '68e70227-d818-4f11-8fe4-553f5c84be53',
+            '5DEB0B11-ED6C-48B3-9200-F4441396C5E2', -- Entity: MJ_BizApps_Contracts: Contracts
+            (SELECT COALESCE(MAX([Sequence]), 0) FROM [${mjSchema}].[EntityField] WHERE [EntityID] = '5DEB0B11-ED6C-48B3-9200-F4441396C5E2') + 23,
+            'Notes',
+            'Notes',
+            'Free-text working notes for whoever is processing the contract.',
+            'nvarchar',
+            -1,
+            0,
+            0,
+            1,
+            NULL,
+            0,
+            1,
+            0,
+            0,
+            NULL,
+            NULL,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            'Search',
+            GETUTCDATE(),
+            GETUTCDATE()
+         )
+      END;
+
+      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = '7c14348e-69de-4f66-b62c-99c0a7e415af' OR (EntityID = '5DEB0B11-ED6C-48B3-9200-F4441396C5E2' AND Name = '__mj_CreatedAt')) BEGIN
+         INSERT INTO [${mjSchema}].[EntityField]
+         (
+            [ID],
+            [EntityID],
+            [Sequence],
+            [Name],
+            [DisplayName],
+            [Description],
+            [Type],
+            [Length],
+            [Precision],
+            [Scale],
+            [AllowsNull],
+            [DefaultValue],
+            [AutoIncrement],
+            [AllowUpdateAPI],
+            [IsVirtual],
+            [IsComputed],
+            [RelatedEntityID],
+            [RelatedEntityFieldName],
+            [IsNameField],
+            [IncludeInUserSearchAPI],
+            [IncludeRelatedEntityNameFieldInBaseView],
+            [DefaultInView],
+            [IsPrimaryKey],
+            [IsUnique],
+            [RelatedEntityDisplayType],
+            [__mj_CreatedAt],
+            [__mj_UpdatedAt]
+         )
+         VALUES
+         (
+            '7c14348e-69de-4f66-b62c-99c0a7e415af',
+            '5DEB0B11-ED6C-48B3-9200-F4441396C5E2', -- Entity: MJ_BizApps_Contracts: Contracts
+            (SELECT COALESCE(MAX([Sequence]), 0) FROM [${mjSchema}].[EntityField] WHERE [EntityID] = '5DEB0B11-ED6C-48B3-9200-F4441396C5E2') + 24,
+            '__mj_CreatedAt',
+            'Created At',
+            NULL,
+            'datetimeoffset',
+            10,
+            34,
+            7,
+            0,
+            'getutcdate()',
+            0,
+            0,
+            0,
+            0,
+            NULL,
+            NULL,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            'Search',
+            GETUTCDATE(),
+            GETUTCDATE()
+         )
+      END;
+
+      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = '0eba35ec-fb3d-4978-8650-fc6229a9180e' OR (EntityID = '5DEB0B11-ED6C-48B3-9200-F4441396C5E2' AND Name = '__mj_UpdatedAt')) BEGIN
+         INSERT INTO [${mjSchema}].[EntityField]
+         (
+            [ID],
+            [EntityID],
+            [Sequence],
+            [Name],
+            [DisplayName],
+            [Description],
+            [Type],
+            [Length],
+            [Precision],
+            [Scale],
+            [AllowsNull],
+            [DefaultValue],
+            [AutoIncrement],
+            [AllowUpdateAPI],
+            [IsVirtual],
+            [IsComputed],
+            [RelatedEntityID],
+            [RelatedEntityFieldName],
+            [IsNameField],
+            [IncludeInUserSearchAPI],
+            [IncludeRelatedEntityNameFieldInBaseView],
+            [DefaultInView],
+            [IsPrimaryKey],
+            [IsUnique],
+            [RelatedEntityDisplayType],
+            [__mj_CreatedAt],
+            [__mj_UpdatedAt]
+         )
+         VALUES
+         (
+            '0eba35ec-fb3d-4978-8650-fc6229a9180e',
+            '5DEB0B11-ED6C-48B3-9200-F4441396C5E2', -- Entity: MJ_BizApps_Contracts: Contracts
+            (SELECT COALESCE(MAX([Sequence]), 0) FROM [${mjSchema}].[EntityField] WHERE [EntityID] = '5DEB0B11-ED6C-48B3-9200-F4441396C5E2') + 25,
             '__mj_UpdatedAt',
             'Updated At',
             NULL,
@@ -5519,164 +5603,169 @@ GO
       END;
 
 /* SQL text to update existing entity fields from schema */
-EXEC [${mjSchema}].[spUpdateExistingEntityFieldsFromSchema] @ExcludedSchemaNames='sys,staging,dbo,${mjSchema},${mjSchema}_BizAppsAccounting,${mjSchema}_BizAppsCommon,${mjSchema}_BizAppsOrders,${mjSchema}_BizAppsTasks';
+EXEC [${mjSchema}].[spUpdateExistingEntityFieldsFromSchema] @ExcludedSchemaNames='sys,staging,dbo,${mjSchema},${mjSchema}_BizAppsCommon,${mjSchema}_BizAppsTasks,${mjSchema}_BizAppsAccounting,${mjSchema}_BizAppsOrders,${mjSchema}';
 
 /* SQL text to set default column width where needed */
-EXEC [${mjSchema}].[spSetDefaultColumnWidthWhereNeeded] @ExcludedSchemaNames='sys,staging,dbo,${mjSchema},${mjSchema}_BizAppsAccounting,${mjSchema}_BizAppsCommon,${mjSchema}_BizAppsOrders,${mjSchema}_BizAppsTasks';
+EXEC [${mjSchema}].[spSetDefaultColumnWidthWhereNeeded] @ExcludedSchemaNames='sys,staging,dbo,${mjSchema},${mjSchema}_BizAppsCommon,${mjSchema}_BizAppsTasks,${mjSchema}_BizAppsAccounting,${mjSchema}_BizAppsOrders,${mjSchema}';
 
-/* SQL text to insert entity field value with ID 57341624-eaad-4d34-b3ce-6b191459b12c */
+/* SQL text to insert entity field value with ID 217e9e49-0b4f-44c1-9f68-035f69e7a7bd */
 INSERT INTO [${mjSchema}].[EntityFieldValue]
                                        ([ID], [EntityFieldID], [Sequence], [Value], [Code], [__mj_CreatedAt], [__mj_UpdatedAt])
                                     VALUES
-                                       ('57341624-eaad-4d34-b3ce-6b191459b12c', 'AB630039-0C2B-48AA-BB8E-8462CF310418', 1, 'Active', 'Active', GETUTCDATE(), GETUTCDATE());
+                                       ('217e9e49-0b4f-44c1-9f68-035f69e7a7bd', '0E2AB42B-29F2-4151-A424-ABA78BBA163B', 1, 'Active', 'Active', GETUTCDATE(), GETUTCDATE());
 
-/* SQL text to insert entity field value with ID e0409adc-37e5-40b4-9710-a300512766a0 */
+/* SQL text to insert entity field value with ID 3ba9d65c-2cc4-4b0b-9be7-376aaab7234b */
 INSERT INTO [${mjSchema}].[EntityFieldValue]
                                        ([ID], [EntityFieldID], [Sequence], [Value], [Code], [__mj_CreatedAt], [__mj_UpdatedAt])
                                     VALUES
-                                       ('e0409adc-37e5-40b4-9710-a300512766a0', 'AB630039-0C2B-48AA-BB8E-8462CF310418', 2, 'Inactive', 'Inactive', GETUTCDATE(), GETUTCDATE());
+                                       ('3ba9d65c-2cc4-4b0b-9be7-376aaab7234b', '0E2AB42B-29F2-4151-A424-ABA78BBA163B', 2, 'Inactive', 'Inactive', GETUTCDATE(), GETUTCDATE());
 
-/* SQL text to update ValueListType for entity field ID AB630039-0C2B-48AA-BB8E-8462CF310418 */
-UPDATE [${mjSchema}].[EntityField] SET ValueListType='List' WHERE ID='AB630039-0C2B-48AA-BB8E-8462CF310418';
+/* SQL text to update ValueListType for entity field ID 0E2AB42B-29F2-4151-A424-ABA78BBA163B */
+UPDATE [${mjSchema}].[EntityField] SET ValueListType='List' WHERE ID='0E2AB42B-29F2-4151-A424-ABA78BBA163B';
 
-/* SQL text to insert entity field value with ID b31fc797-3a3c-4b08-b688-04a8be9a2754 */
+/* SQL text to insert entity field value with ID 0b3ec358-4aec-4e2c-9361-94626326c8d6 */
 INSERT INTO [${mjSchema}].[EntityFieldValue]
                                        ([ID], [EntityFieldID], [Sequence], [Value], [Code], [__mj_CreatedAt], [__mj_UpdatedAt])
                                     VALUES
-                                       ('b31fc797-3a3c-4b08-b688-04a8be9a2754', '9A369D85-8C82-4399-885D-837575E37F3C', 1, 'Active', 'Active', GETUTCDATE(), GETUTCDATE());
+                                       ('0b3ec358-4aec-4e2c-9361-94626326c8d6', 'E84E1C35-41C9-4A59-8AD2-6D426FDB7E6B', 1, 'Draft', 'Draft', GETUTCDATE(), GETUTCDATE());
 
-/* SQL text to insert entity field value with ID 8a731007-02e7-4d68-9364-4bb355abba9f */
+/* SQL text to insert entity field value with ID ad6ada75-99df-45c1-b852-5c3aebaf6220 */
 INSERT INTO [${mjSchema}].[EntityFieldValue]
                                        ([ID], [EntityFieldID], [Sequence], [Value], [Code], [__mj_CreatedAt], [__mj_UpdatedAt])
                                     VALUES
-                                       ('8a731007-02e7-4d68-9364-4bb355abba9f', '9A369D85-8C82-4399-885D-837575E37F3C', 2, 'Inactive', 'Inactive', GETUTCDATE(), GETUTCDATE());
+                                       ('ad6ada75-99df-45c1-b852-5c3aebaf6220', 'E84E1C35-41C9-4A59-8AD2-6D426FDB7E6B', 2, 'Published', 'Published', GETUTCDATE(), GETUTCDATE());
 
-/* SQL text to update ValueListType for entity field ID 9A369D85-8C82-4399-885D-837575E37F3C */
-UPDATE [${mjSchema}].[EntityField] SET ValueListType='List' WHERE ID='9A369D85-8C82-4399-885D-837575E37F3C';
+/* SQL text to update ValueListType for entity field ID E84E1C35-41C9-4A59-8AD2-6D426FDB7E6B */
+UPDATE [${mjSchema}].[EntityField] SET ValueListType='List' WHERE ID='E84E1C35-41C9-4A59-8AD2-6D426FDB7E6B';
+
+/* SQL text to insert entity field value with ID 6b1d3830-0e26-4457-b945-b8c05221c54e */
+INSERT INTO [${mjSchema}].[EntityFieldValue]
+                                       ([ID], [EntityFieldID], [Sequence], [Value], [Code], [__mj_CreatedAt], [__mj_UpdatedAt])
+                                    VALUES
+                                       ('6b1d3830-0e26-4457-b945-b8c05221c54e', '59601A28-9AED-4E62-8B3B-EA21B769B9EB', 1, 'Active', 'Active', GETUTCDATE(), GETUTCDATE());
+
+/* SQL text to insert entity field value with ID 39fba98a-d6e1-4f28-bb74-5f40e0e43f3f */
+INSERT INTO [${mjSchema}].[EntityFieldValue]
+                                       ([ID], [EntityFieldID], [Sequence], [Value], [Code], [__mj_CreatedAt], [__mj_UpdatedAt])
+                                    VALUES
+                                       ('39fba98a-d6e1-4f28-bb74-5f40e0e43f3f', '59601A28-9AED-4E62-8B3B-EA21B769B9EB', 2, 'Inactive', 'Inactive', GETUTCDATE(), GETUTCDATE());
+
+/* SQL text to update ValueListType for entity field ID 59601A28-9AED-4E62-8B3B-EA21B769B9EB */
+UPDATE [${mjSchema}].[EntityField] SET ValueListType='List' WHERE ID='59601A28-9AED-4E62-8B3B-EA21B769B9EB';
 
 
-/* Create Entity Relationship: MJ_BizApps_Contracts: Contract Types -> MJ_BizApps_Contracts: Contracts (One To Many via ContractTypeID) */
+/* Create Entity Relationship: MJ_BizApps_Contracts: Contract Template Provisions -> MJ_BizApps_Contracts: Contract Template Modifications (One To Many via ContractTemplateProvisionID) */
    IF NOT EXISTS (
-      SELECT 1 FROM [${mjSchema}].[EntityRelationship] WHERE [ID] = '92121cc1-6622-40e5-b038-2c713d64b9c3'
+      SELECT 1 FROM [${mjSchema}].[EntityRelationship] WHERE [ID] = '82939a7c-51c9-4723-bcd7-3caecf976536'
    )
    BEGIN
       INSERT INTO [${mjSchema}].[EntityRelationship] ([ID], [EntityID], [RelatedEntityID], [RelatedEntityJoinField], [Type], [BundleInAPI], [DisplayInForm], [Sequence], [__mj_CreatedAt], [__mj_UpdatedAt])
-                    VALUES ('92121cc1-6622-40e5-b038-2c713d64b9c3', 'EBB3F628-267E-44D6-8F18-258AC28FF981', '4CC3DB2D-F01F-405E-A47D-B14BA2F1AB20', 'ContractTypeID', 'One To Many', 1, 1, 1, GETUTCDATE(), GETUTCDATE())
+                    VALUES ('82939a7c-51c9-4723-bcd7-3caecf976536', '317DF592-8C20-473D-B097-2AB239877438', 'B05A480F-F7C5-4D45-8EA3-C90E9A14F225', 'ContractTemplateProvisionID', 'One To Many', 1, 1, 1, GETUTCDATE(), GETUTCDATE())
    END;
                     
 /* Create Entity Relationship: MJ: Companies -> MJ_BizApps_Contracts: Contracts (One To Many via CompanyID) */
    IF NOT EXISTS (
-      SELECT 1 FROM [${mjSchema}].[EntityRelationship] WHERE [ID] = 'c84e82fe-8f43-417d-8d35-9e52a7a65c88'
+      SELECT 1 FROM [${mjSchema}].[EntityRelationship] WHERE [ID] = 'aa2aa995-a5fa-4565-8355-90e26f36365d'
    )
    BEGIN
       INSERT INTO [${mjSchema}].[EntityRelationship] ([ID], [EntityID], [RelatedEntityID], [RelatedEntityJoinField], [Type], [BundleInAPI], [DisplayInForm], [Sequence], [__mj_CreatedAt], [__mj_UpdatedAt])
-                    VALUES ('c84e82fe-8f43-417d-8d35-9e52a7a65c88', 'D4238F34-2837-EF11-86D4-6045BDEE16E6', '4CC3DB2D-F01F-405E-A47D-B14BA2F1AB20', 'CompanyID', 'One To Many', 1, 1, 27, GETUTCDATE(), GETUTCDATE())
+                    VALUES ('aa2aa995-a5fa-4565-8355-90e26f36365d', 'D4238F34-2837-EF11-86D4-6045BDEE16E6', '5DEB0B11-ED6C-48B3-9200-F4441396C5E2', 'CompanyID', 'One To Many', 1, 1, 7, GETUTCDATE(), GETUTCDATE())
    END;
                     
 /* Create Entity Relationship: MJ: Entities -> MJ_BizApps_Contracts: Contracts (One To Many via CreatingEntityID) */
    IF NOT EXISTS (
-      SELECT 1 FROM [${mjSchema}].[EntityRelationship] WHERE [ID] = 'fccd3d5b-0519-4471-8d90-60d6f729a086'
+      SELECT 1 FROM [${mjSchema}].[EntityRelationship] WHERE [ID] = '7fa39de0-72c9-4956-ad6c-476397a1aeac'
    )
    BEGIN
       INSERT INTO [${mjSchema}].[EntityRelationship] ([ID], [EntityID], [RelatedEntityID], [RelatedEntityJoinField], [Type], [BundleInAPI], [DisplayInForm], [Sequence], [__mj_CreatedAt], [__mj_UpdatedAt])
-                    VALUES ('fccd3d5b-0519-4471-8d90-60d6f729a086', 'E0238F34-2837-EF11-86D4-6045BDEE16E6', '4CC3DB2D-F01F-405E-A47D-B14BA2F1AB20', 'CreatingEntityID', 'One To Many', 1, 1, 82, GETUTCDATE(), GETUTCDATE())
+                    VALUES ('7fa39de0-72c9-4956-ad6c-476397a1aeac', 'E0238F34-2837-EF11-86D4-6045BDEE16E6', '5DEB0B11-ED6C-48B3-9200-F4441396C5E2', 'CreatingEntityID', 'One To Many', 1, 1, 77, GETUTCDATE(), GETUTCDATE())
    END;
                     
 /* Create Entity Relationship: MJ_BizApps_Common: Organizations -> MJ_BizApps_Contracts: Contracts (One To Many via CustomerOrganizationID) */
    IF NOT EXISTS (
-      SELECT 1 FROM [${mjSchema}].[EntityRelationship] WHERE [ID] = 'c71f6281-b3eb-4d61-99df-bf618d8bd83e'
+      SELECT 1 FROM [${mjSchema}].[EntityRelationship] WHERE [ID] = 'c674fabb-6df9-434e-90c0-99ec631f234b'
    )
    BEGIN
       INSERT INTO [${mjSchema}].[EntityRelationship] ([ID], [EntityID], [RelatedEntityID], [RelatedEntityJoinField], [Type], [BundleInAPI], [DisplayInForm], [Sequence], [__mj_CreatedAt], [__mj_UpdatedAt])
-                    VALUES ('c71f6281-b3eb-4d61-99df-bf618d8bd83e', 'C70448F9-9792-41D7-A82C-784B66429D54', '4CC3DB2D-F01F-405E-A47D-B14BA2F1AB20', 'CustomerOrganizationID', 'One To Many', 1, 1, 17, GETUTCDATE(), GETUTCDATE())
-   END;
-                    
-/* Create Entity Relationship: MJ_BizApps_Contracts: Contract Template Provisions -> MJ_BizApps_Contracts: Contract Template Modifications (One To Many via ContractTemplateProvisionID) */
-   IF NOT EXISTS (
-      SELECT 1 FROM [${mjSchema}].[EntityRelationship] WHERE [ID] = '702b4ad3-4436-42b3-abac-2aa3686bb8c7'
-   )
-   BEGIN
-      INSERT INTO [${mjSchema}].[EntityRelationship] ([ID], [EntityID], [RelatedEntityID], [RelatedEntityJoinField], [Type], [BundleInAPI], [DisplayInForm], [Sequence], [__mj_CreatedAt], [__mj_UpdatedAt])
-                    VALUES ('702b4ad3-4436-42b3-abac-2aa3686bb8c7', '27A600CA-6A2E-4C85-84AE-924183EC1681', '2E611A7D-2FBB-4A45-A9C8-103834BF026A', 'ContractTemplateProvisionID', 'One To Many', 1, 1, 1, GETUTCDATE(), GETUTCDATE())
-   END;
-
-
-/* Create Entity Relationship: MJ_BizApps_Contracts: Contracts -> MJ_BizApps_Contracts: Contracts (One To Many via SupersededByContractID) */
-   IF NOT EXISTS (
-      SELECT 1 FROM [${mjSchema}].[EntityRelationship] WHERE [ID] = 'e6d3a47f-bf2b-4364-b3b8-dc84e4b0f5f7'
-   )
-   BEGIN
-      INSERT INTO [${mjSchema}].[EntityRelationship] ([ID], [EntityID], [RelatedEntityID], [RelatedEntityJoinField], [Type], [BundleInAPI], [DisplayInForm], [Sequence], [__mj_CreatedAt], [__mj_UpdatedAt])
-                    VALUES ('e6d3a47f-bf2b-4364-b3b8-dc84e4b0f5f7', '4CC3DB2D-F01F-405E-A47D-B14BA2F1AB20', '4CC3DB2D-F01F-405E-A47D-B14BA2F1AB20', 'SupersededByContractID', 'One To Many', 1, 1, 1, GETUTCDATE(), GETUTCDATE())
-   END;
-                    
-/* Create Entity Relationship: MJ_BizApps_Contracts: Contracts -> MJ_BizApps_Contracts: Contracts (One To Many via ParentContractID) */
-   IF NOT EXISTS (
-      SELECT 1 FROM [${mjSchema}].[EntityRelationship] WHERE [ID] = '5e7929bb-a959-4633-92e7-5b97732851a0'
-   )
-   BEGIN
-      INSERT INTO [${mjSchema}].[EntityRelationship] ([ID], [EntityID], [RelatedEntityID], [RelatedEntityJoinField], [Type], [BundleInAPI], [DisplayInForm], [Sequence], [__mj_CreatedAt], [__mj_UpdatedAt])
-                    VALUES ('5e7929bb-a959-4633-92e7-5b97732851a0', '4CC3DB2D-F01F-405E-A47D-B14BA2F1AB20', '4CC3DB2D-F01F-405E-A47D-B14BA2F1AB20', 'ParentContractID', 'One To Many', 1, 1, 2, GETUTCDATE(), GETUTCDATE())
-   END;
-                    
-/* Create Entity Relationship: MJ_BizApps_Contracts: Contracts -> MJ_BizApps_Contracts: Contract Template Modifications (One To Many via ContractID) */
-   IF NOT EXISTS (
-      SELECT 1 FROM [${mjSchema}].[EntityRelationship] WHERE [ID] = '16f4ff6d-d41b-4c33-a696-b3caae484474'
-   )
-   BEGIN
-      INSERT INTO [${mjSchema}].[EntityRelationship] ([ID], [EntityID], [RelatedEntityID], [RelatedEntityJoinField], [Type], [BundleInAPI], [DisplayInForm], [Sequence], [__mj_CreatedAt], [__mj_UpdatedAt])
-                    VALUES ('16f4ff6d-d41b-4c33-a696-b3caae484474', '4CC3DB2D-F01F-405E-A47D-B14BA2F1AB20', '2E611A7D-2FBB-4A45-A9C8-103834BF026A', 'ContractID', 'One To Many', 1, 1, 3, GETUTCDATE(), GETUTCDATE())
+                    VALUES ('c674fabb-6df9-434e-90c0-99ec631f234b', 'C70448F9-9792-41D7-A82C-784B66429D54', '5DEB0B11-ED6C-48B3-9200-F4441396C5E2', 'CustomerOrganizationID', 'One To Many', 1, 1, 5, GETUTCDATE(), GETUTCDATE())
    END;
                     
 /* Create Entity Relationship: MJ_BizApps_Contracts: Contract Template Types -> MJ_BizApps_Contracts: Contract Templates (One To Many via ContractTemplateTypeID) */
    IF NOT EXISTS (
-      SELECT 1 FROM [${mjSchema}].[EntityRelationship] WHERE [ID] = '687f1d71-7131-4a77-ab45-0ca5e6a7793b'
+      SELECT 1 FROM [${mjSchema}].[EntityRelationship] WHERE [ID] = '05bfcb9a-898f-4d3b-9341-9c2a5fc9c996'
    )
    BEGIN
       INSERT INTO [${mjSchema}].[EntityRelationship] ([ID], [EntityID], [RelatedEntityID], [RelatedEntityJoinField], [Type], [BundleInAPI], [DisplayInForm], [Sequence], [__mj_CreatedAt], [__mj_UpdatedAt])
-                    VALUES ('687f1d71-7131-4a77-ab45-0ca5e6a7793b', '8D50B054-0E15-48C2-907A-BA598E28EA25', '21C7D64A-28F3-4535-819A-E0DD384A5580', 'ContractTemplateTypeID', 'One To Many', 1, 1, 1, GETUTCDATE(), GETUTCDATE())
-   END;
-                    
-/* Create Entity Relationship: MJ_BizApps_Common: People -> MJ_BizApps_Contracts: Contracts (One To Many via PrimaryContactPersonID) */
-   IF NOT EXISTS (
-      SELECT 1 FROM [${mjSchema}].[EntityRelationship] WHERE [ID] = '6e520337-5c18-455e-bd7e-a89af2cbb5d3'
-   )
-   BEGIN
-      INSERT INTO [${mjSchema}].[EntityRelationship] ([ID], [EntityID], [RelatedEntityID], [RelatedEntityJoinField], [Type], [BundleInAPI], [DisplayInForm], [Sequence], [__mj_CreatedAt], [__mj_UpdatedAt])
-                    VALUES ('6e520337-5c18-455e-bd7e-a89af2cbb5d3', '7A94ADA9-7880-4FAE-97D8-DB0E934C3F5F', '4CC3DB2D-F01F-405E-A47D-B14BA2F1AB20', 'PrimaryContactPersonID', 'One To Many', 1, 1, 21, GETUTCDATE(), GETUTCDATE())
-   END;
-                    
-/* Create Entity Relationship: MJ_BizApps_Contracts: Contract Templates -> MJ_BizApps_Contracts: Contracts (One To Many via ContractTemplateID) */
-   IF NOT EXISTS (
-      SELECT 1 FROM [${mjSchema}].[EntityRelationship] WHERE [ID] = '87dbd38b-29b9-48a3-b429-4375a0e2eaf9'
-   )
-   BEGIN
-      INSERT INTO [${mjSchema}].[EntityRelationship] ([ID], [EntityID], [RelatedEntityID], [RelatedEntityJoinField], [Type], [BundleInAPI], [DisplayInForm], [Sequence], [__mj_CreatedAt], [__mj_UpdatedAt])
-                    VALUES ('87dbd38b-29b9-48a3-b429-4375a0e2eaf9', '21C7D64A-28F3-4535-819A-E0DD384A5580', '4CC3DB2D-F01F-405E-A47D-B14BA2F1AB20', 'ContractTemplateID', 'One To Many', 1, 1, 1, GETUTCDATE(), GETUTCDATE())
+                    VALUES ('05bfcb9a-898f-4d3b-9341-9c2a5fc9c996', '4E3F97BE-E196-4CC0-9B5D-CC50DE8967A0', '731F2890-1415-40DE-9073-D22EA23392B3', 'ContractTemplateTypeID', 'One To Many', 1, 1, 1, GETUTCDATE(), GETUTCDATE())
    END;
 
 
 /* Create Entity Relationship: MJ_BizApps_Contracts: Contract Templates -> MJ_BizApps_Contracts: Contract Template Provisions (One To Many via ContractTemplateID) */
    IF NOT EXISTS (
-      SELECT 1 FROM [${mjSchema}].[EntityRelationship] WHERE [ID] = '1a3d0133-d2d0-4302-9ba8-24e6fbdeb583'
+      SELECT 1 FROM [${mjSchema}].[EntityRelationship] WHERE [ID] = 'e415e5bf-fcaa-49a6-bf33-ef3bc2d0d865'
    )
    BEGIN
       INSERT INTO [${mjSchema}].[EntityRelationship] ([ID], [EntityID], [RelatedEntityID], [RelatedEntityJoinField], [Type], [BundleInAPI], [DisplayInForm], [Sequence], [__mj_CreatedAt], [__mj_UpdatedAt])
-                    VALUES ('1a3d0133-d2d0-4302-9ba8-24e6fbdeb583', '21C7D64A-28F3-4535-819A-E0DD384A5580', '27A600CA-6A2E-4C85-84AE-924183EC1681', 'ContractTemplateID', 'One To Many', 1, 1, 2, GETUTCDATE(), GETUTCDATE())
+                    VALUES ('e415e5bf-fcaa-49a6-bf33-ef3bc2d0d865', '731F2890-1415-40DE-9073-D22EA23392B3', '317DF592-8C20-473D-B097-2AB239877438', 'ContractTemplateID', 'One To Many', 1, 1, 1, GETUTCDATE(), GETUTCDATE())
+   END;
+                    
+/* Create Entity Relationship: MJ_BizApps_Contracts: Contract Templates -> MJ_BizApps_Contracts: Contracts (One To Many via ContractTemplateID) */
+   IF NOT EXISTS (
+      SELECT 1 FROM [${mjSchema}].[EntityRelationship] WHERE [ID] = '7790db07-7e7f-4f4a-a661-fac992fa5cf7'
+   )
+   BEGIN
+      INSERT INTO [${mjSchema}].[EntityRelationship] ([ID], [EntityID], [RelatedEntityID], [RelatedEntityJoinField], [Type], [BundleInAPI], [DisplayInForm], [Sequence], [__mj_CreatedAt], [__mj_UpdatedAt])
+                    VALUES ('7790db07-7e7f-4f4a-a661-fac992fa5cf7', '731F2890-1415-40DE-9073-D22EA23392B3', '5DEB0B11-ED6C-48B3-9200-F4441396C5E2', 'ContractTemplateID', 'One To Many', 1, 1, 2, GETUTCDATE(), GETUTCDATE())
+   END;
+                    
+/* Create Entity Relationship: MJ_BizApps_Common: People -> MJ_BizApps_Contracts: Contracts (One To Many via PrimaryContactPersonID) */
+   IF NOT EXISTS (
+      SELECT 1 FROM [${mjSchema}].[EntityRelationship] WHERE [ID] = '6f16093e-ba7a-44c9-8e06-901f3383c7dc'
+   )
+   BEGIN
+      INSERT INTO [${mjSchema}].[EntityRelationship] ([ID], [EntityID], [RelatedEntityID], [RelatedEntityJoinField], [Type], [BundleInAPI], [DisplayInForm], [Sequence], [__mj_CreatedAt], [__mj_UpdatedAt])
+                    VALUES ('6f16093e-ba7a-44c9-8e06-901f3383c7dc', '7A94ADA9-7880-4FAE-97D8-DB0E934C3F5F', '5DEB0B11-ED6C-48B3-9200-F4441396C5E2', 'PrimaryContactPersonID', 'One To Many', 1, 1, 4, GETUTCDATE(), GETUTCDATE())
+   END;
+                    
+/* Create Entity Relationship: MJ_BizApps_Contracts: Contract Types -> MJ_BizApps_Contracts: Contracts (One To Many via ContractTypeID) */
+   IF NOT EXISTS (
+      SELECT 1 FROM [${mjSchema}].[EntityRelationship] WHERE [ID] = '37d5be77-a5a5-47f3-b217-e5ae72daafe9'
+   )
+   BEGIN
+      INSERT INTO [${mjSchema}].[EntityRelationship] ([ID], [EntityID], [RelatedEntityID], [RelatedEntityJoinField], [Type], [BundleInAPI], [DisplayInForm], [Sequence], [__mj_CreatedAt], [__mj_UpdatedAt])
+                    VALUES ('37d5be77-a5a5-47f3-b217-e5ae72daafe9', 'C8909A57-6DDB-4585-BE00-E707C5B4F262', '5DEB0B11-ED6C-48B3-9200-F4441396C5E2', 'ContractTypeID', 'One To Many', 1, 1, 1, GETUTCDATE(), GETUTCDATE())
+   END;
+                    
+/* Create Entity Relationship: MJ_BizApps_Contracts: Contracts -> MJ_BizApps_Contracts: Contract Template Modifications (One To Many via ContractID) */
+   IF NOT EXISTS (
+      SELECT 1 FROM [${mjSchema}].[EntityRelationship] WHERE [ID] = '0a972e9e-abaa-47fe-8dd7-90d1a60dc25d'
+   )
+   BEGIN
+      INSERT INTO [${mjSchema}].[EntityRelationship] ([ID], [EntityID], [RelatedEntityID], [RelatedEntityJoinField], [Type], [BundleInAPI], [DisplayInForm], [Sequence], [__mj_CreatedAt], [__mj_UpdatedAt])
+                    VALUES ('0a972e9e-abaa-47fe-8dd7-90d1a60dc25d', '5DEB0B11-ED6C-48B3-9200-F4441396C5E2', 'B05A480F-F7C5-4D45-8EA3-C90E9A14F225', 'ContractID', 'One To Many', 1, 1, 1, GETUTCDATE(), GETUTCDATE())
+   END;
+
+
+/* Create Entity Relationship: MJ_BizApps_Contracts: Contracts -> MJ_BizApps_Contracts: Contracts (One To Many via SupersededByContractID) */
+   IF NOT EXISTS (
+      SELECT 1 FROM [${mjSchema}].[EntityRelationship] WHERE [ID] = '3b056bc8-b985-403a-9dcc-accef921c323'
+   )
+   BEGIN
+      INSERT INTO [${mjSchema}].[EntityRelationship] ([ID], [EntityID], [RelatedEntityID], [RelatedEntityJoinField], [Type], [BundleInAPI], [DisplayInForm], [Sequence], [__mj_CreatedAt], [__mj_UpdatedAt])
+                    VALUES ('3b056bc8-b985-403a-9dcc-accef921c323', '5DEB0B11-ED6C-48B3-9200-F4441396C5E2', '5DEB0B11-ED6C-48B3-9200-F4441396C5E2', 'SupersededByContractID', 'One To Many', 1, 1, 2, GETUTCDATE(), GETUTCDATE())
+   END;
+                    
+/* Create Entity Relationship: MJ_BizApps_Contracts: Contracts -> MJ_BizApps_Contracts: Contracts (One To Many via ParentContractID) */
+   IF NOT EXISTS (
+      SELECT 1 FROM [${mjSchema}].[EntityRelationship] WHERE [ID] = 'e45a646d-9a56-45e8-9c64-5583e38654c2'
+   )
+   BEGIN
+      INSERT INTO [${mjSchema}].[EntityRelationship] ([ID], [EntityID], [RelatedEntityID], [RelatedEntityJoinField], [Type], [BundleInAPI], [DisplayInForm], [Sequence], [__mj_CreatedAt], [__mj_UpdatedAt])
+                    VALUES ('e45a646d-9a56-45e8-9c64-5583e38654c2', '5DEB0B11-ED6C-48B3-9200-F4441396C5E2', '5DEB0B11-ED6C-48B3-9200-F4441396C5E2', 'ParentContractID', 'One To Many', 1, 1, 3, GETUTCDATE(), GETUTCDATE())
    END;
 
 /* SQL text to sync schema info from database schemas */
-EXEC [${mjSchema}].[spUpdateSchemaInfoFromDatabase] @ExcludedSchemaNames='sys,staging,dbo,${mjSchema},${mjSchema}_BizAppsAccounting,${mjSchema}_BizAppsCommon,${mjSchema}_BizAppsOrders,${mjSchema}_BizAppsTasks';
-
-/* Index for Foreign Keys for ContractSequence */
------------------------------------------------------------------
--- SQL Code Generation
--- Entity: MJ_BizApps_Contracts: Contract Sequences
--- Item: Index for Foreign Keys
---
--- This was generated by the MemberJunction CodeGen tool.
--- This file should NOT be edited by hand.
------------------------------------------------------------------;
+EXEC [${mjSchema}].[spUpdateSchemaInfoFromDatabase] @ExcludedSchemaNames='sys,staging,dbo,${mjSchema},${mjSchema}_BizAppsCommon,${mjSchema}_BizAppsTasks,${mjSchema}_BizAppsAccounting,${mjSchema}_BizAppsOrders,${mjSchema}';
 
 /* Index for Foreign Keys for ContractTemplateModification */
 -----------------------------------------------------------------
@@ -5723,8 +5812,8 @@ IF NOT EXISTS (
 )
 CREATE INDEX IDX_AUTO_MJ_FKEY_ContractTemplateProvision_ContractTemplateID ON [${flyway:defaultSchema}].[ContractTemplateProvision] ([ContractTemplateID]);
 
-/* SQL text to update entity field related entity name field map for entity field ID B17D0F3B-300E-4C9B-B466-7DFCB5612EC3 */
-EXEC [${mjSchema}].[spUpdateEntityFieldRelatedEntityNameFieldMap] @EntityFieldID='B17D0F3B-300E-4C9B-B466-7DFCB5612EC3', @RelatedEntityNameFieldMap='ContractTemplate';
+/* SQL text to update entity field related entity name field map for entity field ID FD673FEE-72AB-4109-89B1-DB5BCEE9EB3E */
+EXEC [${mjSchema}].[spUpdateEntityFieldRelatedEntityNameFieldMap] @EntityFieldID='FD673FEE-72AB-4109-89B1-DB5BCEE9EB3E', @RelatedEntityNameFieldMap='ContractTemplate';
 
 /* Index for Foreign Keys for ContractTemplateType */
 -----------------------------------------------------------------
@@ -5754,171 +5843,18 @@ IF NOT EXISTS (
 )
 CREATE INDEX IDX_AUTO_MJ_FKEY_ContractTemplate_ContractTemplateTypeID ON [${flyway:defaultSchema}].[ContractTemplate] ([ContractTemplateTypeID]);
 
-/* SQL text to update entity field related entity name field map for entity field ID A243F09C-98F4-4AC3-8319-50505000C0C4 */
-EXEC [${mjSchema}].[spUpdateEntityFieldRelatedEntityNameFieldMap] @EntityFieldID='A243F09C-98F4-4AC3-8319-50505000C0C4', @RelatedEntityNameFieldMap='ContractTemplateType';
+/* SQL text to update entity field related entity name field map for entity field ID 7B8EC82E-CF52-4F4C-980D-47A15194EA12 */
+EXEC [${mjSchema}].[spUpdateEntityFieldRelatedEntityNameFieldMap] @EntityFieldID='7B8EC82E-CF52-4F4C-980D-47A15194EA12', @RelatedEntityNameFieldMap='ContractTemplateType';
 
-/* Base View SQL for MJ_BizApps_Contracts: Contract Sequences */
+/* Index for Foreign Keys for ContractType */
 -----------------------------------------------------------------
 -- SQL Code Generation
--- Entity: MJ_BizApps_Contracts: Contract Sequences
--- Item: vwContractSequences
+-- Entity: MJ_BizApps_Contracts: Contract Types
+-- Item: Index for Foreign Keys
 --
 -- This was generated by the MemberJunction CodeGen tool.
 -- This file should NOT be edited by hand.
------------------------------------------------------------------
-
-------------------------------------------------------------
------ BASE VIEW FOR ENTITY:      MJ_BizApps_Contracts: Contract Sequences
------               SCHEMA:      ${flyway:defaultSchema}
------               BASE TABLE:  ContractSequence
------               PRIMARY KEY: ID
-------------------------------------------------------------
-IF OBJECT_ID('[${flyway:defaultSchema}].[vwContractSequences]', 'V') IS NOT NULL
-    DROP VIEW [${flyway:defaultSchema}].[vwContractSequences];
-GO
-
-CREATE VIEW [${flyway:defaultSchema}].[vwContractSequences]
-AS
-SELECT
-    c.*
-FROM
-    [${flyway:defaultSchema}].[ContractSequence] AS c
-GO
-GRANT SELECT ON [${flyway:defaultSchema}].[vwContractSequences] TO [cdp_UI], [cdp_Developer], [cdp_Integration];
-
-/* Base View Permissions SQL for MJ_BizApps_Contracts: Contract Sequences */
------------------------------------------------------------------
--- SQL Code Generation
--- Entity: MJ_BizApps_Contracts: Contract Sequences
--- Item: Permissions for vwContractSequences
---
--- This was generated by the MemberJunction CodeGen tool.
--- This file should NOT be edited by hand.
------------------------------------------------------------------
-
-GRANT SELECT ON [${flyway:defaultSchema}].[vwContractSequences] TO [cdp_UI], [cdp_Developer], [cdp_Integration];
-
-/* spCreate SQL for MJ_BizApps_Contracts: Contract Sequences */
------------------------------------------------------------------
--- SQL Code Generation
--- Entity: MJ_BizApps_Contracts: Contract Sequences
--- Item: spCreateContractSequence
---
--- This was generated by the MemberJunction CodeGen tool.
--- This file should NOT be edited by hand.
------------------------------------------------------------------
-
-------------------------------------------------------------
------ CREATE PROCEDURE FOR ContractSequence
-------------------------------------------------------------
-IF OBJECT_ID('[${flyway:defaultSchema}].[spCreateContractSequence]', 'P') IS NOT NULL
-    DROP PROCEDURE [${flyway:defaultSchema}].[spCreateContractSequence];
-GO
-
-CREATE PROCEDURE [${flyway:defaultSchema}].[spCreateContractSequence]
-    @ID int = NULL,
-    @NextSequenceNumber int = NULL
-AS
-BEGIN
-    SET NOCOUNT ON;
-    
-    INSERT INTO
-    [${flyway:defaultSchema}].[ContractSequence]
-        (
-            [NextSequenceNumber],
-                [ID]
-        )
-    VALUES
-        (
-            ISNULL(@NextSequenceNumber, 1),
-                @ID
-        )
-    -- return the new record from the base view, which might have some calculated fields
-    SELECT * FROM [${flyway:defaultSchema}].[vwContractSequences] WHERE [ID] = @ID
-END
-GO
-GRANT EXECUTE ON [${flyway:defaultSchema}].[spCreateContractSequence] TO [cdp_Developer], [cdp_Integration];
-
-/* spCreate Permissions for MJ_BizApps_Contracts: Contract Sequences */
-
-GRANT EXECUTE ON [${flyway:defaultSchema}].[spCreateContractSequence] TO [cdp_Developer], [cdp_Integration];
-
-/* spUpdate SQL for MJ_BizApps_Contracts: Contract Sequences */
------------------------------------------------------------------
--- SQL Code Generation
--- Entity: MJ_BizApps_Contracts: Contract Sequences
--- Item: spUpdateContractSequence
---
--- This was generated by the MemberJunction CodeGen tool.
--- This file should NOT be edited by hand.
------------------------------------------------------------------
-
-------------------------------------------------------------
------ UPDATE PROCEDURE FOR ContractSequence
-------------------------------------------------------------
-IF OBJECT_ID('[${flyway:defaultSchema}].[spUpdateContractSequence]', 'P') IS NOT NULL
-    DROP PROCEDURE [${flyway:defaultSchema}].[spUpdateContractSequence];
-GO
-
-CREATE PROCEDURE [${flyway:defaultSchema}].[spUpdateContractSequence]
-    @ID int,
-    @NextSequenceNumber int = NULL
-AS
-BEGIN
-    SET NOCOUNT ON;
-    UPDATE
-        [${flyway:defaultSchema}].[ContractSequence]
-    SET
-        [NextSequenceNumber] = ISNULL(@NextSequenceNumber, [NextSequenceNumber])
-    WHERE
-        [ID] = @ID
-
-    -- Check if the update was successful
-    IF @@ROWCOUNT = 0
-        -- Nothing was updated, return no rows, but column structure from base view intact, semantically correct this way.
-        SELECT TOP 0 * FROM [${flyway:defaultSchema}].[vwContractSequences] WHERE 1=0
-    ELSE
-        -- Return the updated record so the caller can see the updated values and any calculated fields
-        SELECT
-                                        *
-                                    FROM
-                                        [${flyway:defaultSchema}].[vwContractSequences]
-                                    WHERE
-                                        [ID] = @ID
-                                    
-END
-GO
-
-GRANT EXECUTE ON [${flyway:defaultSchema}].[spUpdateContractSequence] TO [cdp_Developer], [cdp_Integration]
-GO
-
-------------------------------------------------------------
------ TRIGGER FOR __mj_UpdatedAt field for the ContractSequence table
-------------------------------------------------------------
-IF OBJECT_ID('[${flyway:defaultSchema}].[trgUpdateContractSequence]', 'TR') IS NOT NULL
-    DROP TRIGGER [${flyway:defaultSchema}].[trgUpdateContractSequence];
-GO
-CREATE TRIGGER [${flyway:defaultSchema}].trgUpdateContractSequence
-ON [${flyway:defaultSchema}].[ContractSequence]
-AFTER UPDATE
-AS
-BEGIN
-    SET NOCOUNT ON;
-    UPDATE
-        [${flyway:defaultSchema}].[ContractSequence]
-    SET
-        __mj_UpdatedAt = GETUTCDATE()
-    FROM
-        [${flyway:defaultSchema}].[ContractSequence] AS _organicTable
-    INNER JOIN
-        INSERTED AS I ON
-        _organicTable.[ID] = I.[ID];
-END;
-GO
-
-/* spUpdate Permissions for MJ_BizApps_Contracts: Contract Sequences */
-
-GRANT EXECUTE ON [${flyway:defaultSchema}].[spUpdateContractSequence] TO [cdp_Developer], [cdp_Integration];
+-----------------------------------------------------------------;
 
 /* Base View SQL for MJ_BizApps_Contracts: Contract Template Modifications */
 -----------------------------------------------------------------
@@ -5982,8 +5918,7 @@ CREATE PROCEDURE [${flyway:defaultSchema}].[spCreateContractTemplateModification
     @ID uniqueidentifier = NULL,
     @ContractID uniqueidentifier,
     @ContractTemplateProvisionID uniqueidentifier,
-    @ModificationText_Clear bit = 0,
-    @ModificationText nvarchar(MAX) = NULL,
+    @ModificationText nvarchar(MAX),
     @Notes_Clear bit = 0,
     @Notes nvarchar(MAX) = NULL
 AS
@@ -6008,7 +5943,7 @@ BEGIN
                 @ID,
                 @ContractID,
                 @ContractTemplateProvisionID,
-                CASE WHEN @ModificationText_Clear = 1 THEN NULL ELSE ISNULL(@ModificationText, NULL) END,
+                @ModificationText,
                 CASE WHEN @Notes_Clear = 1 THEN NULL ELSE ISNULL(@Notes, NULL) END
             )
     END
@@ -6027,7 +5962,7 @@ BEGIN
             (
                 @ContractID,
                 @ContractTemplateProvisionID,
-                CASE WHEN @ModificationText_Clear = 1 THEN NULL ELSE ISNULL(@ModificationText, NULL) END,
+                @ModificationText,
                 CASE WHEN @Notes_Clear = 1 THEN NULL ELSE ISNULL(@Notes, NULL) END
             )
     END
@@ -6062,7 +5997,6 @@ CREATE PROCEDURE [${flyway:defaultSchema}].[spUpdateContractTemplateModification
     @ID uniqueidentifier,
     @ContractID uniqueidentifier = NULL,
     @ContractTemplateProvisionID uniqueidentifier = NULL,
-    @ModificationText_Clear bit = 0,
     @ModificationText nvarchar(MAX) = NULL,
     @Notes_Clear bit = 0,
     @Notes nvarchar(MAX) = NULL
@@ -6074,7 +6008,7 @@ BEGIN
     SET
         [ContractID] = ISNULL(@ContractID, [ContractID]),
         [ContractTemplateProvisionID] = ISNULL(@ContractTemplateProvisionID, [ContractTemplateProvisionID]),
-        [ModificationText] = CASE WHEN @ModificationText_Clear = 1 THEN NULL ELSE ISNULL(@ModificationText, [ModificationText]) END,
+        [ModificationText] = ISNULL(@ModificationText, [ModificationText]),
         [Notes] = CASE WHEN @Notes_Clear = 1 THEN NULL ELSE ISNULL(@Notes, [Notes]) END
     WHERE
         [ID] = @ID
@@ -6323,47 +6257,230 @@ GO
 
 GRANT EXECUTE ON [${flyway:defaultSchema}].[spUpdateContractTemplateType] TO [cdp_Developer], [cdp_Integration];
 
-/* spDelete SQL for MJ_BizApps_Contracts: Contract Sequences */
+/* Base View SQL for MJ_BizApps_Contracts: Contract Types */
 -----------------------------------------------------------------
 -- SQL Code Generation
--- Entity: MJ_BizApps_Contracts: Contract Sequences
--- Item: spDeleteContractSequence
+-- Entity: MJ_BizApps_Contracts: Contract Types
+-- Item: vwContractTypes
 --
 -- This was generated by the MemberJunction CodeGen tool.
 -- This file should NOT be edited by hand.
 -----------------------------------------------------------------
 
 ------------------------------------------------------------
------ DELETE PROCEDURE FOR ContractSequence
+----- BASE VIEW FOR ENTITY:      MJ_BizApps_Contracts: Contract Types
+-----               SCHEMA:      ${flyway:defaultSchema}
+-----               BASE TABLE:  ContractType
+-----               PRIMARY KEY: ID
 ------------------------------------------------------------
-IF OBJECT_ID('[${flyway:defaultSchema}].[spDeleteContractSequence]', 'P') IS NOT NULL
-    DROP PROCEDURE [${flyway:defaultSchema}].[spDeleteContractSequence];
+IF OBJECT_ID('[${flyway:defaultSchema}].[vwContractTypes]', 'V') IS NOT NULL
+    DROP VIEW [${flyway:defaultSchema}].[vwContractTypes];
 GO
 
-CREATE PROCEDURE [${flyway:defaultSchema}].[spDeleteContractSequence]
-    @ID int
+CREATE VIEW [${flyway:defaultSchema}].[vwContractTypes]
+AS
+SELECT
+    c.*
+FROM
+    [${flyway:defaultSchema}].[ContractType] AS c
+GO
+GRANT SELECT ON [${flyway:defaultSchema}].[vwContractTypes] TO [cdp_UI], [cdp_Developer], [cdp_Integration];
+
+/* Base View Permissions SQL for MJ_BizApps_Contracts: Contract Types */
+-----------------------------------------------------------------
+-- SQL Code Generation
+-- Entity: MJ_BizApps_Contracts: Contract Types
+-- Item: Permissions for vwContractTypes
+--
+-- This was generated by the MemberJunction CodeGen tool.
+-- This file should NOT be edited by hand.
+-----------------------------------------------------------------
+
+GRANT SELECT ON [${flyway:defaultSchema}].[vwContractTypes] TO [cdp_UI], [cdp_Developer], [cdp_Integration];
+
+/* spCreate SQL for MJ_BizApps_Contracts: Contract Types */
+-----------------------------------------------------------------
+-- SQL Code Generation
+-- Entity: MJ_BizApps_Contracts: Contract Types
+-- Item: spCreateContractType
+--
+-- This was generated by the MemberJunction CodeGen tool.
+-- This file should NOT be edited by hand.
+-----------------------------------------------------------------
+
+------------------------------------------------------------
+----- CREATE PROCEDURE FOR ContractType
+------------------------------------------------------------
+IF OBJECT_ID('[${flyway:defaultSchema}].[spCreateContractType]', 'P') IS NOT NULL
+    DROP PROCEDURE [${flyway:defaultSchema}].[spCreateContractType];
+GO
+
+CREATE PROCEDURE [${flyway:defaultSchema}].[spCreateContractType]
+    @ID uniqueidentifier = NULL,
+    @Name nvarchar(100),
+    @Description_Clear bit = 0,
+    @Description nvarchar(MAX) = NULL,
+    @RequiresExecutedDocument bit = NULL,
+    @Status nvarchar(10) = NULL,
+    @MustBeRoot bit = NULL,
+    @MustBeChild bit = NULL,
+    @TemplateRequired bit = NULL
 AS
 BEGIN
     SET NOCOUNT ON;
+    DECLARE @InsertedRow TABLE ([ID] UNIQUEIDENTIFIER)
 
-    DELETE FROM
-        [${flyway:defaultSchema}].[ContractSequence]
+    IF @ID IS NOT NULL
+    BEGIN
+        -- User provided a value, use it
+        INSERT INTO [${flyway:defaultSchema}].[ContractType]
+            (
+                [ID],
+                [Name],
+                [Description],
+                [RequiresExecutedDocument],
+                [Status],
+                [MustBeRoot],
+                [MustBeChild],
+                [TemplateRequired]
+            )
+        OUTPUT INSERTED.[ID] INTO @InsertedRow
+        VALUES
+            (
+                @ID,
+                @Name,
+                CASE WHEN @Description_Clear = 1 THEN NULL ELSE ISNULL(@Description, NULL) END,
+                ISNULL(@RequiresExecutedDocument, 1),
+                ISNULL(@Status, 'Active'),
+                ISNULL(@MustBeRoot, 0),
+                ISNULL(@MustBeChild, 0),
+                ISNULL(@TemplateRequired, 0)
+            )
+    END
+    ELSE
+    BEGIN
+        -- No value provided, let database use its default (e.g., NEWSEQUENTIALID())
+        INSERT INTO [${flyway:defaultSchema}].[ContractType]
+            (
+                [Name],
+                [Description],
+                [RequiresExecutedDocument],
+                [Status],
+                [MustBeRoot],
+                [MustBeChild],
+                [TemplateRequired]
+            )
+        OUTPUT INSERTED.[ID] INTO @InsertedRow
+        VALUES
+            (
+                @Name,
+                CASE WHEN @Description_Clear = 1 THEN NULL ELSE ISNULL(@Description, NULL) END,
+                ISNULL(@RequiresExecutedDocument, 1),
+                ISNULL(@Status, 'Active'),
+                ISNULL(@MustBeRoot, 0),
+                ISNULL(@MustBeChild, 0),
+                ISNULL(@TemplateRequired, 0)
+            )
+    END
+    -- return the new record from the base view, which might have some calculated fields
+    SELECT * FROM [${flyway:defaultSchema}].[vwContractTypes] WHERE [ID] = (SELECT [ID] FROM @InsertedRow)
+END
+GO
+GRANT EXECUTE ON [${flyway:defaultSchema}].[spCreateContractType] TO [cdp_Developer], [cdp_Integration];
+
+/* spCreate Permissions for MJ_BizApps_Contracts: Contract Types */
+
+GRANT EXECUTE ON [${flyway:defaultSchema}].[spCreateContractType] TO [cdp_Developer], [cdp_Integration];
+
+/* spUpdate SQL for MJ_BizApps_Contracts: Contract Types */
+-----------------------------------------------------------------
+-- SQL Code Generation
+-- Entity: MJ_BizApps_Contracts: Contract Types
+-- Item: spUpdateContractType
+--
+-- This was generated by the MemberJunction CodeGen tool.
+-- This file should NOT be edited by hand.
+-----------------------------------------------------------------
+
+------------------------------------------------------------
+----- UPDATE PROCEDURE FOR ContractType
+------------------------------------------------------------
+IF OBJECT_ID('[${flyway:defaultSchema}].[spUpdateContractType]', 'P') IS NOT NULL
+    DROP PROCEDURE [${flyway:defaultSchema}].[spUpdateContractType];
+GO
+
+CREATE PROCEDURE [${flyway:defaultSchema}].[spUpdateContractType]
+    @ID uniqueidentifier,
+    @Name nvarchar(100) = NULL,
+    @Description_Clear bit = 0,
+    @Description nvarchar(MAX) = NULL,
+    @RequiresExecutedDocument bit = NULL,
+    @Status nvarchar(10) = NULL,
+    @MustBeRoot bit = NULL,
+    @MustBeChild bit = NULL,
+    @TemplateRequired bit = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+    UPDATE
+        [${flyway:defaultSchema}].[ContractType]
+    SET
+        [Name] = ISNULL(@Name, [Name]),
+        [Description] = CASE WHEN @Description_Clear = 1 THEN NULL ELSE ISNULL(@Description, [Description]) END,
+        [RequiresExecutedDocument] = ISNULL(@RequiresExecutedDocument, [RequiresExecutedDocument]),
+        [Status] = ISNULL(@Status, [Status]),
+        [MustBeRoot] = ISNULL(@MustBeRoot, [MustBeRoot]),
+        [MustBeChild] = ISNULL(@MustBeChild, [MustBeChild]),
+        [TemplateRequired] = ISNULL(@TemplateRequired, [TemplateRequired])
     WHERE
         [ID] = @ID
 
-
-    -- Check if the delete was successful
+    -- Check if the update was successful
     IF @@ROWCOUNT = 0
-        SELECT NULL AS [ID] -- Return NULL for all primary key fields to indicate no record was deleted
+        -- Nothing was updated, return no rows, but column structure from base view intact, semantically correct this way.
+        SELECT TOP 0 * FROM [${flyway:defaultSchema}].[vwContractTypes] WHERE 1=0
     ELSE
-        SELECT @ID AS [ID] -- Return the primary key values to indicate we successfully deleted the record
+        -- Return the updated record so the caller can see the updated values and any calculated fields
+        SELECT
+                                        *
+                                    FROM
+                                        [${flyway:defaultSchema}].[vwContractTypes]
+                                    WHERE
+                                        [ID] = @ID
+                                    
 END
 GO
-GRANT EXECUTE ON [${flyway:defaultSchema}].[spDeleteContractSequence] TO [cdp_Developer], [cdp_Integration];
 
-/* spDelete Permissions for MJ_BizApps_Contracts: Contract Sequences */
+GRANT EXECUTE ON [${flyway:defaultSchema}].[spUpdateContractType] TO [cdp_Developer], [cdp_Integration]
+GO
 
-GRANT EXECUTE ON [${flyway:defaultSchema}].[spDeleteContractSequence] TO [cdp_Developer], [cdp_Integration];
+------------------------------------------------------------
+----- TRIGGER FOR __mj_UpdatedAt field for the ContractType table
+------------------------------------------------------------
+IF OBJECT_ID('[${flyway:defaultSchema}].[trgUpdateContractType]', 'TR') IS NOT NULL
+    DROP TRIGGER [${flyway:defaultSchema}].[trgUpdateContractType];
+GO
+CREATE TRIGGER [${flyway:defaultSchema}].trgUpdateContractType
+ON [${flyway:defaultSchema}].[ContractType]
+AFTER UPDATE
+AS
+BEGIN
+    SET NOCOUNT ON;
+    UPDATE
+        [${flyway:defaultSchema}].[ContractType]
+    SET
+        __mj_UpdatedAt = GETUTCDATE()
+    FROM
+        [${flyway:defaultSchema}].[ContractType] AS _organicTable
+    INNER JOIN
+        INSERTED AS I ON
+        _organicTable.[ID] = I.[ID];
+END;
+GO
+
+/* spUpdate Permissions for MJ_BizApps_Contracts: Contract Types */
+
+GRANT EXECUTE ON [${flyway:defaultSchema}].[spUpdateContractType] TO [cdp_Developer], [cdp_Integration];
 
 /* spDelete SQL for MJ_BizApps_Contracts: Contract Template Modifications */
 -----------------------------------------------------------------
@@ -6449,6 +6566,48 @@ GRANT EXECUTE ON [${flyway:defaultSchema}].[spDeleteContractTemplateType] TO [cd
 
 GRANT EXECUTE ON [${flyway:defaultSchema}].[spDeleteContractTemplateType] TO [cdp_Developer], [cdp_Integration];
 
+/* spDelete SQL for MJ_BizApps_Contracts: Contract Types */
+-----------------------------------------------------------------
+-- SQL Code Generation
+-- Entity: MJ_BizApps_Contracts: Contract Types
+-- Item: spDeleteContractType
+--
+-- This was generated by the MemberJunction CodeGen tool.
+-- This file should NOT be edited by hand.
+-----------------------------------------------------------------
+
+------------------------------------------------------------
+----- DELETE PROCEDURE FOR ContractType
+------------------------------------------------------------
+IF OBJECT_ID('[${flyway:defaultSchema}].[spDeleteContractType]', 'P') IS NOT NULL
+    DROP PROCEDURE [${flyway:defaultSchema}].[spDeleteContractType];
+GO
+
+CREATE PROCEDURE [${flyway:defaultSchema}].[spDeleteContractType]
+    @ID uniqueidentifier
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    DELETE FROM
+        [${flyway:defaultSchema}].[ContractType]
+    WHERE
+        [ID] = @ID
+
+
+    -- Check if the delete was successful
+    IF @@ROWCOUNT = 0
+        SELECT NULL AS [ID] -- Return NULL for all primary key fields to indicate no record was deleted
+    ELSE
+        SELECT @ID AS [ID] -- Return the primary key values to indicate we successfully deleted the record
+END
+GO
+GRANT EXECUTE ON [${flyway:defaultSchema}].[spDeleteContractType] TO [cdp_Developer], [cdp_Integration];
+
+/* spDelete Permissions for MJ_BizApps_Contracts: Contract Types */
+
+GRANT EXECUTE ON [${flyway:defaultSchema}].[spDeleteContractType] TO [cdp_Developer], [cdp_Integration];
+
 /* Base View SQL for MJ_BizApps_Contracts: Contract Template Provisions */
 -----------------------------------------------------------------
 -- SQL Code Generation
@@ -6517,11 +6676,9 @@ CREATE PROCEDURE [${flyway:defaultSchema}].[spCreateContractTemplateProvision]
     @ContractTemplateID uniqueidentifier,
     @ProvisionNumber nvarchar(20),
     @Title nvarchar(200),
-    @ProvisionText_Clear bit = 0,
-    @ProvisionText nvarchar(MAX) = NULL,
+    @ProvisionText nvarchar(MAX),
     @Description_Clear bit = 0,
-    @Description nvarchar(MAX) = NULL,
-    @Sequence int = NULL
+    @Description nvarchar(MAX) = NULL
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -6537,8 +6694,7 @@ BEGIN
                 [ProvisionNumber],
                 [Title],
                 [ProvisionText],
-                [Description],
-                [Sequence]
+                [Description]
             )
         OUTPUT INSERTED.[ID] INTO @InsertedRow
         VALUES
@@ -6547,9 +6703,8 @@ BEGIN
                 @ContractTemplateID,
                 @ProvisionNumber,
                 @Title,
-                CASE WHEN @ProvisionText_Clear = 1 THEN NULL ELSE ISNULL(@ProvisionText, NULL) END,
-                CASE WHEN @Description_Clear = 1 THEN NULL ELSE ISNULL(@Description, NULL) END,
-                ISNULL(@Sequence, 0)
+                @ProvisionText,
+                CASE WHEN @Description_Clear = 1 THEN NULL ELSE ISNULL(@Description, NULL) END
             )
     END
     ELSE
@@ -6561,8 +6716,7 @@ BEGIN
                 [ProvisionNumber],
                 [Title],
                 [ProvisionText],
-                [Description],
-                [Sequence]
+                [Description]
             )
         OUTPUT INSERTED.[ID] INTO @InsertedRow
         VALUES
@@ -6570,9 +6724,8 @@ BEGIN
                 @ContractTemplateID,
                 @ProvisionNumber,
                 @Title,
-                CASE WHEN @ProvisionText_Clear = 1 THEN NULL ELSE ISNULL(@ProvisionText, NULL) END,
-                CASE WHEN @Description_Clear = 1 THEN NULL ELSE ISNULL(@Description, NULL) END,
-                ISNULL(@Sequence, 0)
+                @ProvisionText,
+                CASE WHEN @Description_Clear = 1 THEN NULL ELSE ISNULL(@Description, NULL) END
             )
     END
     -- return the new record from the base view, which might have some calculated fields
@@ -6607,11 +6760,9 @@ CREATE PROCEDURE [${flyway:defaultSchema}].[spUpdateContractTemplateProvision]
     @ContractTemplateID uniqueidentifier = NULL,
     @ProvisionNumber nvarchar(20) = NULL,
     @Title nvarchar(200) = NULL,
-    @ProvisionText_Clear bit = 0,
     @ProvisionText nvarchar(MAX) = NULL,
     @Description_Clear bit = 0,
-    @Description nvarchar(MAX) = NULL,
-    @Sequence int = NULL
+    @Description nvarchar(MAX) = NULL
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -6621,9 +6772,8 @@ BEGIN
         [ContractTemplateID] = ISNULL(@ContractTemplateID, [ContractTemplateID]),
         [ProvisionNumber] = ISNULL(@ProvisionNumber, [ProvisionNumber]),
         [Title] = ISNULL(@Title, [Title]),
-        [ProvisionText] = CASE WHEN @ProvisionText_Clear = 1 THEN NULL ELSE ISNULL(@ProvisionText, [ProvisionText]) END,
-        [Description] = CASE WHEN @Description_Clear = 1 THEN NULL ELSE ISNULL(@Description, [Description]) END,
-        [Sequence] = ISNULL(@Sequence, [Sequence])
+        [ProvisionText] = ISNULL(@ProvisionText, [ProvisionText]),
+        [Description] = CASE WHEN @Description_Clear = 1 THEN NULL ELSE ISNULL(@Description, [Description]) END
     WHERE
         [ID] = @ID
 
@@ -6787,9 +6937,11 @@ CREATE PROCEDURE [${flyway:defaultSchema}].[spCreateContractTemplate]
     @VersionLabel nvarchar(50) = NULL,
     @IntroducedDate_Clear bit = 0,
     @IntroducedDate date = NULL,
-    @SourceURL nvarchar(1000),
+    @SourceURL_Clear bit = 0,
+    @SourceURL nvarchar(1000) = NULL,
     @Description_Clear bit = 0,
-    @Description nvarchar(MAX) = NULL
+    @Description nvarchar(MAX) = NULL,
+    @Status nvarchar(20) = NULL
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -6806,7 +6958,8 @@ BEGIN
                 [VersionLabel],
                 [IntroducedDate],
                 [SourceURL],
-                [Description]
+                [Description],
+                [Status]
             )
         OUTPUT INSERTED.[ID] INTO @InsertedRow
         VALUES
@@ -6816,8 +6969,9 @@ BEGIN
                 @ContractTemplateTypeID,
                 CASE WHEN @VersionLabel_Clear = 1 THEN NULL ELSE ISNULL(@VersionLabel, NULL) END,
                 CASE WHEN @IntroducedDate_Clear = 1 THEN NULL ELSE ISNULL(@IntroducedDate, NULL) END,
-                @SourceURL,
-                CASE WHEN @Description_Clear = 1 THEN NULL ELSE ISNULL(@Description, NULL) END
+                CASE WHEN @SourceURL_Clear = 1 THEN NULL ELSE ISNULL(@SourceURL, NULL) END,
+                CASE WHEN @Description_Clear = 1 THEN NULL ELSE ISNULL(@Description, NULL) END,
+                ISNULL(@Status, 'Draft')
             )
     END
     ELSE
@@ -6830,7 +6984,8 @@ BEGIN
                 [VersionLabel],
                 [IntroducedDate],
                 [SourceURL],
-                [Description]
+                [Description],
+                [Status]
             )
         OUTPUT INSERTED.[ID] INTO @InsertedRow
         VALUES
@@ -6839,8 +6994,9 @@ BEGIN
                 @ContractTemplateTypeID,
                 CASE WHEN @VersionLabel_Clear = 1 THEN NULL ELSE ISNULL(@VersionLabel, NULL) END,
                 CASE WHEN @IntroducedDate_Clear = 1 THEN NULL ELSE ISNULL(@IntroducedDate, NULL) END,
-                @SourceURL,
-                CASE WHEN @Description_Clear = 1 THEN NULL ELSE ISNULL(@Description, NULL) END
+                CASE WHEN @SourceURL_Clear = 1 THEN NULL ELSE ISNULL(@SourceURL, NULL) END,
+                CASE WHEN @Description_Clear = 1 THEN NULL ELSE ISNULL(@Description, NULL) END,
+                ISNULL(@Status, 'Draft')
             )
     END
     -- return the new record from the base view, which might have some calculated fields
@@ -6878,9 +7034,11 @@ CREATE PROCEDURE [${flyway:defaultSchema}].[spUpdateContractTemplate]
     @VersionLabel nvarchar(50) = NULL,
     @IntroducedDate_Clear bit = 0,
     @IntroducedDate date = NULL,
+    @SourceURL_Clear bit = 0,
     @SourceURL nvarchar(1000) = NULL,
     @Description_Clear bit = 0,
-    @Description nvarchar(MAX) = NULL
+    @Description nvarchar(MAX) = NULL,
+    @Status nvarchar(20) = NULL
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -6891,8 +7049,9 @@ BEGIN
         [ContractTemplateTypeID] = ISNULL(@ContractTemplateTypeID, [ContractTemplateTypeID]),
         [VersionLabel] = CASE WHEN @VersionLabel_Clear = 1 THEN NULL ELSE ISNULL(@VersionLabel, [VersionLabel]) END,
         [IntroducedDate] = CASE WHEN @IntroducedDate_Clear = 1 THEN NULL ELSE ISNULL(@IntroducedDate, [IntroducedDate]) END,
-        [SourceURL] = ISNULL(@SourceURL, [SourceURL]),
-        [Description] = CASE WHEN @Description_Clear = 1 THEN NULL ELSE ISNULL(@Description, [Description]) END
+        [SourceURL] = CASE WHEN @SourceURL_Clear = 1 THEN NULL ELSE ISNULL(@SourceURL, [SourceURL]) END,
+        [Description] = CASE WHEN @Description_Clear = 1 THEN NULL ELSE ISNULL(@Description, [Description]) END,
+        [Status] = ISNULL(@Status, [Status])
     WHERE
         [ID] = @ID
 
@@ -6985,16 +7144,6 @@ GRANT EXECUTE ON [${flyway:defaultSchema}].[spDeleteContractTemplate] TO [cdp_De
 
 GRANT EXECUTE ON [${flyway:defaultSchema}].[spDeleteContractTemplate] TO [cdp_Developer], [cdp_Integration];
 
-/* Index for Foreign Keys for ContractType */
------------------------------------------------------------------
--- SQL Code Generation
--- Entity: MJ_BizApps_Contracts: Contract Types
--- Item: Index for Foreign Keys
---
--- This was generated by the MemberJunction CodeGen tool.
--- This file should NOT be edited by hand.
------------------------------------------------------------------;
-
 /* Index for Foreign Keys for Contract */
 -----------------------------------------------------------------
 -- SQL Code Generation
@@ -7076,391 +7225,23 @@ IF NOT EXISTS (
 )
 CREATE INDEX IDX_AUTO_MJ_FKEY_Contract_SupersededByContractID ON [${flyway:defaultSchema}].[Contract] ([SupersededByContractID]);
 
-/* SQL text to update entity field related entity name field map for entity field ID D4C3BE29-B422-41A9-8678-D14A5F43C47D */
-EXEC [${mjSchema}].[spUpdateEntityFieldRelatedEntityNameFieldMap] @EntityFieldID='D4C3BE29-B422-41A9-8678-D14A5F43C47D', @RelatedEntityNameFieldMap='ContractType';
+/* SQL text to update entity field related entity name field map for entity field ID DF26A6B1-EB6C-42D8-B236-CD13F58C9B78 */
+EXEC [${mjSchema}].[spUpdateEntityFieldRelatedEntityNameFieldMap] @EntityFieldID='DF26A6B1-EB6C-42D8-B236-CD13F58C9B78', @RelatedEntityNameFieldMap='ContractType';
 
-/* Base View SQL for MJ_BizApps_Contracts: Contract Types */
------------------------------------------------------------------
--- SQL Code Generation
--- Entity: MJ_BizApps_Contracts: Contract Types
--- Item: vwContractTypes
---
--- This was generated by the MemberJunction CodeGen tool.
--- This file should NOT be edited by hand.
------------------------------------------------------------------
+/* SQL text to update entity field related entity name field map for entity field ID BAD7AA2F-EE2B-430A-B182-B7E4B7E09F8A */
+EXEC [${mjSchema}].[spUpdateEntityFieldRelatedEntityNameFieldMap] @EntityFieldID='BAD7AA2F-EE2B-430A-B182-B7E4B7E09F8A', @RelatedEntityNameFieldMap='Company';
 
-------------------------------------------------------------
------ BASE VIEW FOR ENTITY:      MJ_BizApps_Contracts: Contract Types
------               SCHEMA:      ${flyway:defaultSchema}
------               BASE TABLE:  ContractType
------               PRIMARY KEY: ID
-------------------------------------------------------------
-IF OBJECT_ID('[${flyway:defaultSchema}].[vwContractTypes]', 'V') IS NOT NULL
-    DROP VIEW [${flyway:defaultSchema}].[vwContractTypes];
-GO
+/* SQL text to update entity field related entity name field map for entity field ID F11C9543-F483-4BED-A9CE-3E7659D24011 */
+EXEC [${mjSchema}].[spUpdateEntityFieldRelatedEntityNameFieldMap] @EntityFieldID='F11C9543-F483-4BED-A9CE-3E7659D24011', @RelatedEntityNameFieldMap='CustomerOrganization';
 
-CREATE VIEW [${flyway:defaultSchema}].[vwContractTypes]
-AS
-SELECT
-    c.*
-FROM
-    [${flyway:defaultSchema}].[ContractType] AS c
-GO
-GRANT SELECT ON [${flyway:defaultSchema}].[vwContractTypes] TO [cdp_UI], [cdp_Developer], [cdp_Integration];
+/* SQL text to update entity field related entity name field map for entity field ID D47233ED-0EBF-4329-B270-99F70589CD7F */
+EXEC [${mjSchema}].[spUpdateEntityFieldRelatedEntityNameFieldMap] @EntityFieldID='D47233ED-0EBF-4329-B270-99F70589CD7F', @RelatedEntityNameFieldMap='PrimaryContactPerson';
 
-/* Base View Permissions SQL for MJ_BizApps_Contracts: Contract Types */
------------------------------------------------------------------
--- SQL Code Generation
--- Entity: MJ_BizApps_Contracts: Contract Types
--- Item: Permissions for vwContractTypes
---
--- This was generated by the MemberJunction CodeGen tool.
--- This file should NOT be edited by hand.
------------------------------------------------------------------
+/* SQL text to update entity field related entity name field map for entity field ID B4E3A6BF-A9C0-4005-B759-F7623FD5A7FA */
+EXEC [${mjSchema}].[spUpdateEntityFieldRelatedEntityNameFieldMap] @EntityFieldID='B4E3A6BF-A9C0-4005-B759-F7623FD5A7FA', @RelatedEntityNameFieldMap='ContractTemplate';
 
-GRANT SELECT ON [${flyway:defaultSchema}].[vwContractTypes] TO [cdp_UI], [cdp_Developer], [cdp_Integration];
-
-/* spCreate SQL for MJ_BizApps_Contracts: Contract Types */
------------------------------------------------------------------
--- SQL Code Generation
--- Entity: MJ_BizApps_Contracts: Contract Types
--- Item: spCreateContractType
---
--- This was generated by the MemberJunction CodeGen tool.
--- This file should NOT be edited by hand.
------------------------------------------------------------------
-
-------------------------------------------------------------
------ CREATE PROCEDURE FOR ContractType
-------------------------------------------------------------
-IF OBJECT_ID('[${flyway:defaultSchema}].[spCreateContractType]', 'P') IS NOT NULL
-    DROP PROCEDURE [${flyway:defaultSchema}].[spCreateContractType];
-GO
-
-CREATE PROCEDURE [${flyway:defaultSchema}].[spCreateContractType]
-    @ID uniqueidentifier = NULL,
-    @Name nvarchar(100),
-    @Description_Clear bit = 0,
-    @Description nvarchar(MAX) = NULL,
-    @RequiresExecutedDocument bit = NULL,
-    @Status nvarchar(10) = NULL
-AS
-BEGIN
-    SET NOCOUNT ON;
-    DECLARE @InsertedRow TABLE ([ID] UNIQUEIDENTIFIER)
-
-    IF @ID IS NOT NULL
-    BEGIN
-        -- User provided a value, use it
-        INSERT INTO [${flyway:defaultSchema}].[ContractType]
-            (
-                [ID],
-                [Name],
-                [Description],
-                [RequiresExecutedDocument],
-                [Status]
-            )
-        OUTPUT INSERTED.[ID] INTO @InsertedRow
-        VALUES
-            (
-                @ID,
-                @Name,
-                CASE WHEN @Description_Clear = 1 THEN NULL ELSE ISNULL(@Description, NULL) END,
-                ISNULL(@RequiresExecutedDocument, 1),
-                ISNULL(@Status, 'Active')
-            )
-    END
-    ELSE
-    BEGIN
-        -- No value provided, let database use its default (e.g., NEWSEQUENTIALID())
-        INSERT INTO [${flyway:defaultSchema}].[ContractType]
-            (
-                [Name],
-                [Description],
-                [RequiresExecutedDocument],
-                [Status]
-            )
-        OUTPUT INSERTED.[ID] INTO @InsertedRow
-        VALUES
-            (
-                @Name,
-                CASE WHEN @Description_Clear = 1 THEN NULL ELSE ISNULL(@Description, NULL) END,
-                ISNULL(@RequiresExecutedDocument, 1),
-                ISNULL(@Status, 'Active')
-            )
-    END
-    -- return the new record from the base view, which might have some calculated fields
-    SELECT * FROM [${flyway:defaultSchema}].[vwContractTypes] WHERE [ID] = (SELECT [ID] FROM @InsertedRow)
-END
-GO
-GRANT EXECUTE ON [${flyway:defaultSchema}].[spCreateContractType] TO [cdp_Developer], [cdp_Integration];
-
-/* spCreate Permissions for MJ_BizApps_Contracts: Contract Types */
-
-GRANT EXECUTE ON [${flyway:defaultSchema}].[spCreateContractType] TO [cdp_Developer], [cdp_Integration];
-
-/* spUpdate SQL for MJ_BizApps_Contracts: Contract Types */
------------------------------------------------------------------
--- SQL Code Generation
--- Entity: MJ_BizApps_Contracts: Contract Types
--- Item: spUpdateContractType
---
--- This was generated by the MemberJunction CodeGen tool.
--- This file should NOT be edited by hand.
------------------------------------------------------------------
-
-------------------------------------------------------------
------ UPDATE PROCEDURE FOR ContractType
-------------------------------------------------------------
-IF OBJECT_ID('[${flyway:defaultSchema}].[spUpdateContractType]', 'P') IS NOT NULL
-    DROP PROCEDURE [${flyway:defaultSchema}].[spUpdateContractType];
-GO
-
-CREATE PROCEDURE [${flyway:defaultSchema}].[spUpdateContractType]
-    @ID uniqueidentifier,
-    @Name nvarchar(100) = NULL,
-    @Description_Clear bit = 0,
-    @Description nvarchar(MAX) = NULL,
-    @RequiresExecutedDocument bit = NULL,
-    @Status nvarchar(10) = NULL
-AS
-BEGIN
-    SET NOCOUNT ON;
-    UPDATE
-        [${flyway:defaultSchema}].[ContractType]
-    SET
-        [Name] = ISNULL(@Name, [Name]),
-        [Description] = CASE WHEN @Description_Clear = 1 THEN NULL ELSE ISNULL(@Description, [Description]) END,
-        [RequiresExecutedDocument] = ISNULL(@RequiresExecutedDocument, [RequiresExecutedDocument]),
-        [Status] = ISNULL(@Status, [Status])
-    WHERE
-        [ID] = @ID
-
-    -- Check if the update was successful
-    IF @@ROWCOUNT = 0
-        -- Nothing was updated, return no rows, but column structure from base view intact, semantically correct this way.
-        SELECT TOP 0 * FROM [${flyway:defaultSchema}].[vwContractTypes] WHERE 1=0
-    ELSE
-        -- Return the updated record so the caller can see the updated values and any calculated fields
-        SELECT
-                                        *
-                                    FROM
-                                        [${flyway:defaultSchema}].[vwContractTypes]
-                                    WHERE
-                                        [ID] = @ID
-                                    
-END
-GO
-
-GRANT EXECUTE ON [${flyway:defaultSchema}].[spUpdateContractType] TO [cdp_Developer], [cdp_Integration]
-GO
-
-------------------------------------------------------------
------ TRIGGER FOR __mj_UpdatedAt field for the ContractType table
-------------------------------------------------------------
-IF OBJECT_ID('[${flyway:defaultSchema}].[trgUpdateContractType]', 'TR') IS NOT NULL
-    DROP TRIGGER [${flyway:defaultSchema}].[trgUpdateContractType];
-GO
-CREATE TRIGGER [${flyway:defaultSchema}].trgUpdateContractType
-ON [${flyway:defaultSchema}].[ContractType]
-AFTER UPDATE
-AS
-BEGIN
-    SET NOCOUNT ON;
-    UPDATE
-        [${flyway:defaultSchema}].[ContractType]
-    SET
-        __mj_UpdatedAt = GETUTCDATE()
-    FROM
-        [${flyway:defaultSchema}].[ContractType] AS _organicTable
-    INNER JOIN
-        INSERTED AS I ON
-        _organicTable.[ID] = I.[ID];
-END;
-GO
-
-/* spUpdate Permissions for MJ_BizApps_Contracts: Contract Types */
-
-GRANT EXECUTE ON [${flyway:defaultSchema}].[spUpdateContractType] TO [cdp_Developer], [cdp_Integration];
-
-/* spDelete SQL for MJ_BizApps_Contracts: Contract Types */
------------------------------------------------------------------
--- SQL Code Generation
--- Entity: MJ_BizApps_Contracts: Contract Types
--- Item: spDeleteContractType
---
--- This was generated by the MemberJunction CodeGen tool.
--- This file should NOT be edited by hand.
------------------------------------------------------------------
-
-------------------------------------------------------------
------ DELETE PROCEDURE FOR ContractType
-------------------------------------------------------------
-IF OBJECT_ID('[${flyway:defaultSchema}].[spDeleteContractType]', 'P') IS NOT NULL
-    DROP PROCEDURE [${flyway:defaultSchema}].[spDeleteContractType];
-GO
-
-CREATE PROCEDURE [${flyway:defaultSchema}].[spDeleteContractType]
-    @ID uniqueidentifier
-AS
-BEGIN
-    SET NOCOUNT ON;
-
-    DELETE FROM
-        [${flyway:defaultSchema}].[ContractType]
-    WHERE
-        [ID] = @ID
-
-
-    -- Check if the delete was successful
-    IF @@ROWCOUNT = 0
-        SELECT NULL AS [ID] -- Return NULL for all primary key fields to indicate no record was deleted
-    ELSE
-        SELECT @ID AS [ID] -- Return the primary key values to indicate we successfully deleted the record
-END
-GO
-GRANT EXECUTE ON [${flyway:defaultSchema}].[spDeleteContractType] TO [cdp_Developer], [cdp_Integration];
-
-/* spDelete Permissions for MJ_BizApps_Contracts: Contract Types */
-
-GRANT EXECUTE ON [${flyway:defaultSchema}].[spDeleteContractType] TO [cdp_Developer], [cdp_Integration];
-
-/* SQL text to update entity field related entity name field map for entity field ID 03540125-572C-432B-8E73-2C568464B563 */
-EXEC [${mjSchema}].[spUpdateEntityFieldRelatedEntityNameFieldMap] @EntityFieldID='03540125-572C-432B-8E73-2C568464B563', @RelatedEntityNameFieldMap='Company';
-
-/* SQL text to update entity field related entity name field map for entity field ID 8CF73C13-3CDE-4175-A5FF-F8E361476946 */
-EXEC [${mjSchema}].[spUpdateEntityFieldRelatedEntityNameFieldMap] @EntityFieldID='8CF73C13-3CDE-4175-A5FF-F8E361476946', @RelatedEntityNameFieldMap='CustomerOrganization';
-
-/* SQL text to update entity field related entity name field map for entity field ID BDC1ADE5-D9C2-4405-9785-DAB3818BB0CD */
-EXEC [${mjSchema}].[spUpdateEntityFieldRelatedEntityNameFieldMap] @EntityFieldID='BDC1ADE5-D9C2-4405-9785-DAB3818BB0CD', @RelatedEntityNameFieldMap='PrimaryContactPerson';
-
-/* SQL text to update entity field related entity name field map for entity field ID 49623009-21AD-45E6-9B40-CB4182FE8E35 */
-EXEC [${mjSchema}].[spUpdateEntityFieldRelatedEntityNameFieldMap] @EntityFieldID='49623009-21AD-45E6-9B40-CB4182FE8E35', @RelatedEntityNameFieldMap='ContractTemplate';
-
-/* SQL text to update entity field related entity name field map for entity field ID 8AC97591-0971-45D9-82E9-6BBAE6ECECD3 */
-EXEC [${mjSchema}].[spUpdateEntityFieldRelatedEntityNameFieldMap] @EntityFieldID='8AC97591-0971-45D9-82E9-6BBAE6ECECD3', @RelatedEntityNameFieldMap='CreatingEntity';
-
-/* Root ID Function SQL for MJ_BizApps_Contracts: Contracts.ParentContractID */
------------------------------------------------------------------
--- SQL Code Generation
--- Entity: MJ_BizApps_Contracts: Contracts
--- Item: fnContractParentContractID_GetRootID
---
--- This was generated by the MemberJunction CodeGen tool.
--- This file should NOT be edited by hand.
------------------------------------------------------------------
-------------------------------------------------------------
------ ROOT ID FUNCTION FOR: [Contract].[ParentContractID]
-------------------------------------------------------------
-IF OBJECT_ID('[${flyway:defaultSchema}].[fnContractParentContractID_GetRootID]', 'IF') IS NOT NULL
-    DROP FUNCTION [${flyway:defaultSchema}].[fnContractParentContractID_GetRootID];
-GO
-
-CREATE FUNCTION [${flyway:defaultSchema}].[fnContractParentContractID_GetRootID]
-(
-    @RecordID uniqueidentifier,
-    @ParentID uniqueidentifier
-)
-RETURNS TABLE
-AS
-RETURN
-(
-    WITH CTE_RootParent AS (
-        SELECT
-            [ID],
-            [ParentContractID],
-            [ID] AS [RootParentID],
-            0 AS [Depth]
-        FROM
-            [${flyway:defaultSchema}].[Contract]
-        WHERE
-            [ID] = COALESCE(@ParentID, @RecordID)
-
-        UNION ALL
-
-        SELECT
-            c.[ID],
-            c.[ParentContractID],
-            c.[ID] AS [RootParentID],
-            p.[Depth] + 1 AS [Depth]
-        FROM
-            [${flyway:defaultSchema}].[Contract] c
-        INNER JOIN
-            CTE_RootParent p ON c.[ID] = p.[ParentContractID]
-        WHERE
-            p.[Depth] < 100
-    )
-    SELECT TOP 1
-        [RootParentID] AS RootID
-    FROM
-        CTE_RootParent
-    WHERE
-        [ParentContractID] IS NULL
-    ORDER BY
-        [RootParentID]
-);
-GO
-
-/* Root ID Function SQL for MJ_BizApps_Contracts: Contracts.SupersededByContractID */
------------------------------------------------------------------
--- SQL Code Generation
--- Entity: MJ_BizApps_Contracts: Contracts
--- Item: fnContractSupersededByContractID_GetRootID
---
--- This was generated by the MemberJunction CodeGen tool.
--- This file should NOT be edited by hand.
------------------------------------------------------------------
-------------------------------------------------------------
------ ROOT ID FUNCTION FOR: [Contract].[SupersededByContractID]
-------------------------------------------------------------
-IF OBJECT_ID('[${flyway:defaultSchema}].[fnContractSupersededByContractID_GetRootID]', 'IF') IS NOT NULL
-    DROP FUNCTION [${flyway:defaultSchema}].[fnContractSupersededByContractID_GetRootID];
-GO
-
-CREATE FUNCTION [${flyway:defaultSchema}].[fnContractSupersededByContractID_GetRootID]
-(
-    @RecordID uniqueidentifier,
-    @ParentID uniqueidentifier
-)
-RETURNS TABLE
-AS
-RETURN
-(
-    WITH CTE_RootParent AS (
-        SELECT
-            [ID],
-            [SupersededByContractID],
-            [ID] AS [RootParentID],
-            0 AS [Depth]
-        FROM
-            [${flyway:defaultSchema}].[Contract]
-        WHERE
-            [ID] = COALESCE(@ParentID, @RecordID)
-
-        UNION ALL
-
-        SELECT
-            c.[ID],
-            c.[SupersededByContractID],
-            c.[ID] AS [RootParentID],
-            p.[Depth] + 1 AS [Depth]
-        FROM
-            [${flyway:defaultSchema}].[Contract] c
-        INNER JOIN
-            CTE_RootParent p ON c.[ID] = p.[SupersededByContractID]
-        WHERE
-            p.[Depth] < 100
-    )
-    SELECT TOP 1
-        [RootParentID] AS RootID
-    FROM
-        CTE_RootParent
-    WHERE
-        [SupersededByContractID] IS NULL
-    ORDER BY
-        [RootParentID]
-);
-GO
+/* SQL text to update entity field related entity name field map for entity field ID 316A9F07-54F1-4038-862A-C25A2084F274 */
+EXEC [${mjSchema}].[spUpdateEntityFieldRelatedEntityNameFieldMap] @EntityFieldID='316A9F07-54F1-4038-862A-C25A2084F274', @RelatedEntityNameFieldMap='CreatingEntity';
 
 /* Base View SQL for MJ_BizApps_Contracts: Contracts */
 -----------------------------------------------------------------
@@ -7491,9 +7272,7 @@ SELECT
     mjBizAppsCommonOrganization_CustomerOrganizationID.[Name] AS [CustomerOrganization],
     mjBizAppsCommonPerson_PrimaryContactPersonID.[FirstName] AS [PrimaryContactPerson],
     mjBizAppsContractsContractTemplate_ContractTemplateID.[Name] AS [ContractTemplate],
-    MJEntity_CreatingEntityID.[Name] AS [CreatingEntity],
-    root_ParentContractID.RootID AS [RootParentContractID],
-    root_SupersededByContractID.RootID AS [RootSupersededByContractID]
+    MJEntity_CreatingEntityID.[Name] AS [CreatingEntity]
 FROM
     [${flyway:defaultSchema}].[Contract] AS c
 INNER JOIN
@@ -7520,10 +7299,6 @@ LEFT OUTER JOIN
     [${mjSchema}].[Entity] AS MJEntity_CreatingEntityID
   ON
     [c].[CreatingEntityID] = MJEntity_CreatingEntityID.[ID]
-OUTER APPLY
-    [${flyway:defaultSchema}].[fnContractParentContractID_GetRootID]([c].[ID], [c].[ParentContractID]) AS root_ParentContractID
-OUTER APPLY
-    [${flyway:defaultSchema}].[fnContractSupersededByContractID_GetRootID]([c].[ID], [c].[SupersededByContractID]) AS root_SupersededByContractID
 GO
 GRANT SELECT ON [${flyway:defaultSchema}].[vwContracts] TO [cdp_UI], [cdp_Developer], [cdp_Integration];
 
@@ -7558,7 +7333,8 @@ GO
 
 CREATE PROCEDURE [${flyway:defaultSchema}].[spCreateContract]
     @ID uniqueidentifier = NULL,
-    @ContractNumber nvarchar(50),
+    @ContractNumber_Clear bit = 0,
+    @ContractNumber nvarchar(50) = NULL,
     @ContractTypeID uniqueidentifier,
     @CompanyID uniqueidentifier,
     @CustomerOrganizationID uniqueidentifier,
@@ -7634,7 +7410,7 @@ BEGIN
         VALUES
             (
                 @ID,
-                @ContractNumber,
+                CASE WHEN @ContractNumber_Clear = 1 THEN NULL ELSE ISNULL(@ContractNumber, NULL) END,
                 @ContractTypeID,
                 @CompanyID,
                 @CustomerOrganizationID,
@@ -7689,7 +7465,7 @@ BEGIN
         OUTPUT INSERTED.[ID] INTO @InsertedRow
         VALUES
             (
-                @ContractNumber,
+                CASE WHEN @ContractNumber_Clear = 1 THEN NULL ELSE ISNULL(@ContractNumber, NULL) END,
                 @ContractTypeID,
                 @CompanyID,
                 @CustomerOrganizationID,
@@ -7742,6 +7518,7 @@ GO
 
 CREATE PROCEDURE [${flyway:defaultSchema}].[spUpdateContract]
     @ID uniqueidentifier,
+    @ContractNumber_Clear bit = 0,
     @ContractNumber nvarchar(50) = NULL,
     @ContractTypeID uniqueidentifier = NULL,
     @CompanyID uniqueidentifier = NULL,
@@ -7786,7 +7563,7 @@ BEGIN
     UPDATE
         [${flyway:defaultSchema}].[Contract]
     SET
-        [ContractNumber] = ISNULL(@ContractNumber, [ContractNumber]),
+        [ContractNumber] = CASE WHEN @ContractNumber_Clear = 1 THEN NULL ELSE ISNULL(@ContractNumber, [ContractNumber]) END,
         [ContractTypeID] = ISNULL(@ContractTypeID, [ContractTypeID]),
         [CompanyID] = ISNULL(@CompanyID, [CompanyID]),
         [CustomerOrganizationID] = ISNULL(@CustomerOrganizationID, [CustomerOrganizationID]),
@@ -7900,12 +7677,12 @@ GRANT EXECUTE ON [${flyway:defaultSchema}].[spDeleteContract] TO [cdp_Developer]
 
 GRANT EXECUTE ON [${flyway:defaultSchema}].[spDeleteContract] TO [cdp_Developer], [cdp_Integration];
 
-/* SQL text to delete unneeded entity fields (7 scoped entities) */
-EXEC [${mjSchema}].[spDeleteUnneededEntityFields] @ExcludedSchemaNames='sys,staging,dbo,${mjSchema},${mjSchema}_BizAppsAccounting,${mjSchema}_BizAppsCommon,${mjSchema}_BizAppsOrders,${mjSchema}_BizAppsTasks', @EntityIDs='8D50B054-0E15-48C2-907A-BA598E28EA25,21C7D64A-28F3-4535-819A-E0DD384A5580,27A600CA-6A2E-4C85-84AE-924183EC1681,EBB3F628-267E-44D6-8F18-258AC28FF981,96271F4A-AC8D-47C8-BB5D-C7180910B2C7,4CC3DB2D-F01F-405E-A47D-B14BA2F1AB20,2E611A7D-2FBB-4A45-A9C8-103834BF026A';
+/* SQL text to delete unneeded entity fields (6 scoped entities) */
+EXEC [${mjSchema}].[spDeleteUnneededEntityFields] @ExcludedSchemaNames='sys,staging,dbo,${mjSchema},${mjSchema}_BizAppsCommon,${mjSchema}_BizAppsTasks,${mjSchema}_BizAppsAccounting,${mjSchema}_BizAppsOrders,${mjSchema}', @EntityIDs='4E3F97BE-E196-4CC0-9B5D-CC50DE8967A0,731F2890-1415-40DE-9073-D22EA23392B3,317DF592-8C20-473D-B097-2AB239877438,C8909A57-6DDB-4585-BE00-E707C5B4F262,5DEB0B11-ED6C-48B3-9200-F4441396C5E2,B05A480F-F7C5-4D45-8EA3-C90E9A14F225';
 
-/* SQL text to insert 10 new entity field(s) */
+/* SQL text to insert 8 new entity field(s) */
 
-      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = 'b557d486-b203-4c3f-baa5-28537687f51b' OR (EntityID = '27A600CA-6A2E-4C85-84AE-924183EC1681' AND Name = 'ContractTemplate')) BEGIN
+      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = 'f56ab0cb-ec8f-429a-a33f-beddc6bb9f67' OR (EntityID = '317DF592-8C20-473D-B097-2AB239877438' AND Name = 'ContractTemplate')) BEGIN
          INSERT INTO [${mjSchema}].[EntityField]
          (
             [ID],
@@ -7938,9 +7715,9 @@ EXEC [${mjSchema}].[spDeleteUnneededEntityFields] @ExcludedSchemaNames='sys,stag
          )
          VALUES
          (
-            'b557d486-b203-4c3f-baa5-28537687f51b',
-            '27A600CA-6A2E-4C85-84AE-924183EC1681', -- Entity: MJ_BizApps_Contracts: Contract Template Provisions
-            (SELECT COALESCE(MAX([Sequence]), 0) FROM [${mjSchema}].[EntityField] WHERE [EntityID] = '27A600CA-6A2E-4C85-84AE-924183EC1681') + 10,
+            'f56ab0cb-ec8f-429a-a33f-beddc6bb9f67',
+            '317DF592-8C20-473D-B097-2AB239877438', -- Entity: MJ_BizApps_Contracts: Contract Template Provisions
+            (SELECT COALESCE(MAX([Sequence]), 0) FROM [${mjSchema}].[EntityField] WHERE [EntityID] = '317DF592-8C20-473D-B097-2AB239877438') + 10,
             'ContractTemplate',
             'Contract Template',
             NULL,
@@ -7968,7 +7745,7 @@ EXEC [${mjSchema}].[spDeleteUnneededEntityFields] @ExcludedSchemaNames='sys,stag
          )
       END;
 
-      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = 'ffc73e89-1843-4bdb-aa51-e086b19a6bf8' OR (EntityID = '4CC3DB2D-F01F-405E-A47D-B14BA2F1AB20' AND Name = 'ContractType')) BEGIN
+      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = '1e89d300-7f0d-4c94-9ba2-65f616951731' OR (EntityID = '731F2890-1415-40DE-9073-D22EA23392B3' AND Name = 'ContractTemplateType')) BEGIN
          INSERT INTO [${mjSchema}].[EntityField]
          (
             [ID],
@@ -8001,513 +7778,9 @@ EXEC [${mjSchema}].[spDeleteUnneededEntityFields] @ExcludedSchemaNames='sys,stag
          )
          VALUES
          (
-            'ffc73e89-1843-4bdb-aa51-e086b19a6bf8',
-            '4CC3DB2D-F01F-405E-A47D-B14BA2F1AB20', -- Entity: MJ_BizApps_Contracts: Contracts
-            (SELECT COALESCE(MAX([Sequence]), 0) FROM [${mjSchema}].[EntityField] WHERE [EntityID] = '4CC3DB2D-F01F-405E-A47D-B14BA2F1AB20') + 26,
-            'ContractType',
-            'Contract Type',
-            NULL,
-            'nvarchar',
-            200,
-            0,
-            0,
-            0,
-            NULL,
-            0,
-            0,
-            1,
-            0,
-            NULL,
-            NULL,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            'Search',
-            GETUTCDATE(),
-            GETUTCDATE()
-         )
-      END;
-
-      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = 'ef543396-9a94-466a-bfb6-591f89b0056b' OR (EntityID = '4CC3DB2D-F01F-405E-A47D-B14BA2F1AB20' AND Name = 'Company')) BEGIN
-         INSERT INTO [${mjSchema}].[EntityField]
-         (
-            [ID],
-            [EntityID],
-            [Sequence],
-            [Name],
-            [DisplayName],
-            [Description],
-            [Type],
-            [Length],
-            [Precision],
-            [Scale],
-            [AllowsNull],
-            [DefaultValue],
-            [AutoIncrement],
-            [AllowUpdateAPI],
-            [IsVirtual],
-            [IsComputed],
-            [RelatedEntityID],
-            [RelatedEntityFieldName],
-            [IsNameField],
-            [IncludeInUserSearchAPI],
-            [IncludeRelatedEntityNameFieldInBaseView],
-            [DefaultInView],
-            [IsPrimaryKey],
-            [IsUnique],
-            [RelatedEntityDisplayType],
-            [__mj_CreatedAt],
-            [__mj_UpdatedAt]
-         )
-         VALUES
-         (
-            'ef543396-9a94-466a-bfb6-591f89b0056b',
-            '4CC3DB2D-F01F-405E-A47D-B14BA2F1AB20', -- Entity: MJ_BizApps_Contracts: Contracts
-            (SELECT COALESCE(MAX([Sequence]), 0) FROM [${mjSchema}].[EntityField] WHERE [EntityID] = '4CC3DB2D-F01F-405E-A47D-B14BA2F1AB20') + 27,
-            'Company',
-            'Company',
-            NULL,
-            'nvarchar',
-            100,
-            0,
-            0,
-            0,
-            NULL,
-            0,
-            0,
-            1,
-            0,
-            NULL,
-            NULL,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            'Search',
-            GETUTCDATE(),
-            GETUTCDATE()
-         )
-      END;
-
-      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = '8de097b3-d81b-4579-a397-e7a77888b79a' OR (EntityID = '4CC3DB2D-F01F-405E-A47D-B14BA2F1AB20' AND Name = 'CustomerOrganization')) BEGIN
-         INSERT INTO [${mjSchema}].[EntityField]
-         (
-            [ID],
-            [EntityID],
-            [Sequence],
-            [Name],
-            [DisplayName],
-            [Description],
-            [Type],
-            [Length],
-            [Precision],
-            [Scale],
-            [AllowsNull],
-            [DefaultValue],
-            [AutoIncrement],
-            [AllowUpdateAPI],
-            [IsVirtual],
-            [IsComputed],
-            [RelatedEntityID],
-            [RelatedEntityFieldName],
-            [IsNameField],
-            [IncludeInUserSearchAPI],
-            [IncludeRelatedEntityNameFieldInBaseView],
-            [DefaultInView],
-            [IsPrimaryKey],
-            [IsUnique],
-            [RelatedEntityDisplayType],
-            [__mj_CreatedAt],
-            [__mj_UpdatedAt]
-         )
-         VALUES
-         (
-            '8de097b3-d81b-4579-a397-e7a77888b79a',
-            '4CC3DB2D-F01F-405E-A47D-B14BA2F1AB20', -- Entity: MJ_BizApps_Contracts: Contracts
-            (SELECT COALESCE(MAX([Sequence]), 0) FROM [${mjSchema}].[EntityField] WHERE [EntityID] = '4CC3DB2D-F01F-405E-A47D-B14BA2F1AB20') + 28,
-            'CustomerOrganization',
-            'Customer Organization',
-            NULL,
-            'nvarchar',
-            510,
-            0,
-            0,
-            0,
-            NULL,
-            0,
-            0,
-            1,
-            0,
-            NULL,
-            NULL,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            'Search',
-            GETUTCDATE(),
-            GETUTCDATE()
-         )
-      END;
-
-      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = '13acf151-bd8b-4f43-bf50-36d83c7d3b76' OR (EntityID = '4CC3DB2D-F01F-405E-A47D-B14BA2F1AB20' AND Name = 'PrimaryContactPerson')) BEGIN
-         INSERT INTO [${mjSchema}].[EntityField]
-         (
-            [ID],
-            [EntityID],
-            [Sequence],
-            [Name],
-            [DisplayName],
-            [Description],
-            [Type],
-            [Length],
-            [Precision],
-            [Scale],
-            [AllowsNull],
-            [DefaultValue],
-            [AutoIncrement],
-            [AllowUpdateAPI],
-            [IsVirtual],
-            [IsComputed],
-            [RelatedEntityID],
-            [RelatedEntityFieldName],
-            [IsNameField],
-            [IncludeInUserSearchAPI],
-            [IncludeRelatedEntityNameFieldInBaseView],
-            [DefaultInView],
-            [IsPrimaryKey],
-            [IsUnique],
-            [RelatedEntityDisplayType],
-            [__mj_CreatedAt],
-            [__mj_UpdatedAt]
-         )
-         VALUES
-         (
-            '13acf151-bd8b-4f43-bf50-36d83c7d3b76',
-            '4CC3DB2D-F01F-405E-A47D-B14BA2F1AB20', -- Entity: MJ_BizApps_Contracts: Contracts
-            (SELECT COALESCE(MAX([Sequence]), 0) FROM [${mjSchema}].[EntityField] WHERE [EntityID] = '4CC3DB2D-F01F-405E-A47D-B14BA2F1AB20') + 29,
-            'PrimaryContactPerson',
-            'Primary Contact Person',
-            NULL,
-            'nvarchar',
-            200,
-            0,
-            0,
-            1,
-            NULL,
-            0,
-            0,
-            1,
-            0,
-            NULL,
-            NULL,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            'Search',
-            GETUTCDATE(),
-            GETUTCDATE()
-         )
-      END;
-
-      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = 'd16fcb6b-fceb-46c7-8ae0-5ac08f9a930e' OR (EntityID = '4CC3DB2D-F01F-405E-A47D-B14BA2F1AB20' AND Name = 'ContractTemplate')) BEGIN
-         INSERT INTO [${mjSchema}].[EntityField]
-         (
-            [ID],
-            [EntityID],
-            [Sequence],
-            [Name],
-            [DisplayName],
-            [Description],
-            [Type],
-            [Length],
-            [Precision],
-            [Scale],
-            [AllowsNull],
-            [DefaultValue],
-            [AutoIncrement],
-            [AllowUpdateAPI],
-            [IsVirtual],
-            [IsComputed],
-            [RelatedEntityID],
-            [RelatedEntityFieldName],
-            [IsNameField],
-            [IncludeInUserSearchAPI],
-            [IncludeRelatedEntityNameFieldInBaseView],
-            [DefaultInView],
-            [IsPrimaryKey],
-            [IsUnique],
-            [RelatedEntityDisplayType],
-            [__mj_CreatedAt],
-            [__mj_UpdatedAt]
-         )
-         VALUES
-         (
-            'd16fcb6b-fceb-46c7-8ae0-5ac08f9a930e',
-            '4CC3DB2D-F01F-405E-A47D-B14BA2F1AB20', -- Entity: MJ_BizApps_Contracts: Contracts
-            (SELECT COALESCE(MAX([Sequence]), 0) FROM [${mjSchema}].[EntityField] WHERE [EntityID] = '4CC3DB2D-F01F-405E-A47D-B14BA2F1AB20') + 30,
-            'ContractTemplate',
-            'Contract Template',
-            NULL,
-            'nvarchar',
-            400,
-            0,
-            0,
-            1,
-            NULL,
-            0,
-            0,
-            1,
-            0,
-            NULL,
-            NULL,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            'Search',
-            GETUTCDATE(),
-            GETUTCDATE()
-         )
-      END;
-
-      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = 'edf1cb45-eea0-4121-9fcc-52e4ee1f33ea' OR (EntityID = '4CC3DB2D-F01F-405E-A47D-B14BA2F1AB20' AND Name = 'CreatingEntity')) BEGIN
-         INSERT INTO [${mjSchema}].[EntityField]
-         (
-            [ID],
-            [EntityID],
-            [Sequence],
-            [Name],
-            [DisplayName],
-            [Description],
-            [Type],
-            [Length],
-            [Precision],
-            [Scale],
-            [AllowsNull],
-            [DefaultValue],
-            [AutoIncrement],
-            [AllowUpdateAPI],
-            [IsVirtual],
-            [IsComputed],
-            [RelatedEntityID],
-            [RelatedEntityFieldName],
-            [IsNameField],
-            [IncludeInUserSearchAPI],
-            [IncludeRelatedEntityNameFieldInBaseView],
-            [DefaultInView],
-            [IsPrimaryKey],
-            [IsUnique],
-            [RelatedEntityDisplayType],
-            [__mj_CreatedAt],
-            [__mj_UpdatedAt]
-         )
-         VALUES
-         (
-            'edf1cb45-eea0-4121-9fcc-52e4ee1f33ea',
-            '4CC3DB2D-F01F-405E-A47D-B14BA2F1AB20', -- Entity: MJ_BizApps_Contracts: Contracts
-            (SELECT COALESCE(MAX([Sequence]), 0) FROM [${mjSchema}].[EntityField] WHERE [EntityID] = '4CC3DB2D-F01F-405E-A47D-B14BA2F1AB20') + 31,
-            'CreatingEntity',
-            'Creating Entity',
-            NULL,
-            'nvarchar',
-            510,
-            0,
-            0,
-            1,
-            NULL,
-            0,
-            0,
-            1,
-            0,
-            NULL,
-            NULL,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            'Search',
-            GETUTCDATE(),
-            GETUTCDATE()
-         )
-      END;
-
-      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = '15088b1b-6b7b-48de-8b16-e11b02623ab1' OR (EntityID = '4CC3DB2D-F01F-405E-A47D-B14BA2F1AB20' AND Name = 'RootParentContractID')) BEGIN
-         INSERT INTO [${mjSchema}].[EntityField]
-         (
-            [ID],
-            [EntityID],
-            [Sequence],
-            [Name],
-            [DisplayName],
-            [Description],
-            [Type],
-            [Length],
-            [Precision],
-            [Scale],
-            [AllowsNull],
-            [DefaultValue],
-            [AutoIncrement],
-            [AllowUpdateAPI],
-            [IsVirtual],
-            [IsComputed],
-            [RelatedEntityID],
-            [RelatedEntityFieldName],
-            [IsNameField],
-            [IncludeInUserSearchAPI],
-            [IncludeRelatedEntityNameFieldInBaseView],
-            [DefaultInView],
-            [IsPrimaryKey],
-            [IsUnique],
-            [RelatedEntityDisplayType],
-            [__mj_CreatedAt],
-            [__mj_UpdatedAt]
-         )
-         VALUES
-         (
-            '15088b1b-6b7b-48de-8b16-e11b02623ab1',
-            '4CC3DB2D-F01F-405E-A47D-B14BA2F1AB20', -- Entity: MJ_BizApps_Contracts: Contracts
-            (SELECT COALESCE(MAX([Sequence]), 0) FROM [${mjSchema}].[EntityField] WHERE [EntityID] = '4CC3DB2D-F01F-405E-A47D-B14BA2F1AB20') + 32,
-            'RootParentContractID',
-            'Root Parent Contract ID',
-            NULL,
-            'uniqueidentifier',
-            16,
-            0,
-            0,
-            1,
-            NULL,
-            0,
-            0,
-            1,
-            0,
-            NULL,
-            NULL,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            'Search',
-            GETUTCDATE(),
-            GETUTCDATE()
-         )
-      END;
-
-      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = '646c61dd-2a04-4397-8241-179e367ad2fe' OR (EntityID = '4CC3DB2D-F01F-405E-A47D-B14BA2F1AB20' AND Name = 'RootSupersededByContractID')) BEGIN
-         INSERT INTO [${mjSchema}].[EntityField]
-         (
-            [ID],
-            [EntityID],
-            [Sequence],
-            [Name],
-            [DisplayName],
-            [Description],
-            [Type],
-            [Length],
-            [Precision],
-            [Scale],
-            [AllowsNull],
-            [DefaultValue],
-            [AutoIncrement],
-            [AllowUpdateAPI],
-            [IsVirtual],
-            [IsComputed],
-            [RelatedEntityID],
-            [RelatedEntityFieldName],
-            [IsNameField],
-            [IncludeInUserSearchAPI],
-            [IncludeRelatedEntityNameFieldInBaseView],
-            [DefaultInView],
-            [IsPrimaryKey],
-            [IsUnique],
-            [RelatedEntityDisplayType],
-            [__mj_CreatedAt],
-            [__mj_UpdatedAt]
-         )
-         VALUES
-         (
-            '646c61dd-2a04-4397-8241-179e367ad2fe',
-            '4CC3DB2D-F01F-405E-A47D-B14BA2F1AB20', -- Entity: MJ_BizApps_Contracts: Contracts
-            (SELECT COALESCE(MAX([Sequence]), 0) FROM [${mjSchema}].[EntityField] WHERE [EntityID] = '4CC3DB2D-F01F-405E-A47D-B14BA2F1AB20') + 33,
-            'RootSupersededByContractID',
-            'Root Superseded By Contract ID',
-            NULL,
-            'uniqueidentifier',
-            16,
-            0,
-            0,
-            1,
-            NULL,
-            0,
-            0,
-            1,
-            0,
-            NULL,
-            NULL,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            'Search',
-            GETUTCDATE(),
-            GETUTCDATE()
-         )
-      END;
-
-      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = 'eac5daca-e9e0-4884-b6fa-27534fd0624c' OR (EntityID = '21C7D64A-28F3-4535-819A-E0DD384A5580' AND Name = 'ContractTemplateType')) BEGIN
-         INSERT INTO [${mjSchema}].[EntityField]
-         (
-            [ID],
-            [EntityID],
-            [Sequence],
-            [Name],
-            [DisplayName],
-            [Description],
-            [Type],
-            [Length],
-            [Precision],
-            [Scale],
-            [AllowsNull],
-            [DefaultValue],
-            [AutoIncrement],
-            [AllowUpdateAPI],
-            [IsVirtual],
-            [IsComputed],
-            [RelatedEntityID],
-            [RelatedEntityFieldName],
-            [IsNameField],
-            [IncludeInUserSearchAPI],
-            [IncludeRelatedEntityNameFieldInBaseView],
-            [DefaultInView],
-            [IsPrimaryKey],
-            [IsUnique],
-            [RelatedEntityDisplayType],
-            [__mj_CreatedAt],
-            [__mj_UpdatedAt]
-         )
-         VALUES
-         (
-            'eac5daca-e9e0-4884-b6fa-27534fd0624c',
-            '21C7D64A-28F3-4535-819A-E0DD384A5580', -- Entity: MJ_BizApps_Contracts: Contract Templates
-            (SELECT COALESCE(MAX([Sequence]), 0) FROM [${mjSchema}].[EntityField] WHERE [EntityID] = '21C7D64A-28F3-4535-819A-E0DD384A5580') + 10,
+            '1e89d300-7f0d-4c94-9ba2-65f616951731',
+            '731F2890-1415-40DE-9073-D22EA23392B3', -- Entity: MJ_BizApps_Contracts: Contract Templates
+            (SELECT COALESCE(MAX([Sequence]), 0) FROM [${mjSchema}].[EntityField] WHERE [EntityID] = '731F2890-1415-40DE-9073-D22EA23392B3') + 11,
             'ContractTemplateType',
             'Contract Template Type',
             NULL,
@@ -8535,184 +7808,504 @@ EXEC [${mjSchema}].[spDeleteUnneededEntityFields] @ExcludedSchemaNames='sys,stag
          )
       END;
 
-/* SQL text to update existing entity fields from schema (7 scoped entities) */
-EXEC [${mjSchema}].[spUpdateExistingEntityFieldsFromSchema] @ExcludedSchemaNames='sys,staging,dbo,${mjSchema},${mjSchema}_BizAppsAccounting,${mjSchema}_BizAppsCommon,${mjSchema}_BizAppsOrders,${mjSchema}_BizAppsTasks', @EntityIDs='8D50B054-0E15-48C2-907A-BA598E28EA25,21C7D64A-28F3-4535-819A-E0DD384A5580,27A600CA-6A2E-4C85-84AE-924183EC1681,EBB3F628-267E-44D6-8F18-258AC28FF981,96271F4A-AC8D-47C8-BB5D-C7180910B2C7,4CC3DB2D-F01F-405E-A47D-B14BA2F1AB20,2E611A7D-2FBB-4A45-A9C8-103834BF026A';
+      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = '14bda941-ce85-4a14-8fdc-3681b8c52418' OR (EntityID = '5DEB0B11-ED6C-48B3-9200-F4441396C5E2' AND Name = 'ContractType')) BEGIN
+         INSERT INTO [${mjSchema}].[EntityField]
+         (
+            [ID],
+            [EntityID],
+            [Sequence],
+            [Name],
+            [DisplayName],
+            [Description],
+            [Type],
+            [Length],
+            [Precision],
+            [Scale],
+            [AllowsNull],
+            [DefaultValue],
+            [AutoIncrement],
+            [AllowUpdateAPI],
+            [IsVirtual],
+            [IsComputed],
+            [RelatedEntityID],
+            [RelatedEntityFieldName],
+            [IsNameField],
+            [IncludeInUserSearchAPI],
+            [IncludeRelatedEntityNameFieldInBaseView],
+            [DefaultInView],
+            [IsPrimaryKey],
+            [IsUnique],
+            [RelatedEntityDisplayType],
+            [__mj_CreatedAt],
+            [__mj_UpdatedAt]
+         )
+         VALUES
+         (
+            '14bda941-ce85-4a14-8fdc-3681b8c52418',
+            '5DEB0B11-ED6C-48B3-9200-F4441396C5E2', -- Entity: MJ_BizApps_Contracts: Contracts
+            (SELECT COALESCE(MAX([Sequence]), 0) FROM [${mjSchema}].[EntityField] WHERE [EntityID] = '5DEB0B11-ED6C-48B3-9200-F4441396C5E2') + 26,
+            'ContractType',
+            'Contract Type',
+            NULL,
+            'nvarchar',
+            200,
+            0,
+            0,
+            0,
+            NULL,
+            0,
+            0,
+            1,
+            0,
+            NULL,
+            NULL,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            'Search',
+            GETUTCDATE(),
+            GETUTCDATE()
+         )
+      END;
+
+      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = 'a2b9a232-351c-4cf9-a050-6f059f146806' OR (EntityID = '5DEB0B11-ED6C-48B3-9200-F4441396C5E2' AND Name = 'Company')) BEGIN
+         INSERT INTO [${mjSchema}].[EntityField]
+         (
+            [ID],
+            [EntityID],
+            [Sequence],
+            [Name],
+            [DisplayName],
+            [Description],
+            [Type],
+            [Length],
+            [Precision],
+            [Scale],
+            [AllowsNull],
+            [DefaultValue],
+            [AutoIncrement],
+            [AllowUpdateAPI],
+            [IsVirtual],
+            [IsComputed],
+            [RelatedEntityID],
+            [RelatedEntityFieldName],
+            [IsNameField],
+            [IncludeInUserSearchAPI],
+            [IncludeRelatedEntityNameFieldInBaseView],
+            [DefaultInView],
+            [IsPrimaryKey],
+            [IsUnique],
+            [RelatedEntityDisplayType],
+            [__mj_CreatedAt],
+            [__mj_UpdatedAt]
+         )
+         VALUES
+         (
+            'a2b9a232-351c-4cf9-a050-6f059f146806',
+            '5DEB0B11-ED6C-48B3-9200-F4441396C5E2', -- Entity: MJ_BizApps_Contracts: Contracts
+            (SELECT COALESCE(MAX([Sequence]), 0) FROM [${mjSchema}].[EntityField] WHERE [EntityID] = '5DEB0B11-ED6C-48B3-9200-F4441396C5E2') + 27,
+            'Company',
+            'Company',
+            NULL,
+            'nvarchar',
+            100,
+            0,
+            0,
+            0,
+            NULL,
+            0,
+            0,
+            1,
+            0,
+            NULL,
+            NULL,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            'Search',
+            GETUTCDATE(),
+            GETUTCDATE()
+         )
+      END;
+
+      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = '8fbc1aac-1342-4584-991f-aab1c31ce673' OR (EntityID = '5DEB0B11-ED6C-48B3-9200-F4441396C5E2' AND Name = 'CustomerOrganization')) BEGIN
+         INSERT INTO [${mjSchema}].[EntityField]
+         (
+            [ID],
+            [EntityID],
+            [Sequence],
+            [Name],
+            [DisplayName],
+            [Description],
+            [Type],
+            [Length],
+            [Precision],
+            [Scale],
+            [AllowsNull],
+            [DefaultValue],
+            [AutoIncrement],
+            [AllowUpdateAPI],
+            [IsVirtual],
+            [IsComputed],
+            [RelatedEntityID],
+            [RelatedEntityFieldName],
+            [IsNameField],
+            [IncludeInUserSearchAPI],
+            [IncludeRelatedEntityNameFieldInBaseView],
+            [DefaultInView],
+            [IsPrimaryKey],
+            [IsUnique],
+            [RelatedEntityDisplayType],
+            [__mj_CreatedAt],
+            [__mj_UpdatedAt]
+         )
+         VALUES
+         (
+            '8fbc1aac-1342-4584-991f-aab1c31ce673',
+            '5DEB0B11-ED6C-48B3-9200-F4441396C5E2', -- Entity: MJ_BizApps_Contracts: Contracts
+            (SELECT COALESCE(MAX([Sequence]), 0) FROM [${mjSchema}].[EntityField] WHERE [EntityID] = '5DEB0B11-ED6C-48B3-9200-F4441396C5E2') + 28,
+            'CustomerOrganization',
+            'Customer Organization',
+            NULL,
+            'nvarchar',
+            510,
+            0,
+            0,
+            0,
+            NULL,
+            0,
+            0,
+            1,
+            0,
+            NULL,
+            NULL,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            'Search',
+            GETUTCDATE(),
+            GETUTCDATE()
+         )
+      END;
+
+      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = '2999f51a-9170-4028-b142-2f33d7e056ed' OR (EntityID = '5DEB0B11-ED6C-48B3-9200-F4441396C5E2' AND Name = 'PrimaryContactPerson')) BEGIN
+         INSERT INTO [${mjSchema}].[EntityField]
+         (
+            [ID],
+            [EntityID],
+            [Sequence],
+            [Name],
+            [DisplayName],
+            [Description],
+            [Type],
+            [Length],
+            [Precision],
+            [Scale],
+            [AllowsNull],
+            [DefaultValue],
+            [AutoIncrement],
+            [AllowUpdateAPI],
+            [IsVirtual],
+            [IsComputed],
+            [RelatedEntityID],
+            [RelatedEntityFieldName],
+            [IsNameField],
+            [IncludeInUserSearchAPI],
+            [IncludeRelatedEntityNameFieldInBaseView],
+            [DefaultInView],
+            [IsPrimaryKey],
+            [IsUnique],
+            [RelatedEntityDisplayType],
+            [__mj_CreatedAt],
+            [__mj_UpdatedAt]
+         )
+         VALUES
+         (
+            '2999f51a-9170-4028-b142-2f33d7e056ed',
+            '5DEB0B11-ED6C-48B3-9200-F4441396C5E2', -- Entity: MJ_BizApps_Contracts: Contracts
+            (SELECT COALESCE(MAX([Sequence]), 0) FROM [${mjSchema}].[EntityField] WHERE [EntityID] = '5DEB0B11-ED6C-48B3-9200-F4441396C5E2') + 29,
+            'PrimaryContactPerson',
+            'Primary Contact Person',
+            NULL,
+            'nvarchar',
+            200,
+            0,
+            0,
+            1,
+            NULL,
+            0,
+            0,
+            1,
+            0,
+            NULL,
+            NULL,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            'Search',
+            GETUTCDATE(),
+            GETUTCDATE()
+         )
+      END;
+
+      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = '3df1fccc-6c4f-4cef-abec-836517ba655a' OR (EntityID = '5DEB0B11-ED6C-48B3-9200-F4441396C5E2' AND Name = 'ContractTemplate')) BEGIN
+         INSERT INTO [${mjSchema}].[EntityField]
+         (
+            [ID],
+            [EntityID],
+            [Sequence],
+            [Name],
+            [DisplayName],
+            [Description],
+            [Type],
+            [Length],
+            [Precision],
+            [Scale],
+            [AllowsNull],
+            [DefaultValue],
+            [AutoIncrement],
+            [AllowUpdateAPI],
+            [IsVirtual],
+            [IsComputed],
+            [RelatedEntityID],
+            [RelatedEntityFieldName],
+            [IsNameField],
+            [IncludeInUserSearchAPI],
+            [IncludeRelatedEntityNameFieldInBaseView],
+            [DefaultInView],
+            [IsPrimaryKey],
+            [IsUnique],
+            [RelatedEntityDisplayType],
+            [__mj_CreatedAt],
+            [__mj_UpdatedAt]
+         )
+         VALUES
+         (
+            '3df1fccc-6c4f-4cef-abec-836517ba655a',
+            '5DEB0B11-ED6C-48B3-9200-F4441396C5E2', -- Entity: MJ_BizApps_Contracts: Contracts
+            (SELECT COALESCE(MAX([Sequence]), 0) FROM [${mjSchema}].[EntityField] WHERE [EntityID] = '5DEB0B11-ED6C-48B3-9200-F4441396C5E2') + 30,
+            'ContractTemplate',
+            'Contract Template',
+            NULL,
+            'nvarchar',
+            400,
+            0,
+            0,
+            1,
+            NULL,
+            0,
+            0,
+            1,
+            0,
+            NULL,
+            NULL,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            'Search',
+            GETUTCDATE(),
+            GETUTCDATE()
+         )
+      END;
+
+      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = 'b35327d2-0775-4cd2-9d4a-0fa1a2c98aa0' OR (EntityID = '5DEB0B11-ED6C-48B3-9200-F4441396C5E2' AND Name = 'CreatingEntity')) BEGIN
+         INSERT INTO [${mjSchema}].[EntityField]
+         (
+            [ID],
+            [EntityID],
+            [Sequence],
+            [Name],
+            [DisplayName],
+            [Description],
+            [Type],
+            [Length],
+            [Precision],
+            [Scale],
+            [AllowsNull],
+            [DefaultValue],
+            [AutoIncrement],
+            [AllowUpdateAPI],
+            [IsVirtual],
+            [IsComputed],
+            [RelatedEntityID],
+            [RelatedEntityFieldName],
+            [IsNameField],
+            [IncludeInUserSearchAPI],
+            [IncludeRelatedEntityNameFieldInBaseView],
+            [DefaultInView],
+            [IsPrimaryKey],
+            [IsUnique],
+            [RelatedEntityDisplayType],
+            [__mj_CreatedAt],
+            [__mj_UpdatedAt]
+         )
+         VALUES
+         (
+            'b35327d2-0775-4cd2-9d4a-0fa1a2c98aa0',
+            '5DEB0B11-ED6C-48B3-9200-F4441396C5E2', -- Entity: MJ_BizApps_Contracts: Contracts
+            (SELECT COALESCE(MAX([Sequence]), 0) FROM [${mjSchema}].[EntityField] WHERE [EntityID] = '5DEB0B11-ED6C-48B3-9200-F4441396C5E2') + 31,
+            'CreatingEntity',
+            'Creating Entity',
+            NULL,
+            'nvarchar',
+            510,
+            0,
+            0,
+            1,
+            NULL,
+            0,
+            0,
+            1,
+            0,
+            NULL,
+            NULL,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            'Search',
+            GETUTCDATE(),
+            GETUTCDATE()
+         )
+      END;
+
+/* SQL text to update existing entity fields from schema (6 scoped entities) */
+EXEC [${mjSchema}].[spUpdateExistingEntityFieldsFromSchema] @ExcludedSchemaNames='sys,staging,dbo,${mjSchema},${mjSchema}_BizAppsCommon,${mjSchema}_BizAppsTasks,${mjSchema}_BizAppsAccounting,${mjSchema}_BizAppsOrders,${mjSchema}', @EntityIDs='4E3F97BE-E196-4CC0-9B5D-CC50DE8967A0,731F2890-1415-40DE-9073-D22EA23392B3,317DF592-8C20-473D-B097-2AB239877438,C8909A57-6DDB-4585-BE00-E707C5B4F262,5DEB0B11-ED6C-48B3-9200-F4441396C5E2,B05A480F-F7C5-4D45-8EA3-C90E9A14F225';
 
 /* SQL text to set default column width where needed */
-EXEC [${mjSchema}].[spSetDefaultColumnWidthWhereNeeded] @ExcludedSchemaNames='sys,staging,dbo,${mjSchema},${mjSchema}_BizAppsAccounting,${mjSchema}_BizAppsCommon,${mjSchema}_BizAppsOrders,${mjSchema}_BizAppsTasks';
+EXEC [${mjSchema}].[spSetDefaultColumnWidthWhereNeeded] @ExcludedSchemaNames='sys,staging,dbo,${mjSchema},${mjSchema}_BizAppsCommon,${mjSchema}_BizAppsTasks,${mjSchema}_BizAppsAccounting,${mjSchema}_BizAppsOrders,${mjSchema}';
 
 /* Set field properties for entity */
 
                UPDATE [${mjSchema}].[EntityField]
                SET DefaultInView = 1
-               WHERE ID = '9F76A3FC-F70D-4299-8A95-51F210C2D0C7'
+               WHERE ID = '62AFA042-4658-4D78-B9C3-1BDD0B3997D4'
                AND AutoUpdateDefaultInView = 1;
 
                UPDATE [${mjSchema}].[EntityField]
                SET DefaultInView = 1
-               WHERE ID = '8ABC07AE-5B21-4E8E-A8F5-8CA85C4A1086'
+               WHERE ID = '59601A28-9AED-4E62-8B3B-EA21B769B9EB'
+               AND AutoUpdateDefaultInView = 1;
+
+               UPDATE [${mjSchema}].[EntityField]
+               SET DefaultInView = 1
+               WHERE ID = '444FC85A-BD7A-4967-8633-A4E1F8ACB4CE'
                AND AutoUpdateDefaultInView = 1;
 
             UPDATE [${mjSchema}].[Entity]
             SET AllowUserSearchAPI = 0
-            WHERE ID = '96271F4A-AC8D-47C8-BB5D-C7180910B2C7'
+            WHERE ID = 'C8909A57-6DDB-4585-BE00-E707C5B4F262'
             AND AutoUpdateAllowUserSearchAPI = 1;
 
 /* Set field properties for entity */
 
                UPDATE [${mjSchema}].[EntityField]
                SET DefaultInView = 1
-               WHERE ID = 'AB630039-0C2B-48AA-BB8E-8462CF310418'
+               WHERE ID = '0E2AB42B-29F2-4151-A424-ABA78BBA163B'
                AND AutoUpdateDefaultInView = 1;
 
             UPDATE [${mjSchema}].[Entity]
             SET AllowUserSearchAPI = 0
-            WHERE ID = '8D50B054-0E15-48C2-907A-BA598E28EA25'
+            WHERE ID = '4E3F97BE-E196-4CC0-9B5D-CC50DE8967A0'
             AND AutoUpdateAllowUserSearchAPI = 1;
 
 /* Set field properties for entity */
 
                UPDATE [${mjSchema}].[EntityField]
                SET DefaultInView = 1
-               WHERE ID = '2E50007B-B763-4D1D-80B3-979E5530ED89'
+               WHERE ID = '982E307B-667C-4955-99DE-F9A96FAB2CB2'
                AND AutoUpdateDefaultInView = 1;
 
                UPDATE [${mjSchema}].[EntityField]
                SET DefaultInView = 1
-               WHERE ID = '0E75C05A-3AC9-4E05-A559-CDA0D1B2DC46'
+               WHERE ID = '0864CB7F-E532-402F-9F16-102EC14993C6'
+               AND AutoUpdateDefaultInView = 1;
+
+            UPDATE [${mjSchema}].[Entity]
+            SET AllowUserSearchAPI = 0
+            WHERE ID = 'B05A480F-F7C5-4D45-8EA3-C90E9A14F225'
+            AND AutoUpdateAllowUserSearchAPI = 1;
+
+/* Set field properties for entity */
+
+               UPDATE [${mjSchema}].[EntityField]
+               SET DefaultInView = 1
+               WHERE ID = 'D4E48FFF-2F10-4E2E-A036-4D98BDAFCA99'
                AND AutoUpdateDefaultInView = 1;
 
                UPDATE [${mjSchema}].[EntityField]
                SET DefaultInView = 1
-               WHERE ID = 'EAC5DACA-E9E0-4884-B6FA-27534FD0624C'
+               WHERE ID = 'D20B1F02-4F4B-4A8E-894D-4D74F32A6282'
                AND AutoUpdateDefaultInView = 1;
+
+               UPDATE [${mjSchema}].[EntityField]
+               SET DefaultInView = 1
+               WHERE ID = 'E84E1C35-41C9-4A59-8AD2-6D426FDB7E6B'
+               AND AutoUpdateDefaultInView = 1;
+
+               UPDATE [${mjSchema}].[EntityField]
+               SET DefaultInView = 1
+               WHERE ID = '1E89D300-7F0D-4C94-9BA2-65F616951731'
+               AND AutoUpdateDefaultInView = 1;
+
+               UPDATE [${mjSchema}].[EntityField]
+               SET IncludeInUserSearchAPI = 1
+               WHERE ID = 'D4E48FFF-2F10-4E2E-A036-4D98BDAFCA99'
+               AND AutoUpdateIncludeInUserSearchAPI = 1;
 
                UPDATE [${mjSchema}].[EntityField]
                SET UserSearchPredicateAPI = 'BeginsWith'
-               WHERE ID = 'C3469C04-AE31-47A4-A208-8BC2E1C8B227'
+               WHERE ID = '1FC39118-F7F8-4BA7-9940-F341E35F4FDB'
+               AND AutoUpdateUserSearchPredicate = 1;
+
+               UPDATE [${mjSchema}].[EntityField]
+               SET UserSearchPredicateAPI = 'Exact'
+               WHERE ID = 'D4E48FFF-2F10-4E2E-A036-4D98BDAFCA99'
                AND AutoUpdateUserSearchPredicate = 1;
 
 /* Set field properties for entity */
 
                UPDATE [${mjSchema}].[EntityField]
                SET IsNameField = 1
-               WHERE ID = '8399A578-ADE9-4C82-A02C-8B7C8EFDACB8'
+               WHERE ID = 'CFB7315F-8759-4728-BD30-FAAE93F97106'
                AND AutoUpdateIsNameField = 1;
 
                UPDATE [${mjSchema}].[EntityField]
                SET DefaultInView = 1
-               WHERE ID = '8399A578-ADE9-4C82-A02C-8B7C8EFDACB8'
+               WHERE ID = 'CFB7315F-8759-4728-BD30-FAAE93F97106'
                AND AutoUpdateDefaultInView = 1;
 
                UPDATE [${mjSchema}].[EntityField]
                SET DefaultInView = 1
-               WHERE ID = 'DCA6D2E5-A043-4407-9A1C-2AF676B06D7B'
+               WHERE ID = 'CE9CE69A-95CF-4CF0-BDA8-F5F5E661A40B'
                AND AutoUpdateDefaultInView = 1;
 
                UPDATE [${mjSchema}].[EntityField]
                SET DefaultInView = 1
-               WHERE ID = '2278BCB3-6241-45B9-A353-858EC91FF45E'
-               AND AutoUpdateDefaultInView = 1;
-
-               UPDATE [${mjSchema}].[EntityField]
-               SET IncludeInUserSearchAPI = 1
-               WHERE ID = '8399A578-ADE9-4C82-A02C-8B7C8EFDACB8'
-               AND AutoUpdateIncludeInUserSearchAPI = 1;
-
-               UPDATE [${mjSchema}].[EntityField]
-               SET IncludeInUserSearchAPI = 1
-               WHERE ID = 'DCA6D2E5-A043-4407-9A1C-2AF676B06D7B'
-               AND AutoUpdateIncludeInUserSearchAPI = 1;
-
-               UPDATE [${mjSchema}].[EntityField]
-               SET UserSearchPredicateAPI = 'Exact'
-               WHERE ID = '8399A578-ADE9-4C82-A02C-8B7C8EFDACB8'
-               AND AutoUpdateUserSearchPredicate = 1;
-
-               UPDATE [${mjSchema}].[EntityField]
-               SET UserSearchPredicateAPI = 'BeginsWith'
-               WHERE ID = 'DCA6D2E5-A043-4407-9A1C-2AF676B06D7B'
-               AND AutoUpdateUserSearchPredicate = 1;
-
-/* Set field properties for entity */
-
-               UPDATE [${mjSchema}].[EntityField]
-               SET DefaultInView = 1
-               WHERE ID = '9D1ECADE-25C0-4A9C-912A-6B993C5AFD35'
-               AND AutoUpdateDefaultInView = 1;
-
-               UPDATE [${mjSchema}].[EntityField]
-               SET DefaultInView = 1
-               WHERE ID = '51331345-4AE4-4882-959A-6046CBBDDACE'
-               AND AutoUpdateDefaultInView = 1;
-
-               UPDATE [${mjSchema}].[EntityField]
-               SET DefaultInView = 1
-               WHERE ID = '9987B09C-FFFA-460C-9B86-F1692C1728AA'
+               WHERE ID = 'F56AB0CB-EC8F-429A-A33F-BEDDC6BB9F67'
                AND AutoUpdateDefaultInView = 1;
 
             UPDATE [${mjSchema}].[Entity]
             SET AllowUserSearchAPI = 0
-            WHERE ID = '2E611A7D-2FBB-4A45-A9C8-103834BF026A'
+            WHERE ID = '317DF592-8C20-473D-B097-2AB239877438'
             AND AutoUpdateAllowUserSearchAPI = 1;
-
-/* Set categories for 4 fields */
-
--- UPDATE Entity Field Category Info MJ_BizApps_Contracts: Contract Sequences.ID 
-UPDATE [${mjSchema}].[EntityField]
-SET 
-   Category = 'System Metadata',
-   GeneratedFormSection = 'Category',
-   ExtendedType = NULL,
-   CodeType = NULL
-WHERE 
-   ID = '9F76A3FC-F70D-4299-8A95-51F210C2D0C7' AND AutoUpdateCategory = 1;
-
--- UPDATE Entity Field Category Info MJ_BizApps_Contracts: Contract Sequences.NextSequenceNumber 
-UPDATE [${mjSchema}].[EntityField]
-SET 
-   Category = 'Sequence Configuration',
-   GeneratedFormSection = 'Category',
-   ExtendedType = NULL,
-   CodeType = NULL
-WHERE 
-   ID = '8ABC07AE-5B21-4E8E-A8F5-8CA85C4A1086' AND AutoUpdateCategory = 1;
-
--- UPDATE Entity Field Category Info MJ_BizApps_Contracts: Contract Sequences.__mj_CreatedAt 
-UPDATE [${mjSchema}].[EntityField]
-SET 
-   Category = 'System Metadata',
-   GeneratedFormSection = 'Category',
-   ExtendedType = NULL,
-   CodeType = NULL
-WHERE 
-   ID = '666C1337-41C4-4E43-9E14-7FB95213F703' AND AutoUpdateCategory = 1;
-
--- UPDATE Entity Field Category Info MJ_BizApps_Contracts: Contract Sequences.__mj_UpdatedAt 
-UPDATE [${mjSchema}].[EntityField]
-SET 
-   Category = 'System Metadata',
-   GeneratedFormSection = 'Category',
-   ExtendedType = NULL,
-   CodeType = NULL
-WHERE 
-   ID = 'D047BBD2-777B-49D8-9396-7327C80E6697' AND AutoUpdateCategory = 1;
-
-/* Set entity icon to fa fa-list-ol */
-
-               UPDATE [${mjSchema}].[Entity]
-               SET [Icon] = 'fa fa-list-ol', [__mj_UpdatedAt] = GETUTCDATE()
-               WHERE [ID] = '96271F4A-AC8D-47C8-BB5D-C7180910B2C7';
-
-/* Insert FieldCategoryInfo setting for entity */
-
-               INSERT INTO [${mjSchema}].[EntitySetting] ([ID], [EntityID], [Name], [Value], [__mj_CreatedAt], [__mj_UpdatedAt])
-               VALUES ('e9ff53f3-0b6e-434c-843f-4fc8748df995', '96271F4A-AC8D-47C8-BB5D-C7180910B2C7', 'FieldCategoryInfo', '{"Sequence Configuration":{"icon":"fa fa-sort-numeric-up","description":"Configuration settings for managing automated sequence counters"},"System Metadata":{"icon":"fa fa-cog","description":"System-managed audit and tracking fields"}}', GETUTCDATE(), GETUTCDATE());
-
-/* Insert FieldCategoryIcons setting (legacy) */
-
-               INSERT INTO [${mjSchema}].[EntitySetting] ([ID], [EntityID], [Name], [Value], [__mj_CreatedAt], [__mj_UpdatedAt])
-               VALUES ('a4e03c6a-27c4-4b81-b110-1171f2d44eab', '96271F4A-AC8D-47C8-BB5D-C7180910B2C7', 'FieldCategoryIcons', '{"Sequence Configuration":"fa fa-sort-numeric-up","System Metadata":"fa fa-cog"}', GETUTCDATE(), GETUTCDATE());
 
 /* Set categories for 6 fields */
 
@@ -8724,37 +8317,37 @@ SET
    ExtendedType = NULL,
    CodeType = NULL
 WHERE 
-   ID = 'C8BA6C3A-441D-4413-B663-019C586F31FE' AND AutoUpdateCategory = 1;
+   ID = 'B592F895-7E87-480A-8663-9D3C70F812D5' AND AutoUpdateCategory = 1;
 
 -- UPDATE Entity Field Category Info MJ_BizApps_Contracts: Contract Template Types.Name 
 UPDATE [${mjSchema}].[EntityField]
 SET 
-   Category = 'Template Details',
+   Category = 'Contract Template Details',
    GeneratedFormSection = 'Category',
    ExtendedType = NULL,
    CodeType = NULL
 WHERE 
-   ID = '0E90C2B4-35EA-4BAF-8E1D-3B84C2AC04EF' AND AutoUpdateCategory = 1;
+   ID = 'EECE216E-EC2B-4630-9E17-3FCDE668F32A' AND AutoUpdateCategory = 1;
 
 -- UPDATE Entity Field Category Info MJ_BizApps_Contracts: Contract Template Types.Description 
 UPDATE [${mjSchema}].[EntityField]
 SET 
-   Category = 'Template Details',
+   Category = 'Contract Template Details',
    GeneratedFormSection = 'Category',
    ExtendedType = NULL,
    CodeType = NULL
 WHERE 
-   ID = '0A73A8B4-BF4C-41E2-8519-C796BAB1D4BE' AND AutoUpdateCategory = 1;
+   ID = '3EC31CA1-A410-4A25-BB23-1E668A16A125' AND AutoUpdateCategory = 1;
 
 -- UPDATE Entity Field Category Info MJ_BizApps_Contracts: Contract Template Types.Status 
 UPDATE [${mjSchema}].[EntityField]
 SET 
-   Category = 'Template Details',
+   Category = 'Contract Template Details',
    GeneratedFormSection = 'Category',
    ExtendedType = NULL,
    CodeType = NULL
 WHERE 
-   ID = 'AB630039-0C2B-48AA-BB8E-8462CF310418' AND AutoUpdateCategory = 1;
+   ID = '0E2AB42B-29F2-4151-A424-ABA78BBA163B' AND AutoUpdateCategory = 1;
 
 -- UPDATE Entity Field Category Info MJ_BizApps_Contracts: Contract Template Types.__mj_CreatedAt 
 UPDATE [${mjSchema}].[EntityField]
@@ -8764,7 +8357,7 @@ SET
    ExtendedType = NULL,
    CodeType = NULL
 WHERE 
-   ID = '90811D6B-1399-4560-976E-61B1B508EB39' AND AutoUpdateCategory = 1;
+   ID = 'E7D55020-C93E-46B9-89E5-19088CBEDB0A' AND AutoUpdateCategory = 1;
 
 -- UPDATE Entity Field Category Info MJ_BizApps_Contracts: Contract Template Types.__mj_UpdatedAt 
 UPDATE [${mjSchema}].[EntityField]
@@ -8774,35 +8367,29 @@ SET
    ExtendedType = NULL,
    CodeType = NULL
 WHERE 
-   ID = '7C15E29A-C176-4945-BD90-335F51D442E5' AND AutoUpdateCategory = 1;
-
-/* Set DefaultForNewUser=false for NEW entity (category: reference, confidence: high) */
-
-         UPDATE [${mjSchema}].[ApplicationEntity]
-         SET [DefaultForNewUser] = 0, [__mj_UpdatedAt] = GETUTCDATE()
-         WHERE [EntityID] = '96271F4A-AC8D-47C8-BB5D-C7180910B2C7';
+   ID = '26168480-7C59-4436-B954-4979F44F7014' AND AutoUpdateCategory = 1;
 
 /* Set entity icon to fa fa-file-contract */
 
                UPDATE [${mjSchema}].[Entity]
                SET [Icon] = 'fa fa-file-contract', [__mj_UpdatedAt] = GETUTCDATE()
-               WHERE [ID] = '8D50B054-0E15-48C2-907A-BA598E28EA25';
+               WHERE [ID] = '4E3F97BE-E196-4CC0-9B5D-CC50DE8967A0';
 
 /* Insert FieldCategoryInfo setting for entity */
 
                INSERT INTO [${mjSchema}].[EntitySetting] ([ID], [EntityID], [Name], [Value], [__mj_CreatedAt], [__mj_UpdatedAt])
-               VALUES ('ce476d1b-f917-4617-83b5-470b02a01f29', '8D50B054-0E15-48C2-907A-BA598E28EA25', 'FieldCategoryInfo', '{"Template Details":{"icon":"fa fa-file-alt","description":"Information defining the contract template type, including name, description, and status."},"System Metadata":{"icon":"fa fa-cog","description":"System-managed audit and tracking fields."}}', GETUTCDATE(), GETUTCDATE());
+               VALUES ('0b578442-b41f-484b-827e-d47e4013c7bb', '4E3F97BE-E196-4CC0-9B5D-CC50DE8967A0', 'FieldCategoryInfo', '{"Contract Template Details":{"icon":"fa fa-file-contract","description":"Information defining the specific type of contract template"},"System Metadata":{"icon":"fa fa-cog","description":"System-managed audit and tracking fields"}}', GETUTCDATE(), GETUTCDATE());
 
 /* Insert FieldCategoryIcons setting (legacy) */
 
                INSERT INTO [${mjSchema}].[EntitySetting] ([ID], [EntityID], [Name], [Value], [__mj_CreatedAt], [__mj_UpdatedAt])
-               VALUES ('4c935056-c78d-42d0-9a92-14b9588f003c', '8D50B054-0E15-48C2-907A-BA598E28EA25', 'FieldCategoryIcons', '{"Template Details":"fa fa-file-alt","System Metadata":"fa fa-cog"}', GETUTCDATE(), GETUTCDATE());
+               VALUES ('1296ce7e-6406-4540-887c-dad2b35d435e', '4E3F97BE-E196-4CC0-9B5D-CC50DE8967A0', 'FieldCategoryIcons', '{"Contract Template Details":"fa fa-file-contract","System Metadata":"fa fa-cog"}', GETUTCDATE(), GETUTCDATE());
 
 /* Set DefaultForNewUser=false for NEW entity (category: reference, confidence: high) */
 
          UPDATE [${mjSchema}].[ApplicationEntity]
          SET [DefaultForNewUser] = 0, [__mj_UpdatedAt] = GETUTCDATE()
-         WHERE [EntityID] = '8D50B054-0E15-48C2-907A-BA598E28EA25';
+         WHERE [EntityID] = '4E3F97BE-E196-4CC0-9B5D-CC50DE8967A0';
 
 /* Set categories for 7 fields */
 
@@ -8814,7 +8401,7 @@ SET
    ExtendedType = NULL,
    CodeType = NULL
 WHERE 
-   ID = 'FD9C658F-66CE-43A1-AE3A-40DB31530608' AND AutoUpdateCategory = 1;
+   ID = '4796BC59-BF1A-41CF-83B5-29E8F8880C47' AND AutoUpdateCategory = 1;
 
 -- UPDATE Entity Field Category Info MJ_BizApps_Contracts: Contract Template Modifications.ContractID 
 UPDATE [${mjSchema}].[EntityField]
@@ -8825,18 +8412,18 @@ SET
    ExtendedType = NULL,
    CodeType = NULL
 WHERE 
-   ID = '9D1ECADE-25C0-4A9C-912A-6B993C5AFD35' AND AutoUpdateCategory = 1;
+   ID = '982E307B-667C-4955-99DE-F9A96FAB2CB2' AND AutoUpdateCategory = 1;
 
 -- UPDATE Entity Field Category Info MJ_BizApps_Contracts: Contract Template Modifications.ContractTemplateProvisionID 
 UPDATE [${mjSchema}].[EntityField]
 SET 
    Category = 'Contract Association',
    GeneratedFormSection = 'Category',
-   DisplayName = 'Template Provision',
+   DisplayName = 'Contract Template Provision',
    ExtendedType = NULL,
    CodeType = NULL
 WHERE 
-   ID = '51331345-4AE4-4882-959A-6046CBBDDACE' AND AutoUpdateCategory = 1;
+   ID = '0864CB7F-E532-402F-9F16-102EC14993C6' AND AutoUpdateCategory = 1;
 
 -- UPDATE Entity Field Category Info MJ_BizApps_Contracts: Contract Template Modifications.ModificationText 
 UPDATE [${mjSchema}].[EntityField]
@@ -8846,7 +8433,7 @@ SET
    ExtendedType = NULL,
    CodeType = NULL
 WHERE 
-   ID = '8178CF5D-D3A4-4405-8FDA-90D79B627D55' AND AutoUpdateCategory = 1;
+   ID = '0D2FC779-82CA-4D68-A711-3D871A356164' AND AutoUpdateCategory = 1;
 
 -- UPDATE Entity Field Category Info MJ_BizApps_Contracts: Contract Template Modifications.Notes 
 UPDATE [${mjSchema}].[EntityField]
@@ -8856,7 +8443,7 @@ SET
    ExtendedType = NULL,
    CodeType = NULL
 WHERE 
-   ID = '8DAB9C2D-48B0-4C25-8BD3-4DD74029D29A' AND AutoUpdateCategory = 1;
+   ID = '87BB27CB-98B7-4704-BDC5-7871F8F394EB' AND AutoUpdateCategory = 1;
 
 -- UPDATE Entity Field Category Info MJ_BizApps_Contracts: Contract Template Modifications.__mj_CreatedAt 
 UPDATE [${mjSchema}].[EntityField]
@@ -8866,7 +8453,7 @@ SET
    ExtendedType = NULL,
    CodeType = NULL
 WHERE 
-   ID = 'C89C9AA4-4C51-4623-A042-F475C18B415A' AND AutoUpdateCategory = 1;
+   ID = '18518499-1DD3-4369-BD76-59B62EEBA5B8' AND AutoUpdateCategory = 1;
 
 -- UPDATE Entity Field Category Info MJ_BizApps_Contracts: Contract Template Modifications.__mj_UpdatedAt 
 UPDATE [${mjSchema}].[EntityField]
@@ -8876,155 +8463,153 @@ SET
    ExtendedType = NULL,
    CodeType = NULL
 WHERE 
-   ID = '9987B09C-FFFA-460C-9B86-F1692C1728AA' AND AutoUpdateCategory = 1;
-
-/* Set categories for 10 fields */
-
--- UPDATE Entity Field Category Info MJ_BizApps_Contracts: Contract Templates.ID 
-UPDATE [${mjSchema}].[EntityField]
-SET 
-   Category = 'System Metadata',
-   GeneratedFormSection = 'Category',
-   ExtendedType = NULL,
-   CodeType = NULL
-WHERE 
-   ID = '66A5D587-22A3-4067-9952-130A308424AC' AND AutoUpdateCategory = 1;
-
--- UPDATE Entity Field Category Info MJ_BizApps_Contracts: Contract Templates.Name 
-UPDATE [${mjSchema}].[EntityField]
-SET 
-   Category = 'Template Details',
-   GeneratedFormSection = 'Category',
-   ExtendedType = NULL,
-   CodeType = NULL
-WHERE 
-   ID = 'C3469C04-AE31-47A4-A208-8BC2E1C8B227' AND AutoUpdateCategory = 1;
-
--- UPDATE Entity Field Category Info MJ_BizApps_Contracts: Contract Templates.ContractTemplateTypeID 
-UPDATE [${mjSchema}].[EntityField]
-SET 
-   Category = 'Template Details',
-   GeneratedFormSection = 'Category',
-   DisplayName = 'Template Type ID',
-   ExtendedType = NULL,
-   CodeType = NULL
-WHERE 
-   ID = 'A243F09C-98F4-4AC3-8319-50505000C0C4' AND AutoUpdateCategory = 1;
-
--- UPDATE Entity Field Category Info MJ_BizApps_Contracts: Contract Templates.ContractTemplateType 
-UPDATE [${mjSchema}].[EntityField]
-SET 
-   Category = 'Template Details',
-   GeneratedFormSection = 'Category',
-   DisplayName = 'Template Type',
-   ExtendedType = NULL,
-   CodeType = NULL
-WHERE 
-   ID = 'EAC5DACA-E9E0-4884-B6FA-27534FD0624C' AND AutoUpdateCategory = 1;
-
--- UPDATE Entity Field Category Info MJ_BizApps_Contracts: Contract Templates.VersionLabel 
-UPDATE [${mjSchema}].[EntityField]
-SET 
-   Category = 'Template Details',
-   GeneratedFormSection = 'Category',
-   ExtendedType = NULL,
-   CodeType = NULL
-WHERE 
-   ID = '2E50007B-B763-4D1D-80B3-979E5530ED89' AND AutoUpdateCategory = 1;
-
--- UPDATE Entity Field Category Info MJ_BizApps_Contracts: Contract Templates.IntroducedDate 
-UPDATE [${mjSchema}].[EntityField]
-SET 
-   Category = 'Template Details',
-   GeneratedFormSection = 'Category',
-   ExtendedType = NULL,
-   CodeType = NULL
-WHERE 
-   ID = '0E75C05A-3AC9-4E05-A559-CDA0D1B2DC46' AND AutoUpdateCategory = 1;
-
--- UPDATE Entity Field Category Info MJ_BizApps_Contracts: Contract Templates.SourceURL 
-UPDATE [${mjSchema}].[EntityField]
-SET 
-   Category = 'Template Details',
-   GeneratedFormSection = 'Category',
-   ExtendedType = 'URL',
-   CodeType = NULL
-WHERE 
-   ID = '76CEBF85-736B-485A-8B3E-CFBE6F91D266' AND AutoUpdateCategory = 1;
-
--- UPDATE Entity Field Category Info MJ_BizApps_Contracts: Contract Templates.Description 
-UPDATE [${mjSchema}].[EntityField]
-SET 
-   Category = 'Template Details',
-   GeneratedFormSection = 'Category',
-   ExtendedType = NULL,
-   CodeType = NULL
-WHERE 
-   ID = '90BFA9BA-7A5A-4AA2-B33E-254CC4CDE43B' AND AutoUpdateCategory = 1;
-
--- UPDATE Entity Field Category Info MJ_BizApps_Contracts: Contract Templates.__mj_CreatedAt 
-UPDATE [${mjSchema}].[EntityField]
-SET 
-   Category = 'System Metadata',
-   GeneratedFormSection = 'Category',
-   ExtendedType = NULL,
-   CodeType = NULL
-WHERE 
-   ID = '0326BEF3-855A-443B-A0A2-3749030C99E5' AND AutoUpdateCategory = 1;
-
--- UPDATE Entity Field Category Info MJ_BizApps_Contracts: Contract Templates.__mj_UpdatedAt 
-UPDATE [${mjSchema}].[EntityField]
-SET 
-   Category = 'System Metadata',
-   GeneratedFormSection = 'Category',
-   ExtendedType = NULL,
-   CodeType = NULL
-WHERE 
-   ID = '0595EAD0-A56C-4222-8E37-86677705E3E4' AND AutoUpdateCategory = 1;
+   ID = '54072096-C4E2-450C-97FA-BF162E2485D6' AND AutoUpdateCategory = 1;
 
 /* Set entity icon to fa fa-file-contract */
 
                UPDATE [${mjSchema}].[Entity]
                SET [Icon] = 'fa fa-file-contract', [__mj_UpdatedAt] = GETUTCDATE()
-               WHERE [ID] = '2E611A7D-2FBB-4A45-A9C8-103834BF026A';
+               WHERE [ID] = 'B05A480F-F7C5-4D45-8EA3-C90E9A14F225';
 
 /* Insert FieldCategoryInfo setting for entity */
 
                INSERT INTO [${mjSchema}].[EntitySetting] ([ID], [EntityID], [Name], [Value], [__mj_CreatedAt], [__mj_UpdatedAt])
-               VALUES ('000d1197-98bc-4331-a368-24393e98ea67', '2E611A7D-2FBB-4A45-A9C8-103834BF026A', 'FieldCategoryInfo', '{"Contract Association":{"icon":"fa fa-link","description":"Links the modification to the parent contract and the specific template clause it replaces."},"Modification Details":{"icon":"fa fa-align-left","description":"The specific text changes and supporting negotiation notes for the contract."},"System Metadata":{"icon":"fa fa-cog","description":"System-managed audit and tracking fields."}}', GETUTCDATE(), GETUTCDATE());
+               VALUES ('7c40ba9f-d702-4e58-a74f-51e0db251f13', 'B05A480F-F7C5-4D45-8EA3-C90E9A14F225', 'FieldCategoryInfo', '{"Contract Association":{"icon":"fa fa-link","description":"Links the modification to the parent contract and specific template provision."},"Modification Details":{"icon":"fa fa-edit","description":"The specific text changes and supporting notes for the contract modification."},"System Metadata":{"icon":"fa fa-cog","description":"System-managed audit and tracking fields."}}', GETUTCDATE(), GETUTCDATE());
 
 /* Insert FieldCategoryIcons setting (legacy) */
 
                INSERT INTO [${mjSchema}].[EntitySetting] ([ID], [EntityID], [Name], [Value], [__mj_CreatedAt], [__mj_UpdatedAt])
-               VALUES ('5c63b56a-5b1e-40da-857c-fea6e48ed4fd', '2E611A7D-2FBB-4A45-A9C8-103834BF026A', 'FieldCategoryIcons', '{"Contract Association":"fa fa-link","Modification Details":"fa fa-align-left","System Metadata":"fa fa-cog"}', GETUTCDATE(), GETUTCDATE());
-
-/* Set entity icon to fa fa-file-contract */
-
-               UPDATE [${mjSchema}].[Entity]
-               SET [Icon] = 'fa fa-file-contract', [__mj_UpdatedAt] = GETUTCDATE()
-               WHERE [ID] = '21C7D64A-28F3-4535-819A-E0DD384A5580';
+               VALUES ('0e258280-451a-4b0c-bcc4-19ae5309b564', 'B05A480F-F7C5-4D45-8EA3-C90E9A14F225', 'FieldCategoryIcons', '{"Contract Association":"fa fa-link","Modification Details":"fa fa-edit","System Metadata":"fa fa-cog"}', GETUTCDATE(), GETUTCDATE());
 
 /* Set DefaultForNewUser=true for NEW entity (category: supporting, confidence: high) */
 
          UPDATE [${mjSchema}].[ApplicationEntity]
          SET [DefaultForNewUser] = 1, [__mj_UpdatedAt] = GETUTCDATE()
-         WHERE [EntityID] = '2E611A7D-2FBB-4A45-A9C8-103834BF026A';
+         WHERE [EntityID] = 'B05A480F-F7C5-4D45-8EA3-C90E9A14F225';
+
+/* Set categories for 10 fields */
+
+-- UPDATE Entity Field Category Info MJ_BizApps_Contracts: Contract Types.ID 
+UPDATE [${mjSchema}].[EntityField]
+SET 
+   Category = 'System Metadata',
+   GeneratedFormSection = 'Category',
+   ExtendedType = NULL,
+   CodeType = NULL
+WHERE 
+   ID = '9C8643D3-2B82-41A6-80F6-D29ABB68D1CB' AND AutoUpdateCategory = 1;
+
+-- UPDATE Entity Field Category Info MJ_BizApps_Contracts: Contract Types.Name 
+UPDATE [${mjSchema}].[EntityField]
+SET 
+   Category = 'Contract Type Details',
+   GeneratedFormSection = 'Category',
+   ExtendedType = NULL,
+   CodeType = NULL
+WHERE 
+   ID = '84119AD2-CBA8-466B-B20A-8A94C20FCE3F' AND AutoUpdateCategory = 1;
+
+-- UPDATE Entity Field Category Info MJ_BizApps_Contracts: Contract Types.Description 
+UPDATE [${mjSchema}].[EntityField]
+SET 
+   Category = 'Contract Type Details',
+   GeneratedFormSection = 'Category',
+   ExtendedType = NULL,
+   CodeType = NULL
+WHERE 
+   ID = '46B195B4-EA25-41A4-BB78-83B2014A930C' AND AutoUpdateCategory = 1;
+
+-- UPDATE Entity Field Category Info MJ_BizApps_Contracts: Contract Types.Status 
+UPDATE [${mjSchema}].[EntityField]
+SET 
+   Category = 'Contract Type Details',
+   GeneratedFormSection = 'Category',
+   ExtendedType = NULL,
+   CodeType = NULL
+WHERE 
+   ID = '59601A28-9AED-4E62-8B3B-EA21B769B9EB' AND AutoUpdateCategory = 1;
+
+-- UPDATE Entity Field Category Info MJ_BizApps_Contracts: Contract Types.RequiresExecutedDocument 
+UPDATE [${mjSchema}].[EntityField]
+SET 
+   Category = 'Configuration Rules',
+   GeneratedFormSection = 'Category',
+   ExtendedType = NULL,
+   CodeType = NULL
+WHERE 
+   ID = '62AFA042-4658-4D78-B9C3-1BDD0B3997D4' AND AutoUpdateCategory = 1;
+
+-- UPDATE Entity Field Category Info MJ_BizApps_Contracts: Contract Types.MustBeRoot 
+UPDATE [${mjSchema}].[EntityField]
+SET 
+   Category = 'Configuration Rules',
+   GeneratedFormSection = 'Category',
+   ExtendedType = NULL,
+   CodeType = NULL
+WHERE 
+   ID = 'D252CC6D-3196-4616-AAEF-93FFC7CE6887' AND AutoUpdateCategory = 1;
+
+-- UPDATE Entity Field Category Info MJ_BizApps_Contracts: Contract Types.MustBeChild 
+UPDATE [${mjSchema}].[EntityField]
+SET 
+   Category = 'Configuration Rules',
+   GeneratedFormSection = 'Category',
+   ExtendedType = NULL,
+   CodeType = NULL
+WHERE 
+   ID = '04BA23CD-EC7A-495B-81DF-47474EF8C0EB' AND AutoUpdateCategory = 1;
+
+-- UPDATE Entity Field Category Info MJ_BizApps_Contracts: Contract Types.TemplateRequired 
+UPDATE [${mjSchema}].[EntityField]
+SET 
+   Category = 'Configuration Rules',
+   GeneratedFormSection = 'Category',
+   ExtendedType = NULL,
+   CodeType = NULL
+WHERE 
+   ID = '444FC85A-BD7A-4967-8633-A4E1F8ACB4CE' AND AutoUpdateCategory = 1;
+
+-- UPDATE Entity Field Category Info MJ_BizApps_Contracts: Contract Types.__mj_CreatedAt 
+UPDATE [${mjSchema}].[EntityField]
+SET 
+   Category = 'System Metadata',
+   GeneratedFormSection = 'Category',
+   ExtendedType = NULL,
+   CodeType = NULL
+WHERE 
+   ID = '6A869A40-C89A-43F5-BC80-94A104E9FC46' AND AutoUpdateCategory = 1;
+
+-- UPDATE Entity Field Category Info MJ_BizApps_Contracts: Contract Types.__mj_UpdatedAt 
+UPDATE [${mjSchema}].[EntityField]
+SET 
+   Category = 'System Metadata',
+   GeneratedFormSection = 'Category',
+   ExtendedType = NULL,
+   CodeType = NULL
+WHERE 
+   ID = '68821111-317C-4AB8-922E-F1EC8AEA0973' AND AutoUpdateCategory = 1;
+
+/* Set entity icon to fa fa-file-contract */
+
+               UPDATE [${mjSchema}].[Entity]
+               SET [Icon] = 'fa fa-file-contract', [__mj_UpdatedAt] = GETUTCDATE()
+               WHERE [ID] = 'C8909A57-6DDB-4585-BE00-E707C5B4F262';
 
 /* Insert FieldCategoryInfo setting for entity */
 
                INSERT INTO [${mjSchema}].[EntitySetting] ([ID], [EntityID], [Name], [Value], [__mj_CreatedAt], [__mj_UpdatedAt])
-               VALUES ('26f1bacf-c033-458a-b4d1-3496648f48ae', '21C7D64A-28F3-4535-819A-E0DD384A5580', 'FieldCategoryInfo', '{"Template Details":{"icon":"fa fa-file-alt","description":"Core information about the contract template version, including type, versioning, and hosting URL."},"System Metadata":{"icon":"fa fa-cog","description":"System-managed audit and tracking fields."}}', GETUTCDATE(), GETUTCDATE());
+               VALUES ('d2d62a86-3c4a-442a-bc2c-a0498b5f5632', 'C8909A57-6DDB-4585-BE00-E707C5B4F262', 'FieldCategoryInfo', '{"Contract Type Details":{"icon":"fa fa-info-circle","description":"Basic identification and status information for the contract type"},"Configuration Rules":{"icon":"fa fa-cogs","description":"Business logic and constraints governing contract behavior and placement"},"System Metadata":{"icon":"fa fa-cog","description":"System-managed audit and tracking fields"}}', GETUTCDATE(), GETUTCDATE());
 
 /* Insert FieldCategoryIcons setting (legacy) */
 
                INSERT INTO [${mjSchema}].[EntitySetting] ([ID], [EntityID], [Name], [Value], [__mj_CreatedAt], [__mj_UpdatedAt])
-               VALUES ('7bc2dcb2-f5fc-4ce4-aaf5-350f1cfa0ddd', '21C7D64A-28F3-4535-819A-E0DD384A5580', 'FieldCategoryIcons', '{"Template Details":"fa fa-file-alt","System Metadata":"fa fa-cog"}', GETUTCDATE(), GETUTCDATE());
+               VALUES ('14088b52-f54b-47e4-bc16-9c4f325c7450', 'C8909A57-6DDB-4585-BE00-E707C5B4F262', 'FieldCategoryIcons', '{"Contract Type Details":"fa fa-info-circle","Configuration Rules":"fa fa-cogs","System Metadata":"fa fa-cog"}', GETUTCDATE(), GETUTCDATE());
 
-/* Set DefaultForNewUser=true for NEW entity (category: primary, confidence: high) */
+/* Set DefaultForNewUser=false for NEW entity (category: reference, confidence: high) */
 
          UPDATE [${mjSchema}].[ApplicationEntity]
-         SET [DefaultForNewUser] = 1, [__mj_UpdatedAt] = GETUTCDATE()
-         WHERE [EntityID] = '21C7D64A-28F3-4535-819A-E0DD384A5580';
+         SET [DefaultForNewUser] = 0, [__mj_UpdatedAt] = GETUTCDATE()
+         WHERE [EntityID] = 'C8909A57-6DDB-4585-BE00-E707C5B4F262';
 
 /* Set categories for 10 fields */
 
@@ -9036,7 +8621,7 @@ SET
    ExtendedType = NULL,
    CodeType = NULL
 WHERE 
-   ID = '03FAB201-6A05-4F84-A3F4-AD6DE9AA4A62' AND AutoUpdateCategory = 1;
+   ID = 'DA55D974-F70E-42D0-A12A-04F2EFD46A85' AND AutoUpdateCategory = 1;
 
 -- UPDATE Entity Field Category Info MJ_BizApps_Contracts: Contract Template Provisions.ContractTemplateID 
 UPDATE [${mjSchema}].[EntityField]
@@ -9047,7 +8632,7 @@ SET
    ExtendedType = NULL,
    CodeType = NULL
 WHERE 
-   ID = 'B17D0F3B-300E-4C9B-B466-7DFCB5612EC3' AND AutoUpdateCategory = 1;
+   ID = 'FD673FEE-72AB-4109-89B1-DB5BCEE9EB3E' AND AutoUpdateCategory = 1;
 
 -- UPDATE Entity Field Category Info MJ_BizApps_Contracts: Contract Template Provisions.ContractTemplate 
 UPDATE [${mjSchema}].[EntityField]
@@ -9058,7 +8643,7 @@ SET
    ExtendedType = NULL,
    CodeType = NULL
 WHERE 
-   ID = 'B557D486-B203-4C3F-BAA5-28537687F51B' AND AutoUpdateCategory = 1;
+   ID = 'F56AB0CB-EC8F-429A-A33F-BEDDC6BB9F67' AND AutoUpdateCategory = 1;
 
 -- UPDATE Entity Field Category Info MJ_BizApps_Contracts: Contract Template Provisions.ProvisionNumber 
 UPDATE [${mjSchema}].[EntityField]
@@ -9068,7 +8653,7 @@ SET
    ExtendedType = NULL,
    CodeType = NULL
 WHERE 
-   ID = '8399A578-ADE9-4C82-A02C-8B7C8EFDACB8' AND AutoUpdateCategory = 1;
+   ID = 'CFB7315F-8759-4728-BD30-FAAE93F97106' AND AutoUpdateCategory = 1;
 
 -- UPDATE Entity Field Category Info MJ_BizApps_Contracts: Contract Template Provisions.Title 
 UPDATE [${mjSchema}].[EntityField]
@@ -9078,29 +8663,9 @@ SET
    ExtendedType = NULL,
    CodeType = NULL
 WHERE 
-   ID = 'DCA6D2E5-A043-4407-9A1C-2AF676B06D7B' AND AutoUpdateCategory = 1;
+   ID = 'CE9CE69A-95CF-4CF0-BDA8-F5F5E661A40B' AND AutoUpdateCategory = 1;
 
 -- UPDATE Entity Field Category Info MJ_BizApps_Contracts: Contract Template Provisions.ProvisionText 
-UPDATE [${mjSchema}].[EntityField]
-SET 
-   Category = 'Provision Content',
-   GeneratedFormSection = 'Category',
-   ExtendedType = 'Code',
-   CodeType = 'Other'
-WHERE 
-   ID = '73B20D56-83DD-4E73-BE91-D7FDA3CACB25' AND AutoUpdateCategory = 1;
-
--- UPDATE Entity Field Category Info MJ_BizApps_Contracts: Contract Template Provisions.Description 
-UPDATE [${mjSchema}].[EntityField]
-SET 
-   Category = 'Provision Content',
-   GeneratedFormSection = 'Category',
-   ExtendedType = NULL,
-   CodeType = NULL
-WHERE 
-   ID = '901D4A8E-91E0-4CDC-B072-98F78D8383EB' AND AutoUpdateCategory = 1;
-
--- UPDATE Entity Field Category Info MJ_BizApps_Contracts: Contract Template Provisions.Sequence 
 UPDATE [${mjSchema}].[EntityField]
 SET 
    Category = 'Provision Details',
@@ -9108,7 +8673,28 @@ SET
    ExtendedType = NULL,
    CodeType = NULL
 WHERE 
-   ID = '2278BCB3-6241-45B9-A353-858EC91FF45E' AND AutoUpdateCategory = 1;
+   ID = 'D2CD9029-4DB4-4AD1-85A2-ABBFDA35EAFD' AND AutoUpdateCategory = 1;
+
+-- UPDATE Entity Field Category Info MJ_BizApps_Contracts: Contract Template Provisions.Description 
+UPDATE [${mjSchema}].[EntityField]
+SET 
+   Category = 'Provision Details',
+   GeneratedFormSection = 'Category',
+   ExtendedType = NULL,
+   CodeType = NULL
+WHERE 
+   ID = '1BFDA475-470F-4F3C-8B5D-B0DBDCED2EE3' AND AutoUpdateCategory = 1;
+
+-- UPDATE Entity Field Category Info MJ_BizApps_Contracts: Contract Template Provisions.ProvisionSortKey 
+UPDATE [${mjSchema}].[EntityField]
+SET 
+   Category = 'System Metadata',
+   GeneratedFormSection = 'Category',
+   DisplayName = 'Sort Key',
+   ExtendedType = NULL,
+   CodeType = NULL
+WHERE 
+   ID = '2E082EBC-4A00-4C39-8F6D-F7B680F5B345' AND AutoUpdateCategory = 1;
 
 -- UPDATE Entity Field Category Info MJ_BizApps_Contracts: Contract Template Provisions.__mj_CreatedAt 
 UPDATE [${mjSchema}].[EntityField]
@@ -9118,7 +8704,7 @@ SET
    ExtendedType = NULL,
    CodeType = NULL
 WHERE 
-   ID = '0C64DB7B-30EE-4FFF-8EA8-51BF362D50D0' AND AutoUpdateCategory = 1;
+   ID = '6B098C7F-9119-4C60-94B5-CA2ACA14309F' AND AutoUpdateCategory = 1;
 
 -- UPDATE Entity Field Category Info MJ_BizApps_Contracts: Contract Template Provisions.__mj_UpdatedAt 
 UPDATE [${mjSchema}].[EntityField]
@@ -9128,184 +8714,209 @@ SET
    ExtendedType = NULL,
    CodeType = NULL
 WHERE 
-   ID = 'CF6F8B7C-9560-4770-B07B-32327C139C7F' AND AutoUpdateCategory = 1;
+   ID = '9F515EDD-BE69-4955-9C10-EB1819DDFD2C' AND AutoUpdateCategory = 1;
+
+/* Set categories for 11 fields */
+
+-- UPDATE Entity Field Category Info MJ_BizApps_Contracts: Contract Templates.ID 
+UPDATE [${mjSchema}].[EntityField]
+SET 
+   Category = 'System Metadata',
+   GeneratedFormSection = 'Category',
+   ExtendedType = NULL,
+   CodeType = NULL
+WHERE 
+   ID = 'A8BF5461-4A41-4388-8761-50B79FC598B4' AND AutoUpdateCategory = 1;
+
+-- UPDATE Entity Field Category Info MJ_BizApps_Contracts: Contract Templates.Name 
+UPDATE [${mjSchema}].[EntityField]
+SET 
+   Category = 'Template Details',
+   GeneratedFormSection = 'Category',
+   ExtendedType = NULL,
+   CodeType = NULL
+WHERE 
+   ID = '1FC39118-F7F8-4BA7-9940-F341E35F4FDB' AND AutoUpdateCategory = 1;
+
+-- UPDATE Entity Field Category Info MJ_BizApps_Contracts: Contract Templates.ContractTemplateTypeID 
+UPDATE [${mjSchema}].[EntityField]
+SET 
+   Category = 'Template Details',
+   GeneratedFormSection = 'Category',
+   DisplayName = 'Template Type ID',
+   ExtendedType = NULL,
+   CodeType = NULL
+WHERE 
+   ID = '7B8EC82E-CF52-4F4C-980D-47A15194EA12' AND AutoUpdateCategory = 1;
+
+-- UPDATE Entity Field Category Info MJ_BizApps_Contracts: Contract Templates.ContractTemplateType 
+UPDATE [${mjSchema}].[EntityField]
+SET 
+   Category = 'Template Details',
+   GeneratedFormSection = 'Category',
+   DisplayName = 'Template Type',
+   ExtendedType = NULL,
+   CodeType = NULL
+WHERE 
+   ID = '1E89D300-7F0D-4C94-9BA2-65F616951731' AND AutoUpdateCategory = 1;
+
+-- UPDATE Entity Field Category Info MJ_BizApps_Contracts: Contract Templates.VersionLabel 
+UPDATE [${mjSchema}].[EntityField]
+SET 
+   Category = 'Template Details',
+   GeneratedFormSection = 'Category',
+   ExtendedType = NULL,
+   CodeType = NULL
+WHERE 
+   ID = 'D4E48FFF-2F10-4E2E-A036-4D98BDAFCA99' AND AutoUpdateCategory = 1;
+
+-- UPDATE Entity Field Category Info MJ_BizApps_Contracts: Contract Templates.Description 
+UPDATE [${mjSchema}].[EntityField]
+SET 
+   Category = 'Template Details',
+   GeneratedFormSection = 'Category',
+   ExtendedType = NULL,
+   CodeType = NULL
+WHERE 
+   ID = '7F9A6927-CA1D-441B-9682-7035C95393D8' AND AutoUpdateCategory = 1;
+
+-- UPDATE Entity Field Category Info MJ_BizApps_Contracts: Contract Templates.IntroducedDate 
+UPDATE [${mjSchema}].[EntityField]
+SET 
+   Category = 'Lifecycle and Access',
+   GeneratedFormSection = 'Category',
+   ExtendedType = NULL,
+   CodeType = NULL
+WHERE 
+   ID = 'D20B1F02-4F4B-4A8E-894D-4D74F32A6282' AND AutoUpdateCategory = 1;
+
+-- UPDATE Entity Field Category Info MJ_BizApps_Contracts: Contract Templates.SourceURL 
+UPDATE [${mjSchema}].[EntityField]
+SET 
+   Category = 'Lifecycle and Access',
+   GeneratedFormSection = 'Category',
+   ExtendedType = 'URL',
+   CodeType = NULL
+WHERE 
+   ID = '5F27FB9A-A089-46CE-A332-F7E7DE745BCF' AND AutoUpdateCategory = 1;
+
+-- UPDATE Entity Field Category Info MJ_BizApps_Contracts: Contract Templates.Status 
+UPDATE [${mjSchema}].[EntityField]
+SET 
+   Category = 'Lifecycle and Access',
+   GeneratedFormSection = 'Category',
+   ExtendedType = NULL,
+   CodeType = NULL
+WHERE 
+   ID = 'E84E1C35-41C9-4A59-8AD2-6D426FDB7E6B' AND AutoUpdateCategory = 1;
+
+-- UPDATE Entity Field Category Info MJ_BizApps_Contracts: Contract Templates.__mj_CreatedAt 
+UPDATE [${mjSchema}].[EntityField]
+SET 
+   Category = 'System Metadata',
+   GeneratedFormSection = 'Category',
+   ExtendedType = NULL,
+   CodeType = NULL
+WHERE 
+   ID = 'E586DB3A-8FCA-424F-BB0F-AE34BE10C686' AND AutoUpdateCategory = 1;
+
+-- UPDATE Entity Field Category Info MJ_BizApps_Contracts: Contract Templates.__mj_UpdatedAt 
+UPDATE [${mjSchema}].[EntityField]
+SET 
+   Category = 'System Metadata',
+   GeneratedFormSection = 'Category',
+   ExtendedType = NULL,
+   CodeType = NULL
+WHERE 
+   ID = 'B0E8E57C-69A5-4A3F-BAD2-CCBF75F2FF30' AND AutoUpdateCategory = 1;
 
 /* Set entity icon to fa fa-file-contract */
 
                UPDATE [${mjSchema}].[Entity]
                SET [Icon] = 'fa fa-file-contract', [__mj_UpdatedAt] = GETUTCDATE()
-               WHERE [ID] = '27A600CA-6A2E-4C85-84AE-924183EC1681';
+               WHERE [ID] = '731F2890-1415-40DE-9073-D22EA23392B3';
+
+/* Set entity icon to fa fa-file-contract */
+
+               UPDATE [${mjSchema}].[Entity]
+               SET [Icon] = 'fa fa-file-contract', [__mj_UpdatedAt] = GETUTCDATE()
+               WHERE [ID] = '317DF592-8C20-473D-B097-2AB239877438';
 
 /* Insert FieldCategoryInfo setting for entity */
 
                INSERT INTO [${mjSchema}].[EntitySetting] ([ID], [EntityID], [Name], [Value], [__mj_CreatedAt], [__mj_UpdatedAt])
-               VALUES ('4cfac1b8-0fe1-4571-9bcd-cbf3417818ca', '27A600CA-6A2E-4C85-84AE-924183EC1681', 'FieldCategoryInfo', '{"Template Association":{"icon":"fa fa-link","description":"Links identifying which contract template version this provision belongs to"},"Provision Details":{"icon":"fa fa-list-ol","description":"Identification, titling, and ordering of the contract clause"},"Provision Content":{"icon":"fa fa-align-left","description":"The actual legal text and supporting description of the provision"},"System Metadata":{"icon":"fa fa-cog","description":"System-managed audit and tracking fields"}}', GETUTCDATE(), GETUTCDATE());
+               VALUES ('b676e178-ea28-4c40-b59e-a0cb7e1a6d4c', '731F2890-1415-40DE-9073-D22EA23392B3', 'FieldCategoryInfo', '{"Template Details":{"icon":"fa fa-info-circle","description":"Core identifying information and classification for the contract template"},"Lifecycle and Access":{"icon":"fa fa-history","description":"Information regarding template availability, publication status, and public access links"},"System Metadata":{"icon":"fa fa-cog","description":"System-managed audit and tracking fields"}}', GETUTCDATE(), GETUTCDATE());
+
+/* Insert FieldCategoryInfo setting for entity */
+
+               INSERT INTO [${mjSchema}].[EntitySetting] ([ID], [EntityID], [Name], [Value], [__mj_CreatedAt], [__mj_UpdatedAt])
+               VALUES ('f09f4e8e-415b-49d6-8c5b-2f31320e2b2a', '317DF592-8C20-473D-B097-2AB239877438', 'FieldCategoryInfo', '{"Template Association":{"icon":"fa fa-link","description":"Links the provision to the specific contract template version"},"Provision Details":{"icon":"fa fa-align-left","description":"Core content, numbering, and descriptive information for the contract clause"},"System Metadata":{"icon":"fa fa-cog","description":"System-managed audit, sorting, and identification fields"}}', GETUTCDATE(), GETUTCDATE());
 
 /* Insert FieldCategoryIcons setting (legacy) */
 
                INSERT INTO [${mjSchema}].[EntitySetting] ([ID], [EntityID], [Name], [Value], [__mj_CreatedAt], [__mj_UpdatedAt])
-               VALUES ('eed802f1-9d03-410e-97f9-8e26dbe8da05', '27A600CA-6A2E-4C85-84AE-924183EC1681', 'FieldCategoryIcons', '{"Template Association":"fa fa-link","Provision Details":"fa fa-list-ol","Provision Content":"fa fa-align-left","System Metadata":"fa fa-cog"}', GETUTCDATE(), GETUTCDATE());
+               VALUES ('04cd7a19-f678-4e64-a3a3-21af4d94c378', '317DF592-8C20-473D-B097-2AB239877438', 'FieldCategoryIcons', '{"Template Association":"fa fa-link","Provision Details":"fa fa-align-left","System Metadata":"fa fa-cog"}', GETUTCDATE(), GETUTCDATE());
+
+/* Insert FieldCategoryIcons setting (legacy) */
+
+               INSERT INTO [${mjSchema}].[EntitySetting] ([ID], [EntityID], [Name], [Value], [__mj_CreatedAt], [__mj_UpdatedAt])
+               VALUES ('4fca29d1-19bb-45a4-ada3-2a2c25d24d78', '731F2890-1415-40DE-9073-D22EA23392B3', 'FieldCategoryIcons', '{"Template Details":"fa fa-info-circle","Lifecycle and Access":"fa fa-history","System Metadata":"fa fa-cog"}', GETUTCDATE(), GETUTCDATE());
+
+/* Set DefaultForNewUser=true for NEW entity (category: primary, confidence: high) */
+
+         UPDATE [${mjSchema}].[ApplicationEntity]
+         SET [DefaultForNewUser] = 1, [__mj_UpdatedAt] = GETUTCDATE()
+         WHERE [EntityID] = '731F2890-1415-40DE-9073-D22EA23392B3';
 
 /* Set DefaultForNewUser=true for NEW entity (category: supporting, confidence: high) */
 
          UPDATE [${mjSchema}].[ApplicationEntity]
          SET [DefaultForNewUser] = 1, [__mj_UpdatedAt] = GETUTCDATE()
-         WHERE [EntityID] = '27A600CA-6A2E-4C85-84AE-924183EC1681';
-
-/* Set field properties for entity */
-
-               UPDATE [${mjSchema}].[EntityField]
-               SET DefaultInView = 1
-               WHERE ID = '8C5A7DE7-0ECF-42DD-A733-9B18BEC29C2B'
-               AND AutoUpdateDefaultInView = 1;
-
-               UPDATE [${mjSchema}].[EntityField]
-               SET DefaultInView = 1
-               WHERE ID = '9A369D85-8C82-4399-885D-837575E37F3C'
-               AND AutoUpdateDefaultInView = 1;
-
-            UPDATE [${mjSchema}].[Entity]
-            SET AllowUserSearchAPI = 0
-            WHERE ID = 'EBB3F628-267E-44D6-8F18-258AC28FF981'
-            AND AutoUpdateAllowUserSearchAPI = 1;
+         WHERE [EntityID] = '317DF592-8C20-473D-B097-2AB239877438';
 
 /* Set field properties for entity */
 
                UPDATE [${mjSchema}].[EntityField]
                SET IsNameField = 1
-               WHERE ID = '0DFE97CD-D90A-4B2C-9B9A-281E0FC10D7C'
+               WHERE ID = '8677055B-2482-4250-98C1-AFC3DAE57393'
                AND AutoUpdateIsNameField = 1;
 
                UPDATE [${mjSchema}].[EntityField]
                SET DefaultInView = 1
-               WHERE ID = '0DFE97CD-D90A-4B2C-9B9A-281E0FC10D7C'
+               WHERE ID = '8677055B-2482-4250-98C1-AFC3DAE57393'
                AND AutoUpdateDefaultInView = 1;
 
                UPDATE [${mjSchema}].[EntityField]
                SET DefaultInView = 1
-               WHERE ID = '85C2054C-4939-415F-BCB1-A29385B881AD'
+               WHERE ID = '5605AB79-A11A-4561-8B34-B7567A36F27A'
                AND AutoUpdateDefaultInView = 1;
 
                UPDATE [${mjSchema}].[EntityField]
                SET DefaultInView = 1
-               WHERE ID = '368A7E42-7C2C-41DD-8DE8-DBD1AD2FC7A1'
+               WHERE ID = '343BECBD-079B-443A-998C-2E7DDCCD8A01'
                AND AutoUpdateDefaultInView = 1;
 
                UPDATE [${mjSchema}].[EntityField]
                SET DefaultInView = 1
-               WHERE ID = 'FFC73E89-1843-4BDB-AA51-E086B19A6BF8'
+               WHERE ID = '14BDA941-CE85-4A14-8FDC-3681B8C52418'
                AND AutoUpdateDefaultInView = 1;
 
                UPDATE [${mjSchema}].[EntityField]
                SET DefaultInView = 1
-               WHERE ID = '8DE097B3-D81B-4579-A397-E7A77888B79A'
+               WHERE ID = '8FBC1AAC-1342-4584-991F-AAB1C31CE673'
                AND AutoUpdateDefaultInView = 1;
 
                UPDATE [${mjSchema}].[EntityField]
                SET IncludeInUserSearchAPI = 1
-               WHERE ID = '0DFE97CD-D90A-4B2C-9B9A-281E0FC10D7C'
+               WHERE ID = '8677055B-2482-4250-98C1-AFC3DAE57393'
                AND AutoUpdateIncludeInUserSearchAPI = 1;
 
                UPDATE [${mjSchema}].[EntityField]
                SET UserSearchPredicateAPI = 'Exact'
-               WHERE ID = '0DFE97CD-D90A-4B2C-9B9A-281E0FC10D7C'
+               WHERE ID = '8677055B-2482-4250-98C1-AFC3DAE57393'
                AND AutoUpdateUserSearchPredicate = 1;
 
-/* Set categories for 7 fields */
-
--- UPDATE Entity Field Category Info MJ_BizApps_Contracts: Contract Types.ID 
-UPDATE [${mjSchema}].[EntityField]
-SET 
-   Category = 'System Metadata',
-   GeneratedFormSection = 'Category',
-   ExtendedType = NULL,
-   CodeType = NULL
-WHERE 
-   ID = '05CFD8F7-B9CF-4A9C-83E4-D1A2D5AD5105' AND AutoUpdateCategory = 1;
-
--- UPDATE Entity Field Category Info MJ_BizApps_Contracts: Contract Types.Name 
-UPDATE [${mjSchema}].[EntityField]
-SET 
-   Category = 'Contract Type Details',
-   GeneratedFormSection = 'Category',
-   ExtendedType = NULL,
-   CodeType = NULL
-WHERE 
-   ID = '2C9E961B-6A55-4CE7-9A24-B7C3DFDCB2FF' AND AutoUpdateCategory = 1;
-
--- UPDATE Entity Field Category Info MJ_BizApps_Contracts: Contract Types.Description 
-UPDATE [${mjSchema}].[EntityField]
-SET 
-   Category = 'Contract Type Details',
-   GeneratedFormSection = 'Category',
-   ExtendedType = NULL,
-   CodeType = NULL
-WHERE 
-   ID = '238B5941-DC97-43F2-A464-4ED207DDA3FE' AND AutoUpdateCategory = 1;
-
--- UPDATE Entity Field Category Info MJ_BizApps_Contracts: Contract Types.RequiresExecutedDocument 
-UPDATE [${mjSchema}].[EntityField]
-SET 
-   Category = 'Contract Type Details',
-   GeneratedFormSection = 'Category',
-   ExtendedType = NULL,
-   CodeType = NULL
-WHERE 
-   ID = '8C5A7DE7-0ECF-42DD-A733-9B18BEC29C2B' AND AutoUpdateCategory = 1;
-
--- UPDATE Entity Field Category Info MJ_BizApps_Contracts: Contract Types.Status 
-UPDATE [${mjSchema}].[EntityField]
-SET 
-   Category = 'Contract Type Details',
-   GeneratedFormSection = 'Category',
-   ExtendedType = NULL,
-   CodeType = NULL
-WHERE 
-   ID = '9A369D85-8C82-4399-885D-837575E37F3C' AND AutoUpdateCategory = 1;
-
--- UPDATE Entity Field Category Info MJ_BizApps_Contracts: Contract Types.__mj_CreatedAt 
-UPDATE [${mjSchema}].[EntityField]
-SET 
-   Category = 'System Metadata',
-   GeneratedFormSection = 'Category',
-   ExtendedType = NULL,
-   CodeType = NULL
-WHERE 
-   ID = '550A2932-55A8-496E-A3F2-84529AFEB12F' AND AutoUpdateCategory = 1;
-
--- UPDATE Entity Field Category Info MJ_BizApps_Contracts: Contract Types.__mj_UpdatedAt 
-UPDATE [${mjSchema}].[EntityField]
-SET 
-   Category = 'System Metadata',
-   GeneratedFormSection = 'Category',
-   ExtendedType = NULL,
-   CodeType = NULL
-WHERE 
-   ID = 'C967E14D-7969-4060-A44B-7ED6783C67BD' AND AutoUpdateCategory = 1;
-
-/* Set entity icon to fa fa-file-contract */
-
-               UPDATE [${mjSchema}].[Entity]
-               SET [Icon] = 'fa fa-file-contract', [__mj_UpdatedAt] = GETUTCDATE()
-               WHERE [ID] = 'EBB3F628-267E-44D6-8F18-258AC28FF981';
-
-/* Insert FieldCategoryInfo setting for entity */
-
-               INSERT INTO [${mjSchema}].[EntitySetting] ([ID], [EntityID], [Name], [Value], [__mj_CreatedAt], [__mj_UpdatedAt])
-               VALUES ('567da4c1-ef45-4df9-9115-d9e39d147676', 'EBB3F628-267E-44D6-8F18-258AC28FF981', 'FieldCategoryInfo', '{"Contract Type Details":{"icon":"fa fa-file-contract","description":"Definition, business requirements, and operational status of contract types"},"System Metadata":{"icon":"fa fa-cog","description":"System-managed audit and tracking fields"}}', GETUTCDATE(), GETUTCDATE());
-
-/* Insert FieldCategoryIcons setting (legacy) */
-
-               INSERT INTO [${mjSchema}].[EntitySetting] ([ID], [EntityID], [Name], [Value], [__mj_CreatedAt], [__mj_UpdatedAt])
-               VALUES ('8009a7aa-ef46-4d27-a461-d0029843f9a3', 'EBB3F628-267E-44D6-8F18-258AC28FF981', 'FieldCategoryIcons', '{"Contract Type Details":"fa fa-file-contract","System Metadata":"fa fa-cog"}', GETUTCDATE(), GETUTCDATE());
-
-/* Set DefaultForNewUser=false for NEW entity (category: reference, confidence: high) */
-
-         UPDATE [${mjSchema}].[ApplicationEntity]
-         SET [DefaultForNewUser] = 0, [__mj_UpdatedAt] = GETUTCDATE()
-         WHERE [EntityID] = 'EBB3F628-267E-44D6-8F18-258AC28FF981';
-
-/* Set categories for 33 fields */
+/* Set categories for 31 fields */
 
 -- UPDATE Entity Field Category Info MJ_BizApps_Contracts: Contracts.ID 
 UPDATE [${mjSchema}].[EntityField]
@@ -9315,147 +8926,149 @@ SET
    ExtendedType = NULL,
    CodeType = NULL
 WHERE 
-   ID = '3509FDA6-F406-42DF-805A-A0A7028A2726' AND AutoUpdateCategory = 1;
+   ID = '04E8AA9D-C2DC-489D-B081-75C4E6DDFA6B' AND AutoUpdateCategory = 1;
 
 -- UPDATE Entity Field Category Info MJ_BizApps_Contracts: Contracts.ContractNumber 
 UPDATE [${mjSchema}].[EntityField]
 SET 
-   Category = 'Contract Overview',
+   Category = 'Contract Details',
    GeneratedFormSection = 'Category',
    ExtendedType = NULL,
    CodeType = NULL
 WHERE 
-   ID = '0DFE97CD-D90A-4B2C-9B9A-281E0FC10D7C' AND AutoUpdateCategory = 1;
+   ID = '8677055B-2482-4250-98C1-AFC3DAE57393' AND AutoUpdateCategory = 1;
 
 -- UPDATE Entity Field Category Info MJ_BizApps_Contracts: Contracts.ContractTypeID 
 UPDATE [${mjSchema}].[EntityField]
 SET 
-   Category = 'Contract Overview',
+   Category = 'Contract Details',
    GeneratedFormSection = 'Category',
    DisplayName = 'Contract Type',
    ExtendedType = NULL,
    CodeType = NULL
 WHERE 
-   ID = 'D4C3BE29-B422-41A9-8678-D14A5F43C47D' AND AutoUpdateCategory = 1;
+   ID = 'DF26A6B1-EB6C-42D8-B236-CD13F58C9B78' AND AutoUpdateCategory = 1;
 
 -- UPDATE Entity Field Category Info MJ_BizApps_Contracts: Contracts.ContractType 
 UPDATE [${mjSchema}].[EntityField]
 SET 
-   Category = 'Contract Overview',
+   Category = 'Contract Details',
    GeneratedFormSection = 'Category',
    DisplayName = 'Contract Type Name',
    ExtendedType = NULL,
    CodeType = NULL
 WHERE 
-   ID = 'FFC73E89-1843-4BDB-AA51-E086B19A6BF8' AND AutoUpdateCategory = 1;
+   ID = '14BDA941-CE85-4A14-8FDC-3681B8C52418' AND AutoUpdateCategory = 1;
 
 -- UPDATE Entity Field Category Info MJ_BizApps_Contracts: Contracts.CompanyID 
 UPDATE [${mjSchema}].[EntityField]
 SET 
-   Category = 'Parties and Context',
+   Category = 'Stakeholders',
    GeneratedFormSection = 'Category',
-   DisplayName = 'Company',
+   DisplayName = 'Selling Company',
    ExtendedType = NULL,
    CodeType = NULL
 WHERE 
-   ID = '03540125-572C-432B-8E73-2C568464B563' AND AutoUpdateCategory = 1;
+   ID = 'BAD7AA2F-EE2B-430A-B182-B7E4B7E09F8A' AND AutoUpdateCategory = 1;
 
 -- UPDATE Entity Field Category Info MJ_BizApps_Contracts: Contracts.Company 
 UPDATE [${mjSchema}].[EntityField]
 SET 
-   Category = 'Parties and Context',
+   Category = 'Stakeholders',
    GeneratedFormSection = 'Category',
    DisplayName = 'Company Name',
    ExtendedType = NULL,
    CodeType = NULL
 WHERE 
-   ID = 'EF543396-9A94-466A-BFB6-591F89B0056B' AND AutoUpdateCategory = 1;
+   ID = 'A2B9A232-351C-4CF9-A050-6F059F146806' AND AutoUpdateCategory = 1;
 
 -- UPDATE Entity Field Category Info MJ_BizApps_Contracts: Contracts.CustomerOrganizationID 
 UPDATE [${mjSchema}].[EntityField]
 SET 
-   Category = 'Parties and Context',
+   Category = 'Stakeholders',
    GeneratedFormSection = 'Category',
    DisplayName = 'Customer Organization',
    ExtendedType = NULL,
    CodeType = NULL
 WHERE 
-   ID = '8CF73C13-3CDE-4175-A5FF-F8E361476946' AND AutoUpdateCategory = 1;
+   ID = 'F11C9543-F483-4BED-A9CE-3E7659D24011' AND AutoUpdateCategory = 1;
 
 -- UPDATE Entity Field Category Info MJ_BizApps_Contracts: Contracts.CustomerOrganization 
 UPDATE [${mjSchema}].[EntityField]
 SET 
-   Category = 'Parties and Context',
+   Category = 'Stakeholders',
    GeneratedFormSection = 'Category',
-   DisplayName = 'Customer Name',
+   DisplayName = 'Customer Organization Name',
    ExtendedType = NULL,
    CodeType = NULL
 WHERE 
-   ID = '8DE097B3-D81B-4579-A397-E7A77888B79A' AND AutoUpdateCategory = 1;
+   ID = '8FBC1AAC-1342-4584-991F-AAB1C31CE673' AND AutoUpdateCategory = 1;
 
 -- UPDATE Entity Field Category Info MJ_BizApps_Contracts: Contracts.PrimaryContactPersonID 
 UPDATE [${mjSchema}].[EntityField]
 SET 
-   Category = 'Parties and Context',
+   Category = 'Stakeholders',
    GeneratedFormSection = 'Category',
-   DisplayName = 'Primary Contact',
+   DisplayName = 'Primary Contact Person',
    ExtendedType = NULL,
    CodeType = NULL
 WHERE 
-   ID = 'BDC1ADE5-D9C2-4405-9785-DAB3818BB0CD' AND AutoUpdateCategory = 1;
+   ID = 'D47233ED-0EBF-4329-B270-99F70589CD7F' AND AutoUpdateCategory = 1;
 
 -- UPDATE Entity Field Category Info MJ_BizApps_Contracts: Contracts.PrimaryContactPerson 
 UPDATE [${mjSchema}].[EntityField]
 SET 
-   Category = 'Parties and Context',
+   Category = 'Stakeholders',
    GeneratedFormSection = 'Category',
    DisplayName = 'Primary Contact Name',
    ExtendedType = NULL,
    CodeType = NULL
 WHERE 
-   ID = '13ACF151-BD8B-4F43-BF50-36D83C7D3B76' AND AutoUpdateCategory = 1;
+   ID = '2999F51A-9170-4028-B142-2F33D7E056ED' AND AutoUpdateCategory = 1;
 
 -- UPDATE Entity Field Category Info MJ_BizApps_Contracts: Contracts.ContractTemplateID 
 UPDATE [${mjSchema}].[EntityField]
 SET 
-   Category = 'Contract Overview',
+   Category = 'Contract Details',
    GeneratedFormSection = 'Category',
    DisplayName = 'Contract Template',
    ExtendedType = NULL,
    CodeType = NULL
 WHERE 
-   ID = '49623009-21AD-45E6-9B40-CB4182FE8E35' AND AutoUpdateCategory = 1;
+   ID = 'B4E3A6BF-A9C0-4005-B759-F7623FD5A7FA' AND AutoUpdateCategory = 1;
 
 -- UPDATE Entity Field Category Info MJ_BizApps_Contracts: Contracts.ContractTemplate 
 UPDATE [${mjSchema}].[EntityField]
 SET 
-   Category = 'Contract Overview',
+   Category = 'Contract Details',
    GeneratedFormSection = 'Category',
    DisplayName = 'Contract Template Name',
    ExtendedType = NULL,
    CodeType = NULL
 WHERE 
-   ID = 'D16FCB6B-FCEB-46C7-8AE0-5AC08F9A930E' AND AutoUpdateCategory = 1;
+   ID = '3DF1FCCC-6C4F-4CEF-ABEC-836517BA655A' AND AutoUpdateCategory = 1;
 
 -- UPDATE Entity Field Category Info MJ_BizApps_Contracts: Contracts.CreatingEntityID 
 UPDATE [${mjSchema}].[EntityField]
 SET 
    Category = 'Provenance',
    GeneratedFormSection = 'Category',
+   DisplayName = 'Creating Entity',
    ExtendedType = NULL,
    CodeType = NULL
 WHERE 
-   ID = '8AC97591-0971-45D9-82E9-6BBAE6ECECD3' AND AutoUpdateCategory = 1;
+   ID = '316A9F07-54F1-4038-862A-C25A2084F274' AND AutoUpdateCategory = 1;
 
 -- UPDATE Entity Field Category Info MJ_BizApps_Contracts: Contracts.CreatingEntity 
 UPDATE [${mjSchema}].[EntityField]
 SET 
    Category = 'Provenance',
    GeneratedFormSection = 'Category',
+   DisplayName = 'Creating Entity Name',
    ExtendedType = NULL,
    CodeType = NULL
 WHERE 
-   ID = 'EDF1CB45-EEA0-4121-9FCC-52E4EE1F33EA' AND AutoUpdateCategory = 1;
+   ID = 'B35327D2-0775-4CD2-9D4A-0FA1A2C98AA0' AND AutoUpdateCategory = 1;
 
 -- UPDATE Entity Field Category Info MJ_BizApps_Contracts: Contracts.CreatingRecordID 
 UPDATE [${mjSchema}].[EntityField]
@@ -9465,7 +9078,7 @@ SET
    ExtendedType = NULL,
    CodeType = NULL
 WHERE 
-   ID = 'E2ED938E-B1D8-485B-B964-00CB44615977' AND AutoUpdateCategory = 1;
+   ID = '611650F5-BFC3-4809-B9B1-80AC9979B450' AND AutoUpdateCategory = 1;
 
 -- UPDATE Entity Field Category Info MJ_BizApps_Contracts: Contracts.ParentContractID 
 UPDATE [${mjSchema}].[EntityField]
@@ -9476,7 +9089,7 @@ SET
    ExtendedType = NULL,
    CodeType = NULL
 WHERE 
-   ID = '433E610E-1199-4A89-A3BE-23EEE91BB6B3' AND AutoUpdateCategory = 1;
+   ID = '6DB0692A-42CD-4AC5-A43B-49ECC81EF370' AND AutoUpdateCategory = 1;
 
 -- UPDATE Entity Field Category Info MJ_BizApps_Contracts: Contracts.SupersededByContractID 
 UPDATE [${mjSchema}].[EntityField]
@@ -9487,29 +9100,17 @@ SET
    ExtendedType = NULL,
    CodeType = NULL
 WHERE 
-   ID = 'FDA34007-6E79-4A3D-AC5A-3813DB33E863' AND AutoUpdateCategory = 1;
+   ID = '44BC44EF-A6F2-4630-A899-487CE0E3CC56' AND AutoUpdateCategory = 1;
 
--- UPDATE Entity Field Category Info MJ_BizApps_Contracts: Contracts.RootParentContractID 
+-- UPDATE Entity Field Category Info MJ_BizApps_Contracts: Contracts.SigningProviderURL 
 UPDATE [${mjSchema}].[EntityField]
 SET 
-   Category = 'Contract Lifecycle',
+   Category = 'Contract Details',
    GeneratedFormSection = 'Category',
-   DisplayName = 'Root Parent Contract',
-   ExtendedType = NULL,
+   ExtendedType = 'URL',
    CodeType = NULL
 WHERE 
-   ID = '15088B1B-6B7B-48DE-8B16-E11B02623AB1' AND AutoUpdateCategory = 1;
-
--- UPDATE Entity Field Category Info MJ_BizApps_Contracts: Contracts.RootSupersededByContractID 
-UPDATE [${mjSchema}].[EntityField]
-SET 
-   Category = 'Contract Lifecycle',
-   GeneratedFormSection = 'Category',
-   DisplayName = 'Root Superseded By',
-   ExtendedType = NULL,
-   CodeType = NULL
-WHERE 
-   ID = '646C61DD-2A04-4397-8241-179E367AD2FE' AND AutoUpdateCategory = 1;
+   ID = '131CE82F-AC93-4DCF-95C0-3EA4FC681C2C' AND AutoUpdateCategory = 1;
 
 -- UPDATE Entity Field Category Info MJ_BizApps_Contracts: Contracts.EffectiveDate 
 UPDATE [${mjSchema}].[EntityField]
@@ -9519,7 +9120,7 @@ SET
    ExtendedType = NULL,
    CodeType = NULL
 WHERE 
-   ID = '85C2054C-4939-415F-BCB1-A29385B881AD' AND AutoUpdateCategory = 1;
+   ID = '5605AB79-A11A-4561-8B34-B7567A36F27A' AND AutoUpdateCategory = 1;
 
 -- UPDATE Entity Field Category Info MJ_BizApps_Contracts: Contracts.ExecutedDate 
 UPDATE [${mjSchema}].[EntityField]
@@ -9529,7 +9130,7 @@ SET
    ExtendedType = NULL,
    CodeType = NULL
 WHERE 
-   ID = 'C24027F0-5986-4183-AC69-CDD31E60C934' AND AutoUpdateCategory = 1;
+   ID = '9ED4A8CC-E0B8-4880-945A-4BD6DD6368C6' AND AutoUpdateCategory = 1;
 
 -- UPDATE Entity Field Category Info MJ_BizApps_Contracts: Contracts.EndDate 
 UPDATE [${mjSchema}].[EntityField]
@@ -9539,7 +9140,7 @@ SET
    ExtendedType = NULL,
    CodeType = NULL
 WHERE 
-   ID = '368A7E42-7C2C-41DD-8DE8-DBD1AD2FC7A1' AND AutoUpdateCategory = 1;
+   ID = '343BECBD-079B-443A-998C-2E7DDCCD8A01' AND AutoUpdateCategory = 1;
 
 -- UPDATE Entity Field Category Info MJ_BizApps_Contracts: Contracts.TerminatedDate 
 UPDATE [${mjSchema}].[EntityField]
@@ -9549,7 +9150,7 @@ SET
    ExtendedType = NULL,
    CodeType = NULL
 WHERE 
-   ID = '390191A8-15AB-4ECE-AEBF-9DE1BEEDA25D' AND AutoUpdateCategory = 1;
+   ID = 'D312F0C4-AD4D-4F0B-B54A-1051EC735464' AND AutoUpdateCategory = 1;
 
 -- UPDATE Entity Field Category Info MJ_BizApps_Contracts: Contracts.AutoRenew 
 UPDATE [${mjSchema}].[EntityField]
@@ -9559,7 +9160,7 @@ SET
    ExtendedType = NULL,
    CodeType = NULL
 WHERE 
-   ID = '418FDBD3-DAF6-45AF-A89B-581E3921C2BD' AND AutoUpdateCategory = 1;
+   ID = '8B3C517C-FF01-4121-A740-632DF75F3C05' AND AutoUpdateCategory = 1;
 
 -- UPDATE Entity Field Category Info MJ_BizApps_Contracts: Contracts.RenewalNoticeDays 
 UPDATE [${mjSchema}].[EntityField]
@@ -9569,7 +9170,7 @@ SET
    ExtendedType = NULL,
    CodeType = NULL
 WHERE 
-   ID = '472D4155-F2B0-4B06-B6E7-2F58A90314E0' AND AutoUpdateCategory = 1;
+   ID = '573064AC-38A8-42A2-95B2-CCBD605004EA' AND AutoUpdateCategory = 1;
 
 -- UPDATE Entity Field Category Info MJ_BizApps_Contracts: Contracts.CancellationWindowDays 
 UPDATE [${mjSchema}].[EntityField]
@@ -9579,7 +9180,7 @@ SET
    ExtendedType = NULL,
    CodeType = NULL
 WHERE 
-   ID = 'FDEE00C3-9A3B-4D05-A67C-D296289D9DBD' AND AutoUpdateCategory = 1;
+   ID = 'C6464ADC-6683-4D4B-AA7A-64F9E052D225' AND AutoUpdateCategory = 1;
 
 -- UPDATE Entity Field Category Info MJ_BizApps_Contracts: Contracts.AnnualIncreasePercent 
 UPDATE [${mjSchema}].[EntityField]
@@ -9589,47 +9190,37 @@ SET
    ExtendedType = NULL,
    CodeType = NULL
 WHERE 
-   ID = '547B4E55-E673-465F-B8D3-CA1286745190' AND AutoUpdateCategory = 1;
-
--- UPDATE Entity Field Category Info MJ_BizApps_Contracts: Contracts.SigningProviderURL 
-UPDATE [${mjSchema}].[EntityField]
-SET 
-   Category = 'Contract Overview',
-   GeneratedFormSection = 'Category',
-   ExtendedType = 'URL',
-   CodeType = NULL
-WHERE 
-   ID = 'FE229628-C86B-4319-AA97-C7DFE82A34FA' AND AutoUpdateCategory = 1;
+   ID = '3B2625E1-C5AB-462C-AA7E-533C5F40646D' AND AutoUpdateCategory = 1;
 
 -- UPDATE Entity Field Category Info MJ_BizApps_Contracts: Contracts.HasModifications 
 UPDATE [${mjSchema}].[EntityField]
 SET 
-   Category = 'Contract Overview',
+   Category = 'Contract Details',
    GeneratedFormSection = 'Category',
    ExtendedType = NULL,
    CodeType = NULL
 WHERE 
-   ID = '629927E7-6F7A-43F3-81FA-CDECEDFD62E5' AND AutoUpdateCategory = 1;
+   ID = 'D54DDEBD-615B-4D29-A995-246C3C0F7408' AND AutoUpdateCategory = 1;
 
 -- UPDATE Entity Field Category Info MJ_BizApps_Contracts: Contracts.Description 
 UPDATE [${mjSchema}].[EntityField]
 SET 
-   Category = 'Notes and Details',
+   Category = 'Notes and Metadata',
    GeneratedFormSection = 'Category',
    ExtendedType = NULL,
    CodeType = NULL
 WHERE 
-   ID = '88857639-49FE-4AA8-8581-B696375B159B' AND AutoUpdateCategory = 1;
+   ID = '30B733E2-70E1-4D55-BA83-73FEDBA848FA' AND AutoUpdateCategory = 1;
 
 -- UPDATE Entity Field Category Info MJ_BizApps_Contracts: Contracts.Notes 
 UPDATE [${mjSchema}].[EntityField]
 SET 
-   Category = 'Notes and Details',
+   Category = 'Notes and Metadata',
    GeneratedFormSection = 'Category',
    ExtendedType = NULL,
    CodeType = NULL
 WHERE 
-   ID = 'CE64DAFD-B5FE-4EFF-A70F-53072E819B84' AND AutoUpdateCategory = 1;
+   ID = '68E70227-D818-4F11-8FE4-553F5C84BE53' AND AutoUpdateCategory = 1;
 
 -- UPDATE Entity Field Category Info MJ_BizApps_Contracts: Contracts.__mj_CreatedAt 
 UPDATE [${mjSchema}].[EntityField]
@@ -9639,7 +9230,7 @@ SET
    ExtendedType = NULL,
    CodeType = NULL
 WHERE 
-   ID = 'D2FB1812-DF75-423A-911E-DE5DF46FF664' AND AutoUpdateCategory = 1;
+   ID = '7C14348E-69DE-4F66-B62C-99C0A7E415AF' AND AutoUpdateCategory = 1;
 
 -- UPDATE Entity Field Category Info MJ_BizApps_Contracts: Contracts.__mj_UpdatedAt 
 UPDATE [${mjSchema}].[EntityField]
@@ -9649,48 +9240,76 @@ SET
    ExtendedType = NULL,
    CodeType = NULL
 WHERE 
-   ID = '324DD9B0-514C-4F1A-A1D0-69569F6E31D8' AND AutoUpdateCategory = 1;
+   ID = '0EBA35EC-FB3D-4978-8650-FC6229A9180E' AND AutoUpdateCategory = 1;
 
 /* Set entity icon to fa fa-file-contract */
 
                UPDATE [${mjSchema}].[Entity]
                SET [Icon] = 'fa fa-file-contract', [__mj_UpdatedAt] = GETUTCDATE()
-               WHERE [ID] = '4CC3DB2D-F01F-405E-A47D-B14BA2F1AB20';
+               WHERE [ID] = '5DEB0B11-ED6C-48B3-9200-F4441396C5E2';
 
 /* Insert FieldCategoryInfo setting for entity */
 
                INSERT INTO [${mjSchema}].[EntitySetting] ([ID], [EntityID], [Name], [Value], [__mj_CreatedAt], [__mj_UpdatedAt])
-               VALUES ('798eb0e0-fe54-489e-a682-cb7d2a1cce1c', '4CC3DB2D-F01F-405E-A47D-B14BA2F1AB20', 'FieldCategoryInfo', '{"Contract Overview":{"icon":"fa fa-file-contract","description":"Core identification, template, and document reference details."},"Parties and Context":{"icon":"fa fa-users","description":"Information about the selling company, customer, and primary contacts."},"Provenance":{"icon":"fa fa-project-diagram","description":"Reference to the source entity and record that created this contract."},"Contract Lifecycle":{"icon":"fa fa-history","description":"Relationship chain for amendments, renewals, and superseding contracts."},"Dates and Terms":{"icon":"fa fa-calendar-alt","description":"Key contractual dates including effective, execution, and expiration terms."},"Renewal Terms":{"icon":"fa fa-sync-alt","description":"Terms governing renewals, notice periods, and annual price escalations."},"Notes and Details":{"icon":"fa fa-align-left","description":"Descriptive text and processing notes."},"System Metadata":{"icon":"fa fa-cog","description":"System-managed audit and tracking fields."}}', GETUTCDATE(), GETUTCDATE());
+               VALUES ('9921cd66-81de-40a8-b6ad-2e814ffc09b9', '5DEB0B11-ED6C-48B3-9200-F4441396C5E2', 'FieldCategoryInfo', '{"Contract Details":{"icon":"fa fa-file-contract","description":"Core information regarding the contract agreement, type, and document links."},"Stakeholders":{"icon":"fa fa-users","description":"Entities and individuals involved in the contract."},"Provenance":{"icon":"fa fa-project-diagram","description":"References to the source records that created this contract."},"Contract Lifecycle":{"icon":"fa fa-sync","description":"Relationships defining amendments and contract replacements."},"Dates and Terms":{"icon":"fa fa-calendar-alt","description":"Key dates governing the contract term and execution."},"Renewal Terms":{"icon":"fa fa-redo","description":"Renewal conditions, notice periods, and price adjustments."},"Notes and Metadata":{"icon":"fa fa-align-left","description":"Additional context and internal notes."},"System Metadata":{"icon":"fa fa-cog","description":"System-managed audit and tracking information."}}', GETUTCDATE(), GETUTCDATE());
 
 /* Insert FieldCategoryIcons setting (legacy) */
 
                INSERT INTO [${mjSchema}].[EntitySetting] ([ID], [EntityID], [Name], [Value], [__mj_CreatedAt], [__mj_UpdatedAt])
-               VALUES ('9b1f4820-d4ee-48e7-9bcd-d12f0d08430d', '4CC3DB2D-F01F-405E-A47D-B14BA2F1AB20', 'FieldCategoryIcons', '{"Contract Overview":"fa fa-file-contract","Parties and Context":"fa fa-users","Provenance":"fa fa-project-diagram","Contract Lifecycle":"fa fa-history","Dates and Terms":"fa fa-calendar-alt","Renewal Terms":"fa fa-sync-alt","Notes and Details":"fa fa-align-left","System Metadata":"fa fa-cog"}', GETUTCDATE(), GETUTCDATE());
+               VALUES ('710847a6-de1d-4884-81db-bde4530e9a74', '5DEB0B11-ED6C-48B3-9200-F4441396C5E2', 'FieldCategoryIcons', '{"Contract Details":"fa fa-file-contract","Stakeholders":"fa fa-users","Provenance":"fa fa-project-diagram","Contract Lifecycle":"fa fa-sync","Dates and Terms":"fa fa-calendar-alt","Renewal Terms":"fa fa-redo","Notes and Metadata":"fa fa-align-left","System Metadata":"fa fa-cog"}', GETUTCDATE(), GETUTCDATE());
 
 /* Set DefaultForNewUser=true for NEW entity (category: primary, confidence: high) */
 
          UPDATE [${mjSchema}].[ApplicationEntity]
          SET [DefaultForNewUser] = 1, [__mj_UpdatedAt] = GETUTCDATE()
-         WHERE [EntityID] = '4CC3DB2D-F01F-405E-A47D-B14BA2F1AB20';
+         WHERE [EntityID] = '5DEB0B11-ED6C-48B3-9200-F4441396C5E2';
 
-/* Generated Validation Functions for MJ_BizApps_Contracts: Contract Sequences */
--- CHECK constraint for MJ_BizApps_Contracts: Contract Sequences: Field: NextSequenceNumber was newly set or modified since the last generation of the validation function, the code was regenerated and updating the GeneratedCode table with the new generated validation function
+/* Generated Validation Functions for MJ_BizApps_Contracts: Contract Template Modifications */
+-- CHECK constraint for MJ_BizApps_Contracts: Contract Template Modifications: Field: ModificationText was newly set or modified since the last generation of the validation function, the code was regenerated and updating the GeneratedCode table with the new generated validation function
 INSERT INTO [${mjSchema}].[GeneratedCode] ([CategoryID], [GeneratedByModelID], [GeneratedAt], [Language], [Status], [Source], [Code], [Description], [Name], [LinkedEntityID], [LinkedRecordPrimaryKey])
-                      VALUES ((SELECT [ID] FROM [${mjSchema}].[vwGeneratedCodeCategories] WHERE [Name]='CodeGen: Validators'), 'C43229F6-4CC8-4838-9D04-03419A2DA191', GETUTCDATE(), 'TypeScript', 'Approved', '([NextSequenceNumber]>(0))', 'public ValidateNextSequenceNumberGreaterThanZero(result: ValidationResult) {
-	if (this.NextSequenceNumber != null && this.NextSequenceNumber <= 0) {
+                      VALUES ((SELECT [ID] FROM [${mjSchema}].[vwGeneratedCodeCategories] WHERE [Name]='CodeGen: Validators'), 'C43229F6-4CC8-4838-9D04-03419A2DA191', GETUTCDATE(), 'TypeScript', 'Approved', '(len(ltrim(rtrim([ModificationText])))>(0))', 'public ValidateModificationTextNotEmpty(result: ValidationResult) {
+	if (this.ModificationText == null || this.ModificationText.trim().length === 0) {
 		result.Errors.push(new ValidationErrorInfo(
-			"NextSequenceNumber",
-			"The next sequence number must be greater than zero.",
-			this.NextSequenceNumber,
+			"ModificationText",
+			"Modification text cannot be empty or contain only whitespace.",
+			this.ModificationText,
 			ValidationErrorType.Failure
 		));
 	}
-}', 'The next sequence number must be greater than zero to ensure valid sequencing.', 'ValidateNextSequenceNumberGreaterThanZero', 'DF238F34-2837-EF11-86D4-6045BDEE16E6', '8ABC07AE-5B21-4E8E-A8F5-8CA85C4A1086');
+}', 'The modification text must contain actual text and cannot be empty or consist only of spaces.', 'ValidateModificationTextNotEmpty', 'DF238F34-2837-EF11-86D4-6045BDEE16E6', '0D2FC779-82CA-4D68-A711-3D871A356164');
+
+/* Generated Validation Functions for MJ_BizApps_Contracts: Contract Template Provisions */
+-- CHECK constraint for MJ_BizApps_Contracts: Contract Template Provisions: Field: ProvisionText was newly set or modified since the last generation of the validation function, the code was regenerated and updating the GeneratedCode table with the new generated validation function
+INSERT INTO [${mjSchema}].[GeneratedCode] ([CategoryID], [GeneratedByModelID], [GeneratedAt], [Language], [Status], [Source], [Code], [Description], [Name], [LinkedEntityID], [LinkedRecordPrimaryKey])
+                      VALUES ((SELECT [ID] FROM [${mjSchema}].[vwGeneratedCodeCategories] WHERE [Name]='CodeGen: Validators'), 'C43229F6-4CC8-4838-9D04-03419A2DA191', GETUTCDATE(), 'TypeScript', 'Approved', '(len(ltrim(rtrim([ProvisionText])))>(0))', 'public ValidateProvisionTextNotEmpty(result: ValidationResult) {
+	if (this.ProvisionText === undefined || this.ProvisionText === null || this.ProvisionText.trim().length === 0) {
+		result.Errors.push(new ValidationErrorInfo(
+			"ProvisionText",
+			"Provision text cannot be empty or consist only of spaces.",
+			this.ProvisionText,
+			ValidationErrorType.Failure
+		));
+	}
+}', 'The provision text cannot be empty or consist only of spaces. It must contain actual text content.', 'ValidateProvisionTextNotEmpty', 'DF238F34-2837-EF11-86D4-6045BDEE16E6', 'D2CD9029-4DB4-4AD1-85A2-ABBFDA35EAFD');
+
+/* Generated Validation Functions for MJ_BizApps_Contracts: Contract Types */
+-- CHECK constraint for MJ_BizApps_Contracts: Contract Types @ Table Level was newly set or modified since the last generation of the validation function, the code was regenerated and updating the GeneratedCode table with the new generated validation function
+INSERT INTO [${mjSchema}].[GeneratedCode] ([CategoryID], [GeneratedByModelID], [GeneratedAt], [Language], [Status], [Source], [Code], [Description], [Name], [LinkedEntityID], [LinkedRecordPrimaryKey])
+                      VALUES ((SELECT [ID] FROM [${mjSchema}].[vwGeneratedCodeCategories] WHERE [Name]='CodeGen: Validators'), 'C43229F6-4CC8-4838-9D04-03419A2DA191', GETUTCDATE(), 'TypeScript', 'Approved', '(NOT ([MustBeRoot]=(1) AND [MustBeChild]=(1)))', 'public ValidateRootAndChildExclusivity(result: ValidationResult) {
+	if (this.MustBeRoot && this.MustBeChild) {
+		result.Errors.push(new ValidationErrorInfo(
+			"MustBeRoot",
+			"An entity cannot be designated as both a root and a child at the same time.",
+			this.MustBeRoot,
+			ValidationErrorType.Failure
+		));
+	}
+}', 'An entity cannot be designated as both a root and a child at the same time.', 'ValidateRootAndChildExclusivity', 'E0238F34-2837-EF11-86D4-6045BDEE16E6', 'C8909A57-6DDB-4585-BE00-E707C5B4F262');
 
 /* Generated Validation Functions for MJ_BizApps_Contracts: Contracts */
 -- CHECK constraint for MJ_BizApps_Contracts: Contracts: Field: AnnualIncreasePercent was newly set or modified since the last generation of the validation function, the code was regenerated and updating the GeneratedCode table with the new generated validation function
 INSERT INTO [${mjSchema}].[GeneratedCode] ([CategoryID], [GeneratedByModelID], [GeneratedAt], [Language], [Status], [Source], [Code], [Description], [Name], [LinkedEntityID], [LinkedRecordPrimaryKey])
-                      VALUES ((SELECT [ID] FROM [${mjSchema}].[vwGeneratedCodeCategories] WHERE [Name]='CodeGen: Validators'), 'C43229F6-4CC8-4838-9D04-03419A2DA191', GETUTCDATE(), 'TypeScript', 'Approved', '([AnnualIncreasePercent] IS NULL OR [AnnualIncreasePercent]>=(0))', 'public ValidateAnnualIncreasePercentGreaterThanOrEqualToZero(result: ValidationResult) {
+                      VALUES ((SELECT [ID] FROM [${mjSchema}].[vwGeneratedCodeCategories] WHERE [Name]='CodeGen: Validators'), 'C43229F6-4CC8-4838-9D04-03419A2DA191', GETUTCDATE(), 'TypeScript', 'Approved', '([AnnualIncreasePercent] IS NULL OR [AnnualIncreasePercent]>=(0))', 'public ValidateAnnualIncreasePercentNonNegative(result: ValidationResult) {
 	if (this.AnnualIncreasePercent != null && this.AnnualIncreasePercent < 0) {
 		result.Errors.push(new ValidationErrorInfo(
 			"AnnualIncreasePercent",
@@ -9699,20 +9318,20 @@ INSERT INTO [${mjSchema}].[GeneratedCode] ([CategoryID], [GeneratedByModelID], [
 			ValidationErrorType.Failure
 		));
 	}
-}', 'The annual increase percentage must be greater than or equal to 0% if it is specified.', 'ValidateAnnualIncreasePercentGreaterThanOrEqualToZero', 'DF238F34-2837-EF11-86D4-6045BDEE16E6', '547B4E55-E673-465F-B8D3-CA1286745190');
+}', 'The annual increase percentage must be greater than or equal to zero, ensuring that contract rates do not decrease automatically.', 'ValidateAnnualIncreasePercentNonNegative', 'DF238F34-2837-EF11-86D4-6045BDEE16E6', '3B2625E1-C5AB-462C-AA7E-533C5F40646D');
 
             -- CHECK constraint for MJ_BizApps_Contracts: Contracts: Field: CancellationWindowDays was newly set or modified since the last generation of the validation function, the code was regenerated and updating the GeneratedCode table with the new generated validation function
 INSERT INTO [${mjSchema}].[GeneratedCode] ([CategoryID], [GeneratedByModelID], [GeneratedAt], [Language], [Status], [Source], [Code], [Description], [Name], [LinkedEntityID], [LinkedRecordPrimaryKey])
-                      VALUES ((SELECT [ID] FROM [${mjSchema}].[vwGeneratedCodeCategories] WHERE [Name]='CodeGen: Validators'), 'C43229F6-4CC8-4838-9D04-03419A2DA191', GETUTCDATE(), 'TypeScript', 'Approved', '([CancellationWindowDays] IS NULL OR [CancellationWindowDays]>=(0))', 'public ValidateCancellationWindowDaysMinimum(result: ValidationResult) {
+                      VALUES ((SELECT [ID] FROM [${mjSchema}].[vwGeneratedCodeCategories] WHERE [Name]='CodeGen: Validators'), 'C43229F6-4CC8-4838-9D04-03419A2DA191', GETUTCDATE(), 'TypeScript', 'Approved', '([CancellationWindowDays] IS NULL OR [CancellationWindowDays]>=(0))', 'public ValidateCancellationWindowDaysGreaterThanOrEqualToZero(result: ValidationResult) {
 	if (this.CancellationWindowDays != null && this.CancellationWindowDays < 0) {
 		result.Errors.push(new ValidationErrorInfo(
 			"CancellationWindowDays",
-			"Cancellation window days must be 0 or greater.",
+			"Cancellation window days must be 0 or a positive number.",
 			this.CancellationWindowDays,
 			ValidationErrorType.Failure
 		));
 	}
-}', 'The cancellation window, if specified, must be 0 days or greater.', 'ValidateCancellationWindowDaysMinimum', 'DF238F34-2837-EF11-86D4-6045BDEE16E6', 'FDEE00C3-9A3B-4D05-A67C-D296289D9DBD');
+}', 'The cancellation window days must be zero or a positive number, ensuring that we do not record a negative number of days for the contract cancellation period.', 'ValidateCancellationWindowDaysGreaterThanOrEqualToZero', 'DF238F34-2837-EF11-86D4-6045BDEE16E6', 'C6464ADC-6683-4D4B-AA7A-64F9E052D225');
 
             -- CHECK constraint for MJ_BizApps_Contracts: Contracts: Field: RenewalNoticeDays was newly set or modified since the last generation of the validation function, the code was regenerated and updating the GeneratedCode table with the new generated validation function
 INSERT INTO [${mjSchema}].[GeneratedCode] ([CategoryID], [GeneratedByModelID], [GeneratedAt], [Language], [Status], [Source], [Code], [Description], [Name], [LinkedEntityID], [LinkedRecordPrimaryKey])
@@ -9720,43 +9339,43 @@ INSERT INTO [${mjSchema}].[GeneratedCode] ([CategoryID], [GeneratedByModelID], [
 	if (this.RenewalNoticeDays != null && this.RenewalNoticeDays < 0) {
 		result.Errors.push(new ValidationErrorInfo(
 			"RenewalNoticeDays",
-			"Renewal notice days must be greater than or equal to 0.",
+			"Renewal notice days must be 0 or greater.",
 			this.RenewalNoticeDays,
 			ValidationErrorType.Failure
 		));
 	}
-}', 'The renewal notice days must be a non-negative number (0 or greater) if it is specified.', 'ValidateRenewalNoticeDaysGreaterThanOrEqualToZero', 'DF238F34-2837-EF11-86D4-6045BDEE16E6', '472D4155-F2B0-4B06-B6E7-2F58A90314E0');
+}', 'Renewal notice days must be 0 or greater, if specified.', 'ValidateRenewalNoticeDaysGreaterThanOrEqualToZero', 'DF238F34-2837-EF11-86D4-6045BDEE16E6', '573064AC-38A8-42A2-95B2-CCBD605004EA');
 
             -- CHECK constraint for MJ_BizApps_Contracts: Contracts @ Table Level was newly set or modified since the last generation of the validation function, the code was regenerated and updating the GeneratedCode table with the new generated validation function
 INSERT INTO [${mjSchema}].[GeneratedCode] ([CategoryID], [GeneratedByModelID], [GeneratedAt], [Language], [Status], [Source], [Code], [Description], [Name], [LinkedEntityID], [LinkedRecordPrimaryKey])
                       VALUES ((SELECT [ID] FROM [${mjSchema}].[vwGeneratedCodeCategories] WHERE [Name]='CodeGen: Validators'), 'C43229F6-4CC8-4838-9D04-03419A2DA191', GETUTCDATE(), 'TypeScript', 'Approved', '([CreatingEntityID] IS NULL AND [CreatingRecordID] IS NULL OR [CreatingEntityID] IS NOT NULL AND [CreatingRecordID] IS NOT NULL)', 'public ValidateCreatingEntityAndRecordCoexistence(result: ValidationResult) {
-	const hasEntity = this.CreatingEntityID != null && this.CreatingEntityID !== "";
+	const hasEntity = this.CreatingEntityID != null;
 	const hasRecord = this.CreatingRecordID != null && this.CreatingRecordID !== "";
 
 	if (hasEntity !== hasRecord) {
 		result.Errors.push(new ValidationErrorInfo(
 			"CreatingEntityID",
-			"Both Creating Entity and Creating Record must be provided together, or both must be left empty.",
+			"Creating Entity ID and Creating Record ID must either both be specified or both be empty.",
 			this.CreatingEntityID,
 			ValidationErrorType.Failure
 		));
 	}
-}', 'Both the creating entity and the creating record must be provided together, or both must be left empty. You cannot specify one without the other.', 'ValidateCreatingEntityAndRecordCoexistence', 'E0238F34-2837-EF11-86D4-6045BDEE16E6', '4CC3DB2D-F01F-405E-A47D-B14BA2F1AB20');
+}', 'Both Creating Entity ID and Creating Record ID must be provided together, or both must be left empty, to ensure consistent tracking of the source entity and record.', 'ValidateCreatingEntityAndRecordCoexistence', 'E0238F34-2837-EF11-86D4-6045BDEE16E6', '5DEB0B11-ED6C-48B3-9200-F4441396C5E2');
 
             -- CHECK constraint for MJ_BizApps_Contracts: Contracts @ Table Level was newly set or modified since the last generation of the validation function, the code was regenerated and updating the GeneratedCode table with the new generated validation function
 INSERT INTO [${mjSchema}].[GeneratedCode] ([CategoryID], [GeneratedByModelID], [GeneratedAt], [Language], [Status], [Source], [Code], [Description], [Name], [LinkedEntityID], [LinkedRecordPrimaryKey])
                       VALUES ((SELECT [ID] FROM [${mjSchema}].[vwGeneratedCodeCategories] WHERE [Name]='CodeGen: Validators'), 'C43229F6-4CC8-4838-9D04-03419A2DA191', GETUTCDATE(), 'TypeScript', 'Approved', '([EndDate] IS NULL OR [EffectiveDate] IS NULL OR [EndDate]>=[EffectiveDate])', 'public ValidateEndDateAfterOrEqualToEffectiveDate(result: ValidationResult) {
-	if (this.EndDate != null && this.EffectiveDate != null) {
-		if (this.EndDate < this.EffectiveDate) {
-			result.Errors.push(new ValidationErrorInfo(
-				"EndDate",
-				"The contract end date must be on or after the effective date.",
-				this.EndDate,
-				ValidationErrorType.Failure
-			));
-		}
-	}
-}', 'The contract end date must be on or after the effective date.', 'ValidateEndDateAfterOrEqualToEffectiveDate', 'E0238F34-2837-EF11-86D4-6045BDEE16E6', '4CC3DB2D-F01F-405E-A47D-B14BA2F1AB20');
+    if (this.EndDate != null && this.EffectiveDate != null) {
+        if (this.EndDate < this.EffectiveDate) {
+            result.Errors.push(new ValidationErrorInfo(
+                "EndDate",
+                "The contract End Date must be on or after the Effective Date.",
+                this.EndDate,
+                ValidationErrorType.Failure
+            ));
+        }
+    }
+}', 'The contract end date must be on or after the effective date to ensure logical date ordering.', 'ValidateEndDateAfterOrEqualToEffectiveDate', 'E0238F34-2837-EF11-86D4-6045BDEE16E6', '5DEB0B11-ED6C-48B3-9200-F4441396C5E2');
 
             -- CHECK constraint for MJ_BizApps_Contracts: Contracts @ Table Level was newly set or modified since the last generation of the validation function, the code was regenerated and updating the GeneratedCode table with the new generated validation function
 INSERT INTO [${mjSchema}].[GeneratedCode] ([CategoryID], [GeneratedByModelID], [GeneratedAt], [Language], [Status], [Source], [Code], [Description], [Name], [LinkedEntityID], [LinkedRecordPrimaryKey])
@@ -9764,23 +9383,23 @@ INSERT INTO [${mjSchema}].[GeneratedCode] ([CategoryID], [GeneratedByModelID], [
 	if (this.ParentContractID != null && this.ParentContractID === this.ID) {
 		result.Errors.push(new ValidationErrorInfo(
 			"ParentContractID",
-			"A contract cannot be set as its own parent contract.",
+			"A contract cannot be its own parent contract.",
 			this.ParentContractID,
 			ValidationErrorType.Failure
 		));
 	}
-}', 'A contract cannot be its own parent contract. This prevents circular references in the contract hierarchy.', 'ValidateParentContractIDNotEqualToID', 'E0238F34-2837-EF11-86D4-6045BDEE16E6', '4CC3DB2D-F01F-405E-A47D-B14BA2F1AB20');
+}', 'A contract cannot be its own parent contract to prevent circular references in the contract hierarchy.', 'ValidateParentContractIDNotEqualToID', 'E0238F34-2837-EF11-86D4-6045BDEE16E6', '5DEB0B11-ED6C-48B3-9200-F4441396C5E2');
 
             -- CHECK constraint for MJ_BizApps_Contracts: Contracts @ Table Level was newly set or modified since the last generation of the validation function, the code was regenerated and updating the GeneratedCode table with the new generated validation function
 INSERT INTO [${mjSchema}].[GeneratedCode] ([CategoryID], [GeneratedByModelID], [GeneratedAt], [Language], [Status], [Source], [Code], [Description], [Name], [LinkedEntityID], [LinkedRecordPrimaryKey])
-                      VALUES ((SELECT [ID] FROM [${mjSchema}].[vwGeneratedCodeCategories] WHERE [Name]='CodeGen: Validators'), 'C43229F6-4CC8-4838-9D04-03419A2DA191', GETUTCDATE(), 'TypeScript', 'Approved', '([SupersededByContractID] IS NULL OR [SupersededByContractID]<>[ID])', 'public ValidateSupersededByContractIDNotSelf(result: ValidationResult) {
-    if (this.SupersededByContractID != null && this.SupersededByContractID === this.ID) {
-        result.Errors.push(new ValidationErrorInfo(
-            "SupersededByContractID",
-            "A contract cannot be superseded by itself.",
-            this.SupersededByContractID,
-            ValidationErrorType.Failure
-        ));
-    }
-}', 'A contract cannot be superseded by itself. If a superseding contract is specified, it must be a different contract.', 'ValidateSupersededByContractIDNotSelf', 'E0238F34-2837-EF11-86D4-6045BDEE16E6', '4CC3DB2D-F01F-405E-A47D-B14BA2F1AB20');
+                      VALUES ((SELECT [ID] FROM [${mjSchema}].[vwGeneratedCodeCategories] WHERE [Name]='CodeGen: Validators'), 'C43229F6-4CC8-4838-9D04-03419A2DA191', GETUTCDATE(), 'TypeScript', 'Approved', '([SupersededByContractID] IS NULL OR [SupersededByContractID]<>[ID])', 'public ValidateSupersededByContractIDNotEqualToID(result: ValidationResult) {
+	if (this.SupersededByContractID != null && this.SupersededByContractID === this.ID) {
+		result.Errors.push(new ValidationErrorInfo(
+			"SupersededByContractID",
+			"A contract cannot be superseded by itself. Please select a different contract.",
+			this.SupersededByContractID,
+			ValidationErrorType.Failure
+		));
+	}
+}', 'A contract cannot be superseded by itself. The superseding contract must be a different contract record.', 'ValidateSupersededByContractIDNotEqualToID', 'E0238F34-2837-EF11-86D4-6045BDEE16E6', '5DEB0B11-ED6C-48B3-9200-F4441396C5E2');
 

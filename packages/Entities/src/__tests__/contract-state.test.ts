@@ -19,7 +19,10 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { CONTRACT_STATES, type ContractState } from '../contract-state.js';
 
-const MIGRATION = 'V202608182001__v0.1.x__Contracts_derived_columns_outer_view.sql';
+// The wrapper view moved here in the 2026-08-23 flatten (was
+// V202608182001__v0.1.x__Contracts_derived_columns_outer_view.sql). The assertions below
+// are unchanged — they are what proves the CASE survived the move intact.
+const MIGRATION = 'V202608040003__v0.1.x__Layered_base_views_and_derived_fields.sql';
 const sql = readFileSync(fileURLToPath(new URL(`../../../../migrations/${MIGRATION}`, import.meta.url)), 'utf8');
 const squash = (s: string) => s.replace(/\s+/g, ' ').trim();
 const flat = squash(sql);
