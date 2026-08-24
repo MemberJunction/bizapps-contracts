@@ -80,6 +80,10 @@ jobs:
           # Get current version from entities package (any of the 4 BAC packages works since they're fixed-versioned)
           CURRENT_VERSION=$(jq -r .version packages/Entities/package.json)
           echo "Current version: $CURRENT_VERSION"
+          echo "CURRENT_VERSION=$CURRENT_VERSION" >> "$GITHUB_OUTPUT"
+
+          # Declared here so it is always defined, including on the major-changeset path.
+          NEW_MIGRATION_FILES=""
 
           IFS='.' read -ra VERSION_PARTS <<< "$CURRENT_VERSION"
           NEXT_MAJOR_VERSION="$(( ${VERSION_PARTS[0]} + 1 )).0.0"
@@ -101,9 +105,15 @@ jobs:
             echo "Major changeset found — bumping major version"
             echo "EXPECTED_NEXT_VERSION=$NEXT_MAJOR_VERSION" >> "$GITHUB_OUTPUT"
           else
-            # Check for new migration files since last tag
+            # Check for new migration files since last tag.
+            #
+            # Scoped to *.sql, NOT the whole migrations/ folder. `-- migrations/` also matched
+            # migrations/_README.md, so editing the folder's documentation predicted a MINOR
+            # bump and then hard-failed the release for disagreeing with a patch changeset --
+            # on a release that changed no schema at all. The rule is about schema, so the
+            # filter has to be about schema.
             if git rev-parse "v${CURRENT_VERSION}" >/dev/null 2>&1; then
-              NEW_MIGRATION_FILES=$(git --no-pager diff --name-only "v${CURRENT_VERSION}" "${{ github.sha }}" -- migrations/ || true)
+              NEW_MIGRATION_FILES=$(git --no-pager diff --name-only "v${CURRENT_VERSION}" "${{ github.sha }}" -- 'migrations/**/*.sql' 'migrations/*.sql' || true)
             else
               NEW_MIGRATION_FILES=""
             fi
@@ -117,10 +127,20 @@ jobs:
             fi
           fi
 
+          # The mismatch message in the next step names the files that forced a minor.
+          # Multiline outputs need a delimiter; a bare `k=v` would truncate at the newline.
+          {
+            echo "MIGRATIONS<<__MIG_EOF__"
+            echo "$NEW_MIGRATION_FILES"
+            echo "__MIG_EOF__"
+          } >> "$GITHUB_OUTPUT"
+
       - name: Update version
         if: steps.changeset_check.outputs.pending != '0'
         run: |
           EXPECTED_NEXT_VERSION="${{ github.event.inputs.targetVersion || steps.version_check.outputs.EXPECTED_NEXT_VERSION }}"
+          CURRENT_VERSION="${{ steps.version_check.outputs.CURRENT_VERSION }}"
+          NEW_MIGRATION_FILES="${{ steps.version_check.outputs.MIGRATIONS }}"
           echo "Expected next version: $EXPECTED_NEXT_VERSION"
 
           pnpm run version
@@ -129,7 +149,27 @@ jobs:
           echo "Actual next version: $NEXT_VERSION"
 
           if [ -n "$EXPECTED_NEXT_VERSION" ] && [ "$NEXT_VERSION" != "$EXPECTED_NEXT_VERSION" ]; then
-            echo "::error::Version mismatch! Expected $EXPECTED_NEXT_VERSION but got $NEXT_VERSION"
+            echo "::error::Version mismatch — expected $EXPECTED_NEXT_VERSION, changesets produced $NEXT_VERSION."
+            echo ""
+            echo "This gate predicts the release version independently of the changesets and"
+            echo "refuses to publish when the two disagree. It cannot reconcile them for you."
+            echo ""
+            if [ -n "$NEW_MIGRATION_FILES" ]; then
+              echo "Why a MINOR was expected: this release changes schema. Migrations touched"
+              echo "since v${CURRENT_VERSION}:"
+              echo "$NEW_MIGRATION_FILES" | sed 's/^/  - /'
+              echo ""
+              echo "A schema change must not ship as a patch — under semver a 0.x minor carries"
+              echo "the breaking-change signal, and consumers need to know a migration will run."
+              echo ""
+              echo "FIX: edit a file in .changeset/ so at least one entry is 'minor' instead of"
+              echo "'patch', commit, and re-run. If the schema change is genuinely not"
+              echo "consumer-visible, say so in the changeset and drop the migration from this"
+              echo "release instead of relaxing the gate."
+            else
+              echo "No migrations changed, so a PATCH was expected. A changeset is asking for"
+              echo "more than that -- check .changeset/ for a stray 'minor' or 'major' entry."
+            fi
             exit 1
           fi
 
