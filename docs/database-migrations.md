@@ -30,7 +30,7 @@ cannot see the column.
 | `B…__Baseline.sql` | schema, `__mj.SchemaInfo`, the sequence, the sort-key function, all seven tables + constraints, the two app-owned programmable objects, then the CodeGen capture |
 | `V202608240100__…__Layered_base_view_flags.sql` | flips two entities to layered base views + the capture that re-points CodeGen to `vw*Generated` |
 | `V202608240200__…__Layered_base_views_and_derived_fields.sql` | the two application-owned wrapper views + explicit registration of the 8 columns they add |
-| `V202608240300__…__Metadata_Sync.sql` | the reference vocabulary `mj sync push` writes from `metadata/` |
+| `V202608240300__…__Metadata_Sync.sql` | the reference vocabulary `mj sync push` writes from `metadata/` — contract types, template types, entity/field/relationship metadata, the application row |
 
 **The count is forced, not stylistic.** Everything that CAN be folded into the baseline
 has been — 22 incremental files collapsed into it on 2026-08-23 (see below). What remains
@@ -100,6 +100,24 @@ For a development database the fix is to rebuild from zero, which is routine and
 train is verified. There is no supported upgrade path from the old train, and there does not
 need to be: nothing had shipped. **This is the last point at which that is true** — see
 "Baseline edits are CLOSED" below.
+
+### What `metadata/` may contain — vocabulary, never one organisation's content
+
+`metadata/` is the **install seed**: it ships inside `V…__Metadata_Sync.sql` and lands in every
+consumer's database. So the test for anything added there is not "is it correct?" but "should
+*everyone* receive it?"
+
+- **Ships:** structural metadata (`schema-info`, `entities`, `entity-fields`,
+  `entity-relationships`, `applications`) and genuine vocabulary — contract types, template types.
+- **Does not ship:** any particular organisation's records, *including their agreement text*.
+
+This was got wrong once and is worth stating plainly. `metadata/contract-templates/` and
+`metadata/contract-provisions/` carried Blue Cypress's actual Master Services Agreement — 71
+verbatim provisions — so the published migration seeded one company's contract terms into every
+install as reference data. They moved to `demo-data/` on 2026-08-24, which is opt-in and never
+shipped. The distinction: **a KIND of contract is vocabulary; a particular company's AGREEMENT is
+content.** `plans/QUESTIONS.md` Q-5 carries the full ruling, including why answering "do not invent
+legal text" left this half of the problem standing.
 
 ## The 50-blank-line rule (where hand-written DDL stops and CodeGen output starts)
 

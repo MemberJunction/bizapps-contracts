@@ -4,8 +4,36 @@
 (what an install runs) never touches it. Pushing it is an explicit, separate act:
 
 ```bash
+pnpm run demo:load          # = mj sync push --dir demo-data
+
+# from inside an mjdev instance, where the env lives one level up:
 DOTENV_CONFIG_PATH=../mj/.env pnpm exec mj sync push --dir demo-data --format=json
 ```
+
+Push order is fixed by `.mj-sync.json` → `directoryOrder`: the template and its provisions first,
+then the companies, organisations, contracts and modifications that cite them. Every record is
+keyed by a fixed UUID, so a re-push **updates** rather than duplicating.
+
+## What is in here, and the one part that is real
+
+`companies/`, `organizations/`, `contracts/` and `modifications/` are **invented** — made-up
+organisations with made-up fees, safe to publish and safe to demo.
+
+`contract-templates/` and `contract-provisions/` are **not invented**. They are Blue Cypress's
+actual Master Services Agreement, 2026-02-02 edition — 71 provisions carrying their verbatim text,
+captured from the dated public URL the agreement is published at.
+
+**They moved here from `metadata/` on 2026-08-24, and that was a correctness fix rather than
+housekeeping.** `metadata/` is what an install seeds, and it ships inside
+`V202608240300__…__Metadata_Sync.sql` — so every consumer of this app was receiving one company's
+contract terms as though they were reference data. Contract *types* and template *types* are
+genuine vocabulary and stay in `metadata/`; a specific company's agreement text never was.
+
+It also makes this directory self-contained, which it previously was not: `contracts/` and
+`modifications/` cite the template by `VersionLabel=2026-02-02` and its provisions by number, so
+pushing `demo-data/` only worked because `metadata/` happened to be shipping the agreement. Now the
+push order (`.mj-sync.json` → `directoryOrder`) puts the template and its provisions first, and
+nothing outside this folder is required.
 
 ## Why metadata sync rather than a script
 

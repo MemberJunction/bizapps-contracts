@@ -58,7 +58,10 @@ describe('no reader orders provisions by the dropped Sequence column', () => {
     });
 
     it('the provision seed carries no Sequence values', () => {
-        const seed = JSON.parse(readFileSync(`${REPO}metadata/contract-provisions/.contract-provisions.json`, 'utf8'));
+        // demo-data/, not metadata/. The provision list is one company's actual Master
+        // Agreement, so it moved out of the shipped seed on 2026-08-24 — an install must not
+        // receive somebody else's contract terms as reference data.
+        const seed = JSON.parse(readFileSync(`${REPO}demo-data/contract-provisions/.contract-provisions.json`, 'utf8'));
         const withSequence = seed.filter((r: { fields?: Record<string, unknown> }) => r.fields && 'Sequence' in r.fields);
         expect(withSequence).toHaveLength(0);
     });
