@@ -1,14 +1,23 @@
+# Publishes whatever `main` holds that npm does not.
+#
+# This workflow no longer computes or commits a version. `changeset version` runs earlier,
+# in the Version Packages PR on `next` (see version.yml), so by the time a release PR
+# reaches `main` the package versions ARE the instruction: `changeset publish` publishes
+# every package whose version is not on the registry and skips the rest. It never reads
+# .changeset/*.md — only `changeset version` does.
+#
+# Removed on purpose: the version prediction and its mismatch guard (the bump is now a
+# reviewed diff, not a computed surprise), the mj-app.json write (moved into version:ci),
+# `commitpush`, and the main->next merge-back. Those two pushed directly to branches that
+# bizapps-accounting has under a ruleset, where they failed the 0.2.0 release outright
+# (`GH013`). This repo's branches are not ruled that way today, so nothing is broken here —
+# the point is that the release no longer DEPENDS on that being true.
 name: Build and Publish
 
 on:
   push:
     branches: [main]
   workflow_dispatch:
-    inputs:
-      targetVersion:
-        description: 'Target version (e.g., 5.27.2). Leave empty for auto-detection.'
-        required: false
-        type: string
 
 permissions:
   contents: write
@@ -62,163 +71,29 @@ jobs:
           git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git config --global user.name "github-actions[bot]"
 
-      - name: Check for pending changesets
-        id: changeset_check
+      - name: Refuse to publish with changesets still pending
         run: |
           PENDING=$(find .changeset -name "*.md" -not -name "README.md" 2>/dev/null | wc -l | tr -d ' ')
-          echo "pending=$PENDING" >> "$GITHUB_OUTPUT"
-          if [ "$PENDING" -eq 0 ]; then
-            echo "No pending changesets — nothing to publish"
-          else
-            echo "Found $PENDING pending changeset(s)"
-          fi
-
-      - name: Determine next expected version
-        if: steps.changeset_check.outputs.pending != '0' && github.ref == 'refs/heads/main' && !github.event.inputs.targetVersion
-        id: version_check
-        run: |
-          # Get current version from entities package (any of the 4 BAC packages works since they're fixed-versioned)
-          CURRENT_VERSION=$(jq -r .version packages/Entities/package.json)
-          echo "Current version: $CURRENT_VERSION"
-          echo "CURRENT_VERSION=$CURRENT_VERSION" >> "$GITHUB_OUTPUT"
-
-          # Declared here so it is always defined, including on the major-changeset path.
-          NEW_MIGRATION_FILES=""
-
-          IFS='.' read -ra VERSION_PARTS <<< "$CURRENT_VERSION"
-          NEXT_MAJOR_VERSION="$(( ${VERSION_PARTS[0]} + 1 )).0.0"
-          NEXT_MINOR_VERSION="${VERSION_PARTS[0]}.$(( ${VERSION_PARTS[1]} + 1 )).0"
-          NEXT_PATCH_VERSION="${VERSION_PARTS[0]}.${VERSION_PARTS[1]}.$(( ${VERSION_PARTS[2]} + 1 ))"
-
-          # Check if any changeset requests a major bump
-          HAS_MAJOR=false
-          for f in .changeset/*.md; do
-            [ "$f" = ".changeset/README.md" ] && continue
-            [ ! -f "$f" ] && continue
-            if grep -qE '^"@mj-biz-apps/contracts-.*":\s*major' "$f"; then
-              HAS_MAJOR=true
-              break
-            fi
-          done
-
-          if [ "$HAS_MAJOR" = true ]; then
-            echo "Major changeset found — bumping major version"
-            echo "EXPECTED_NEXT_VERSION=$NEXT_MAJOR_VERSION" >> "$GITHUB_OUTPUT"
-          else
-            # Check for new migration files since last tag.
-            #
-            # Scoped to *.sql, NOT the whole migrations/ folder. `-- migrations/` also matched
-            # non-SQL files in migrations/, so editing documentation there predicted a MINOR
-            # bump and then hard-failed the release for disagreeing with a patch changeset --
-            # on a release that changed no schema at all. The rule is about schema, so the
-            # filter has to be about schema.
-            if git rev-parse "v${CURRENT_VERSION}" >/dev/null 2>&1; then
-              NEW_MIGRATION_FILES=$(git --no-pager diff --name-only "v${CURRENT_VERSION}" "${{ github.sha }}" -- 'migrations/**/*.sql' 'migrations/*.sql' || true)
-            else
-              NEW_MIGRATION_FILES=""
-            fi
-
-            if [ -n "$NEW_MIGRATION_FILES" ]; then
-              echo "New migrations found — bumping minor version"
-              echo "EXPECTED_NEXT_VERSION=$NEXT_MINOR_VERSION" >> "$GITHUB_OUTPUT"
-            else
-              echo "No new migrations — bumping patch version"
-              echo "EXPECTED_NEXT_VERSION=$NEXT_PATCH_VERSION" >> "$GITHUB_OUTPUT"
-            fi
-          fi
-
-          # The mismatch message in the next step names the files that forced a minor.
-          # Multiline outputs need a delimiter; a bare `k=v` would truncate at the newline.
-          {
-            echo "MIGRATIONS<<__MIG_EOF__"
-            echo "$NEW_MIGRATION_FILES"
-            echo "__MIG_EOF__"
-          } >> "$GITHUB_OUTPUT"
-
-      - name: Update version
-        if: steps.changeset_check.outputs.pending != '0'
-        run: |
-          EXPECTED_NEXT_VERSION="${{ github.event.inputs.targetVersion || steps.version_check.outputs.EXPECTED_NEXT_VERSION }}"
-          CURRENT_VERSION="${{ steps.version_check.outputs.CURRENT_VERSION }}"
-          NEW_MIGRATION_FILES="${{ steps.version_check.outputs.MIGRATIONS }}"
-          echo "Expected next version: $EXPECTED_NEXT_VERSION"
-
-          pnpm run version
-
-          NEXT_VERSION=$(jq -r .version packages/Entities/package.json)
-          echo "Actual next version: $NEXT_VERSION"
-
-          if [ -n "$EXPECTED_NEXT_VERSION" ] && [ "$NEXT_VERSION" != "$EXPECTED_NEXT_VERSION" ]; then
-            echo "::error::Version mismatch — expected $EXPECTED_NEXT_VERSION, changesets produced $NEXT_VERSION."
-            echo ""
-            echo "This gate predicts the release version independently of the changesets and"
-            echo "refuses to publish when the two disagree. It cannot reconcile them for you."
-            echo ""
-            if [ -n "$NEW_MIGRATION_FILES" ]; then
-              echo "Why a MINOR was expected: this release changes schema. Migrations touched"
-              echo "since v${CURRENT_VERSION}:"
-              echo "$NEW_MIGRATION_FILES" | sed 's/^/  - /'
-              echo ""
-              echo "A schema change must not ship as a patch — under semver a 0.x minor carries"
-              echo "the breaking-change signal, and consumers need to know a migration will run."
-              echo ""
-              echo "FIX: edit a file in .changeset/ so at least one entry is 'minor' instead of"
-              echo "'patch', commit, and re-run. If the schema change is genuinely not"
-              echo "consumer-visible, say so in the changeset and drop the migration from this"
-              echo "release instead of relaxing the gate."
-            else
-              echo "No migrations changed, so a PATCH was expected. A changeset is asking for"
-              echo "more than that -- check .changeset/ for a stray 'minor' or 'major' entry."
-            fi
+          if [ "$PENDING" -ne 0 ]; then
+            echo "::error::$PENDING changeset(s) are still pending on main. Versioning happens in the Version Packages PR on next (version.yml) — merge that first, then release. Publishing now would ship versions that no changelog describes."
             exit 1
           fi
-
-      - name: Sync mj-app.json version and MJ version range
-        if: steps.changeset_check.outputs.pending != '0'
-        run: |
-          # Sync app version from entities package
-          VERSION=$(jq -r .version packages/Entities/package.json)
-          jq --arg v "$VERSION" '.version = $v' mj-app.json > mj-app.json.tmp
-          mv mj-app.json.tmp mj-app.json
-          echo "Updated mj-app.json version to $VERSION"
-
-          # Derive mjVersionRange from the @memberjunction/core dependency
-          MJ_DEP=$(jq -r '.dependencies["@memberjunction/core"] // .peerDependencies["@memberjunction/core"] // empty' packages/Entities/package.json)
-          if [ -n "$MJ_DEP" ]; then
-            # Strip semver range prefix (^, ~, >=, etc.) to get the base version
-            MJ_MIN=$(echo "$MJ_DEP" | sed 's/^[^0-9]*//')
-            # Next major = current major + 1
-            MJ_NEXT_MAJOR="$(( $(echo "$MJ_MIN" | cut -d. -f1) + 1 )).0.0"
-            MJ_RANGE=">=${MJ_MIN} <${MJ_NEXT_MAJOR}"
-            jq --arg r "$MJ_RANGE" '.mjVersionRange = $r' mj-app.json > mj-app.json.tmp
-            mv mj-app.json.tmp mj-app.json
-            echo "Updated mj-app.json mjVersionRange to $MJ_RANGE"
-          fi
+          echo "No pending changesets — versions on main are authoritative"
 
       - name: Build all packages
         run: pnpm run build:packages
 
       - name: Publish to npm
-        if: steps.changeset_check.outputs.pending != '0'
         run: pnpm exec changeset publish
 
-      - name: Get version and create tag
-        if: steps.changeset_check.outputs.pending != '0'
-        id: get_version
+      - name: Tag the release
         run: |
-          git pull
           VERSION="v$(jq -r .version packages/Entities/package.json)"
-          echo "VERSION=$VERSION" >> "$GITHUB_OUTPUT"
-          echo "## Published $VERSION" >> "$GITHUB_STEP_SUMMARY"
-
-      - name: Commit and push
-        if: steps.changeset_check.outputs.pending != '0'
-        env:
-          VERSION: ${{ steps.get_version.outputs.VERSION }}
-        run: pnpm run commitpush
-
-      - name: Merge main into next and update lockfile
-        if: steps.changeset_check.outputs.pending != '0'
-        run: |
-          git checkout next
-          pnpm run mergemain:update-lock
+          if git ls-remote --exit-code --tags origin "refs/tags/$VERSION" >/dev/null 2>&1; then
+            echo "Tag $VERSION already exists on origin — leaving it alone"
+          else
+            git tag "$VERSION"
+            git push origin "refs/tags/$VERSION"
+            echo "Tagged $VERSION"
+          fi
+          echo "## Released $VERSION" >> "$GITHUB_STEP_SUMMARY"
