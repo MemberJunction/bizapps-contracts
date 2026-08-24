@@ -17,7 +17,6 @@ export class mjBizAppsContractsContractTemplateProvisionFormComponent extends Ba
         this.initSections([
             { sectionKey: 'templateAssociation', sectionName: 'Template Association', isExpanded: true },
             { sectionKey: 'provisionDetails', sectionName: 'Provision Details', isExpanded: true },
-            { sectionKey: 'provisionContent', sectionName: 'Provision Content', isExpanded: true },
             { sectionKey: 'systemMetadata', sectionName: 'System Metadata', isExpanded: false }
         ]);
     }

@@ -7,7 +7,7 @@
 *   >>> THE NEXT TIME THIS FILE IS GENERATED
 *
 **********************************************************************************/
-import { Arg, Ctx, Int, Query, Resolver, Field, Float, ObjectType, FieldResolver, Root, InputType, Mutation,
+import { Arg, Ctx, Int, Query, Resolver, Field, Float, ObjectType, InputType, Mutation,
             PubSub, PubSubEngine, ResolverBase, RunViewByIDInput, RunViewByNameInput, RunDynamicViewInput,
             AppContext, KeyValuePairInput, DeleteOptionsInput, GraphQLTimestamp as Timestamp,
             GetReadOnlyProvider, GetReadWriteProvider, RestoreContextInput } from '@memberjunction/server';
@@ -49,9 +49,9 @@ export class mjBizAppsContractsContractTemplateModification_ {
     @Field() 
     _mj__UpdatedAt: Date;
         
-    @Field() 
+    @Field({nullable: true}) 
     @MaxLength(50)
-    Contract: string;
+    Contract?: string;
         
     @Field() 
     @MaxLength(20)
@@ -224,23 +224,20 @@ export class mjBizAppsContractsContractTemplateProvision_ {
     @Field({nullable: true}) 
     Description?: string;
         
+    @Field({nullable: true, description: `Collation key derived from ProvisionNumber: every run of digits zero-padded to six places, everything else upper-cased. Makes a plain SQL ORDER BY produce natural order ('1.9' before '1.10'), which ordering by ProvisionNumber cannot. READ-ONLY -- a persisted computed column; nobody should be able to set a sort key. Replaced the hand-maintained Sequence column, which had already collided in the seeded data.`}) 
+    @MaxLength(200)
+    ProvisionSortKey?: string;
+        
     @Field() 
     _mj__CreatedAt: Date;
         
     @Field() 
     _mj__UpdatedAt: Date;
         
-    @Field({nullable: true, description: `Collation key derived from ProvisionNumber: every run of digits zero-padded to six places, everything else upper-cased. Makes a plain SQL ORDER BY produce natural order ("1.9" before "1.10"), which ordering by ProvisionNumber cannot. READ-ONLY — a persisted computed column; nobody should be able to set a sort key. Replaced the hand-maintained Sequence column, which had already collided in the seeded data.`}) 
-    @MaxLength(200)
-    ProvisionSortKey?: string;
-        
     @Field() 
     @MaxLength(200)
     ContractTemplate: string;
         
-    @Field(() => [mjBizAppsContractsContractTemplateModification_])
-    mjBizAppsContractsContractTemplateModifications_ContractTemplateProvisionIDArray: mjBizAppsContractsContractTemplateModification_[]; // Link to mjBizAppsContractsContractTemplateModifications
-    
 }
 
 //****************************************************************************
@@ -358,16 +355,6 @@ export class mjBizAppsContractsContractTemplateProvisionResolver extends Resolve
         return result;
     }
     
-    @FieldResolver(() => [mjBizAppsContractsContractTemplateModification_])
-    async mjBizAppsContractsContractTemplateModifications_ContractTemplateProvisionIDArray(@Root() mjbizappscontractscontracttemplateprovision_: mjBizAppsContractsContractTemplateProvision_, @Ctx() { userPayload, providers }: AppContext, @PubSub() pubSub: PubSubEngine) {
-        this.CheckUserReadPermissions('MJ_BizApps_Contracts: Contract Template Modifications', userPayload);
-        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
-        const sSQL = `SELECT * FROM ${provider.QuoteSchemaAndView('__mj_BizAppsContracts', 'vwContractTemplateModifications')} WHERE ${provider.QuoteIdentifier('ContractTemplateProvisionID')}=${provider.BuildParameterPlaceholder(0)} ` + this.getRowLevelSecurityWhereClause(provider, 'MJ_BizApps_Contracts: Contract Template Modifications', userPayload, EntityPermissionType.Read, 'AND');
-        const rows = await provider.ExecuteSQL(sSQL, [mjbizappscontractscontracttemplateprovision_.ID], undefined, this.GetUserFromPayload(userPayload));
-        const result = await this.ArrayMapFieldNamesToCodeNames('MJ_BizApps_Contracts: Contract Template Modifications', rows, this.GetUserFromPayload(userPayload));
-        return result;
-    }
-        
     @Mutation(() => mjBizAppsContractsContractTemplateProvision_)
     async CreatemjBizAppsContractsContractTemplateProvision(
         @Arg('input', () => CreatemjBizAppsContractsContractTemplateProvisionInput) input: CreatemjBizAppsContractsContractTemplateProvisionInput,
@@ -423,9 +410,6 @@ export class mjBizAppsContractsContractTemplateType_ {
     @Field() 
     _mj__UpdatedAt: Date;
         
-    @Field(() => [mjBizAppsContractsContractTemplate_])
-    mjBizAppsContractsContractTemplates_ContractTemplateTypeIDArray: mjBizAppsContractsContractTemplate_[]; // Link to mjBizAppsContractsContractTemplates
-    
 }
 
 //****************************************************************************
@@ -531,16 +515,6 @@ export class mjBizAppsContractsContractTemplateTypeResolver extends ResolverBase
         return result;
     }
     
-    @FieldResolver(() => [mjBizAppsContractsContractTemplate_])
-    async mjBizAppsContractsContractTemplates_ContractTemplateTypeIDArray(@Root() mjbizappscontractscontracttemplatetype_: mjBizAppsContractsContractTemplateType_, @Ctx() { userPayload, providers }: AppContext, @PubSub() pubSub: PubSubEngine) {
-        this.CheckUserReadPermissions('MJ_BizApps_Contracts: Contract Templates', userPayload);
-        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
-        const sSQL = `SELECT * FROM ${provider.QuoteSchemaAndView('__mj_BizAppsContracts', 'vwContractTemplates')} WHERE ${provider.QuoteIdentifier('ContractTemplateTypeID')}=${provider.BuildParameterPlaceholder(0)} ` + this.getRowLevelSecurityWhereClause(provider, 'MJ_BizApps_Contracts: Contract Templates', userPayload, EntityPermissionType.Read, 'AND');
-        const rows = await provider.ExecuteSQL(sSQL, [mjbizappscontractscontracttemplatetype_.ID], undefined, this.GetUserFromPayload(userPayload));
-        const result = await this.ArrayMapFieldNamesToCodeNames('MJ_BizApps_Contracts: Contract Templates', rows, this.GetUserFromPayload(userPayload));
-        return result;
-    }
-        
     @Mutation(() => mjBizAppsContractsContractTemplateType_)
     async CreatemjBizAppsContractsContractTemplateType(
         @Arg('input', () => CreatemjBizAppsContractsContractTemplateTypeInput) input: CreatemjBizAppsContractsContractTemplateTypeInput,
@@ -594,22 +568,22 @@ export class mjBizAppsContractsContractTemplate_ {
     @Field({nullable: true, description: `When this version started being offered. NOT an effective date: a template becomes effective for a customer when THAT customer signs it, never on a calendar date. Naming it EffectiveDate would invite exactly the wrong query.`}) 
     IntroducedDate?: Date;
         
-    @Field({nullable: true, description: `The dated public URL. NOT NULL — every template we have is a published URL and it is what the executed PDF cites; a template nobody can open is not a record of anything.`}) 
+    @Field({nullable: true, description: `The dated public URL a customer can open to read the standard terms. NULLABLE: reachability is enforceable by nothing (a well-formed dead link passes any format check), and the real rule is "a URL OR an attached file" — the file half attaching through __mj.FileEntityRecordLink, which cannot reference a record that does not exist yet, so on CREATE it is unsatisfiable in principle. A template with neither is INCOMPLETE rather than invalid; the derived IsUsable column on vwContractTemplates is what says so.`}) 
     @MaxLength(1000)
     SourceURL?: string;
         
     @Field({nullable: true}) 
     Description?: string;
         
+    @Field({description: `Publication lifecycle. 'Draft' -- freely editable, provisions may be added, changed and removed, and a contract may not NEWLY reference it. 'Published' -- the provisions are frozen against INSERT, UPDATE and DELETE by trg_ContractTemplateProvision_Immutability, and contracts may reference it. Publishing is ONE-WAY (enforced in ContractTemplateEntity): to change published terms, publish a new version -- that is what VersionLabel exists for. Existing references are never invalidated by this column; only new ones are policed, the same way ContractType.Status works.`}) 
+    @MaxLength(20)
+    Status: string;
+        
     @Field() 
     _mj__CreatedAt: Date;
         
     @Field() 
     _mj__UpdatedAt: Date;
-        
-    @Field({description: `Publication lifecycle. 'Draft' — freely editable, provisions may be added, changed and removed, and a contract may not NEWLY reference it. 'Published' — the provisions are frozen against INSERT, UPDATE and DELETE by trg_ContractTemplateProvision_Immutability, and contracts may reference it. Publishing is ONE-WAY (enforced in ContractTemplateEntity): to change published terms, publish a new version — that is what VersionLabel exists for. Existing references are never invalidated by this column; only new ones are policed, the same way ContractType.Status works.`}) 
-    @MaxLength(20)
-    Status: string;
         
     @Field() 
     @MaxLength(100)
@@ -618,12 +592,6 @@ export class mjBizAppsContractsContractTemplate_ {
     @Field(() => Boolean, {nullable: true}) 
     IsUsable?: boolean;
         
-    @Field(() => [mjBizAppsContractsContract_])
-    mjBizAppsContractsContracts_ContractTemplateIDArray: mjBizAppsContractsContract_[]; // Link to mjBizAppsContractsContracts
-    
-    @Field(() => [mjBizAppsContractsContractTemplateProvision_])
-    mjBizAppsContractsContractTemplateProvisions_ContractTemplateIDArray: mjBizAppsContractsContractTemplateProvision_[]; // Link to mjBizAppsContractsContractTemplateProvisions
-    
 }
 
 //****************************************************************************
@@ -753,26 +721,6 @@ export class mjBizAppsContractsContractTemplateResolver extends ResolverBase {
         return result;
     }
     
-    @FieldResolver(() => [mjBizAppsContractsContract_])
-    async mjBizAppsContractsContracts_ContractTemplateIDArray(@Root() mjbizappscontractscontracttemplate_: mjBizAppsContractsContractTemplate_, @Ctx() { userPayload, providers }: AppContext, @PubSub() pubSub: PubSubEngine) {
-        this.CheckUserReadPermissions('MJ_BizApps_Contracts: Contracts', userPayload);
-        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
-        const sSQL = `SELECT * FROM ${provider.QuoteSchemaAndView('__mj_BizAppsContracts', 'vwContracts')} WHERE ${provider.QuoteIdentifier('ContractTemplateID')}=${provider.BuildParameterPlaceholder(0)} ` + this.getRowLevelSecurityWhereClause(provider, 'MJ_BizApps_Contracts: Contracts', userPayload, EntityPermissionType.Read, 'AND');
-        const rows = await provider.ExecuteSQL(sSQL, [mjbizappscontractscontracttemplate_.ID], undefined, this.GetUserFromPayload(userPayload));
-        const result = await this.ArrayMapFieldNamesToCodeNames('MJ_BizApps_Contracts: Contracts', rows, this.GetUserFromPayload(userPayload));
-        return result;
-    }
-        
-    @FieldResolver(() => [mjBizAppsContractsContractTemplateProvision_])
-    async mjBizAppsContractsContractTemplateProvisions_ContractTemplateIDArray(@Root() mjbizappscontractscontracttemplate_: mjBizAppsContractsContractTemplate_, @Ctx() { userPayload, providers }: AppContext, @PubSub() pubSub: PubSubEngine) {
-        this.CheckUserReadPermissions('MJ_BizApps_Contracts: Contract Template Provisions', userPayload);
-        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
-        const sSQL = `SELECT * FROM ${provider.QuoteSchemaAndView('__mj_BizAppsContracts', 'vwContractTemplateProvisions')} WHERE ${provider.QuoteIdentifier('ContractTemplateID')}=${provider.BuildParameterPlaceholder(0)} ` + this.getRowLevelSecurityWhereClause(provider, 'MJ_BizApps_Contracts: Contract Template Provisions', userPayload, EntityPermissionType.Read, 'AND');
-        const rows = await provider.ExecuteSQL(sSQL, [mjbizappscontractscontracttemplate_.ID], undefined, this.GetUserFromPayload(userPayload));
-        const result = await this.ArrayMapFieldNamesToCodeNames('MJ_BizApps_Contracts: Contract Template Provisions', rows, this.GetUserFromPayload(userPayload));
-        return result;
-    }
-        
     @Mutation(() => mjBizAppsContractsContractTemplate_)
     async CreatemjBizAppsContractsContractTemplate(
         @Arg('input', () => CreatemjBizAppsContractsContractTemplateInput) input: CreatemjBizAppsContractsContractTemplateInput,
@@ -825,24 +773,21 @@ export class mjBizAppsContractsContractType_ {
     @MaxLength(10)
     Status: string;
         
+    @Field(() => Boolean, {description: `This type of contract may NOT name a ParentContractID -- it is a root agreement. Enforced in ContractEntityServer.ValidateAsync. Mutually exclusive with MustBeChild (CK_ContractType_RootOrChild); both false means no restriction on where in the tree this type may sit, which is the honest default.`}) 
+    MustBeRoot: boolean;
+        
+    @Field(() => Boolean, {description: `This type of contract MUST name a ParentContractID -- a Change Order that amends nothing is not a change order, and would never appear in the original agreement's lineage. Enforced in ContractEntityServer.ValidateAsync. Mutually exclusive with MustBeRoot.`}) 
+    MustBeChild: boolean;
+        
+    @Field(() => Boolean, {description: `This type of contract must carry its own ContractTemplateID -- the standard terms it incorporates. On the TYPE rather than inferred from the placement flags, because 'where in the tree' and 'does it need its own paper' are different questions and a future type could want any combination.`}) 
+    TemplateRequired: boolean;
+        
     @Field() 
     _mj__CreatedAt: Date;
         
     @Field() 
     _mj__UpdatedAt: Date;
         
-    @Field(() => Boolean, {description: `This type of contract may NOT name a ParentContractID — it is a root agreement. Enforced in ContractEntityServer.ValidateAsync. Mutually exclusive with MustBeChild (CK_ContractType_RootOrChild); both false means no restriction on where in the tree this type may sit, which is the honest default.`}) 
-    MustBeRoot: boolean;
-        
-    @Field(() => Boolean, {description: `This type of contract MUST name a ParentContractID — a Change Order that amends nothing is not a change order, and would never appear in the original agreement's lineage. Enforced in ContractEntityServer.ValidateAsync. Mutually exclusive with MustBeRoot.`}) 
-    MustBeChild: boolean;
-        
-    @Field(() => Boolean, {description: `This type of contract must carry its own ContractTemplateID — the standard terms it incorporates. On the TYPE rather than inferred from the placement flags, because "where in the tree" and "does it need its own paper" are different questions and a future type could want any combination.`}) 
-    TemplateRequired: boolean;
-        
-    @Field(() => [mjBizAppsContractsContract_])
-    mjBizAppsContractsContracts_ContractTypeIDArray: mjBizAppsContractsContract_[]; // Link to mjBizAppsContractsContracts
-    
 }
 
 //****************************************************************************
@@ -972,16 +917,6 @@ export class mjBizAppsContractsContractTypeResolver extends ResolverBase {
         return result;
     }
     
-    @FieldResolver(() => [mjBizAppsContractsContract_])
-    async mjBizAppsContractsContracts_ContractTypeIDArray(@Root() mjbizappscontractscontracttype_: mjBizAppsContractsContractType_, @Ctx() { userPayload, providers }: AppContext, @PubSub() pubSub: PubSubEngine) {
-        this.CheckUserReadPermissions('MJ_BizApps_Contracts: Contracts', userPayload);
-        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
-        const sSQL = `SELECT * FROM ${provider.QuoteSchemaAndView('__mj_BizAppsContracts', 'vwContracts')} WHERE ${provider.QuoteIdentifier('ContractTypeID')}=${provider.BuildParameterPlaceholder(0)} ` + this.getRowLevelSecurityWhereClause(provider, 'MJ_BizApps_Contracts: Contracts', userPayload, EntityPermissionType.Read, 'AND');
-        const rows = await provider.ExecuteSQL(sSQL, [mjbizappscontractscontracttype_.ID], undefined, this.GetUserFromPayload(userPayload));
-        const result = await this.ArrayMapFieldNamesToCodeNames('MJ_BizApps_Contracts: Contracts', rows, this.GetUserFromPayload(userPayload));
-        return result;
-    }
-        
     @Mutation(() => mjBizAppsContractsContractType_)
     async CreatemjBizAppsContractsContractType(
         @Arg('input', () => CreatemjBizAppsContractsContractTypeInput) input: CreatemjBizAppsContractsContractTypeInput,
@@ -1020,9 +955,9 @@ export class mjBizAppsContractsContract_ {
     @MaxLength(36)
     ID: string;
         
-    @Field({description: `CTR-000001, minted by spAssignNextContractNumber from the seq_ContractNumber database SEQUENCE. Unique. Gaps are normal and are not to be "fixed" — a save that fails after taking a number leaves one behind, and UQ_Contract_ContractNumber is what guarantees no two contracts share a number.`}) 
+    @Field({nullable: true, description: `CTR-000001, minted by spAssignNextContractNumber from the seq_ContractNumber database SEQUENCE. Unique. NULLABLE at the schema level because MJ cannot express 'NOT NULL, assigned by the server on insert' -- ContractEntityServer.Save() is what guarantees every contract has one. Gaps are normal and are not to be 'fixed': a save that fails after taking a number leaves one behind, and UQ_Contract_ContractNumber is what guarantees no two contracts share a number.`}) 
     @MaxLength(50)
-    ContractNumber: string;
+    ContractNumber?: string;
         
     @Field() 
     @MaxLength(36)
@@ -1135,14 +1070,6 @@ export class mjBizAppsContractsContract_ {
     @MaxLength(50)
     SupersededByContract?: string;
         
-    @Field({nullable: true}) 
-    @MaxLength(36)
-    RootParentContractID?: string;
-        
-    @Field({nullable: true}) 
-    @MaxLength(36)
-    RootSupersededByContractID?: string;
-        
     @Field() 
     @MaxLength(10)
     State: string;
@@ -1159,15 +1086,6 @@ export class mjBizAppsContractsContract_ {
     @Field(() => Boolean, {nullable: true}) 
     IsInCancellationWindow?: boolean;
         
-    @Field(() => [mjBizAppsContractsContract_])
-    mjBizAppsContractsContracts_SupersededByContractIDArray: mjBizAppsContractsContract_[]; // Link to mjBizAppsContractsContracts
-    
-    @Field(() => [mjBizAppsContractsContract_])
-    mjBizAppsContractsContracts_ParentContractIDArray: mjBizAppsContractsContract_[]; // Link to mjBizAppsContractsContracts
-    
-    @Field(() => [mjBizAppsContractsContractTemplateModification_])
-    mjBizAppsContractsContractTemplateModifications_ContractIDArray: mjBizAppsContractsContractTemplateModification_[]; // Link to mjBizAppsContractsContractTemplateModifications
-    
 }
 
 //****************************************************************************
@@ -1179,7 +1097,7 @@ export class CreatemjBizAppsContractsContractInput {
     ID?: string;
 
     @Field({ nullable: true })
-    ContractNumber?: string;
+    ContractNumber: string | null;
 
     @Field({ nullable: true })
     ContractTypeID?: string;
@@ -1258,7 +1176,7 @@ export class UpdatemjBizAppsContractsContractInput {
     ID: string;
 
     @Field({ nullable: true })
-    ContractNumber?: string;
+    ContractNumber?: string | null;
 
     @Field({ nullable: true })
     ContractTypeID?: string;
@@ -1387,36 +1305,6 @@ export class mjBizAppsContractsContractResolver extends ResolverBase {
         return result;
     }
     
-    @FieldResolver(() => [mjBizAppsContractsContract_])
-    async mjBizAppsContractsContracts_SupersededByContractIDArray(@Root() mjbizappscontractscontract_: mjBizAppsContractsContract_, @Ctx() { userPayload, providers }: AppContext, @PubSub() pubSub: PubSubEngine) {
-        this.CheckUserReadPermissions('MJ_BizApps_Contracts: Contracts', userPayload);
-        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
-        const sSQL = `SELECT * FROM ${provider.QuoteSchemaAndView('__mj_BizAppsContracts', 'vwContracts')} WHERE ${provider.QuoteIdentifier('SupersededByContractID')}=${provider.BuildParameterPlaceholder(0)} ` + this.getRowLevelSecurityWhereClause(provider, 'MJ_BizApps_Contracts: Contracts', userPayload, EntityPermissionType.Read, 'AND');
-        const rows = await provider.ExecuteSQL(sSQL, [mjbizappscontractscontract_.ID], undefined, this.GetUserFromPayload(userPayload));
-        const result = await this.ArrayMapFieldNamesToCodeNames('MJ_BizApps_Contracts: Contracts', rows, this.GetUserFromPayload(userPayload));
-        return result;
-    }
-        
-    @FieldResolver(() => [mjBizAppsContractsContract_])
-    async mjBizAppsContractsContracts_ParentContractIDArray(@Root() mjbizappscontractscontract_: mjBizAppsContractsContract_, @Ctx() { userPayload, providers }: AppContext, @PubSub() pubSub: PubSubEngine) {
-        this.CheckUserReadPermissions('MJ_BizApps_Contracts: Contracts', userPayload);
-        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
-        const sSQL = `SELECT * FROM ${provider.QuoteSchemaAndView('__mj_BizAppsContracts', 'vwContracts')} WHERE ${provider.QuoteIdentifier('ParentContractID')}=${provider.BuildParameterPlaceholder(0)} ` + this.getRowLevelSecurityWhereClause(provider, 'MJ_BizApps_Contracts: Contracts', userPayload, EntityPermissionType.Read, 'AND');
-        const rows = await provider.ExecuteSQL(sSQL, [mjbizappscontractscontract_.ID], undefined, this.GetUserFromPayload(userPayload));
-        const result = await this.ArrayMapFieldNamesToCodeNames('MJ_BizApps_Contracts: Contracts', rows, this.GetUserFromPayload(userPayload));
-        return result;
-    }
-        
-    @FieldResolver(() => [mjBizAppsContractsContractTemplateModification_])
-    async mjBizAppsContractsContractTemplateModifications_ContractIDArray(@Root() mjbizappscontractscontract_: mjBizAppsContractsContract_, @Ctx() { userPayload, providers }: AppContext, @PubSub() pubSub: PubSubEngine) {
-        this.CheckUserReadPermissions('MJ_BizApps_Contracts: Contract Template Modifications', userPayload);
-        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
-        const sSQL = `SELECT * FROM ${provider.QuoteSchemaAndView('__mj_BizAppsContracts', 'vwContractTemplateModifications')} WHERE ${provider.QuoteIdentifier('ContractID')}=${provider.BuildParameterPlaceholder(0)} ` + this.getRowLevelSecurityWhereClause(provider, 'MJ_BizApps_Contracts: Contract Template Modifications', userPayload, EntityPermissionType.Read, 'AND');
-        const rows = await provider.ExecuteSQL(sSQL, [mjbizappscontractscontract_.ID], undefined, this.GetUserFromPayload(userPayload));
-        const result = await this.ArrayMapFieldNamesToCodeNames('MJ_BizApps_Contracts: Contract Template Modifications', rows, this.GetUserFromPayload(userPayload));
-        return result;
-    }
-        
     @Mutation(() => mjBizAppsContractsContract_)
     async CreatemjBizAppsContractsContract(
         @Arg('input', () => CreatemjBizAppsContractsContractInput) input: CreatemjBizAppsContractsContractInput,

@@ -65,13 +65,19 @@ describe('no reader orders provisions by the dropped Sequence column', () => {
 });
 
 describe('the migration that defines the key still says what it must', () => {
+    // Folded into the baseline by the 2026-08-23 flatten (was
+    // V202608200400__v0.1.x__Provision_sort_key.sql). Assertions unchanged on purpose: they
+    // are what proves the function and the PERSISTED computed column survived the fold.
     const migration = readFileSync(
-        `${REPO}migrations/V202608200400__v0.1.x__Provision_sort_key.sql`,
+        `${REPO}migrations/B202608040001__v0.1.x__Baseline.sql`,
         'utf8',
     );
 
     it('the computed column is PERSISTED — without it there is no index', () => {
-        expect(migration).toMatch(/ADD \[ProvisionSortKey\] AS \(.*\) PERSISTED/s);
+        // Matches the inline CREATE TABLE form as well as the ALTER ... ADD form the column
+        // arrived in originally. What has to hold is that it is a PERSISTED computed column;
+        // which DDL verb declares it is not the guarantee.
+        expect(migration).toMatch(/\[?ProvisionSortKey\]?\s+AS\s+\(.*?\)\s+PERSISTED/s);
     });
 
     it('the function is WITH SCHEMABINDING — without it SQL Server refuses to persist it', () => {
@@ -84,10 +90,16 @@ describe('the migration that defines the key still says what it must', () => {
         expect(migration).toMatch(/CASE WHEN LEN\(@digits\) > 6 THEN LEN\(@digits\) ELSE 6 END/);
     });
 
-    it('the default constraint is dropped BY LOOKUP, not by name', () => {
-        // Auto-generated default-constraint names embed an object id, so they differ per database.
-        // Hardcoding the one from a dev instance works there and fails on every other install.
-        expect(migration).toContain('sys.default_constraints');
-        expect(migration).not.toMatch(/DROP CONSTRAINT \[?DF__ContractT/);
+    it('the retired Sequence column is not declared at all', () => {
+        // This replaced an assertion that the migration dropped Sequence's auto-named DEFAULT
+        // constraint via a sys.default_constraints lookup rather than by literal name. That was
+        // the right check while Sequence existed and had to be removed: auto-generated names
+        // embed an object id, so they differ per database and a hardcoded one fails everywhere
+        // but the instance it was copied from. The 2026-08-23 flatten removed the column from
+        // the schema entirely, so there is no constraint to drop and no name to get wrong.
+        // What still needs guarding is the outcome: a hand-maintained order column must not
+        // come back — it had already collided in the seeded data, which is why it went.
+        expect(migration).not.toMatch(/^\s*Sequence\s+INT/mi);
+        expect(migration).not.toMatch(/ADD\s+\[?Sequence\]?\s+INT/i);
     });
 });

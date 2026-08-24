@@ -1,6 +1,6 @@
 {
   "name": "mj-bizapps-contracts",
-  "version": "1.0.0",
+  "version": "0.1.0",
   "private": true,
   "license": "BUSL-1.1",
   "description": "Template repository for MemberJunction Open Apps - clone, rename, fill in. See README.md and docs/.",
@@ -85,8 +85,8 @@
       "@angular/platform-browser-dynamic": "21.1.3",
       "@angular/router": "21.1.3",
       "@angular-devkit/build-angular": "21.1.3",
-      "@memberjunction/core": "^6.1.0-edge.3",
-      "@memberjunction/global": "^6.1.0-edge.3"
+      "@memberjunction/core": "6.1.0-edge.3",
+      "@memberjunction/global": "6.1.0-edge.3"
     }
   },
   "engines": {
