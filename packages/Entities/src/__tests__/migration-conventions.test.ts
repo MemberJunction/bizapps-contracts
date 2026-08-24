@@ -1,7 +1,7 @@
 /**
  * The migration file conventions, enforced rather than documented.
  *
- * `migrations/_README.md` states these rules; a rule that only lives in a README is a rule that gets
+ * docs/database-migrations.md states these rules; a rule that only lives in prose is a rule that gets
  * broken by the next person in a hurry. All four of these were violated at least once in this repo's
  * short history, which is why they are tests and not prose.
  *

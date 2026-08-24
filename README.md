@@ -218,7 +218,7 @@ app ships **zero** of them.
 | [`plans/bizapps-contracts-master.md`](plans/bizapps-contracts-master.md) | The plan: what the app is, decisions D-1…D-26, the fourteen work items |
 | [`plans/ERD-planned.md`](plans/ERD-planned.md) | The schema in detail, plus §9's reversal log — every ruling that changed its shape, with owner and date |
 | [`plans/BUILD-STATE.md`](plans/BUILD-STATE.md) | Build state, the working command loop, and the gotchas already paid for |
-| [`migrations/_README.md`](migrations/_README.md) | Migration conventions, including the 50-blank-line capture separator |
+| [`docs/database-migrations.md`](docs/database-migrations.md) | Migration conventions: the train, filename ordering, the 50-blank-line capture separator, how to verify from zero |
 | [`testing.md`](testing.md) | The coverage matrix, and an honest account of what is *not* covered |
 | [`WORKAROUNDS.md`](WORKAROUNDS.md) | Tooling defects this build steps around |
 

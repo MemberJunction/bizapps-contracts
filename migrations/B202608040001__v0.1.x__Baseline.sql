@@ -10,7 +10,7 @@
 -- rows that this file's own capture creates (so they cannot precede it), a wrapper
 -- view cannot be created before the view it selects FROM (SQL Server defers name
 -- resolution for procedure bodies but not for views), and seed data has to follow
--- both. See migrations/_README.md for the train.
+-- both. See docs/database-migrations.md for the train and the conventions.
 --
 -- Everything that COULD be folded in has been: 22 incremental migrations were
 -- collapsed back into this file on 2026-08-23, immediately before first publish.
@@ -30,7 +30,7 @@
 -- PRE-PRODUCTION PRACTICE. Nothing here is published, so schema changes EDIT THIS
 -- FILE IN PLACE and the database is rebuilt from zero — no incremental fix-up
 -- migrations. Switch to additive-only at first publish, after which an applied
--- migration is immutable. See migrations/_README.md.
+-- migration is immutable. See docs/database-migrations.md.
 --
 -- Design source of truth: plans/bizapps-contracts-master.md and
 -- plans/ERD-planned.md in this repo. Decisions D-1..D-23; the ERD's §9 reversal

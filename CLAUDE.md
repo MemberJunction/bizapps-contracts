@@ -49,12 +49,24 @@ That phase is over: an edit to the baseline is invisible to any database that al
 column never appears and nothing reports a problem — and flyway checksums the script, so every
 existing database refuses to migrate until someone repairs it by hand.
 
-**The one sanctioned exception has already been used.** On 2026-08-23, immediately before the first
-publish, the 23-file train was flattened back into the baseline — collapsing added-then-reverted
-DDL, and fixing three columns that a fresh install left invisible to MJ. That was legitimate only
-because nothing had shipped yet. It is closed now; see `migrations/_README.md`. Standing up a clean
-database is a from-zero `mj migrate` against an empty database carrying MJ core + `bizapps-common`,
-not a script — there is no `rebuild-db.sh` in this repo, and the reference to one was stale.
+**The one sanctioned exception has already been used, and it is closed.** On 2026-08-23,
+immediately before the first publish, the 23-file train was flattened back into the baseline —
+collapsing DDL that had been added and then reverted, and fixing three columns a fresh install
+left invisible to MJ. That was legitimate only because nothing had shipped. Standing up a clean
+database is a from-zero `mj migrate` against an empty database carrying MJ core +
+`bizapps-common`; there is no `rebuild-db.sh` in this repo and the reference to one was stale.
+
+**Four migrations, and the count is forced rather than stylistic**: the layered-view flags live on
+`__mj.Entity` rows the baseline's own capture creates, a wrapper view cannot be created before the
+view it selects `FROM`, and seed data follows both. **An install runs migrations and NOTHING ELSE**
+— never CodeGen, never `mj sync push` — so both of their outputs ship as migrations. Omitting
+either produces a database that looks installed and isn't. **A filename must sort after everything
+the target branch has already shipped** (`changes.yml` enforces it). **Fifty blank lines** separate
+hand-written DDL from a CodeGen capture. **Verify from zero, not by inspection** — the flatten's one
+real error was invisible on a read and caught immediately by a from-zero diff.
+
+The reasoning behind each of those, the install-order dependency, and the verification procedure are
+in [`docs/database-migrations.md`](docs/database-migrations.md).
 
 Write migrations idempotently (`IF NOT EXISTS`, `IF COL_LENGTH(...) IS NULL`) and assume the database
 already has data. A migration that reads `__mj.Entity` must skip cleanly when the row is absent —

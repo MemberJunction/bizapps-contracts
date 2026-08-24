@@ -1,16 +1,25 @@
-# migrations/ — Skyway (Flyway-compatible) migrations for `__mj_BizAppsContracts`
+# Database migrations
 
-Applied in filename order against this app's schema at install/upgrade and during
-development.
+**Binding for this repo.** Skyway (Flyway-compatible) migrations for
+`__mj_BizAppsContracts`, in `migrations/`, applied in filename order against this app's
+schema at install/upgrade and during development.
+
+The short version, if you read nothing else: **schema changes are new `V` migrations, never
+edits to the baseline**; a filename must sort after everything the target branch has already
+shipped; and a migration that changes a table's shape needs a CodeGen capture behind it or MJ
+cannot see the column.
 
 ## Naming
 
     B<YYYYMMDDHHMM>__v<app-version>__<Description>.sql    baseline (first schema drop of a new app)
     V<YYYYMMDDHHMM>__v<app-version>__<Description>.sql    everything after
 
-- Timestamps must be strictly increasing. **Not enforced by CI.** Flyway applies in filename
-  order, so a migration numbered behind one already applied is skipped silently on an existing
-  database and applied in the wrong order on a fresh one.
+- Timestamps must be strictly increasing. **Enforced by CI** (`changes.yml` compares every
+  newly added migration against the highest timestamp already on the base branch). Flyway
+  applies in filename order, so a migration numbered behind one already applied is skipped
+  silently on an existing database and applied in the wrong order on a fresh one. This was
+  documented as "not enforced" and then caught a real defect the first time it ran — see
+  "Why the three V files are numbered Aug 24" below.
 - Use `${flyway:defaultSchema}` for THIS schema; literal `__mj` for MJ core rows.
 - Do **not** add `__mj_CreatedAt` / `__mj_UpdatedAt` columns or FK indexes — CodeGen does.
 

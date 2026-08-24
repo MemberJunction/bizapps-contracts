@@ -108,7 +108,7 @@ jobs:
             # Check for new migration files since last tag.
             #
             # Scoped to *.sql, NOT the whole migrations/ folder. `-- migrations/` also matched
-            # migrations/_README.md, so editing the folder's documentation predicted a MINOR
+            # non-SQL files in migrations/, so editing documentation there predicted a MINOR
             # bump and then hard-failed the release for disagreeing with a patch changeset --
             # on a release that changed no schema at all. The rule is about schema, so the
             # filter has to be about schema.
