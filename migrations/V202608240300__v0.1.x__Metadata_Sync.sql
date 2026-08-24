@@ -3,212 +3,224 @@
 -- =============================================================================
 -- The seed data `mj sync push` writes from metadata/, captured so a FRESH INSTALL
 -- gets it. This is the file whose absence made the old train produce bare tables:
--- an install runs migrations and NOTHING ELSE — it never runs `sync push` — so
+-- an install runs migrations and NOTHING ELSE -- it never runs `sync push` -- so
 -- vocabulary that only ever existed in metadata/ never arrived. metadata/ stays the
 -- authoring source of record; this is how it reaches a database that will never run
 -- the tool. Same convention (and same origin) as bizapps-common's and bizapps-tasks'
 -- `__Metadata_Sync.sql`: the SQL logger's own output, committed.
 --
--- REGENERATING IT: enable `sqlLogging` in metadata/.mj-sync.json (already committed),
--- apply the migrations to an EMPTY database, run `mj sync push --dir metadata`, then
--- re-apply the two corrections below. Do not hand-edit the statements.
+-- WHAT IT SEEDS: 2 template types, 4 contract types, the entity/field/relationship
+-- metadata the app declares (layered-view flags, form chrome, collection
+-- declarations), and the Contracts application row. That is vocabulary and
+-- structure -- nothing that belongs to a particular organisation.
 --
--- ⚠ CORRECTION 1 — THE PLACEHOLDERS COME OUT INVERTED, AND THE FILE IS DEAD WITHOUT
+-- ⚠ WHAT IT DELIBERATELY DOES NOT SEED, as of 2026-08-24. An earlier version of this
+-- file carried a ContractTemplate and its 71 provisions -- Blue Cypress's actual Master
+-- Services Agreement, verbatim. metadata/ is the INSTALL seed, so that shipped one
+-- company's contract terms into every consumer's database as reference data. The
+-- template and its provisions now live in `demo-data/`, pushed only when someone asks
+-- for them (see demo-data/README.md, and plans/QUESTIONS.md Q-5 for the ruling). The
+-- line: a KIND of contract is vocabulary and ships; a particular company's AGREEMENT is
+-- content and does not.
+--
+-- REGENERATING IT: `sqlLogging` is enabled in metadata/.mj-sync.json (committed). Apply
+-- the three schema migrations to an EMPTY database -- NOT this one, or the push has
+-- nothing to do -- run `mj sync push --dir metadata`, then re-apply the two corrections
+-- below. Do not hand-edit the statements.
+--
+-- ⚠ CORRECTION 1 -- THE PLACEHOLDERS COME OUT INVERTED, AND THE FILE IS DEAD WITHOUT
 -- THIS FIX. `formatAsMigration` substitutes `${flyway:defaultSchema}` for the MJ CORE
 -- schema, which is right for a migration inside MJ itself and exactly wrong inside an
--- open app: here `${flyway:defaultSchema}` resolves to __mj_BizAppsContracts, so all
--- 21 core calls (spCreateApplication, spUpdateEntity, spUpdateEntityField,
--- spUpdateEntityRelationship) would look for procedures in the app's own schema and
--- fail. Meanwhile the app's OWN calls were left as a literal schema name, which works
--- but is not portable. Both directions are swapped here: core -> `${mjSchema}`, app ->
--- `${flyway:defaultSchema}`. Filed upstream.
+-- open app: here `${flyway:defaultSchema}` resolves to __mj_BizAppsContracts, so every
+-- core call (spCreateApplication, spUpdateEntity, spUpdateEntityField,
+-- spUpdateEntityRelationship) would look for a procedure in the app's own schema and
+-- fail. The app's OWN calls were left as a literal schema name, which works but is not
+-- portable. Both directions are swapped here: core -> `${mjSchema}`, app ->
+-- `${flyway:defaultSchema}`. bizapps-common hit the identical trap and documents it in
+-- V202608140800__v5.34.x__Metadata_Sync.sql; filed upstream.
 --
--- ⚠ CORRECTION 2 — THE `MJ: User Applications` ROWS ARE REMOVED, deliberately. The
--- push enumerates the users that happen to exist in the database it is pointed at and
--- writes one row per user with a freshly-minted random ID. Neither half survives a
--- move: the row IDs are not reproducible across captures, and a hardcoded @UserID that
--- does not exist on the target install fails the foreign key. Granting a user access to
--- the app is an administrative act (`mjdev apps enable`, or the Explorer's app-access
--- UI), not something a migration can know. The `MJ: Applications` row itself IS kept —
--- that one is the app's own nav registration and is environment-independent.
---
--- WHAT IT SEEDS: 2 template types, 4 contract types, 1 template, 71 provisions, the
--- entity/field/relationship metadata the app declares (layered-view flags, form
--- chrome, collection declarations), and the Contracts application row.
+-- ⚠ CORRECTION 2 -- THE `MJ: User Applications` ROWS ARE REMOVED, deliberately. The push
+-- enumerates the users that happen to exist in the database it is pointed at and writes
+-- one row per user with a freshly-minted random ID. Neither half survives a move: the row
+-- IDs are not reproducible across captures, and a hardcoded @UserID that does not exist
+-- on the target install fails the foreign key. Granting a user access to the app is an
+-- administrative act, not something a migration can know. The `MJ: Applications` row
+-- itself IS kept -- that one is the app's own nav registration and is environment-
+-- independent.
 -- =============================================================================
 
 -- SQL Logging Session
--- Session ID: f7ba49fc-7a67-4aa9-b4a3-f6f5d080ab24
--- Started: 2026-08-23T15:36:55.528Z
+-- Session ID: d1c3204d-5a28-4007-96df-2cdc3d478801
+-- Started: 2026-08-24T02:34:06.800Z
 -- Description: MetadataSync push operation
 -- Format: Migration-ready with Flyway schema placeholders
 -- Generated by MemberJunction
 
 -- Save MJ: Entities (core SP call only)
-DECLARE @ParentID_e32031b9 UNIQUEIDENTIFIER,
-@Name_e32031b9 NVARCHAR(255),
-@NameSuffix_e32031b9 NVARCHAR(255),
-@Description_e32031b9 NVARCHAR(MAX),
-@AutoUpdateDescription_e32031b9 BIT,
-@BaseView_e32031b9 NVARCHAR(255),
-@BaseViewGenerated_e32031b9 BIT,
-@VirtualEntity_e32031b9 BIT,
-@TrackRecordChanges_e32031b9 BIT,
-@AuditRecordAccess_e32031b9 BIT,
-@AuditViewRuns_e32031b9 BIT,
-@IncludeInAPI_e32031b9 BIT,
-@AllowAllRowsAPI_e32031b9 BIT,
-@AllowUpdateAPI_e32031b9 BIT,
-@AllowCreateAPI_e32031b9 BIT,
-@AllowDeleteAPI_e32031b9 BIT,
-@CustomResolverAPI_e32031b9 BIT,
-@AllowUserSearchAPI_e32031b9 BIT,
-@FullTextSearchEnabled_e32031b9 BIT,
-@FullTextCatalog_e32031b9 NVARCHAR(255),
-@FullTextCatalogGenerated_e32031b9 BIT,
-@FullTextIndex_e32031b9 NVARCHAR(255),
-@FullTextIndexGenerated_e32031b9 BIT,
-@FullTextSearchFunction_e32031b9 NVARCHAR(255),
-@FullTextSearchFunctionGenerated_e32031b9 BIT,
-@UserViewMaxRows_e32031b9 INT,
-@spCreate_e32031b9 NVARCHAR(255),
-@spUpdate_e32031b9 NVARCHAR(255),
-@spDelete_e32031b9 NVARCHAR(255),
-@spCreateGenerated_e32031b9 BIT,
-@spUpdateGenerated_e32031b9 BIT,
-@spDeleteGenerated_e32031b9 BIT,
-@CascadeDeletes_e32031b9 BIT,
-@DeleteType_e32031b9 NVARCHAR(10),
-@AllowRecordMerge_e32031b9 BIT,
-@spMatch_e32031b9 NVARCHAR(255),
-@RelationshipDefaultDisplayType_e32031b9 NVARCHAR(20),
-@UserFormGenerated_e32031b9 BIT,
-@EntityObjectSubclassName_e32031b9 NVARCHAR(255),
-@EntityObjectSubclassImport_e32031b9 NVARCHAR(255),
-@PreferredCommunicationField_e32031b9 NVARCHAR(255),
-@Icon_e32031b9 NVARCHAR(500),
-@ScopeDefault_e32031b9 NVARCHAR(100),
-@RowsToPackWithSchema_e32031b9 NVARCHAR(20),
-@RowsToPackSampleMethod_e32031b9 NVARCHAR(20),
-@RowsToPackSampleCount_e32031b9 INT,
-@RowsToPackSampleOrder_e32031b9 NVARCHAR(MAX),
-@AutoRowCountFrequency_e32031b9 INT,
-@RowCount_e32031b9 BIGINT,
-@RowCountRunAt_e32031b9 DATETIMEOFFSET,
-@Status_e32031b9 NVARCHAR(25),
-@DisplayName_e32031b9 NVARCHAR(255),
-@AllowMultipleSubtypes_e32031b9 BIT,
-@AutoUpdateFullTextSearch_e32031b9 BIT,
-@AutoUpdateAllowUserSearchAPI_e32031b9 BIT,
-@TrustServerCacheCompletely_e32031b9 BIT,
-@SupportsGeoCoding_e32031b9 BIT,
-@AutoUpdateSupportsGeoCoding_e32031b9 BIT,
-@AllowCaching_e32031b9 BIT,
-@DetectExternalChanges_e32031b9 BIT,
-@ExternalDataSourceID_e32031b9 UNIQUEIDENTIFIER,
-@ExternalObjectName_e32031b9 NVARCHAR(255),
-@GeneratedBaseViewName_e32031b9 NVARCHAR(255),
-@AllowDirectSQLInsert_e32031b9 BIT,
-@AllowDirectSQLUpdate_e32031b9 BIT,
-@AllowDirectSQLDelete_e32031b9 BIT,
-@Configuration_e32031b9 NVARCHAR(MAX),
-@ID_e32031b9 UNIQUEIDENTIFIER
+DECLARE @ParentID_91bee356 UNIQUEIDENTIFIER,
+@Name_91bee356 NVARCHAR(255),
+@NameSuffix_91bee356 NVARCHAR(255),
+@Description_91bee356 NVARCHAR(MAX),
+@AutoUpdateDescription_91bee356 BIT,
+@BaseView_91bee356 NVARCHAR(255),
+@BaseViewGenerated_91bee356 BIT,
+@VirtualEntity_91bee356 BIT,
+@TrackRecordChanges_91bee356 BIT,
+@AuditRecordAccess_91bee356 BIT,
+@AuditViewRuns_91bee356 BIT,
+@IncludeInAPI_91bee356 BIT,
+@AllowAllRowsAPI_91bee356 BIT,
+@AllowUpdateAPI_91bee356 BIT,
+@AllowCreateAPI_91bee356 BIT,
+@AllowDeleteAPI_91bee356 BIT,
+@CustomResolverAPI_91bee356 BIT,
+@AllowUserSearchAPI_91bee356 BIT,
+@FullTextSearchEnabled_91bee356 BIT,
+@FullTextCatalog_91bee356 NVARCHAR(255),
+@FullTextCatalogGenerated_91bee356 BIT,
+@FullTextIndex_91bee356 NVARCHAR(255),
+@FullTextIndexGenerated_91bee356 BIT,
+@FullTextSearchFunction_91bee356 NVARCHAR(255),
+@FullTextSearchFunctionGenerated_91bee356 BIT,
+@UserViewMaxRows_91bee356 INT,
+@spCreate_91bee356 NVARCHAR(255),
+@spUpdate_91bee356 NVARCHAR(255),
+@spDelete_91bee356 NVARCHAR(255),
+@spCreateGenerated_91bee356 BIT,
+@spUpdateGenerated_91bee356 BIT,
+@spDeleteGenerated_91bee356 BIT,
+@CascadeDeletes_91bee356 BIT,
+@DeleteType_91bee356 NVARCHAR(10),
+@AllowRecordMerge_91bee356 BIT,
+@spMatch_91bee356 NVARCHAR(255),
+@RelationshipDefaultDisplayType_91bee356 NVARCHAR(20),
+@UserFormGenerated_91bee356 BIT,
+@EntityObjectSubclassName_91bee356 NVARCHAR(255),
+@EntityObjectSubclassImport_91bee356 NVARCHAR(255),
+@PreferredCommunicationField_91bee356 NVARCHAR(255),
+@Icon_91bee356 NVARCHAR(500),
+@ScopeDefault_91bee356 NVARCHAR(100),
+@RowsToPackWithSchema_91bee356 NVARCHAR(20),
+@RowsToPackSampleMethod_91bee356 NVARCHAR(20),
+@RowsToPackSampleCount_91bee356 INT,
+@RowsToPackSampleOrder_91bee356 NVARCHAR(MAX),
+@AutoRowCountFrequency_91bee356 INT,
+@RowCount_91bee356 BIGINT,
+@RowCountRunAt_91bee356 DATETIMEOFFSET,
+@Status_91bee356 NVARCHAR(25),
+@DisplayName_91bee356 NVARCHAR(255),
+@AllowMultipleSubtypes_91bee356 BIT,
+@AutoUpdateFullTextSearch_91bee356 BIT,
+@AutoUpdateAllowUserSearchAPI_91bee356 BIT,
+@TrustServerCacheCompletely_91bee356 BIT,
+@SupportsGeoCoding_91bee356 BIT,
+@AutoUpdateSupportsGeoCoding_91bee356 BIT,
+@AllowCaching_91bee356 BIT,
+@DetectExternalChanges_91bee356 BIT,
+@ExternalDataSourceID_91bee356 UNIQUEIDENTIFIER,
+@ExternalObjectName_91bee356 NVARCHAR(255),
+@GeneratedBaseViewName_91bee356 NVARCHAR(255),
+@AllowDirectSQLInsert_91bee356 BIT,
+@AllowDirectSQLUpdate_91bee356 BIT,
+@AllowDirectSQLDelete_91bee356 BIT,
+@Configuration_91bee356 NVARCHAR(MAX),
+@ID_91bee356 UNIQUEIDENTIFIER
 SET
-  @Name_e32031b9 = N'MJ_BizApps_Contracts: Contract Templates'
+  @Name_91bee356 = N'MJ_BizApps_Contracts: Contract Templates'
 SET
-  @Description_e32031b9 = N'One VERSION of a standard agreement — in practice the Master Agreement. Versions matter because each is published at its own dated URL that never goes away, so a customer stays bound to the text they signed. Carries no prose of its own: every clauses standard wording lives on its ContractTemplateProvision row.'
+  @Description_91bee356 = N'One VERSION of a standard agreement — in practice the Master Agreement. Versions matter because each is published at its own dated URL that never goes away, so a customer stays bound to the text they signed. Carries no prose of its own: every clauses standard wording lives on its ContractTemplateProvision row.'
 SET
-  @AutoUpdateDescription_e32031b9 = 1
+  @AutoUpdateDescription_91bee356 = 1
 SET
-  @BaseView_e32031b9 = N'vwContractTemplates'
+  @BaseView_91bee356 = N'vwContractTemplates'
 SET
-  @BaseViewGenerated_e32031b9 = 0
+  @BaseViewGenerated_91bee356 = 0
 SET
-  @VirtualEntity_e32031b9 = 0
+  @VirtualEntity_91bee356 = 0
 SET
-  @TrackRecordChanges_e32031b9 = 1
+  @TrackRecordChanges_91bee356 = 1
 SET
-  @AuditRecordAccess_e32031b9 = 0
+  @AuditRecordAccess_91bee356 = 0
 SET
-  @AuditViewRuns_e32031b9 = 0
+  @AuditViewRuns_91bee356 = 0
 SET
-  @IncludeInAPI_e32031b9 = 1
+  @IncludeInAPI_91bee356 = 1
 SET
-  @AllowAllRowsAPI_e32031b9 = 0
+  @AllowAllRowsAPI_91bee356 = 0
 SET
-  @AllowUpdateAPI_e32031b9 = 1
+  @AllowUpdateAPI_91bee356 = 1
 SET
-  @AllowCreateAPI_e32031b9 = 1
+  @AllowCreateAPI_91bee356 = 1
 SET
-  @AllowDeleteAPI_e32031b9 = 1
+  @AllowDeleteAPI_91bee356 = 1
 SET
-  @CustomResolverAPI_e32031b9 = 0
+  @CustomResolverAPI_91bee356 = 0
 SET
-  @AllowUserSearchAPI_e32031b9 = 1
+  @AllowUserSearchAPI_91bee356 = 1
 SET
-  @FullTextSearchEnabled_e32031b9 = 0
+  @FullTextSearchEnabled_91bee356 = 0
 SET
-  @FullTextCatalogGenerated_e32031b9 = 1
+  @FullTextCatalogGenerated_91bee356 = 1
 SET
-  @FullTextIndexGenerated_e32031b9 = 1
+  @FullTextIndexGenerated_91bee356 = 1
 SET
-  @FullTextSearchFunctionGenerated_e32031b9 = 1
+  @FullTextSearchFunctionGenerated_91bee356 = 1
 SET
-  @UserViewMaxRows_e32031b9 = 1000
+  @UserViewMaxRows_91bee356 = 1000
 SET
-  @spCreateGenerated_e32031b9 = 1
+  @spCreateGenerated_91bee356 = 1
 SET
-  @spUpdateGenerated_e32031b9 = 1
+  @spUpdateGenerated_91bee356 = 1
 SET
-  @spDeleteGenerated_e32031b9 = 1
+  @spDeleteGenerated_91bee356 = 1
 SET
-  @CascadeDeletes_e32031b9 = 0
+  @CascadeDeletes_91bee356 = 0
 SET
-  @DeleteType_e32031b9 = N'Hard'
+  @DeleteType_91bee356 = N'Hard'
 SET
-  @AllowRecordMerge_e32031b9 = 0
+  @AllowRecordMerge_91bee356 = 0
 SET
-  @RelationshipDefaultDisplayType_e32031b9 = N'Search'
+  @RelationshipDefaultDisplayType_91bee356 = N'Search'
 SET
-  @UserFormGenerated_e32031b9 = 1
+  @UserFormGenerated_91bee356 = 1
 SET
-  @Icon_e32031b9 = N'fa fa-file-contract'
+  @Icon_91bee356 = N'fa fa-file-contract'
 SET
-  @RowsToPackWithSchema_e32031b9 = N'None'
+  @RowsToPackWithSchema_91bee356 = N'None'
 SET
-  @RowsToPackSampleMethod_e32031b9 = N'random'
+  @RowsToPackSampleMethod_91bee356 = N'random'
 SET
-  @RowsToPackSampleCount_e32031b9 = 0
+  @RowsToPackSampleCount_91bee356 = 0
 SET
-  @Status_e32031b9 = N'Active'
+  @Status_91bee356 = N'Active'
 SET
-  @DisplayName_e32031b9 = N'Contract Templates'
+  @DisplayName_91bee356 = N'Contract Templates'
 SET
-  @AllowMultipleSubtypes_e32031b9 = 0
+  @AllowMultipleSubtypes_91bee356 = 0
 SET
-  @AutoUpdateFullTextSearch_e32031b9 = 1
+  @AutoUpdateFullTextSearch_91bee356 = 1
 SET
-  @AutoUpdateAllowUserSearchAPI_e32031b9 = 1
+  @AutoUpdateAllowUserSearchAPI_91bee356 = 1
 SET
-  @TrustServerCacheCompletely_e32031b9 = 1
+  @TrustServerCacheCompletely_91bee356 = 1
 SET
-  @SupportsGeoCoding_e32031b9 = 0
+  @SupportsGeoCoding_91bee356 = 0
 SET
-  @AutoUpdateSupportsGeoCoding_e32031b9 = 1
+  @AutoUpdateSupportsGeoCoding_91bee356 = 1
 SET
-  @AllowCaching_e32031b9 = 0
+  @AllowCaching_91bee356 = 0
 SET
-  @DetectExternalChanges_e32031b9 = 0
+  @DetectExternalChanges_91bee356 = 0
 SET
-  @GeneratedBaseViewName_e32031b9 = N'vwContractTemplatesGenerated'
+  @GeneratedBaseViewName_91bee356 = N'vwContractTemplatesGenerated'
 SET
-  @AllowDirectSQLInsert_e32031b9 = 0
+  @AllowDirectSQLInsert_91bee356 = 0
 SET
-  @AllowDirectSQLUpdate_e32031b9 = 0
+  @AllowDirectSQLUpdate_91bee356 = 0
 SET
-  @AllowDirectSQLDelete_e32031b9 = 0
+  @AllowDirectSQLDelete_91bee356 = 0
 SET
-  @Configuration_e32031b9 = N'{
+  @Configuration_91bee356 = N'{
   "UI": {
     "Form": {
       "Layout": "left-nav",
@@ -218,261 +230,261 @@ SET
   }
 }'
 SET
-  @ID_e32031b9 = '731F2890-1415-40DE-9073-D22EA23392B3' EXEC [${mjSchema}].spUpdateEntity @ParentID = @ParentID_e32031b9,
+  @ID_91bee356 = '731F2890-1415-40DE-9073-D22EA23392B3' EXEC [${mjSchema}].spUpdateEntity @ParentID = @ParentID_91bee356,
   @ParentID_Clear = 1,
-  @Name = @Name_e32031b9,
-  @NameSuffix = @NameSuffix_e32031b9,
+  @Name = @Name_91bee356,
+  @NameSuffix = @NameSuffix_91bee356,
   @NameSuffix_Clear = 1,
-  @Description = @Description_e32031b9,
-  @AutoUpdateDescription = @AutoUpdateDescription_e32031b9,
-  @BaseView = @BaseView_e32031b9,
-  @BaseViewGenerated = @BaseViewGenerated_e32031b9,
-  @VirtualEntity = @VirtualEntity_e32031b9,
-  @TrackRecordChanges = @TrackRecordChanges_e32031b9,
-  @AuditRecordAccess = @AuditRecordAccess_e32031b9,
-  @AuditViewRuns = @AuditViewRuns_e32031b9,
-  @IncludeInAPI = @IncludeInAPI_e32031b9,
-  @AllowAllRowsAPI = @AllowAllRowsAPI_e32031b9,
-  @AllowUpdateAPI = @AllowUpdateAPI_e32031b9,
-  @AllowCreateAPI = @AllowCreateAPI_e32031b9,
-  @AllowDeleteAPI = @AllowDeleteAPI_e32031b9,
-  @CustomResolverAPI = @CustomResolverAPI_e32031b9,
-  @AllowUserSearchAPI = @AllowUserSearchAPI_e32031b9,
-  @FullTextSearchEnabled = @FullTextSearchEnabled_e32031b9,
-  @FullTextCatalog = @FullTextCatalog_e32031b9,
+  @Description = @Description_91bee356,
+  @AutoUpdateDescription = @AutoUpdateDescription_91bee356,
+  @BaseView = @BaseView_91bee356,
+  @BaseViewGenerated = @BaseViewGenerated_91bee356,
+  @VirtualEntity = @VirtualEntity_91bee356,
+  @TrackRecordChanges = @TrackRecordChanges_91bee356,
+  @AuditRecordAccess = @AuditRecordAccess_91bee356,
+  @AuditViewRuns = @AuditViewRuns_91bee356,
+  @IncludeInAPI = @IncludeInAPI_91bee356,
+  @AllowAllRowsAPI = @AllowAllRowsAPI_91bee356,
+  @AllowUpdateAPI = @AllowUpdateAPI_91bee356,
+  @AllowCreateAPI = @AllowCreateAPI_91bee356,
+  @AllowDeleteAPI = @AllowDeleteAPI_91bee356,
+  @CustomResolverAPI = @CustomResolverAPI_91bee356,
+  @AllowUserSearchAPI = @AllowUserSearchAPI_91bee356,
+  @FullTextSearchEnabled = @FullTextSearchEnabled_91bee356,
+  @FullTextCatalog = @FullTextCatalog_91bee356,
   @FullTextCatalog_Clear = 1,
-  @FullTextCatalogGenerated = @FullTextCatalogGenerated_e32031b9,
-  @FullTextIndex = @FullTextIndex_e32031b9,
+  @FullTextCatalogGenerated = @FullTextCatalogGenerated_91bee356,
+  @FullTextIndex = @FullTextIndex_91bee356,
   @FullTextIndex_Clear = 1,
-  @FullTextIndexGenerated = @FullTextIndexGenerated_e32031b9,
-  @FullTextSearchFunction = @FullTextSearchFunction_e32031b9,
+  @FullTextIndexGenerated = @FullTextIndexGenerated_91bee356,
+  @FullTextSearchFunction = @FullTextSearchFunction_91bee356,
   @FullTextSearchFunction_Clear = 1,
-  @FullTextSearchFunctionGenerated = @FullTextSearchFunctionGenerated_e32031b9,
-  @UserViewMaxRows = @UserViewMaxRows_e32031b9,
-  @spCreate = @spCreate_e32031b9,
+  @FullTextSearchFunctionGenerated = @FullTextSearchFunctionGenerated_91bee356,
+  @UserViewMaxRows = @UserViewMaxRows_91bee356,
+  @spCreate = @spCreate_91bee356,
   @spCreate_Clear = 1,
-  @spUpdate = @spUpdate_e32031b9,
+  @spUpdate = @spUpdate_91bee356,
   @spUpdate_Clear = 1,
-  @spDelete = @spDelete_e32031b9,
+  @spDelete = @spDelete_91bee356,
   @spDelete_Clear = 1,
-  @spCreateGenerated = @spCreateGenerated_e32031b9,
-  @spUpdateGenerated = @spUpdateGenerated_e32031b9,
-  @spDeleteGenerated = @spDeleteGenerated_e32031b9,
-  @CascadeDeletes = @CascadeDeletes_e32031b9,
-  @DeleteType = @DeleteType_e32031b9,
-  @AllowRecordMerge = @AllowRecordMerge_e32031b9,
-  @spMatch = @spMatch_e32031b9,
+  @spCreateGenerated = @spCreateGenerated_91bee356,
+  @spUpdateGenerated = @spUpdateGenerated_91bee356,
+  @spDeleteGenerated = @spDeleteGenerated_91bee356,
+  @CascadeDeletes = @CascadeDeletes_91bee356,
+  @DeleteType = @DeleteType_91bee356,
+  @AllowRecordMerge = @AllowRecordMerge_91bee356,
+  @spMatch = @spMatch_91bee356,
   @spMatch_Clear = 1,
-  @RelationshipDefaultDisplayType = @RelationshipDefaultDisplayType_e32031b9,
-  @UserFormGenerated = @UserFormGenerated_e32031b9,
-  @EntityObjectSubclassName = @EntityObjectSubclassName_e32031b9,
+  @RelationshipDefaultDisplayType = @RelationshipDefaultDisplayType_91bee356,
+  @UserFormGenerated = @UserFormGenerated_91bee356,
+  @EntityObjectSubclassName = @EntityObjectSubclassName_91bee356,
   @EntityObjectSubclassName_Clear = 1,
-  @EntityObjectSubclassImport = @EntityObjectSubclassImport_e32031b9,
+  @EntityObjectSubclassImport = @EntityObjectSubclassImport_91bee356,
   @EntityObjectSubclassImport_Clear = 1,
-  @PreferredCommunicationField = @PreferredCommunicationField_e32031b9,
+  @PreferredCommunicationField = @PreferredCommunicationField_91bee356,
   @PreferredCommunicationField_Clear = 1,
-  @Icon = @Icon_e32031b9,
-  @ScopeDefault = @ScopeDefault_e32031b9,
+  @Icon = @Icon_91bee356,
+  @ScopeDefault = @ScopeDefault_91bee356,
   @ScopeDefault_Clear = 1,
-  @RowsToPackWithSchema = @RowsToPackWithSchema_e32031b9,
-  @RowsToPackSampleMethod = @RowsToPackSampleMethod_e32031b9,
-  @RowsToPackSampleCount = @RowsToPackSampleCount_e32031b9,
-  @RowsToPackSampleOrder = @RowsToPackSampleOrder_e32031b9,
+  @RowsToPackWithSchema = @RowsToPackWithSchema_91bee356,
+  @RowsToPackSampleMethod = @RowsToPackSampleMethod_91bee356,
+  @RowsToPackSampleCount = @RowsToPackSampleCount_91bee356,
+  @RowsToPackSampleOrder = @RowsToPackSampleOrder_91bee356,
   @RowsToPackSampleOrder_Clear = 1,
-  @AutoRowCountFrequency = @AutoRowCountFrequency_e32031b9,
+  @AutoRowCountFrequency = @AutoRowCountFrequency_91bee356,
   @AutoRowCountFrequency_Clear = 1,
-  @RowCount = @RowCount_e32031b9,
+  @RowCount = @RowCount_91bee356,
   @RowCount_Clear = 1,
-  @RowCountRunAt = @RowCountRunAt_e32031b9,
+  @RowCountRunAt = @RowCountRunAt_91bee356,
   @RowCountRunAt_Clear = 1,
-  @Status = @Status_e32031b9,
-  @DisplayName = @DisplayName_e32031b9,
-  @AllowMultipleSubtypes = @AllowMultipleSubtypes_e32031b9,
-  @AutoUpdateFullTextSearch = @AutoUpdateFullTextSearch_e32031b9,
-  @AutoUpdateAllowUserSearchAPI = @AutoUpdateAllowUserSearchAPI_e32031b9,
-  @TrustServerCacheCompletely = @TrustServerCacheCompletely_e32031b9,
-  @SupportsGeoCoding = @SupportsGeoCoding_e32031b9,
-  @AutoUpdateSupportsGeoCoding = @AutoUpdateSupportsGeoCoding_e32031b9,
-  @AllowCaching = @AllowCaching_e32031b9,
-  @DetectExternalChanges = @DetectExternalChanges_e32031b9,
-  @ExternalDataSourceID = @ExternalDataSourceID_e32031b9,
+  @Status = @Status_91bee356,
+  @DisplayName = @DisplayName_91bee356,
+  @AllowMultipleSubtypes = @AllowMultipleSubtypes_91bee356,
+  @AutoUpdateFullTextSearch = @AutoUpdateFullTextSearch_91bee356,
+  @AutoUpdateAllowUserSearchAPI = @AutoUpdateAllowUserSearchAPI_91bee356,
+  @TrustServerCacheCompletely = @TrustServerCacheCompletely_91bee356,
+  @SupportsGeoCoding = @SupportsGeoCoding_91bee356,
+  @AutoUpdateSupportsGeoCoding = @AutoUpdateSupportsGeoCoding_91bee356,
+  @AllowCaching = @AllowCaching_91bee356,
+  @DetectExternalChanges = @DetectExternalChanges_91bee356,
+  @ExternalDataSourceID = @ExternalDataSourceID_91bee356,
   @ExternalDataSourceID_Clear = 1,
-  @ExternalObjectName = @ExternalObjectName_e32031b9,
+  @ExternalObjectName = @ExternalObjectName_91bee356,
   @ExternalObjectName_Clear = 1,
-  @GeneratedBaseViewName = @GeneratedBaseViewName_e32031b9,
-  @AllowDirectSQLInsert = @AllowDirectSQLInsert_e32031b9,
-  @AllowDirectSQLUpdate = @AllowDirectSQLUpdate_e32031b9,
-  @AllowDirectSQLDelete = @AllowDirectSQLDelete_e32031b9,
-  @Configuration = @Configuration_e32031b9,
-  @ID = @ID_e32031b9;
+  @GeneratedBaseViewName = @GeneratedBaseViewName_91bee356,
+  @AllowDirectSQLInsert = @AllowDirectSQLInsert_91bee356,
+  @AllowDirectSQLUpdate = @AllowDirectSQLUpdate_91bee356,
+  @AllowDirectSQLDelete = @AllowDirectSQLDelete_91bee356,
+  @Configuration = @Configuration_91bee356,
+  @ID = @ID_91bee356;
 
 GO
 
 -- Save MJ: Entities (core SP call only)
-DECLARE @ParentID_21895b75 UNIQUEIDENTIFIER,
-@Name_21895b75 NVARCHAR(255),
-@NameSuffix_21895b75 NVARCHAR(255),
-@Description_21895b75 NVARCHAR(MAX),
-@AutoUpdateDescription_21895b75 BIT,
-@BaseView_21895b75 NVARCHAR(255),
-@BaseViewGenerated_21895b75 BIT,
-@VirtualEntity_21895b75 BIT,
-@TrackRecordChanges_21895b75 BIT,
-@AuditRecordAccess_21895b75 BIT,
-@AuditViewRuns_21895b75 BIT,
-@IncludeInAPI_21895b75 BIT,
-@AllowAllRowsAPI_21895b75 BIT,
-@AllowUpdateAPI_21895b75 BIT,
-@AllowCreateAPI_21895b75 BIT,
-@AllowDeleteAPI_21895b75 BIT,
-@CustomResolverAPI_21895b75 BIT,
-@AllowUserSearchAPI_21895b75 BIT,
-@FullTextSearchEnabled_21895b75 BIT,
-@FullTextCatalog_21895b75 NVARCHAR(255),
-@FullTextCatalogGenerated_21895b75 BIT,
-@FullTextIndex_21895b75 NVARCHAR(255),
-@FullTextIndexGenerated_21895b75 BIT,
-@FullTextSearchFunction_21895b75 NVARCHAR(255),
-@FullTextSearchFunctionGenerated_21895b75 BIT,
-@UserViewMaxRows_21895b75 INT,
-@spCreate_21895b75 NVARCHAR(255),
-@spUpdate_21895b75 NVARCHAR(255),
-@spDelete_21895b75 NVARCHAR(255),
-@spCreateGenerated_21895b75 BIT,
-@spUpdateGenerated_21895b75 BIT,
-@spDeleteGenerated_21895b75 BIT,
-@CascadeDeletes_21895b75 BIT,
-@DeleteType_21895b75 NVARCHAR(10),
-@AllowRecordMerge_21895b75 BIT,
-@spMatch_21895b75 NVARCHAR(255),
-@RelationshipDefaultDisplayType_21895b75 NVARCHAR(20),
-@UserFormGenerated_21895b75 BIT,
-@EntityObjectSubclassName_21895b75 NVARCHAR(255),
-@EntityObjectSubclassImport_21895b75 NVARCHAR(255),
-@PreferredCommunicationField_21895b75 NVARCHAR(255),
-@Icon_21895b75 NVARCHAR(500),
-@ScopeDefault_21895b75 NVARCHAR(100),
-@RowsToPackWithSchema_21895b75 NVARCHAR(20),
-@RowsToPackSampleMethod_21895b75 NVARCHAR(20),
-@RowsToPackSampleCount_21895b75 INT,
-@RowsToPackSampleOrder_21895b75 NVARCHAR(MAX),
-@AutoRowCountFrequency_21895b75 INT,
-@RowCount_21895b75 BIGINT,
-@RowCountRunAt_21895b75 DATETIMEOFFSET,
-@Status_21895b75 NVARCHAR(25),
-@DisplayName_21895b75 NVARCHAR(255),
-@AllowMultipleSubtypes_21895b75 BIT,
-@AutoUpdateFullTextSearch_21895b75 BIT,
-@AutoUpdateAllowUserSearchAPI_21895b75 BIT,
-@TrustServerCacheCompletely_21895b75 BIT,
-@SupportsGeoCoding_21895b75 BIT,
-@AutoUpdateSupportsGeoCoding_21895b75 BIT,
-@AllowCaching_21895b75 BIT,
-@DetectExternalChanges_21895b75 BIT,
-@ExternalDataSourceID_21895b75 UNIQUEIDENTIFIER,
-@ExternalObjectName_21895b75 NVARCHAR(255),
-@GeneratedBaseViewName_21895b75 NVARCHAR(255),
-@AllowDirectSQLInsert_21895b75 BIT,
-@AllowDirectSQLUpdate_21895b75 BIT,
-@AllowDirectSQLDelete_21895b75 BIT,
-@Configuration_21895b75 NVARCHAR(MAX),
-@ID_21895b75 UNIQUEIDENTIFIER
+DECLARE @ParentID_38ee20b2 UNIQUEIDENTIFIER,
+@Name_38ee20b2 NVARCHAR(255),
+@NameSuffix_38ee20b2 NVARCHAR(255),
+@Description_38ee20b2 NVARCHAR(MAX),
+@AutoUpdateDescription_38ee20b2 BIT,
+@BaseView_38ee20b2 NVARCHAR(255),
+@BaseViewGenerated_38ee20b2 BIT,
+@VirtualEntity_38ee20b2 BIT,
+@TrackRecordChanges_38ee20b2 BIT,
+@AuditRecordAccess_38ee20b2 BIT,
+@AuditViewRuns_38ee20b2 BIT,
+@IncludeInAPI_38ee20b2 BIT,
+@AllowAllRowsAPI_38ee20b2 BIT,
+@AllowUpdateAPI_38ee20b2 BIT,
+@AllowCreateAPI_38ee20b2 BIT,
+@AllowDeleteAPI_38ee20b2 BIT,
+@CustomResolverAPI_38ee20b2 BIT,
+@AllowUserSearchAPI_38ee20b2 BIT,
+@FullTextSearchEnabled_38ee20b2 BIT,
+@FullTextCatalog_38ee20b2 NVARCHAR(255),
+@FullTextCatalogGenerated_38ee20b2 BIT,
+@FullTextIndex_38ee20b2 NVARCHAR(255),
+@FullTextIndexGenerated_38ee20b2 BIT,
+@FullTextSearchFunction_38ee20b2 NVARCHAR(255),
+@FullTextSearchFunctionGenerated_38ee20b2 BIT,
+@UserViewMaxRows_38ee20b2 INT,
+@spCreate_38ee20b2 NVARCHAR(255),
+@spUpdate_38ee20b2 NVARCHAR(255),
+@spDelete_38ee20b2 NVARCHAR(255),
+@spCreateGenerated_38ee20b2 BIT,
+@spUpdateGenerated_38ee20b2 BIT,
+@spDeleteGenerated_38ee20b2 BIT,
+@CascadeDeletes_38ee20b2 BIT,
+@DeleteType_38ee20b2 NVARCHAR(10),
+@AllowRecordMerge_38ee20b2 BIT,
+@spMatch_38ee20b2 NVARCHAR(255),
+@RelationshipDefaultDisplayType_38ee20b2 NVARCHAR(20),
+@UserFormGenerated_38ee20b2 BIT,
+@EntityObjectSubclassName_38ee20b2 NVARCHAR(255),
+@EntityObjectSubclassImport_38ee20b2 NVARCHAR(255),
+@PreferredCommunicationField_38ee20b2 NVARCHAR(255),
+@Icon_38ee20b2 NVARCHAR(500),
+@ScopeDefault_38ee20b2 NVARCHAR(100),
+@RowsToPackWithSchema_38ee20b2 NVARCHAR(20),
+@RowsToPackSampleMethod_38ee20b2 NVARCHAR(20),
+@RowsToPackSampleCount_38ee20b2 INT,
+@RowsToPackSampleOrder_38ee20b2 NVARCHAR(MAX),
+@AutoRowCountFrequency_38ee20b2 INT,
+@RowCount_38ee20b2 BIGINT,
+@RowCountRunAt_38ee20b2 DATETIMEOFFSET,
+@Status_38ee20b2 NVARCHAR(25),
+@DisplayName_38ee20b2 NVARCHAR(255),
+@AllowMultipleSubtypes_38ee20b2 BIT,
+@AutoUpdateFullTextSearch_38ee20b2 BIT,
+@AutoUpdateAllowUserSearchAPI_38ee20b2 BIT,
+@TrustServerCacheCompletely_38ee20b2 BIT,
+@SupportsGeoCoding_38ee20b2 BIT,
+@AutoUpdateSupportsGeoCoding_38ee20b2 BIT,
+@AllowCaching_38ee20b2 BIT,
+@DetectExternalChanges_38ee20b2 BIT,
+@ExternalDataSourceID_38ee20b2 UNIQUEIDENTIFIER,
+@ExternalObjectName_38ee20b2 NVARCHAR(255),
+@GeneratedBaseViewName_38ee20b2 NVARCHAR(255),
+@AllowDirectSQLInsert_38ee20b2 BIT,
+@AllowDirectSQLUpdate_38ee20b2 BIT,
+@AllowDirectSQLDelete_38ee20b2 BIT,
+@Configuration_38ee20b2 NVARCHAR(MAX),
+@ID_38ee20b2 UNIQUEIDENTIFIER
 SET
-  @Name_21895b75 = N'MJ_BizApps_Contracts: Contracts'
+  @Name_38ee20b2 = N'MJ_BizApps_Contracts: Contracts'
 SET
-  @Description_21895b75 = N'The signed agreement — one row per piece of signed (or implied) paper, and the centre of the app. Carries NO hard reference to a Deal: sales creates contracts, so sales depends on this app and a reference upward would invert the dependency graph. The link is the typed polymorphic pair CreatingEntityID + CreatingRecordID.'
+  @Description_38ee20b2 = N'The signed agreement — one row per piece of signed (or implied) paper, and the centre of the app. Carries NO hard reference to a Deal: sales creates contracts, so sales depends on this app and a reference upward would invert the dependency graph. The link is the typed polymorphic pair CreatingEntityID + CreatingRecordID.'
 SET
-  @AutoUpdateDescription_21895b75 = 1
+  @AutoUpdateDescription_38ee20b2 = 1
 SET
-  @BaseView_21895b75 = N'vwContracts'
+  @BaseView_38ee20b2 = N'vwContracts'
 SET
-  @BaseViewGenerated_21895b75 = 0
+  @BaseViewGenerated_38ee20b2 = 0
 SET
-  @VirtualEntity_21895b75 = 0
+  @VirtualEntity_38ee20b2 = 0
 SET
-  @TrackRecordChanges_21895b75 = 1
+  @TrackRecordChanges_38ee20b2 = 1
 SET
-  @AuditRecordAccess_21895b75 = 0
+  @AuditRecordAccess_38ee20b2 = 0
 SET
-  @AuditViewRuns_21895b75 = 0
+  @AuditViewRuns_38ee20b2 = 0
 SET
-  @IncludeInAPI_21895b75 = 1
+  @IncludeInAPI_38ee20b2 = 1
 SET
-  @AllowAllRowsAPI_21895b75 = 0
+  @AllowAllRowsAPI_38ee20b2 = 0
 SET
-  @AllowUpdateAPI_21895b75 = 1
+  @AllowUpdateAPI_38ee20b2 = 1
 SET
-  @AllowCreateAPI_21895b75 = 1
+  @AllowCreateAPI_38ee20b2 = 1
 SET
-  @AllowDeleteAPI_21895b75 = 1
+  @AllowDeleteAPI_38ee20b2 = 1
 SET
-  @CustomResolverAPI_21895b75 = 0
+  @CustomResolverAPI_38ee20b2 = 0
 SET
-  @AllowUserSearchAPI_21895b75 = 1
+  @AllowUserSearchAPI_38ee20b2 = 1
 SET
-  @FullTextSearchEnabled_21895b75 = 0
+  @FullTextSearchEnabled_38ee20b2 = 0
 SET
-  @FullTextCatalogGenerated_21895b75 = 1
+  @FullTextCatalogGenerated_38ee20b2 = 1
 SET
-  @FullTextIndexGenerated_21895b75 = 1
+  @FullTextIndexGenerated_38ee20b2 = 1
 SET
-  @FullTextSearchFunctionGenerated_21895b75 = 1
+  @FullTextSearchFunctionGenerated_38ee20b2 = 1
 SET
-  @UserViewMaxRows_21895b75 = 1000
+  @UserViewMaxRows_38ee20b2 = 1000
 SET
-  @spCreateGenerated_21895b75 = 1
+  @spCreateGenerated_38ee20b2 = 1
 SET
-  @spUpdateGenerated_21895b75 = 1
+  @spUpdateGenerated_38ee20b2 = 1
 SET
-  @spDeleteGenerated_21895b75 = 1
+  @spDeleteGenerated_38ee20b2 = 1
 SET
-  @CascadeDeletes_21895b75 = 0
+  @CascadeDeletes_38ee20b2 = 0
 SET
-  @DeleteType_21895b75 = N'Hard'
+  @DeleteType_38ee20b2 = N'Hard'
 SET
-  @AllowRecordMerge_21895b75 = 0
+  @AllowRecordMerge_38ee20b2 = 0
 SET
-  @RelationshipDefaultDisplayType_21895b75 = N'Search'
+  @RelationshipDefaultDisplayType_38ee20b2 = N'Search'
 SET
-  @UserFormGenerated_21895b75 = 1
+  @UserFormGenerated_38ee20b2 = 1
 SET
-  @Icon_21895b75 = N'fa fa-file-contract'
+  @Icon_38ee20b2 = N'fa fa-file-contract'
 SET
-  @RowsToPackWithSchema_21895b75 = N'None'
+  @RowsToPackWithSchema_38ee20b2 = N'None'
 SET
-  @RowsToPackSampleMethod_21895b75 = N'random'
+  @RowsToPackSampleMethod_38ee20b2 = N'random'
 SET
-  @RowsToPackSampleCount_21895b75 = 0
+  @RowsToPackSampleCount_38ee20b2 = 0
 SET
-  @Status_21895b75 = N'Active'
+  @Status_38ee20b2 = N'Active'
 SET
-  @DisplayName_21895b75 = N'Contracts'
+  @DisplayName_38ee20b2 = N'Contracts'
 SET
-  @AllowMultipleSubtypes_21895b75 = 0
+  @AllowMultipleSubtypes_38ee20b2 = 0
 SET
-  @AutoUpdateFullTextSearch_21895b75 = 1
+  @AutoUpdateFullTextSearch_38ee20b2 = 1
 SET
-  @AutoUpdateAllowUserSearchAPI_21895b75 = 1
+  @AutoUpdateAllowUserSearchAPI_38ee20b2 = 1
 SET
-  @TrustServerCacheCompletely_21895b75 = 1
+  @TrustServerCacheCompletely_38ee20b2 = 1
 SET
-  @SupportsGeoCoding_21895b75 = 0
+  @SupportsGeoCoding_38ee20b2 = 0
 SET
-  @AutoUpdateSupportsGeoCoding_21895b75 = 1
+  @AutoUpdateSupportsGeoCoding_38ee20b2 = 1
 SET
-  @AllowCaching_21895b75 = 0
+  @AllowCaching_38ee20b2 = 0
 SET
-  @DetectExternalChanges_21895b75 = 0
+  @DetectExternalChanges_38ee20b2 = 0
 SET
-  @GeneratedBaseViewName_21895b75 = N'vwContractsGenerated'
+  @GeneratedBaseViewName_38ee20b2 = N'vwContractsGenerated'
 SET
-  @AllowDirectSQLInsert_21895b75 = 0
+  @AllowDirectSQLInsert_38ee20b2 = 0
 SET
-  @AllowDirectSQLUpdate_21895b75 = 0
+  @AllowDirectSQLUpdate_38ee20b2 = 0
 SET
-  @AllowDirectSQLDelete_21895b75 = 0
+  @AllowDirectSQLDelete_38ee20b2 = 0
 SET
-  @Configuration_21895b75 = N'{
+  @Configuration_38ee20b2 = N'{
   "UI": {
     "Form": {
       "Layout": "left-nav",
@@ -482,4268 +494,2316 @@ SET
   }
 }'
 SET
-  @ID_21895b75 = '5DEB0B11-ED6C-48B3-9200-F4441396C5E2' EXEC [${mjSchema}].spUpdateEntity @ParentID = @ParentID_21895b75,
+  @ID_38ee20b2 = '5DEB0B11-ED6C-48B3-9200-F4441396C5E2' EXEC [${mjSchema}].spUpdateEntity @ParentID = @ParentID_38ee20b2,
   @ParentID_Clear = 1,
-  @Name = @Name_21895b75,
-  @NameSuffix = @NameSuffix_21895b75,
+  @Name = @Name_38ee20b2,
+  @NameSuffix = @NameSuffix_38ee20b2,
   @NameSuffix_Clear = 1,
-  @Description = @Description_21895b75,
-  @AutoUpdateDescription = @AutoUpdateDescription_21895b75,
-  @BaseView = @BaseView_21895b75,
-  @BaseViewGenerated = @BaseViewGenerated_21895b75,
-  @VirtualEntity = @VirtualEntity_21895b75,
-  @TrackRecordChanges = @TrackRecordChanges_21895b75,
-  @AuditRecordAccess = @AuditRecordAccess_21895b75,
-  @AuditViewRuns = @AuditViewRuns_21895b75,
-  @IncludeInAPI = @IncludeInAPI_21895b75,
-  @AllowAllRowsAPI = @AllowAllRowsAPI_21895b75,
-  @AllowUpdateAPI = @AllowUpdateAPI_21895b75,
-  @AllowCreateAPI = @AllowCreateAPI_21895b75,
-  @AllowDeleteAPI = @AllowDeleteAPI_21895b75,
-  @CustomResolverAPI = @CustomResolverAPI_21895b75,
-  @AllowUserSearchAPI = @AllowUserSearchAPI_21895b75,
-  @FullTextSearchEnabled = @FullTextSearchEnabled_21895b75,
-  @FullTextCatalog = @FullTextCatalog_21895b75,
+  @Description = @Description_38ee20b2,
+  @AutoUpdateDescription = @AutoUpdateDescription_38ee20b2,
+  @BaseView = @BaseView_38ee20b2,
+  @BaseViewGenerated = @BaseViewGenerated_38ee20b2,
+  @VirtualEntity = @VirtualEntity_38ee20b2,
+  @TrackRecordChanges = @TrackRecordChanges_38ee20b2,
+  @AuditRecordAccess = @AuditRecordAccess_38ee20b2,
+  @AuditViewRuns = @AuditViewRuns_38ee20b2,
+  @IncludeInAPI = @IncludeInAPI_38ee20b2,
+  @AllowAllRowsAPI = @AllowAllRowsAPI_38ee20b2,
+  @AllowUpdateAPI = @AllowUpdateAPI_38ee20b2,
+  @AllowCreateAPI = @AllowCreateAPI_38ee20b2,
+  @AllowDeleteAPI = @AllowDeleteAPI_38ee20b2,
+  @CustomResolverAPI = @CustomResolverAPI_38ee20b2,
+  @AllowUserSearchAPI = @AllowUserSearchAPI_38ee20b2,
+  @FullTextSearchEnabled = @FullTextSearchEnabled_38ee20b2,
+  @FullTextCatalog = @FullTextCatalog_38ee20b2,
   @FullTextCatalog_Clear = 1,
-  @FullTextCatalogGenerated = @FullTextCatalogGenerated_21895b75,
-  @FullTextIndex = @FullTextIndex_21895b75,
+  @FullTextCatalogGenerated = @FullTextCatalogGenerated_38ee20b2,
+  @FullTextIndex = @FullTextIndex_38ee20b2,
   @FullTextIndex_Clear = 1,
-  @FullTextIndexGenerated = @FullTextIndexGenerated_21895b75,
-  @FullTextSearchFunction = @FullTextSearchFunction_21895b75,
+  @FullTextIndexGenerated = @FullTextIndexGenerated_38ee20b2,
+  @FullTextSearchFunction = @FullTextSearchFunction_38ee20b2,
   @FullTextSearchFunction_Clear = 1,
-  @FullTextSearchFunctionGenerated = @FullTextSearchFunctionGenerated_21895b75,
-  @UserViewMaxRows = @UserViewMaxRows_21895b75,
-  @spCreate = @spCreate_21895b75,
+  @FullTextSearchFunctionGenerated = @FullTextSearchFunctionGenerated_38ee20b2,
+  @UserViewMaxRows = @UserViewMaxRows_38ee20b2,
+  @spCreate = @spCreate_38ee20b2,
   @spCreate_Clear = 1,
-  @spUpdate = @spUpdate_21895b75,
+  @spUpdate = @spUpdate_38ee20b2,
   @spUpdate_Clear = 1,
-  @spDelete = @spDelete_21895b75,
+  @spDelete = @spDelete_38ee20b2,
   @spDelete_Clear = 1,
-  @spCreateGenerated = @spCreateGenerated_21895b75,
-  @spUpdateGenerated = @spUpdateGenerated_21895b75,
-  @spDeleteGenerated = @spDeleteGenerated_21895b75,
-  @CascadeDeletes = @CascadeDeletes_21895b75,
-  @DeleteType = @DeleteType_21895b75,
-  @AllowRecordMerge = @AllowRecordMerge_21895b75,
-  @spMatch = @spMatch_21895b75,
+  @spCreateGenerated = @spCreateGenerated_38ee20b2,
+  @spUpdateGenerated = @spUpdateGenerated_38ee20b2,
+  @spDeleteGenerated = @spDeleteGenerated_38ee20b2,
+  @CascadeDeletes = @CascadeDeletes_38ee20b2,
+  @DeleteType = @DeleteType_38ee20b2,
+  @AllowRecordMerge = @AllowRecordMerge_38ee20b2,
+  @spMatch = @spMatch_38ee20b2,
   @spMatch_Clear = 1,
-  @RelationshipDefaultDisplayType = @RelationshipDefaultDisplayType_21895b75,
-  @UserFormGenerated = @UserFormGenerated_21895b75,
-  @EntityObjectSubclassName = @EntityObjectSubclassName_21895b75,
+  @RelationshipDefaultDisplayType = @RelationshipDefaultDisplayType_38ee20b2,
+  @UserFormGenerated = @UserFormGenerated_38ee20b2,
+  @EntityObjectSubclassName = @EntityObjectSubclassName_38ee20b2,
   @EntityObjectSubclassName_Clear = 1,
-  @EntityObjectSubclassImport = @EntityObjectSubclassImport_21895b75,
+  @EntityObjectSubclassImport = @EntityObjectSubclassImport_38ee20b2,
   @EntityObjectSubclassImport_Clear = 1,
-  @PreferredCommunicationField = @PreferredCommunicationField_21895b75,
+  @PreferredCommunicationField = @PreferredCommunicationField_38ee20b2,
   @PreferredCommunicationField_Clear = 1,
-  @Icon = @Icon_21895b75,
-  @ScopeDefault = @ScopeDefault_21895b75,
+  @Icon = @Icon_38ee20b2,
+  @ScopeDefault = @ScopeDefault_38ee20b2,
   @ScopeDefault_Clear = 1,
-  @RowsToPackWithSchema = @RowsToPackWithSchema_21895b75,
-  @RowsToPackSampleMethod = @RowsToPackSampleMethod_21895b75,
-  @RowsToPackSampleCount = @RowsToPackSampleCount_21895b75,
-  @RowsToPackSampleOrder = @RowsToPackSampleOrder_21895b75,
+  @RowsToPackWithSchema = @RowsToPackWithSchema_38ee20b2,
+  @RowsToPackSampleMethod = @RowsToPackSampleMethod_38ee20b2,
+  @RowsToPackSampleCount = @RowsToPackSampleCount_38ee20b2,
+  @RowsToPackSampleOrder = @RowsToPackSampleOrder_38ee20b2,
   @RowsToPackSampleOrder_Clear = 1,
-  @AutoRowCountFrequency = @AutoRowCountFrequency_21895b75,
+  @AutoRowCountFrequency = @AutoRowCountFrequency_38ee20b2,
   @AutoRowCountFrequency_Clear = 1,
-  @RowCount = @RowCount_21895b75,
+  @RowCount = @RowCount_38ee20b2,
   @RowCount_Clear = 1,
-  @RowCountRunAt = @RowCountRunAt_21895b75,
+  @RowCountRunAt = @RowCountRunAt_38ee20b2,
   @RowCountRunAt_Clear = 1,
-  @Status = @Status_21895b75,
-  @DisplayName = @DisplayName_21895b75,
-  @AllowMultipleSubtypes = @AllowMultipleSubtypes_21895b75,
-  @AutoUpdateFullTextSearch = @AutoUpdateFullTextSearch_21895b75,
-  @AutoUpdateAllowUserSearchAPI = @AutoUpdateAllowUserSearchAPI_21895b75,
-  @TrustServerCacheCompletely = @TrustServerCacheCompletely_21895b75,
-  @SupportsGeoCoding = @SupportsGeoCoding_21895b75,
-  @AutoUpdateSupportsGeoCoding = @AutoUpdateSupportsGeoCoding_21895b75,
-  @AllowCaching = @AllowCaching_21895b75,
-  @DetectExternalChanges = @DetectExternalChanges_21895b75,
-  @ExternalDataSourceID = @ExternalDataSourceID_21895b75,
+  @Status = @Status_38ee20b2,
+  @DisplayName = @DisplayName_38ee20b2,
+  @AllowMultipleSubtypes = @AllowMultipleSubtypes_38ee20b2,
+  @AutoUpdateFullTextSearch = @AutoUpdateFullTextSearch_38ee20b2,
+  @AutoUpdateAllowUserSearchAPI = @AutoUpdateAllowUserSearchAPI_38ee20b2,
+  @TrustServerCacheCompletely = @TrustServerCacheCompletely_38ee20b2,
+  @SupportsGeoCoding = @SupportsGeoCoding_38ee20b2,
+  @AutoUpdateSupportsGeoCoding = @AutoUpdateSupportsGeoCoding_38ee20b2,
+  @AllowCaching = @AllowCaching_38ee20b2,
+  @DetectExternalChanges = @DetectExternalChanges_38ee20b2,
+  @ExternalDataSourceID = @ExternalDataSourceID_38ee20b2,
   @ExternalDataSourceID_Clear = 1,
-  @ExternalObjectName = @ExternalObjectName_21895b75,
+  @ExternalObjectName = @ExternalObjectName_38ee20b2,
   @ExternalObjectName_Clear = 1,
-  @GeneratedBaseViewName = @GeneratedBaseViewName_21895b75,
-  @AllowDirectSQLInsert = @AllowDirectSQLInsert_21895b75,
-  @AllowDirectSQLUpdate = @AllowDirectSQLUpdate_21895b75,
-  @AllowDirectSQLDelete = @AllowDirectSQLDelete_21895b75,
-  @Configuration = @Configuration_21895b75,
-  @ID = @ID_21895b75;
+  @GeneratedBaseViewName = @GeneratedBaseViewName_38ee20b2,
+  @AllowDirectSQLInsert = @AllowDirectSQLInsert_38ee20b2,
+  @AllowDirectSQLUpdate = @AllowDirectSQLUpdate_38ee20b2,
+  @AllowDirectSQLDelete = @AllowDirectSQLDelete_38ee20b2,
+  @Configuration = @Configuration_38ee20b2,
+  @ID = @ID_38ee20b2;
 
 GO
 
 -- Save MJ: Entity Fields (core SP call only)
-DECLARE @DisplayName_26da6704 NVARCHAR(255),
-@Description_26da6704 NVARCHAR(MAX),
-@AutoUpdateDescription_26da6704 BIT,
-@IsPrimaryKey_26da6704 BIT,
-@IsUnique_26da6704 BIT,
-@Category_26da6704 NVARCHAR(255),
-@ValueListType_26da6704 NVARCHAR(20),
-@ExtendedType_26da6704 NVARCHAR(50),
-@CodeType_26da6704 NVARCHAR(50),
-@DefaultInView_26da6704 BIT,
-@ViewCellTemplate_26da6704 NVARCHAR(MAX),
-@DefaultColumnWidth_26da6704 INT,
-@AllowUpdateAPI_26da6704 BIT,
-@AllowUpdateInView_26da6704 BIT,
-@IncludeInUserSearchAPI_26da6704 BIT,
-@FullTextSearchEnabled_26da6704 BIT,
-@UserSearchParamFormatAPI_26da6704 NVARCHAR(500),
-@IncludeInGeneratedForm_26da6704 BIT,
-@GeneratedFormSection_26da6704 NVARCHAR(10),
-@IsNameField_26da6704 BIT,
-@RelatedEntityID_26da6704 UNIQUEIDENTIFIER,
-@RelatedEntityFieldName_26da6704 NVARCHAR(255),
-@IncludeRelatedEntityNameFieldInBaseView_26da6704 BIT,
-@RelatedEntityNameFieldMap_26da6704 NVARCHAR(255),
-@RelatedEntityDisplayType_26da6704 NVARCHAR(20),
-@EntityIDFieldName_26da6704 NVARCHAR(100),
-@ScopeDefault_26da6704 NVARCHAR(100),
-@AutoUpdateRelatedEntityInfo_26da6704 BIT,
-@ValuesToPackWithSchema_26da6704 NVARCHAR(10),
-@Status_26da6704 NVARCHAR(25),
-@AutoUpdateIsNameField_26da6704 BIT,
-@AutoUpdateDefaultInView_26da6704 BIT,
-@AutoUpdateCategory_26da6704 BIT,
-@AutoUpdateDisplayName_26da6704 BIT,
-@AutoUpdateIncludeInUserSearchAPI_26da6704 BIT,
-@Encrypt_26da6704 BIT,
-@EncryptionKeyID_26da6704 UNIQUEIDENTIFIER,
-@AllowDecryptInAPI_26da6704 BIT,
-@SendEncryptedValue_26da6704 BIT,
-@IsSoftPrimaryKey_26da6704 BIT,
-@IsSoftForeignKey_26da6704 BIT,
-@RelatedEntityJoinFields_26da6704 NVARCHAR(MAX),
-@JSONType_26da6704 NVARCHAR(255),
-@JSONTypeIsArray_26da6704 BIT,
-@JSONTypeDefinition_26da6704 NVARCHAR(MAX),
-@UserSearchPredicateAPI_26da6704 NVARCHAR(20),
-@AutoUpdateUserSearchPredicate_26da6704 BIT,
-@AutoUpdateFullTextSearch_26da6704 BIT,
-@AutoUpdateExtendedType_26da6704 BIT,
-@IsComputed_26da6704 BIT,
-@EmbeddedRecord_26da6704 NVARCHAR(MAX),
-@Configuration_26da6704 NVARCHAR(MAX),
-@ID_26da6704 UNIQUEIDENTIFIER
+DECLARE @DisplayName_6c00d32f NVARCHAR(255),
+@Description_6c00d32f NVARCHAR(MAX),
+@AutoUpdateDescription_6c00d32f BIT,
+@IsPrimaryKey_6c00d32f BIT,
+@IsUnique_6c00d32f BIT,
+@Category_6c00d32f NVARCHAR(255),
+@ValueListType_6c00d32f NVARCHAR(20),
+@ExtendedType_6c00d32f NVARCHAR(50),
+@CodeType_6c00d32f NVARCHAR(50),
+@DefaultInView_6c00d32f BIT,
+@ViewCellTemplate_6c00d32f NVARCHAR(MAX),
+@DefaultColumnWidth_6c00d32f INT,
+@AllowUpdateAPI_6c00d32f BIT,
+@AllowUpdateInView_6c00d32f BIT,
+@IncludeInUserSearchAPI_6c00d32f BIT,
+@FullTextSearchEnabled_6c00d32f BIT,
+@UserSearchParamFormatAPI_6c00d32f NVARCHAR(500),
+@IncludeInGeneratedForm_6c00d32f BIT,
+@GeneratedFormSection_6c00d32f NVARCHAR(10),
+@IsNameField_6c00d32f BIT,
+@RelatedEntityID_6c00d32f UNIQUEIDENTIFIER,
+@RelatedEntityFieldName_6c00d32f NVARCHAR(255),
+@IncludeRelatedEntityNameFieldInBaseView_6c00d32f BIT,
+@RelatedEntityNameFieldMap_6c00d32f NVARCHAR(255),
+@RelatedEntityDisplayType_6c00d32f NVARCHAR(20),
+@EntityIDFieldName_6c00d32f NVARCHAR(100),
+@ScopeDefault_6c00d32f NVARCHAR(100),
+@AutoUpdateRelatedEntityInfo_6c00d32f BIT,
+@ValuesToPackWithSchema_6c00d32f NVARCHAR(10),
+@Status_6c00d32f NVARCHAR(25),
+@AutoUpdateIsNameField_6c00d32f BIT,
+@AutoUpdateDefaultInView_6c00d32f BIT,
+@AutoUpdateCategory_6c00d32f BIT,
+@AutoUpdateDisplayName_6c00d32f BIT,
+@AutoUpdateIncludeInUserSearchAPI_6c00d32f BIT,
+@Encrypt_6c00d32f BIT,
+@EncryptionKeyID_6c00d32f UNIQUEIDENTIFIER,
+@AllowDecryptInAPI_6c00d32f BIT,
+@SendEncryptedValue_6c00d32f BIT,
+@IsSoftPrimaryKey_6c00d32f BIT,
+@IsSoftForeignKey_6c00d32f BIT,
+@RelatedEntityJoinFields_6c00d32f NVARCHAR(MAX),
+@JSONType_6c00d32f NVARCHAR(255),
+@JSONTypeIsArray_6c00d32f BIT,
+@JSONTypeDefinition_6c00d32f NVARCHAR(MAX),
+@UserSearchPredicateAPI_6c00d32f NVARCHAR(20),
+@AutoUpdateUserSearchPredicate_6c00d32f BIT,
+@AutoUpdateFullTextSearch_6c00d32f BIT,
+@AutoUpdateExtendedType_6c00d32f BIT,
+@IsComputed_6c00d32f BIT,
+@EmbeddedRecord_6c00d32f NVARCHAR(MAX),
+@Configuration_6c00d32f NVARCHAR(MAX),
+@ID_6c00d32f UNIQUEIDENTIFIER
 SET
-  @DisplayName_26da6704 = N'State'
+  @DisplayName_6c00d32f = N'State'
 SET
-  @AutoUpdateDescription_26da6704 = 1
+  @AutoUpdateDescription_6c00d32f = 1
 SET
-  @IsPrimaryKey_26da6704 = 0
+  @IsPrimaryKey_6c00d32f = 0
 SET
-  @IsUnique_26da6704 = 0
+  @IsUnique_6c00d32f = 0
 SET
-  @ValueListType_26da6704 = N'None'
+  @ValueListType_6c00d32f = N'None'
 SET
-  @DefaultInView_26da6704 = 1
+  @DefaultInView_6c00d32f = 1
 SET
-  @AllowUpdateAPI_26da6704 = 0
+  @AllowUpdateAPI_6c00d32f = 0
 SET
-  @AllowUpdateInView_26da6704 = 1
+  @AllowUpdateInView_6c00d32f = 1
 SET
-  @IncludeInUserSearchAPI_26da6704 = 0
+  @IncludeInUserSearchAPI_6c00d32f = 0
 SET
-  @FullTextSearchEnabled_26da6704 = 0
+  @FullTextSearchEnabled_6c00d32f = 0
 SET
-  @IncludeInGeneratedForm_26da6704 = 0
+  @IncludeInGeneratedForm_6c00d32f = 0
 SET
-  @GeneratedFormSection_26da6704 = N'Details'
+  @GeneratedFormSection_6c00d32f = N'Details'
 SET
-  @IsNameField_26da6704 = 0
+  @IsNameField_6c00d32f = 0
 SET
-  @IncludeRelatedEntityNameFieldInBaseView_26da6704 = 1
+  @IncludeRelatedEntityNameFieldInBaseView_6c00d32f = 1
 SET
-  @RelatedEntityDisplayType_26da6704 = N'Search'
+  @RelatedEntityDisplayType_6c00d32f = N'Search'
 SET
-  @AutoUpdateRelatedEntityInfo_26da6704 = 1
+  @AutoUpdateRelatedEntityInfo_6c00d32f = 1
 SET
-  @ValuesToPackWithSchema_26da6704 = N'Auto'
+  @ValuesToPackWithSchema_6c00d32f = N'Auto'
 SET
-  @Status_26da6704 = N'Active'
+  @Status_6c00d32f = N'Active'
 SET
-  @AutoUpdateIsNameField_26da6704 = 1
+  @AutoUpdateIsNameField_6c00d32f = 1
 SET
-  @AutoUpdateDefaultInView_26da6704 = 1
+  @AutoUpdateDefaultInView_6c00d32f = 1
 SET
-  @AutoUpdateCategory_26da6704 = 1
+  @AutoUpdateCategory_6c00d32f = 1
 SET
-  @AutoUpdateDisplayName_26da6704 = 1
+  @AutoUpdateDisplayName_6c00d32f = 1
 SET
-  @AutoUpdateIncludeInUserSearchAPI_26da6704 = 1
+  @AutoUpdateIncludeInUserSearchAPI_6c00d32f = 1
 SET
-  @Encrypt_26da6704 = 0
+  @Encrypt_6c00d32f = 0
 SET
-  @AllowDecryptInAPI_26da6704 = 0
+  @AllowDecryptInAPI_6c00d32f = 0
 SET
-  @SendEncryptedValue_26da6704 = 0
+  @SendEncryptedValue_6c00d32f = 0
 SET
-  @IsSoftPrimaryKey_26da6704 = 0
+  @IsSoftPrimaryKey_6c00d32f = 0
 SET
-  @IsSoftForeignKey_26da6704 = 0
+  @IsSoftForeignKey_6c00d32f = 0
 SET
-  @JSONTypeIsArray_26da6704 = 0
+  @JSONTypeIsArray_6c00d32f = 0
 SET
-  @UserSearchPredicateAPI_26da6704 = N'Contains'
+  @UserSearchPredicateAPI_6c00d32f = N'Contains'
 SET
-  @AutoUpdateUserSearchPredicate_26da6704 = 1
+  @AutoUpdateUserSearchPredicate_6c00d32f = 1
 SET
-  @AutoUpdateFullTextSearch_26da6704 = 1
+  @AutoUpdateFullTextSearch_6c00d32f = 1
 SET
-  @AutoUpdateExtendedType_26da6704 = 1
+  @AutoUpdateExtendedType_6c00d32f = 1
 SET
-  @IsComputed_26da6704 = 0
+  @IsComputed_6c00d32f = 0
 SET
-  @ID_26da6704 = 'C2754B3E-F36B-1410-8A4E-0066522E4B7A' EXEC [${mjSchema}].spUpdateEntityField @DisplayName = @DisplayName_26da6704,
-  @Description = @Description_26da6704,
+  @ID_6c00d32f = 'EBA74B3E-F36B-1410-8A4E-0066522E4B7A' EXEC [${mjSchema}].spUpdateEntityField @DisplayName = @DisplayName_6c00d32f,
+  @Description = @Description_6c00d32f,
   @Description_Clear = 1,
-  @AutoUpdateDescription = @AutoUpdateDescription_26da6704,
-  @IsPrimaryKey = @IsPrimaryKey_26da6704,
-  @IsUnique = @IsUnique_26da6704,
-  @Category = @Category_26da6704,
+  @AutoUpdateDescription = @AutoUpdateDescription_6c00d32f,
+  @IsPrimaryKey = @IsPrimaryKey_6c00d32f,
+  @IsUnique = @IsUnique_6c00d32f,
+  @Category = @Category_6c00d32f,
   @Category_Clear = 1,
-  @ValueListType = @ValueListType_26da6704,
-  @ExtendedType = @ExtendedType_26da6704,
+  @ValueListType = @ValueListType_6c00d32f,
+  @ExtendedType = @ExtendedType_6c00d32f,
   @ExtendedType_Clear = 1,
-  @CodeType = @CodeType_26da6704,
+  @CodeType = @CodeType_6c00d32f,
   @CodeType_Clear = 1,
-  @DefaultInView = @DefaultInView_26da6704,
-  @ViewCellTemplate = @ViewCellTemplate_26da6704,
+  @DefaultInView = @DefaultInView_6c00d32f,
+  @ViewCellTemplate = @ViewCellTemplate_6c00d32f,
   @ViewCellTemplate_Clear = 1,
-  @DefaultColumnWidth = @DefaultColumnWidth_26da6704,
+  @DefaultColumnWidth = @DefaultColumnWidth_6c00d32f,
   @DefaultColumnWidth_Clear = 1,
-  @AllowUpdateAPI = @AllowUpdateAPI_26da6704,
-  @AllowUpdateInView = @AllowUpdateInView_26da6704,
-  @IncludeInUserSearchAPI = @IncludeInUserSearchAPI_26da6704,
-  @FullTextSearchEnabled = @FullTextSearchEnabled_26da6704,
-  @UserSearchParamFormatAPI = @UserSearchParamFormatAPI_26da6704,
+  @AllowUpdateAPI = @AllowUpdateAPI_6c00d32f,
+  @AllowUpdateInView = @AllowUpdateInView_6c00d32f,
+  @IncludeInUserSearchAPI = @IncludeInUserSearchAPI_6c00d32f,
+  @FullTextSearchEnabled = @FullTextSearchEnabled_6c00d32f,
+  @UserSearchParamFormatAPI = @UserSearchParamFormatAPI_6c00d32f,
   @UserSearchParamFormatAPI_Clear = 1,
-  @IncludeInGeneratedForm = @IncludeInGeneratedForm_26da6704,
-  @GeneratedFormSection = @GeneratedFormSection_26da6704,
-  @IsNameField = @IsNameField_26da6704,
-  @RelatedEntityID = @RelatedEntityID_26da6704,
+  @IncludeInGeneratedForm = @IncludeInGeneratedForm_6c00d32f,
+  @GeneratedFormSection = @GeneratedFormSection_6c00d32f,
+  @IsNameField = @IsNameField_6c00d32f,
+  @RelatedEntityID = @RelatedEntityID_6c00d32f,
   @RelatedEntityID_Clear = 1,
-  @RelatedEntityFieldName = @RelatedEntityFieldName_26da6704,
+  @RelatedEntityFieldName = @RelatedEntityFieldName_6c00d32f,
   @RelatedEntityFieldName_Clear = 1,
-  @IncludeRelatedEntityNameFieldInBaseView = @IncludeRelatedEntityNameFieldInBaseView_26da6704,
-  @RelatedEntityNameFieldMap = @RelatedEntityNameFieldMap_26da6704,
+  @IncludeRelatedEntityNameFieldInBaseView = @IncludeRelatedEntityNameFieldInBaseView_6c00d32f,
+  @RelatedEntityNameFieldMap = @RelatedEntityNameFieldMap_6c00d32f,
   @RelatedEntityNameFieldMap_Clear = 1,
-  @RelatedEntityDisplayType = @RelatedEntityDisplayType_26da6704,
-  @EntityIDFieldName = @EntityIDFieldName_26da6704,
+  @RelatedEntityDisplayType = @RelatedEntityDisplayType_6c00d32f,
+  @EntityIDFieldName = @EntityIDFieldName_6c00d32f,
   @EntityIDFieldName_Clear = 1,
-  @ScopeDefault = @ScopeDefault_26da6704,
+  @ScopeDefault = @ScopeDefault_6c00d32f,
   @ScopeDefault_Clear = 1,
-  @AutoUpdateRelatedEntityInfo = @AutoUpdateRelatedEntityInfo_26da6704,
-  @ValuesToPackWithSchema = @ValuesToPackWithSchema_26da6704,
-  @Status = @Status_26da6704,
-  @AutoUpdateIsNameField = @AutoUpdateIsNameField_26da6704,
-  @AutoUpdateDefaultInView = @AutoUpdateDefaultInView_26da6704,
-  @AutoUpdateCategory = @AutoUpdateCategory_26da6704,
-  @AutoUpdateDisplayName = @AutoUpdateDisplayName_26da6704,
-  @AutoUpdateIncludeInUserSearchAPI = @AutoUpdateIncludeInUserSearchAPI_26da6704,
-  @Encrypt = @Encrypt_26da6704,
-  @EncryptionKeyID = @EncryptionKeyID_26da6704,
+  @AutoUpdateRelatedEntityInfo = @AutoUpdateRelatedEntityInfo_6c00d32f,
+  @ValuesToPackWithSchema = @ValuesToPackWithSchema_6c00d32f,
+  @Status = @Status_6c00d32f,
+  @AutoUpdateIsNameField = @AutoUpdateIsNameField_6c00d32f,
+  @AutoUpdateDefaultInView = @AutoUpdateDefaultInView_6c00d32f,
+  @AutoUpdateCategory = @AutoUpdateCategory_6c00d32f,
+  @AutoUpdateDisplayName = @AutoUpdateDisplayName_6c00d32f,
+  @AutoUpdateIncludeInUserSearchAPI = @AutoUpdateIncludeInUserSearchAPI_6c00d32f,
+  @Encrypt = @Encrypt_6c00d32f,
+  @EncryptionKeyID = @EncryptionKeyID_6c00d32f,
   @EncryptionKeyID_Clear = 1,
-  @AllowDecryptInAPI = @AllowDecryptInAPI_26da6704,
-  @SendEncryptedValue = @SendEncryptedValue_26da6704,
-  @IsSoftPrimaryKey = @IsSoftPrimaryKey_26da6704,
-  @IsSoftForeignKey = @IsSoftForeignKey_26da6704,
-  @RelatedEntityJoinFields = @RelatedEntityJoinFields_26da6704,
+  @AllowDecryptInAPI = @AllowDecryptInAPI_6c00d32f,
+  @SendEncryptedValue = @SendEncryptedValue_6c00d32f,
+  @IsSoftPrimaryKey = @IsSoftPrimaryKey_6c00d32f,
+  @IsSoftForeignKey = @IsSoftForeignKey_6c00d32f,
+  @RelatedEntityJoinFields = @RelatedEntityJoinFields_6c00d32f,
   @RelatedEntityJoinFields_Clear = 1,
-  @JSONType = @JSONType_26da6704,
+  @JSONType = @JSONType_6c00d32f,
   @JSONType_Clear = 1,
-  @JSONTypeIsArray = @JSONTypeIsArray_26da6704,
-  @JSONTypeDefinition = @JSONTypeDefinition_26da6704,
+  @JSONTypeIsArray = @JSONTypeIsArray_6c00d32f,
+  @JSONTypeDefinition = @JSONTypeDefinition_6c00d32f,
   @JSONTypeDefinition_Clear = 1,
-  @UserSearchPredicateAPI = @UserSearchPredicateAPI_26da6704,
-  @AutoUpdateUserSearchPredicate = @AutoUpdateUserSearchPredicate_26da6704,
-  @AutoUpdateFullTextSearch = @AutoUpdateFullTextSearch_26da6704,
-  @AutoUpdateExtendedType = @AutoUpdateExtendedType_26da6704,
-  @IsComputed = @IsComputed_26da6704,
-  @EmbeddedRecord = @EmbeddedRecord_26da6704,
+  @UserSearchPredicateAPI = @UserSearchPredicateAPI_6c00d32f,
+  @AutoUpdateUserSearchPredicate = @AutoUpdateUserSearchPredicate_6c00d32f,
+  @AutoUpdateFullTextSearch = @AutoUpdateFullTextSearch_6c00d32f,
+  @AutoUpdateExtendedType = @AutoUpdateExtendedType_6c00d32f,
+  @IsComputed = @IsComputed_6c00d32f,
+  @EmbeddedRecord = @EmbeddedRecord_6c00d32f,
   @EmbeddedRecord_Clear = 1,
-  @Configuration = @Configuration_26da6704,
+  @Configuration = @Configuration_6c00d32f,
   @Configuration_Clear = 1,
-  @ID = @ID_26da6704;
+  @ID = @ID_6c00d32f;
 
 GO
 
 -- Save MJ: Entity Fields (core SP call only)
-DECLARE @DisplayName_a4445e07 NVARCHAR(255),
-@Description_a4445e07 NVARCHAR(MAX),
-@AutoUpdateDescription_a4445e07 BIT,
-@IsPrimaryKey_a4445e07 BIT,
-@IsUnique_a4445e07 BIT,
-@Category_a4445e07 NVARCHAR(255),
-@ValueListType_a4445e07 NVARCHAR(20),
-@ExtendedType_a4445e07 NVARCHAR(50),
-@CodeType_a4445e07 NVARCHAR(50),
-@DefaultInView_a4445e07 BIT,
-@ViewCellTemplate_a4445e07 NVARCHAR(MAX),
-@DefaultColumnWidth_a4445e07 INT,
-@AllowUpdateAPI_a4445e07 BIT,
-@AllowUpdateInView_a4445e07 BIT,
-@IncludeInUserSearchAPI_a4445e07 BIT,
-@FullTextSearchEnabled_a4445e07 BIT,
-@UserSearchParamFormatAPI_a4445e07 NVARCHAR(500),
-@IncludeInGeneratedForm_a4445e07 BIT,
-@GeneratedFormSection_a4445e07 NVARCHAR(10),
-@IsNameField_a4445e07 BIT,
-@RelatedEntityID_a4445e07 UNIQUEIDENTIFIER,
-@RelatedEntityFieldName_a4445e07 NVARCHAR(255),
-@IncludeRelatedEntityNameFieldInBaseView_a4445e07 BIT,
-@RelatedEntityNameFieldMap_a4445e07 NVARCHAR(255),
-@RelatedEntityDisplayType_a4445e07 NVARCHAR(20),
-@EntityIDFieldName_a4445e07 NVARCHAR(100),
-@ScopeDefault_a4445e07 NVARCHAR(100),
-@AutoUpdateRelatedEntityInfo_a4445e07 BIT,
-@ValuesToPackWithSchema_a4445e07 NVARCHAR(10),
-@Status_a4445e07 NVARCHAR(25),
-@AutoUpdateIsNameField_a4445e07 BIT,
-@AutoUpdateDefaultInView_a4445e07 BIT,
-@AutoUpdateCategory_a4445e07 BIT,
-@AutoUpdateDisplayName_a4445e07 BIT,
-@AutoUpdateIncludeInUserSearchAPI_a4445e07 BIT,
-@Encrypt_a4445e07 BIT,
-@EncryptionKeyID_a4445e07 UNIQUEIDENTIFIER,
-@AllowDecryptInAPI_a4445e07 BIT,
-@SendEncryptedValue_a4445e07 BIT,
-@IsSoftPrimaryKey_a4445e07 BIT,
-@IsSoftForeignKey_a4445e07 BIT,
-@RelatedEntityJoinFields_a4445e07 NVARCHAR(MAX),
-@JSONType_a4445e07 NVARCHAR(255),
-@JSONTypeIsArray_a4445e07 BIT,
-@JSONTypeDefinition_a4445e07 NVARCHAR(MAX),
-@UserSearchPredicateAPI_a4445e07 NVARCHAR(20),
-@AutoUpdateUserSearchPredicate_a4445e07 BIT,
-@AutoUpdateFullTextSearch_a4445e07 BIT,
-@AutoUpdateExtendedType_a4445e07 BIT,
-@IsComputed_a4445e07 BIT,
-@EmbeddedRecord_a4445e07 NVARCHAR(MAX),
-@Configuration_a4445e07 NVARCHAR(MAX),
-@ID_a4445e07 UNIQUEIDENTIFIER
+DECLARE @DisplayName_05d95f3e NVARCHAR(255),
+@Description_05d95f3e NVARCHAR(MAX),
+@AutoUpdateDescription_05d95f3e BIT,
+@IsPrimaryKey_05d95f3e BIT,
+@IsUnique_05d95f3e BIT,
+@Category_05d95f3e NVARCHAR(255),
+@ValueListType_05d95f3e NVARCHAR(20),
+@ExtendedType_05d95f3e NVARCHAR(50),
+@CodeType_05d95f3e NVARCHAR(50),
+@DefaultInView_05d95f3e BIT,
+@ViewCellTemplate_05d95f3e NVARCHAR(MAX),
+@DefaultColumnWidth_05d95f3e INT,
+@AllowUpdateAPI_05d95f3e BIT,
+@AllowUpdateInView_05d95f3e BIT,
+@IncludeInUserSearchAPI_05d95f3e BIT,
+@FullTextSearchEnabled_05d95f3e BIT,
+@UserSearchParamFormatAPI_05d95f3e NVARCHAR(500),
+@IncludeInGeneratedForm_05d95f3e BIT,
+@GeneratedFormSection_05d95f3e NVARCHAR(10),
+@IsNameField_05d95f3e BIT,
+@RelatedEntityID_05d95f3e UNIQUEIDENTIFIER,
+@RelatedEntityFieldName_05d95f3e NVARCHAR(255),
+@IncludeRelatedEntityNameFieldInBaseView_05d95f3e BIT,
+@RelatedEntityNameFieldMap_05d95f3e NVARCHAR(255),
+@RelatedEntityDisplayType_05d95f3e NVARCHAR(20),
+@EntityIDFieldName_05d95f3e NVARCHAR(100),
+@ScopeDefault_05d95f3e NVARCHAR(100),
+@AutoUpdateRelatedEntityInfo_05d95f3e BIT,
+@ValuesToPackWithSchema_05d95f3e NVARCHAR(10),
+@Status_05d95f3e NVARCHAR(25),
+@AutoUpdateIsNameField_05d95f3e BIT,
+@AutoUpdateDefaultInView_05d95f3e BIT,
+@AutoUpdateCategory_05d95f3e BIT,
+@AutoUpdateDisplayName_05d95f3e BIT,
+@AutoUpdateIncludeInUserSearchAPI_05d95f3e BIT,
+@Encrypt_05d95f3e BIT,
+@EncryptionKeyID_05d95f3e UNIQUEIDENTIFIER,
+@AllowDecryptInAPI_05d95f3e BIT,
+@SendEncryptedValue_05d95f3e BIT,
+@IsSoftPrimaryKey_05d95f3e BIT,
+@IsSoftForeignKey_05d95f3e BIT,
+@RelatedEntityJoinFields_05d95f3e NVARCHAR(MAX),
+@JSONType_05d95f3e NVARCHAR(255),
+@JSONTypeIsArray_05d95f3e BIT,
+@JSONTypeDefinition_05d95f3e NVARCHAR(MAX),
+@UserSearchPredicateAPI_05d95f3e NVARCHAR(20),
+@AutoUpdateUserSearchPredicate_05d95f3e BIT,
+@AutoUpdateFullTextSearch_05d95f3e BIT,
+@AutoUpdateExtendedType_05d95f3e BIT,
+@IsComputed_05d95f3e BIT,
+@EmbeddedRecord_05d95f3e NVARCHAR(MAX),
+@Configuration_05d95f3e NVARCHAR(MAX),
+@ID_05d95f3e UNIQUEIDENTIFIER
 SET
-  @DisplayName_a4445e07 = N'Is Awaiting Document'
+  @DisplayName_05d95f3e = N'Is Awaiting Document'
 SET
-  @AutoUpdateDescription_a4445e07 = 1
+  @AutoUpdateDescription_05d95f3e = 1
 SET
-  @IsPrimaryKey_a4445e07 = 0
+  @IsPrimaryKey_05d95f3e = 0
 SET
-  @IsUnique_a4445e07 = 0
+  @IsUnique_05d95f3e = 0
 SET
-  @ValueListType_a4445e07 = N'None'
+  @ValueListType_05d95f3e = N'None'
 SET
-  @DefaultInView_a4445e07 = 0
+  @DefaultInView_05d95f3e = 0
 SET
-  @AllowUpdateAPI_a4445e07 = 0
+  @AllowUpdateAPI_05d95f3e = 0
 SET
-  @AllowUpdateInView_a4445e07 = 1
+  @AllowUpdateInView_05d95f3e = 1
 SET
-  @IncludeInUserSearchAPI_a4445e07 = 0
+  @IncludeInUserSearchAPI_05d95f3e = 0
 SET
-  @FullTextSearchEnabled_a4445e07 = 0
+  @FullTextSearchEnabled_05d95f3e = 0
 SET
-  @IncludeInGeneratedForm_a4445e07 = 0
+  @IncludeInGeneratedForm_05d95f3e = 0
 SET
-  @GeneratedFormSection_a4445e07 = N'Details'
+  @GeneratedFormSection_05d95f3e = N'Details'
 SET
-  @IsNameField_a4445e07 = 0
+  @IsNameField_05d95f3e = 0
 SET
-  @IncludeRelatedEntityNameFieldInBaseView_a4445e07 = 1
+  @IncludeRelatedEntityNameFieldInBaseView_05d95f3e = 1
 SET
-  @RelatedEntityDisplayType_a4445e07 = N'Search'
+  @RelatedEntityDisplayType_05d95f3e = N'Search'
 SET
-  @AutoUpdateRelatedEntityInfo_a4445e07 = 1
+  @AutoUpdateRelatedEntityInfo_05d95f3e = 1
 SET
-  @ValuesToPackWithSchema_a4445e07 = N'Auto'
+  @ValuesToPackWithSchema_05d95f3e = N'Auto'
 SET
-  @Status_a4445e07 = N'Active'
+  @Status_05d95f3e = N'Active'
 SET
-  @AutoUpdateIsNameField_a4445e07 = 1
+  @AutoUpdateIsNameField_05d95f3e = 1
 SET
-  @AutoUpdateDefaultInView_a4445e07 = 1
+  @AutoUpdateDefaultInView_05d95f3e = 1
 SET
-  @AutoUpdateCategory_a4445e07 = 1
+  @AutoUpdateCategory_05d95f3e = 1
 SET
-  @AutoUpdateDisplayName_a4445e07 = 1
+  @AutoUpdateDisplayName_05d95f3e = 1
 SET
-  @AutoUpdateIncludeInUserSearchAPI_a4445e07 = 1
+  @AutoUpdateIncludeInUserSearchAPI_05d95f3e = 1
 SET
-  @Encrypt_a4445e07 = 0
+  @Encrypt_05d95f3e = 0
 SET
-  @AllowDecryptInAPI_a4445e07 = 0
+  @AllowDecryptInAPI_05d95f3e = 0
 SET
-  @SendEncryptedValue_a4445e07 = 0
+  @SendEncryptedValue_05d95f3e = 0
 SET
-  @IsSoftPrimaryKey_a4445e07 = 0
+  @IsSoftPrimaryKey_05d95f3e = 0
 SET
-  @IsSoftForeignKey_a4445e07 = 0
+  @IsSoftForeignKey_05d95f3e = 0
 SET
-  @JSONTypeIsArray_a4445e07 = 0
+  @JSONTypeIsArray_05d95f3e = 0
 SET
-  @UserSearchPredicateAPI_a4445e07 = N'Contains'
+  @UserSearchPredicateAPI_05d95f3e = N'Contains'
 SET
-  @AutoUpdateUserSearchPredicate_a4445e07 = 1
+  @AutoUpdateUserSearchPredicate_05d95f3e = 1
 SET
-  @AutoUpdateFullTextSearch_a4445e07 = 1
+  @AutoUpdateFullTextSearch_05d95f3e = 1
 SET
-  @AutoUpdateExtendedType_a4445e07 = 1
+  @AutoUpdateExtendedType_05d95f3e = 1
 SET
-  @IsComputed_a4445e07 = 0
+  @IsComputed_05d95f3e = 0
 SET
-  @ID_a4445e07 = 'C5754B3E-F36B-1410-8A4E-0066522E4B7A' EXEC [${mjSchema}].spUpdateEntityField @DisplayName = @DisplayName_a4445e07,
-  @Description = @Description_a4445e07,
+  @ID_05d95f3e = 'EFA74B3E-F36B-1410-8A4E-0066522E4B7A' EXEC [${mjSchema}].spUpdateEntityField @DisplayName = @DisplayName_05d95f3e,
+  @Description = @Description_05d95f3e,
   @Description_Clear = 1,
-  @AutoUpdateDescription = @AutoUpdateDescription_a4445e07,
-  @IsPrimaryKey = @IsPrimaryKey_a4445e07,
-  @IsUnique = @IsUnique_a4445e07,
-  @Category = @Category_a4445e07,
+  @AutoUpdateDescription = @AutoUpdateDescription_05d95f3e,
+  @IsPrimaryKey = @IsPrimaryKey_05d95f3e,
+  @IsUnique = @IsUnique_05d95f3e,
+  @Category = @Category_05d95f3e,
   @Category_Clear = 1,
-  @ValueListType = @ValueListType_a4445e07,
-  @ExtendedType = @ExtendedType_a4445e07,
+  @ValueListType = @ValueListType_05d95f3e,
+  @ExtendedType = @ExtendedType_05d95f3e,
   @ExtendedType_Clear = 1,
-  @CodeType = @CodeType_a4445e07,
+  @CodeType = @CodeType_05d95f3e,
   @CodeType_Clear = 1,
-  @DefaultInView = @DefaultInView_a4445e07,
-  @ViewCellTemplate = @ViewCellTemplate_a4445e07,
+  @DefaultInView = @DefaultInView_05d95f3e,
+  @ViewCellTemplate = @ViewCellTemplate_05d95f3e,
   @ViewCellTemplate_Clear = 1,
-  @DefaultColumnWidth = @DefaultColumnWidth_a4445e07,
+  @DefaultColumnWidth = @DefaultColumnWidth_05d95f3e,
   @DefaultColumnWidth_Clear = 1,
-  @AllowUpdateAPI = @AllowUpdateAPI_a4445e07,
-  @AllowUpdateInView = @AllowUpdateInView_a4445e07,
-  @IncludeInUserSearchAPI = @IncludeInUserSearchAPI_a4445e07,
-  @FullTextSearchEnabled = @FullTextSearchEnabled_a4445e07,
-  @UserSearchParamFormatAPI = @UserSearchParamFormatAPI_a4445e07,
+  @AllowUpdateAPI = @AllowUpdateAPI_05d95f3e,
+  @AllowUpdateInView = @AllowUpdateInView_05d95f3e,
+  @IncludeInUserSearchAPI = @IncludeInUserSearchAPI_05d95f3e,
+  @FullTextSearchEnabled = @FullTextSearchEnabled_05d95f3e,
+  @UserSearchParamFormatAPI = @UserSearchParamFormatAPI_05d95f3e,
   @UserSearchParamFormatAPI_Clear = 1,
-  @IncludeInGeneratedForm = @IncludeInGeneratedForm_a4445e07,
-  @GeneratedFormSection = @GeneratedFormSection_a4445e07,
-  @IsNameField = @IsNameField_a4445e07,
-  @RelatedEntityID = @RelatedEntityID_a4445e07,
+  @IncludeInGeneratedForm = @IncludeInGeneratedForm_05d95f3e,
+  @GeneratedFormSection = @GeneratedFormSection_05d95f3e,
+  @IsNameField = @IsNameField_05d95f3e,
+  @RelatedEntityID = @RelatedEntityID_05d95f3e,
   @RelatedEntityID_Clear = 1,
-  @RelatedEntityFieldName = @RelatedEntityFieldName_a4445e07,
+  @RelatedEntityFieldName = @RelatedEntityFieldName_05d95f3e,
   @RelatedEntityFieldName_Clear = 1,
-  @IncludeRelatedEntityNameFieldInBaseView = @IncludeRelatedEntityNameFieldInBaseView_a4445e07,
-  @RelatedEntityNameFieldMap = @RelatedEntityNameFieldMap_a4445e07,
+  @IncludeRelatedEntityNameFieldInBaseView = @IncludeRelatedEntityNameFieldInBaseView_05d95f3e,
+  @RelatedEntityNameFieldMap = @RelatedEntityNameFieldMap_05d95f3e,
   @RelatedEntityNameFieldMap_Clear = 1,
-  @RelatedEntityDisplayType = @RelatedEntityDisplayType_a4445e07,
-  @EntityIDFieldName = @EntityIDFieldName_a4445e07,
+  @RelatedEntityDisplayType = @RelatedEntityDisplayType_05d95f3e,
+  @EntityIDFieldName = @EntityIDFieldName_05d95f3e,
   @EntityIDFieldName_Clear = 1,
-  @ScopeDefault = @ScopeDefault_a4445e07,
+  @ScopeDefault = @ScopeDefault_05d95f3e,
   @ScopeDefault_Clear = 1,
-  @AutoUpdateRelatedEntityInfo = @AutoUpdateRelatedEntityInfo_a4445e07,
-  @ValuesToPackWithSchema = @ValuesToPackWithSchema_a4445e07,
-  @Status = @Status_a4445e07,
-  @AutoUpdateIsNameField = @AutoUpdateIsNameField_a4445e07,
-  @AutoUpdateDefaultInView = @AutoUpdateDefaultInView_a4445e07,
-  @AutoUpdateCategory = @AutoUpdateCategory_a4445e07,
-  @AutoUpdateDisplayName = @AutoUpdateDisplayName_a4445e07,
-  @AutoUpdateIncludeInUserSearchAPI = @AutoUpdateIncludeInUserSearchAPI_a4445e07,
-  @Encrypt = @Encrypt_a4445e07,
-  @EncryptionKeyID = @EncryptionKeyID_a4445e07,
+  @AutoUpdateRelatedEntityInfo = @AutoUpdateRelatedEntityInfo_05d95f3e,
+  @ValuesToPackWithSchema = @ValuesToPackWithSchema_05d95f3e,
+  @Status = @Status_05d95f3e,
+  @AutoUpdateIsNameField = @AutoUpdateIsNameField_05d95f3e,
+  @AutoUpdateDefaultInView = @AutoUpdateDefaultInView_05d95f3e,
+  @AutoUpdateCategory = @AutoUpdateCategory_05d95f3e,
+  @AutoUpdateDisplayName = @AutoUpdateDisplayName_05d95f3e,
+  @AutoUpdateIncludeInUserSearchAPI = @AutoUpdateIncludeInUserSearchAPI_05d95f3e,
+  @Encrypt = @Encrypt_05d95f3e,
+  @EncryptionKeyID = @EncryptionKeyID_05d95f3e,
   @EncryptionKeyID_Clear = 1,
-  @AllowDecryptInAPI = @AllowDecryptInAPI_a4445e07,
-  @SendEncryptedValue = @SendEncryptedValue_a4445e07,
-  @IsSoftPrimaryKey = @IsSoftPrimaryKey_a4445e07,
-  @IsSoftForeignKey = @IsSoftForeignKey_a4445e07,
-  @RelatedEntityJoinFields = @RelatedEntityJoinFields_a4445e07,
+  @AllowDecryptInAPI = @AllowDecryptInAPI_05d95f3e,
+  @SendEncryptedValue = @SendEncryptedValue_05d95f3e,
+  @IsSoftPrimaryKey = @IsSoftPrimaryKey_05d95f3e,
+  @IsSoftForeignKey = @IsSoftForeignKey_05d95f3e,
+  @RelatedEntityJoinFields = @RelatedEntityJoinFields_05d95f3e,
   @RelatedEntityJoinFields_Clear = 1,
-  @JSONType = @JSONType_a4445e07,
+  @JSONType = @JSONType_05d95f3e,
   @JSONType_Clear = 1,
-  @JSONTypeIsArray = @JSONTypeIsArray_a4445e07,
-  @JSONTypeDefinition = @JSONTypeDefinition_a4445e07,
+  @JSONTypeIsArray = @JSONTypeIsArray_05d95f3e,
+  @JSONTypeDefinition = @JSONTypeDefinition_05d95f3e,
   @JSONTypeDefinition_Clear = 1,
-  @UserSearchPredicateAPI = @UserSearchPredicateAPI_a4445e07,
-  @AutoUpdateUserSearchPredicate = @AutoUpdateUserSearchPredicate_a4445e07,
-  @AutoUpdateFullTextSearch = @AutoUpdateFullTextSearch_a4445e07,
-  @AutoUpdateExtendedType = @AutoUpdateExtendedType_a4445e07,
-  @IsComputed = @IsComputed_a4445e07,
-  @EmbeddedRecord = @EmbeddedRecord_a4445e07,
+  @UserSearchPredicateAPI = @UserSearchPredicateAPI_05d95f3e,
+  @AutoUpdateUserSearchPredicate = @AutoUpdateUserSearchPredicate_05d95f3e,
+  @AutoUpdateFullTextSearch = @AutoUpdateFullTextSearch_05d95f3e,
+  @AutoUpdateExtendedType = @AutoUpdateExtendedType_05d95f3e,
+  @IsComputed = @IsComputed_05d95f3e,
+  @EmbeddedRecord = @EmbeddedRecord_05d95f3e,
   @EmbeddedRecord_Clear = 1,
-  @Configuration = @Configuration_a4445e07,
+  @Configuration = @Configuration_05d95f3e,
   @Configuration_Clear = 1,
-  @ID = @ID_a4445e07;
+  @ID = @ID_05d95f3e;
 
 GO
 
 -- Save MJ: Entity Fields (core SP call only)
-DECLARE @DisplayName_31747a02 NVARCHAR(255),
-@Description_31747a02 NVARCHAR(MAX),
-@AutoUpdateDescription_31747a02 BIT,
-@IsPrimaryKey_31747a02 BIT,
-@IsUnique_31747a02 BIT,
-@Category_31747a02 NVARCHAR(255),
-@ValueListType_31747a02 NVARCHAR(20),
-@ExtendedType_31747a02 NVARCHAR(50),
-@CodeType_31747a02 NVARCHAR(50),
-@DefaultInView_31747a02 BIT,
-@ViewCellTemplate_31747a02 NVARCHAR(MAX),
-@DefaultColumnWidth_31747a02 INT,
-@AllowUpdateAPI_31747a02 BIT,
-@AllowUpdateInView_31747a02 BIT,
-@IncludeInUserSearchAPI_31747a02 BIT,
-@FullTextSearchEnabled_31747a02 BIT,
-@UserSearchParamFormatAPI_31747a02 NVARCHAR(500),
-@IncludeInGeneratedForm_31747a02 BIT,
-@GeneratedFormSection_31747a02 NVARCHAR(10),
-@IsNameField_31747a02 BIT,
-@RelatedEntityID_31747a02 UNIQUEIDENTIFIER,
-@RelatedEntityFieldName_31747a02 NVARCHAR(255),
-@IncludeRelatedEntityNameFieldInBaseView_31747a02 BIT,
-@RelatedEntityNameFieldMap_31747a02 NVARCHAR(255),
-@RelatedEntityDisplayType_31747a02 NVARCHAR(20),
-@EntityIDFieldName_31747a02 NVARCHAR(100),
-@ScopeDefault_31747a02 NVARCHAR(100),
-@AutoUpdateRelatedEntityInfo_31747a02 BIT,
-@ValuesToPackWithSchema_31747a02 NVARCHAR(10),
-@Status_31747a02 NVARCHAR(25),
-@AutoUpdateIsNameField_31747a02 BIT,
-@AutoUpdateDefaultInView_31747a02 BIT,
-@AutoUpdateCategory_31747a02 BIT,
-@AutoUpdateDisplayName_31747a02 BIT,
-@AutoUpdateIncludeInUserSearchAPI_31747a02 BIT,
-@Encrypt_31747a02 BIT,
-@EncryptionKeyID_31747a02 UNIQUEIDENTIFIER,
-@AllowDecryptInAPI_31747a02 BIT,
-@SendEncryptedValue_31747a02 BIT,
-@IsSoftPrimaryKey_31747a02 BIT,
-@IsSoftForeignKey_31747a02 BIT,
-@RelatedEntityJoinFields_31747a02 NVARCHAR(MAX),
-@JSONType_31747a02 NVARCHAR(255),
-@JSONTypeIsArray_31747a02 BIT,
-@JSONTypeDefinition_31747a02 NVARCHAR(MAX),
-@UserSearchPredicateAPI_31747a02 NVARCHAR(20),
-@AutoUpdateUserSearchPredicate_31747a02 BIT,
-@AutoUpdateFullTextSearch_31747a02 BIT,
-@AutoUpdateExtendedType_31747a02 BIT,
-@IsComputed_31747a02 BIT,
-@EmbeddedRecord_31747a02 NVARCHAR(MAX),
-@Configuration_31747a02 NVARCHAR(MAX),
-@ID_31747a02 UNIQUEIDENTIFIER
+DECLARE @DisplayName_14dd0c0f NVARCHAR(255),
+@Description_14dd0c0f NVARCHAR(MAX),
+@AutoUpdateDescription_14dd0c0f BIT,
+@IsPrimaryKey_14dd0c0f BIT,
+@IsUnique_14dd0c0f BIT,
+@Category_14dd0c0f NVARCHAR(255),
+@ValueListType_14dd0c0f NVARCHAR(20),
+@ExtendedType_14dd0c0f NVARCHAR(50),
+@CodeType_14dd0c0f NVARCHAR(50),
+@DefaultInView_14dd0c0f BIT,
+@ViewCellTemplate_14dd0c0f NVARCHAR(MAX),
+@DefaultColumnWidth_14dd0c0f INT,
+@AllowUpdateAPI_14dd0c0f BIT,
+@AllowUpdateInView_14dd0c0f BIT,
+@IncludeInUserSearchAPI_14dd0c0f BIT,
+@FullTextSearchEnabled_14dd0c0f BIT,
+@UserSearchParamFormatAPI_14dd0c0f NVARCHAR(500),
+@IncludeInGeneratedForm_14dd0c0f BIT,
+@GeneratedFormSection_14dd0c0f NVARCHAR(10),
+@IsNameField_14dd0c0f BIT,
+@RelatedEntityID_14dd0c0f UNIQUEIDENTIFIER,
+@RelatedEntityFieldName_14dd0c0f NVARCHAR(255),
+@IncludeRelatedEntityNameFieldInBaseView_14dd0c0f BIT,
+@RelatedEntityNameFieldMap_14dd0c0f NVARCHAR(255),
+@RelatedEntityDisplayType_14dd0c0f NVARCHAR(20),
+@EntityIDFieldName_14dd0c0f NVARCHAR(100),
+@ScopeDefault_14dd0c0f NVARCHAR(100),
+@AutoUpdateRelatedEntityInfo_14dd0c0f BIT,
+@ValuesToPackWithSchema_14dd0c0f NVARCHAR(10),
+@Status_14dd0c0f NVARCHAR(25),
+@AutoUpdateIsNameField_14dd0c0f BIT,
+@AutoUpdateDefaultInView_14dd0c0f BIT,
+@AutoUpdateCategory_14dd0c0f BIT,
+@AutoUpdateDisplayName_14dd0c0f BIT,
+@AutoUpdateIncludeInUserSearchAPI_14dd0c0f BIT,
+@Encrypt_14dd0c0f BIT,
+@EncryptionKeyID_14dd0c0f UNIQUEIDENTIFIER,
+@AllowDecryptInAPI_14dd0c0f BIT,
+@SendEncryptedValue_14dd0c0f BIT,
+@IsSoftPrimaryKey_14dd0c0f BIT,
+@IsSoftForeignKey_14dd0c0f BIT,
+@RelatedEntityJoinFields_14dd0c0f NVARCHAR(MAX),
+@JSONType_14dd0c0f NVARCHAR(255),
+@JSONTypeIsArray_14dd0c0f BIT,
+@JSONTypeDefinition_14dd0c0f NVARCHAR(MAX),
+@UserSearchPredicateAPI_14dd0c0f NVARCHAR(20),
+@AutoUpdateUserSearchPredicate_14dd0c0f BIT,
+@AutoUpdateFullTextSearch_14dd0c0f BIT,
+@AutoUpdateExtendedType_14dd0c0f BIT,
+@IsComputed_14dd0c0f BIT,
+@EmbeddedRecord_14dd0c0f NVARCHAR(MAX),
+@Configuration_14dd0c0f NVARCHAR(MAX),
+@ID_14dd0c0f UNIQUEIDENTIFIER
 SET
-  @DisplayName_31747a02 = N'Days To End'
+  @DisplayName_14dd0c0f = N'Renewal Notice Deadline'
 SET
-  @AutoUpdateDescription_31747a02 = 1
+  @AutoUpdateDescription_14dd0c0f = 1
 SET
-  @IsPrimaryKey_31747a02 = 0
+  @IsPrimaryKey_14dd0c0f = 0
 SET
-  @IsUnique_31747a02 = 0
+  @IsUnique_14dd0c0f = 0
 SET
-  @ValueListType_31747a02 = N'None'
+  @ValueListType_14dd0c0f = N'None'
 SET
-  @DefaultInView_31747a02 = 0
+  @DefaultInView_14dd0c0f = 0
 SET
-  @AllowUpdateAPI_31747a02 = 0
+  @AllowUpdateAPI_14dd0c0f = 0
 SET
-  @AllowUpdateInView_31747a02 = 1
+  @AllowUpdateInView_14dd0c0f = 1
 SET
-  @IncludeInUserSearchAPI_31747a02 = 0
+  @IncludeInUserSearchAPI_14dd0c0f = 0
 SET
-  @FullTextSearchEnabled_31747a02 = 0
+  @FullTextSearchEnabled_14dd0c0f = 0
 SET
-  @IncludeInGeneratedForm_31747a02 = 0
+  @IncludeInGeneratedForm_14dd0c0f = 0
 SET
-  @GeneratedFormSection_31747a02 = N'Details'
+  @GeneratedFormSection_14dd0c0f = N'Details'
 SET
-  @IsNameField_31747a02 = 0
+  @IsNameField_14dd0c0f = 0
 SET
-  @IncludeRelatedEntityNameFieldInBaseView_31747a02 = 1
+  @IncludeRelatedEntityNameFieldInBaseView_14dd0c0f = 1
 SET
-  @RelatedEntityDisplayType_31747a02 = N'Search'
+  @RelatedEntityDisplayType_14dd0c0f = N'Search'
 SET
-  @AutoUpdateRelatedEntityInfo_31747a02 = 1
+  @AutoUpdateRelatedEntityInfo_14dd0c0f = 1
 SET
-  @ValuesToPackWithSchema_31747a02 = N'Auto'
+  @ValuesToPackWithSchema_14dd0c0f = N'Auto'
 SET
-  @Status_31747a02 = N'Active'
+  @Status_14dd0c0f = N'Active'
 SET
-  @AutoUpdateIsNameField_31747a02 = 1
+  @AutoUpdateIsNameField_14dd0c0f = 1
 SET
-  @AutoUpdateDefaultInView_31747a02 = 1
+  @AutoUpdateDefaultInView_14dd0c0f = 1
 SET
-  @AutoUpdateCategory_31747a02 = 1
+  @AutoUpdateCategory_14dd0c0f = 1
 SET
-  @AutoUpdateDisplayName_31747a02 = 1
+  @AutoUpdateDisplayName_14dd0c0f = 1
 SET
-  @AutoUpdateIncludeInUserSearchAPI_31747a02 = 1
+  @AutoUpdateIncludeInUserSearchAPI_14dd0c0f = 1
 SET
-  @Encrypt_31747a02 = 0
+  @Encrypt_14dd0c0f = 0
 SET
-  @AllowDecryptInAPI_31747a02 = 0
+  @AllowDecryptInAPI_14dd0c0f = 0
 SET
-  @SendEncryptedValue_31747a02 = 0
+  @SendEncryptedValue_14dd0c0f = 0
 SET
-  @IsSoftPrimaryKey_31747a02 = 0
+  @IsSoftPrimaryKey_14dd0c0f = 0
 SET
-  @IsSoftForeignKey_31747a02 = 0
+  @IsSoftForeignKey_14dd0c0f = 0
 SET
-  @JSONTypeIsArray_31747a02 = 0
+  @JSONTypeIsArray_14dd0c0f = 0
 SET
-  @UserSearchPredicateAPI_31747a02 = N'Contains'
+  @UserSearchPredicateAPI_14dd0c0f = N'Contains'
 SET
-  @AutoUpdateUserSearchPredicate_31747a02 = 1
+  @AutoUpdateUserSearchPredicate_14dd0c0f = 1
 SET
-  @AutoUpdateFullTextSearch_31747a02 = 1
+  @AutoUpdateFullTextSearch_14dd0c0f = 1
 SET
-  @AutoUpdateExtendedType_31747a02 = 1
+  @AutoUpdateExtendedType_14dd0c0f = 1
 SET
-  @IsComputed_31747a02 = 0
+  @IsComputed_14dd0c0f = 0
 SET
-  @ID_31747a02 = 'C8754B3E-F36B-1410-8A4E-0066522E4B7A' EXEC [${mjSchema}].spUpdateEntityField @DisplayName = @DisplayName_31747a02,
-  @Description = @Description_31747a02,
+  @ID_14dd0c0f = 'F7A74B3E-F36B-1410-8A4E-0066522E4B7A' EXEC [${mjSchema}].spUpdateEntityField @DisplayName = @DisplayName_14dd0c0f,
+  @Description = @Description_14dd0c0f,
   @Description_Clear = 1,
-  @AutoUpdateDescription = @AutoUpdateDescription_31747a02,
-  @IsPrimaryKey = @IsPrimaryKey_31747a02,
-  @IsUnique = @IsUnique_31747a02,
-  @Category = @Category_31747a02,
+  @AutoUpdateDescription = @AutoUpdateDescription_14dd0c0f,
+  @IsPrimaryKey = @IsPrimaryKey_14dd0c0f,
+  @IsUnique = @IsUnique_14dd0c0f,
+  @Category = @Category_14dd0c0f,
   @Category_Clear = 1,
-  @ValueListType = @ValueListType_31747a02,
-  @ExtendedType = @ExtendedType_31747a02,
+  @ValueListType = @ValueListType_14dd0c0f,
+  @ExtendedType = @ExtendedType_14dd0c0f,
   @ExtendedType_Clear = 1,
-  @CodeType = @CodeType_31747a02,
+  @CodeType = @CodeType_14dd0c0f,
   @CodeType_Clear = 1,
-  @DefaultInView = @DefaultInView_31747a02,
-  @ViewCellTemplate = @ViewCellTemplate_31747a02,
+  @DefaultInView = @DefaultInView_14dd0c0f,
+  @ViewCellTemplate = @ViewCellTemplate_14dd0c0f,
   @ViewCellTemplate_Clear = 1,
-  @DefaultColumnWidth = @DefaultColumnWidth_31747a02,
+  @DefaultColumnWidth = @DefaultColumnWidth_14dd0c0f,
   @DefaultColumnWidth_Clear = 1,
-  @AllowUpdateAPI = @AllowUpdateAPI_31747a02,
-  @AllowUpdateInView = @AllowUpdateInView_31747a02,
-  @IncludeInUserSearchAPI = @IncludeInUserSearchAPI_31747a02,
-  @FullTextSearchEnabled = @FullTextSearchEnabled_31747a02,
-  @UserSearchParamFormatAPI = @UserSearchParamFormatAPI_31747a02,
+  @AllowUpdateAPI = @AllowUpdateAPI_14dd0c0f,
+  @AllowUpdateInView = @AllowUpdateInView_14dd0c0f,
+  @IncludeInUserSearchAPI = @IncludeInUserSearchAPI_14dd0c0f,
+  @FullTextSearchEnabled = @FullTextSearchEnabled_14dd0c0f,
+  @UserSearchParamFormatAPI = @UserSearchParamFormatAPI_14dd0c0f,
   @UserSearchParamFormatAPI_Clear = 1,
-  @IncludeInGeneratedForm = @IncludeInGeneratedForm_31747a02,
-  @GeneratedFormSection = @GeneratedFormSection_31747a02,
-  @IsNameField = @IsNameField_31747a02,
-  @RelatedEntityID = @RelatedEntityID_31747a02,
+  @IncludeInGeneratedForm = @IncludeInGeneratedForm_14dd0c0f,
+  @GeneratedFormSection = @GeneratedFormSection_14dd0c0f,
+  @IsNameField = @IsNameField_14dd0c0f,
+  @RelatedEntityID = @RelatedEntityID_14dd0c0f,
   @RelatedEntityID_Clear = 1,
-  @RelatedEntityFieldName = @RelatedEntityFieldName_31747a02,
+  @RelatedEntityFieldName = @RelatedEntityFieldName_14dd0c0f,
   @RelatedEntityFieldName_Clear = 1,
-  @IncludeRelatedEntityNameFieldInBaseView = @IncludeRelatedEntityNameFieldInBaseView_31747a02,
-  @RelatedEntityNameFieldMap = @RelatedEntityNameFieldMap_31747a02,
+  @IncludeRelatedEntityNameFieldInBaseView = @IncludeRelatedEntityNameFieldInBaseView_14dd0c0f,
+  @RelatedEntityNameFieldMap = @RelatedEntityNameFieldMap_14dd0c0f,
   @RelatedEntityNameFieldMap_Clear = 1,
-  @RelatedEntityDisplayType = @RelatedEntityDisplayType_31747a02,
-  @EntityIDFieldName = @EntityIDFieldName_31747a02,
+  @RelatedEntityDisplayType = @RelatedEntityDisplayType_14dd0c0f,
+  @EntityIDFieldName = @EntityIDFieldName_14dd0c0f,
   @EntityIDFieldName_Clear = 1,
-  @ScopeDefault = @ScopeDefault_31747a02,
+  @ScopeDefault = @ScopeDefault_14dd0c0f,
   @ScopeDefault_Clear = 1,
-  @AutoUpdateRelatedEntityInfo = @AutoUpdateRelatedEntityInfo_31747a02,
-  @ValuesToPackWithSchema = @ValuesToPackWithSchema_31747a02,
-  @Status = @Status_31747a02,
-  @AutoUpdateIsNameField = @AutoUpdateIsNameField_31747a02,
-  @AutoUpdateDefaultInView = @AutoUpdateDefaultInView_31747a02,
-  @AutoUpdateCategory = @AutoUpdateCategory_31747a02,
-  @AutoUpdateDisplayName = @AutoUpdateDisplayName_31747a02,
-  @AutoUpdateIncludeInUserSearchAPI = @AutoUpdateIncludeInUserSearchAPI_31747a02,
-  @Encrypt = @Encrypt_31747a02,
-  @EncryptionKeyID = @EncryptionKeyID_31747a02,
+  @AutoUpdateRelatedEntityInfo = @AutoUpdateRelatedEntityInfo_14dd0c0f,
+  @ValuesToPackWithSchema = @ValuesToPackWithSchema_14dd0c0f,
+  @Status = @Status_14dd0c0f,
+  @AutoUpdateIsNameField = @AutoUpdateIsNameField_14dd0c0f,
+  @AutoUpdateDefaultInView = @AutoUpdateDefaultInView_14dd0c0f,
+  @AutoUpdateCategory = @AutoUpdateCategory_14dd0c0f,
+  @AutoUpdateDisplayName = @AutoUpdateDisplayName_14dd0c0f,
+  @AutoUpdateIncludeInUserSearchAPI = @AutoUpdateIncludeInUserSearchAPI_14dd0c0f,
+  @Encrypt = @Encrypt_14dd0c0f,
+  @EncryptionKeyID = @EncryptionKeyID_14dd0c0f,
   @EncryptionKeyID_Clear = 1,
-  @AllowDecryptInAPI = @AllowDecryptInAPI_31747a02,
-  @SendEncryptedValue = @SendEncryptedValue_31747a02,
-  @IsSoftPrimaryKey = @IsSoftPrimaryKey_31747a02,
-  @IsSoftForeignKey = @IsSoftForeignKey_31747a02,
-  @RelatedEntityJoinFields = @RelatedEntityJoinFields_31747a02,
+  @AllowDecryptInAPI = @AllowDecryptInAPI_14dd0c0f,
+  @SendEncryptedValue = @SendEncryptedValue_14dd0c0f,
+  @IsSoftPrimaryKey = @IsSoftPrimaryKey_14dd0c0f,
+  @IsSoftForeignKey = @IsSoftForeignKey_14dd0c0f,
+  @RelatedEntityJoinFields = @RelatedEntityJoinFields_14dd0c0f,
   @RelatedEntityJoinFields_Clear = 1,
-  @JSONType = @JSONType_31747a02,
+  @JSONType = @JSONType_14dd0c0f,
   @JSONType_Clear = 1,
-  @JSONTypeIsArray = @JSONTypeIsArray_31747a02,
-  @JSONTypeDefinition = @JSONTypeDefinition_31747a02,
+  @JSONTypeIsArray = @JSONTypeIsArray_14dd0c0f,
+  @JSONTypeDefinition = @JSONTypeDefinition_14dd0c0f,
   @JSONTypeDefinition_Clear = 1,
-  @UserSearchPredicateAPI = @UserSearchPredicateAPI_31747a02,
-  @AutoUpdateUserSearchPredicate = @AutoUpdateUserSearchPredicate_31747a02,
-  @AutoUpdateFullTextSearch = @AutoUpdateFullTextSearch_31747a02,
-  @AutoUpdateExtendedType = @AutoUpdateExtendedType_31747a02,
-  @IsComputed = @IsComputed_31747a02,
-  @EmbeddedRecord = @EmbeddedRecord_31747a02,
+  @UserSearchPredicateAPI = @UserSearchPredicateAPI_14dd0c0f,
+  @AutoUpdateUserSearchPredicate = @AutoUpdateUserSearchPredicate_14dd0c0f,
+  @AutoUpdateFullTextSearch = @AutoUpdateFullTextSearch_14dd0c0f,
+  @AutoUpdateExtendedType = @AutoUpdateExtendedType_14dd0c0f,
+  @IsComputed = @IsComputed_14dd0c0f,
+  @EmbeddedRecord = @EmbeddedRecord_14dd0c0f,
   @EmbeddedRecord_Clear = 1,
-  @Configuration = @Configuration_31747a02,
+  @Configuration = @Configuration_14dd0c0f,
   @Configuration_Clear = 1,
-  @ID = @ID_31747a02;
+  @ID = @ID_14dd0c0f;
 
 GO
 
 -- Save MJ: Entity Fields (core SP call only)
-DECLARE @DisplayName_4ff6ca83 NVARCHAR(255),
-@Description_4ff6ca83 NVARCHAR(MAX),
-@AutoUpdateDescription_4ff6ca83 BIT,
-@IsPrimaryKey_4ff6ca83 BIT,
-@IsUnique_4ff6ca83 BIT,
-@Category_4ff6ca83 NVARCHAR(255),
-@ValueListType_4ff6ca83 NVARCHAR(20),
-@ExtendedType_4ff6ca83 NVARCHAR(50),
-@CodeType_4ff6ca83 NVARCHAR(50),
-@DefaultInView_4ff6ca83 BIT,
-@ViewCellTemplate_4ff6ca83 NVARCHAR(MAX),
-@DefaultColumnWidth_4ff6ca83 INT,
-@AllowUpdateAPI_4ff6ca83 BIT,
-@AllowUpdateInView_4ff6ca83 BIT,
-@IncludeInUserSearchAPI_4ff6ca83 BIT,
-@FullTextSearchEnabled_4ff6ca83 BIT,
-@UserSearchParamFormatAPI_4ff6ca83 NVARCHAR(500),
-@IncludeInGeneratedForm_4ff6ca83 BIT,
-@GeneratedFormSection_4ff6ca83 NVARCHAR(10),
-@IsNameField_4ff6ca83 BIT,
-@RelatedEntityID_4ff6ca83 UNIQUEIDENTIFIER,
-@RelatedEntityFieldName_4ff6ca83 NVARCHAR(255),
-@IncludeRelatedEntityNameFieldInBaseView_4ff6ca83 BIT,
-@RelatedEntityNameFieldMap_4ff6ca83 NVARCHAR(255),
-@RelatedEntityDisplayType_4ff6ca83 NVARCHAR(20),
-@EntityIDFieldName_4ff6ca83 NVARCHAR(100),
-@ScopeDefault_4ff6ca83 NVARCHAR(100),
-@AutoUpdateRelatedEntityInfo_4ff6ca83 BIT,
-@ValuesToPackWithSchema_4ff6ca83 NVARCHAR(10),
-@Status_4ff6ca83 NVARCHAR(25),
-@AutoUpdateIsNameField_4ff6ca83 BIT,
-@AutoUpdateDefaultInView_4ff6ca83 BIT,
-@AutoUpdateCategory_4ff6ca83 BIT,
-@AutoUpdateDisplayName_4ff6ca83 BIT,
-@AutoUpdateIncludeInUserSearchAPI_4ff6ca83 BIT,
-@Encrypt_4ff6ca83 BIT,
-@EncryptionKeyID_4ff6ca83 UNIQUEIDENTIFIER,
-@AllowDecryptInAPI_4ff6ca83 BIT,
-@SendEncryptedValue_4ff6ca83 BIT,
-@IsSoftPrimaryKey_4ff6ca83 BIT,
-@IsSoftForeignKey_4ff6ca83 BIT,
-@RelatedEntityJoinFields_4ff6ca83 NVARCHAR(MAX),
-@JSONType_4ff6ca83 NVARCHAR(255),
-@JSONTypeIsArray_4ff6ca83 BIT,
-@JSONTypeDefinition_4ff6ca83 NVARCHAR(MAX),
-@UserSearchPredicateAPI_4ff6ca83 NVARCHAR(20),
-@AutoUpdateUserSearchPredicate_4ff6ca83 BIT,
-@AutoUpdateFullTextSearch_4ff6ca83 BIT,
-@AutoUpdateExtendedType_4ff6ca83 BIT,
-@IsComputed_4ff6ca83 BIT,
-@EmbeddedRecord_4ff6ca83 NVARCHAR(MAX),
-@Configuration_4ff6ca83 NVARCHAR(MAX),
-@ID_4ff6ca83 UNIQUEIDENTIFIER
+DECLARE @DisplayName_5219bab1 NVARCHAR(255),
+@Description_5219bab1 NVARCHAR(MAX),
+@AutoUpdateDescription_5219bab1 BIT,
+@IsPrimaryKey_5219bab1 BIT,
+@IsUnique_5219bab1 BIT,
+@Category_5219bab1 NVARCHAR(255),
+@ValueListType_5219bab1 NVARCHAR(20),
+@ExtendedType_5219bab1 NVARCHAR(50),
+@CodeType_5219bab1 NVARCHAR(50),
+@DefaultInView_5219bab1 BIT,
+@ViewCellTemplate_5219bab1 NVARCHAR(MAX),
+@DefaultColumnWidth_5219bab1 INT,
+@AllowUpdateAPI_5219bab1 BIT,
+@AllowUpdateInView_5219bab1 BIT,
+@IncludeInUserSearchAPI_5219bab1 BIT,
+@FullTextSearchEnabled_5219bab1 BIT,
+@UserSearchParamFormatAPI_5219bab1 NVARCHAR(500),
+@IncludeInGeneratedForm_5219bab1 BIT,
+@GeneratedFormSection_5219bab1 NVARCHAR(10),
+@IsNameField_5219bab1 BIT,
+@RelatedEntityID_5219bab1 UNIQUEIDENTIFIER,
+@RelatedEntityFieldName_5219bab1 NVARCHAR(255),
+@IncludeRelatedEntityNameFieldInBaseView_5219bab1 BIT,
+@RelatedEntityNameFieldMap_5219bab1 NVARCHAR(255),
+@RelatedEntityDisplayType_5219bab1 NVARCHAR(20),
+@EntityIDFieldName_5219bab1 NVARCHAR(100),
+@ScopeDefault_5219bab1 NVARCHAR(100),
+@AutoUpdateRelatedEntityInfo_5219bab1 BIT,
+@ValuesToPackWithSchema_5219bab1 NVARCHAR(10),
+@Status_5219bab1 NVARCHAR(25),
+@AutoUpdateIsNameField_5219bab1 BIT,
+@AutoUpdateDefaultInView_5219bab1 BIT,
+@AutoUpdateCategory_5219bab1 BIT,
+@AutoUpdateDisplayName_5219bab1 BIT,
+@AutoUpdateIncludeInUserSearchAPI_5219bab1 BIT,
+@Encrypt_5219bab1 BIT,
+@EncryptionKeyID_5219bab1 UNIQUEIDENTIFIER,
+@AllowDecryptInAPI_5219bab1 BIT,
+@SendEncryptedValue_5219bab1 BIT,
+@IsSoftPrimaryKey_5219bab1 BIT,
+@IsSoftForeignKey_5219bab1 BIT,
+@RelatedEntityJoinFields_5219bab1 NVARCHAR(MAX),
+@JSONType_5219bab1 NVARCHAR(255),
+@JSONTypeIsArray_5219bab1 BIT,
+@JSONTypeDefinition_5219bab1 NVARCHAR(MAX),
+@UserSearchPredicateAPI_5219bab1 NVARCHAR(20),
+@AutoUpdateUserSearchPredicate_5219bab1 BIT,
+@AutoUpdateFullTextSearch_5219bab1 BIT,
+@AutoUpdateExtendedType_5219bab1 BIT,
+@IsComputed_5219bab1 BIT,
+@EmbeddedRecord_5219bab1 NVARCHAR(MAX),
+@Configuration_5219bab1 NVARCHAR(MAX),
+@ID_5219bab1 UNIQUEIDENTIFIER
 SET
-  @DisplayName_4ff6ca83 = N'Renewal Notice Deadline'
+  @DisplayName_5219bab1 = N'Is In Cancellation Window'
 SET
-  @AutoUpdateDescription_4ff6ca83 = 1
+  @AutoUpdateDescription_5219bab1 = 1
 SET
-  @IsPrimaryKey_4ff6ca83 = 0
+  @IsPrimaryKey_5219bab1 = 0
 SET
-  @IsUnique_4ff6ca83 = 0
+  @IsUnique_5219bab1 = 0
 SET
-  @ValueListType_4ff6ca83 = N'None'
+  @ValueListType_5219bab1 = N'None'
 SET
-  @DefaultInView_4ff6ca83 = 0
+  @DefaultInView_5219bab1 = 0
 SET
-  @AllowUpdateAPI_4ff6ca83 = 0
+  @AllowUpdateAPI_5219bab1 = 0
 SET
-  @AllowUpdateInView_4ff6ca83 = 1
+  @AllowUpdateInView_5219bab1 = 1
 SET
-  @IncludeInUserSearchAPI_4ff6ca83 = 0
+  @IncludeInUserSearchAPI_5219bab1 = 0
 SET
-  @FullTextSearchEnabled_4ff6ca83 = 0
+  @FullTextSearchEnabled_5219bab1 = 0
 SET
-  @IncludeInGeneratedForm_4ff6ca83 = 0
+  @IncludeInGeneratedForm_5219bab1 = 0
 SET
-  @GeneratedFormSection_4ff6ca83 = N'Details'
+  @GeneratedFormSection_5219bab1 = N'Details'
 SET
-  @IsNameField_4ff6ca83 = 0
+  @IsNameField_5219bab1 = 0
 SET
-  @IncludeRelatedEntityNameFieldInBaseView_4ff6ca83 = 1
+  @IncludeRelatedEntityNameFieldInBaseView_5219bab1 = 1
 SET
-  @RelatedEntityDisplayType_4ff6ca83 = N'Search'
+  @RelatedEntityDisplayType_5219bab1 = N'Search'
 SET
-  @AutoUpdateRelatedEntityInfo_4ff6ca83 = 1
+  @AutoUpdateRelatedEntityInfo_5219bab1 = 1
 SET
-  @ValuesToPackWithSchema_4ff6ca83 = N'Auto'
+  @ValuesToPackWithSchema_5219bab1 = N'Auto'
 SET
-  @Status_4ff6ca83 = N'Active'
+  @Status_5219bab1 = N'Active'
 SET
-  @AutoUpdateIsNameField_4ff6ca83 = 1
+  @AutoUpdateIsNameField_5219bab1 = 1
 SET
-  @AutoUpdateDefaultInView_4ff6ca83 = 1
+  @AutoUpdateDefaultInView_5219bab1 = 1
 SET
-  @AutoUpdateCategory_4ff6ca83 = 1
+  @AutoUpdateCategory_5219bab1 = 1
 SET
-  @AutoUpdateDisplayName_4ff6ca83 = 1
+  @AutoUpdateDisplayName_5219bab1 = 1
 SET
-  @AutoUpdateIncludeInUserSearchAPI_4ff6ca83 = 1
+  @AutoUpdateIncludeInUserSearchAPI_5219bab1 = 1
 SET
-  @Encrypt_4ff6ca83 = 0
+  @Encrypt_5219bab1 = 0
 SET
-  @AllowDecryptInAPI_4ff6ca83 = 0
+  @AllowDecryptInAPI_5219bab1 = 0
 SET
-  @SendEncryptedValue_4ff6ca83 = 0
+  @SendEncryptedValue_5219bab1 = 0
 SET
-  @IsSoftPrimaryKey_4ff6ca83 = 0
+  @IsSoftPrimaryKey_5219bab1 = 0
 SET
-  @IsSoftForeignKey_4ff6ca83 = 0
+  @IsSoftForeignKey_5219bab1 = 0
 SET
-  @JSONTypeIsArray_4ff6ca83 = 0
+  @JSONTypeIsArray_5219bab1 = 0
 SET
-  @UserSearchPredicateAPI_4ff6ca83 = N'Contains'
+  @UserSearchPredicateAPI_5219bab1 = N'Contains'
 SET
-  @AutoUpdateUserSearchPredicate_4ff6ca83 = 1
+  @AutoUpdateUserSearchPredicate_5219bab1 = 1
 SET
-  @AutoUpdateFullTextSearch_4ff6ca83 = 1
+  @AutoUpdateFullTextSearch_5219bab1 = 1
 SET
-  @AutoUpdateExtendedType_4ff6ca83 = 1
+  @AutoUpdateExtendedType_5219bab1 = 1
 SET
-  @IsComputed_4ff6ca83 = 0
+  @IsComputed_5219bab1 = 0
 SET
-  @ID_4ff6ca83 = 'CB754B3E-F36B-1410-8A4E-0066522E4B7A' EXEC [${mjSchema}].spUpdateEntityField @DisplayName = @DisplayName_4ff6ca83,
-  @Description = @Description_4ff6ca83,
+  @ID_5219bab1 = 'FBA74B3E-F36B-1410-8A4E-0066522E4B7A' EXEC [${mjSchema}].spUpdateEntityField @DisplayName = @DisplayName_5219bab1,
+  @Description = @Description_5219bab1,
   @Description_Clear = 1,
-  @AutoUpdateDescription = @AutoUpdateDescription_4ff6ca83,
-  @IsPrimaryKey = @IsPrimaryKey_4ff6ca83,
-  @IsUnique = @IsUnique_4ff6ca83,
-  @Category = @Category_4ff6ca83,
+  @AutoUpdateDescription = @AutoUpdateDescription_5219bab1,
+  @IsPrimaryKey = @IsPrimaryKey_5219bab1,
+  @IsUnique = @IsUnique_5219bab1,
+  @Category = @Category_5219bab1,
   @Category_Clear = 1,
-  @ValueListType = @ValueListType_4ff6ca83,
-  @ExtendedType = @ExtendedType_4ff6ca83,
+  @ValueListType = @ValueListType_5219bab1,
+  @ExtendedType = @ExtendedType_5219bab1,
   @ExtendedType_Clear = 1,
-  @CodeType = @CodeType_4ff6ca83,
+  @CodeType = @CodeType_5219bab1,
   @CodeType_Clear = 1,
-  @DefaultInView = @DefaultInView_4ff6ca83,
-  @ViewCellTemplate = @ViewCellTemplate_4ff6ca83,
+  @DefaultInView = @DefaultInView_5219bab1,
+  @ViewCellTemplate = @ViewCellTemplate_5219bab1,
   @ViewCellTemplate_Clear = 1,
-  @DefaultColumnWidth = @DefaultColumnWidth_4ff6ca83,
+  @DefaultColumnWidth = @DefaultColumnWidth_5219bab1,
   @DefaultColumnWidth_Clear = 1,
-  @AllowUpdateAPI = @AllowUpdateAPI_4ff6ca83,
-  @AllowUpdateInView = @AllowUpdateInView_4ff6ca83,
-  @IncludeInUserSearchAPI = @IncludeInUserSearchAPI_4ff6ca83,
-  @FullTextSearchEnabled = @FullTextSearchEnabled_4ff6ca83,
-  @UserSearchParamFormatAPI = @UserSearchParamFormatAPI_4ff6ca83,
+  @AllowUpdateAPI = @AllowUpdateAPI_5219bab1,
+  @AllowUpdateInView = @AllowUpdateInView_5219bab1,
+  @IncludeInUserSearchAPI = @IncludeInUserSearchAPI_5219bab1,
+  @FullTextSearchEnabled = @FullTextSearchEnabled_5219bab1,
+  @UserSearchParamFormatAPI = @UserSearchParamFormatAPI_5219bab1,
   @UserSearchParamFormatAPI_Clear = 1,
-  @IncludeInGeneratedForm = @IncludeInGeneratedForm_4ff6ca83,
-  @GeneratedFormSection = @GeneratedFormSection_4ff6ca83,
-  @IsNameField = @IsNameField_4ff6ca83,
-  @RelatedEntityID = @RelatedEntityID_4ff6ca83,
+  @IncludeInGeneratedForm = @IncludeInGeneratedForm_5219bab1,
+  @GeneratedFormSection = @GeneratedFormSection_5219bab1,
+  @IsNameField = @IsNameField_5219bab1,
+  @RelatedEntityID = @RelatedEntityID_5219bab1,
   @RelatedEntityID_Clear = 1,
-  @RelatedEntityFieldName = @RelatedEntityFieldName_4ff6ca83,
+  @RelatedEntityFieldName = @RelatedEntityFieldName_5219bab1,
   @RelatedEntityFieldName_Clear = 1,
-  @IncludeRelatedEntityNameFieldInBaseView = @IncludeRelatedEntityNameFieldInBaseView_4ff6ca83,
-  @RelatedEntityNameFieldMap = @RelatedEntityNameFieldMap_4ff6ca83,
+  @IncludeRelatedEntityNameFieldInBaseView = @IncludeRelatedEntityNameFieldInBaseView_5219bab1,
+  @RelatedEntityNameFieldMap = @RelatedEntityNameFieldMap_5219bab1,
   @RelatedEntityNameFieldMap_Clear = 1,
-  @RelatedEntityDisplayType = @RelatedEntityDisplayType_4ff6ca83,
-  @EntityIDFieldName = @EntityIDFieldName_4ff6ca83,
+  @RelatedEntityDisplayType = @RelatedEntityDisplayType_5219bab1,
+  @EntityIDFieldName = @EntityIDFieldName_5219bab1,
   @EntityIDFieldName_Clear = 1,
-  @ScopeDefault = @ScopeDefault_4ff6ca83,
+  @ScopeDefault = @ScopeDefault_5219bab1,
   @ScopeDefault_Clear = 1,
-  @AutoUpdateRelatedEntityInfo = @AutoUpdateRelatedEntityInfo_4ff6ca83,
-  @ValuesToPackWithSchema = @ValuesToPackWithSchema_4ff6ca83,
-  @Status = @Status_4ff6ca83,
-  @AutoUpdateIsNameField = @AutoUpdateIsNameField_4ff6ca83,
-  @AutoUpdateDefaultInView = @AutoUpdateDefaultInView_4ff6ca83,
-  @AutoUpdateCategory = @AutoUpdateCategory_4ff6ca83,
-  @AutoUpdateDisplayName = @AutoUpdateDisplayName_4ff6ca83,
-  @AutoUpdateIncludeInUserSearchAPI = @AutoUpdateIncludeInUserSearchAPI_4ff6ca83,
-  @Encrypt = @Encrypt_4ff6ca83,
-  @EncryptionKeyID = @EncryptionKeyID_4ff6ca83,
+  @AutoUpdateRelatedEntityInfo = @AutoUpdateRelatedEntityInfo_5219bab1,
+  @ValuesToPackWithSchema = @ValuesToPackWithSchema_5219bab1,
+  @Status = @Status_5219bab1,
+  @AutoUpdateIsNameField = @AutoUpdateIsNameField_5219bab1,
+  @AutoUpdateDefaultInView = @AutoUpdateDefaultInView_5219bab1,
+  @AutoUpdateCategory = @AutoUpdateCategory_5219bab1,
+  @AutoUpdateDisplayName = @AutoUpdateDisplayName_5219bab1,
+  @AutoUpdateIncludeInUserSearchAPI = @AutoUpdateIncludeInUserSearchAPI_5219bab1,
+  @Encrypt = @Encrypt_5219bab1,
+  @EncryptionKeyID = @EncryptionKeyID_5219bab1,
   @EncryptionKeyID_Clear = 1,
-  @AllowDecryptInAPI = @AllowDecryptInAPI_4ff6ca83,
-  @SendEncryptedValue = @SendEncryptedValue_4ff6ca83,
-  @IsSoftPrimaryKey = @IsSoftPrimaryKey_4ff6ca83,
-  @IsSoftForeignKey = @IsSoftForeignKey_4ff6ca83,
-  @RelatedEntityJoinFields = @RelatedEntityJoinFields_4ff6ca83,
+  @AllowDecryptInAPI = @AllowDecryptInAPI_5219bab1,
+  @SendEncryptedValue = @SendEncryptedValue_5219bab1,
+  @IsSoftPrimaryKey = @IsSoftPrimaryKey_5219bab1,
+  @IsSoftForeignKey = @IsSoftForeignKey_5219bab1,
+  @RelatedEntityJoinFields = @RelatedEntityJoinFields_5219bab1,
   @RelatedEntityJoinFields_Clear = 1,
-  @JSONType = @JSONType_4ff6ca83,
+  @JSONType = @JSONType_5219bab1,
   @JSONType_Clear = 1,
-  @JSONTypeIsArray = @JSONTypeIsArray_4ff6ca83,
-  @JSONTypeDefinition = @JSONTypeDefinition_4ff6ca83,
+  @JSONTypeIsArray = @JSONTypeIsArray_5219bab1,
+  @JSONTypeDefinition = @JSONTypeDefinition_5219bab1,
   @JSONTypeDefinition_Clear = 1,
-  @UserSearchPredicateAPI = @UserSearchPredicateAPI_4ff6ca83,
-  @AutoUpdateUserSearchPredicate = @AutoUpdateUserSearchPredicate_4ff6ca83,
-  @AutoUpdateFullTextSearch = @AutoUpdateFullTextSearch_4ff6ca83,
-  @AutoUpdateExtendedType = @AutoUpdateExtendedType_4ff6ca83,
-  @IsComputed = @IsComputed_4ff6ca83,
-  @EmbeddedRecord = @EmbeddedRecord_4ff6ca83,
+  @UserSearchPredicateAPI = @UserSearchPredicateAPI_5219bab1,
+  @AutoUpdateUserSearchPredicate = @AutoUpdateUserSearchPredicate_5219bab1,
+  @AutoUpdateFullTextSearch = @AutoUpdateFullTextSearch_5219bab1,
+  @AutoUpdateExtendedType = @AutoUpdateExtendedType_5219bab1,
+  @IsComputed = @IsComputed_5219bab1,
+  @EmbeddedRecord = @EmbeddedRecord_5219bab1,
   @EmbeddedRecord_Clear = 1,
-  @Configuration = @Configuration_4ff6ca83,
+  @Configuration = @Configuration_5219bab1,
   @Configuration_Clear = 1,
-  @ID = @ID_4ff6ca83;
+  @ID = @ID_5219bab1;
 
 GO
 
 -- Save MJ: Entity Fields (core SP call only)
-DECLARE @DisplayName_4b969e46 NVARCHAR(255),
-@Description_4b969e46 NVARCHAR(MAX),
-@AutoUpdateDescription_4b969e46 BIT,
-@IsPrimaryKey_4b969e46 BIT,
-@IsUnique_4b969e46 BIT,
-@Category_4b969e46 NVARCHAR(255),
-@ValueListType_4b969e46 NVARCHAR(20),
-@ExtendedType_4b969e46 NVARCHAR(50),
-@CodeType_4b969e46 NVARCHAR(50),
-@DefaultInView_4b969e46 BIT,
-@ViewCellTemplate_4b969e46 NVARCHAR(MAX),
-@DefaultColumnWidth_4b969e46 INT,
-@AllowUpdateAPI_4b969e46 BIT,
-@AllowUpdateInView_4b969e46 BIT,
-@IncludeInUserSearchAPI_4b969e46 BIT,
-@FullTextSearchEnabled_4b969e46 BIT,
-@UserSearchParamFormatAPI_4b969e46 NVARCHAR(500),
-@IncludeInGeneratedForm_4b969e46 BIT,
-@GeneratedFormSection_4b969e46 NVARCHAR(10),
-@IsNameField_4b969e46 BIT,
-@RelatedEntityID_4b969e46 UNIQUEIDENTIFIER,
-@RelatedEntityFieldName_4b969e46 NVARCHAR(255),
-@IncludeRelatedEntityNameFieldInBaseView_4b969e46 BIT,
-@RelatedEntityNameFieldMap_4b969e46 NVARCHAR(255),
-@RelatedEntityDisplayType_4b969e46 NVARCHAR(20),
-@EntityIDFieldName_4b969e46 NVARCHAR(100),
-@ScopeDefault_4b969e46 NVARCHAR(100),
-@AutoUpdateRelatedEntityInfo_4b969e46 BIT,
-@ValuesToPackWithSchema_4b969e46 NVARCHAR(10),
-@Status_4b969e46 NVARCHAR(25),
-@AutoUpdateIsNameField_4b969e46 BIT,
-@AutoUpdateDefaultInView_4b969e46 BIT,
-@AutoUpdateCategory_4b969e46 BIT,
-@AutoUpdateDisplayName_4b969e46 BIT,
-@AutoUpdateIncludeInUserSearchAPI_4b969e46 BIT,
-@Encrypt_4b969e46 BIT,
-@EncryptionKeyID_4b969e46 UNIQUEIDENTIFIER,
-@AllowDecryptInAPI_4b969e46 BIT,
-@SendEncryptedValue_4b969e46 BIT,
-@IsSoftPrimaryKey_4b969e46 BIT,
-@IsSoftForeignKey_4b969e46 BIT,
-@RelatedEntityJoinFields_4b969e46 NVARCHAR(MAX),
-@JSONType_4b969e46 NVARCHAR(255),
-@JSONTypeIsArray_4b969e46 BIT,
-@JSONTypeDefinition_4b969e46 NVARCHAR(MAX),
-@UserSearchPredicateAPI_4b969e46 NVARCHAR(20),
-@AutoUpdateUserSearchPredicate_4b969e46 BIT,
-@AutoUpdateFullTextSearch_4b969e46 BIT,
-@AutoUpdateExtendedType_4b969e46 BIT,
-@IsComputed_4b969e46 BIT,
-@EmbeddedRecord_4b969e46 NVARCHAR(MAX),
-@Configuration_4b969e46 NVARCHAR(MAX),
-@ID_4b969e46 UNIQUEIDENTIFIER
+DECLARE @DisplayName_af0dbca9 NVARCHAR(255),
+@Description_af0dbca9 NVARCHAR(MAX),
+@AutoUpdateDescription_af0dbca9 BIT,
+@IsPrimaryKey_af0dbca9 BIT,
+@IsUnique_af0dbca9 BIT,
+@Category_af0dbca9 NVARCHAR(255),
+@ValueListType_af0dbca9 NVARCHAR(20),
+@ExtendedType_af0dbca9 NVARCHAR(50),
+@CodeType_af0dbca9 NVARCHAR(50),
+@DefaultInView_af0dbca9 BIT,
+@ViewCellTemplate_af0dbca9 NVARCHAR(MAX),
+@DefaultColumnWidth_af0dbca9 INT,
+@AllowUpdateAPI_af0dbca9 BIT,
+@AllowUpdateInView_af0dbca9 BIT,
+@IncludeInUserSearchAPI_af0dbca9 BIT,
+@FullTextSearchEnabled_af0dbca9 BIT,
+@UserSearchParamFormatAPI_af0dbca9 NVARCHAR(500),
+@IncludeInGeneratedForm_af0dbca9 BIT,
+@GeneratedFormSection_af0dbca9 NVARCHAR(10),
+@IsNameField_af0dbca9 BIT,
+@RelatedEntityID_af0dbca9 UNIQUEIDENTIFIER,
+@RelatedEntityFieldName_af0dbca9 NVARCHAR(255),
+@IncludeRelatedEntityNameFieldInBaseView_af0dbca9 BIT,
+@RelatedEntityNameFieldMap_af0dbca9 NVARCHAR(255),
+@RelatedEntityDisplayType_af0dbca9 NVARCHAR(20),
+@EntityIDFieldName_af0dbca9 NVARCHAR(100),
+@ScopeDefault_af0dbca9 NVARCHAR(100),
+@AutoUpdateRelatedEntityInfo_af0dbca9 BIT,
+@ValuesToPackWithSchema_af0dbca9 NVARCHAR(10),
+@Status_af0dbca9 NVARCHAR(25),
+@AutoUpdateIsNameField_af0dbca9 BIT,
+@AutoUpdateDefaultInView_af0dbca9 BIT,
+@AutoUpdateCategory_af0dbca9 BIT,
+@AutoUpdateDisplayName_af0dbca9 BIT,
+@AutoUpdateIncludeInUserSearchAPI_af0dbca9 BIT,
+@Encrypt_af0dbca9 BIT,
+@EncryptionKeyID_af0dbca9 UNIQUEIDENTIFIER,
+@AllowDecryptInAPI_af0dbca9 BIT,
+@SendEncryptedValue_af0dbca9 BIT,
+@IsSoftPrimaryKey_af0dbca9 BIT,
+@IsSoftForeignKey_af0dbca9 BIT,
+@RelatedEntityJoinFields_af0dbca9 NVARCHAR(MAX),
+@JSONType_af0dbca9 NVARCHAR(255),
+@JSONTypeIsArray_af0dbca9 BIT,
+@JSONTypeDefinition_af0dbca9 NVARCHAR(MAX),
+@UserSearchPredicateAPI_af0dbca9 NVARCHAR(20),
+@AutoUpdateUserSearchPredicate_af0dbca9 BIT,
+@AutoUpdateFullTextSearch_af0dbca9 BIT,
+@AutoUpdateExtendedType_af0dbca9 BIT,
+@IsComputed_af0dbca9 BIT,
+@EmbeddedRecord_af0dbca9 NVARCHAR(MAX),
+@Configuration_af0dbca9 NVARCHAR(MAX),
+@ID_af0dbca9 UNIQUEIDENTIFIER
 SET
-  @DisplayName_4b969e46 = N'Is In Cancellation Window'
+  @DisplayName_af0dbca9 = N'Days To End'
 SET
-  @AutoUpdateDescription_4b969e46 = 1
+  @AutoUpdateDescription_af0dbca9 = 1
 SET
-  @IsPrimaryKey_4b969e46 = 0
+  @IsPrimaryKey_af0dbca9 = 0
 SET
-  @IsUnique_4b969e46 = 0
+  @IsUnique_af0dbca9 = 0
 SET
-  @ValueListType_4b969e46 = N'None'
+  @ValueListType_af0dbca9 = N'None'
 SET
-  @DefaultInView_4b969e46 = 0
+  @DefaultInView_af0dbca9 = 0
 SET
-  @AllowUpdateAPI_4b969e46 = 0
+  @AllowUpdateAPI_af0dbca9 = 0
 SET
-  @AllowUpdateInView_4b969e46 = 1
+  @AllowUpdateInView_af0dbca9 = 1
 SET
-  @IncludeInUserSearchAPI_4b969e46 = 0
+  @IncludeInUserSearchAPI_af0dbca9 = 0
 SET
-  @FullTextSearchEnabled_4b969e46 = 0
+  @FullTextSearchEnabled_af0dbca9 = 0
 SET
-  @IncludeInGeneratedForm_4b969e46 = 0
+  @IncludeInGeneratedForm_af0dbca9 = 0
 SET
-  @GeneratedFormSection_4b969e46 = N'Details'
+  @GeneratedFormSection_af0dbca9 = N'Details'
 SET
-  @IsNameField_4b969e46 = 0
+  @IsNameField_af0dbca9 = 0
 SET
-  @IncludeRelatedEntityNameFieldInBaseView_4b969e46 = 1
+  @IncludeRelatedEntityNameFieldInBaseView_af0dbca9 = 1
 SET
-  @RelatedEntityDisplayType_4b969e46 = N'Search'
+  @RelatedEntityDisplayType_af0dbca9 = N'Search'
 SET
-  @AutoUpdateRelatedEntityInfo_4b969e46 = 1
+  @AutoUpdateRelatedEntityInfo_af0dbca9 = 1
 SET
-  @ValuesToPackWithSchema_4b969e46 = N'Auto'
+  @ValuesToPackWithSchema_af0dbca9 = N'Auto'
 SET
-  @Status_4b969e46 = N'Active'
+  @Status_af0dbca9 = N'Active'
 SET
-  @AutoUpdateIsNameField_4b969e46 = 1
+  @AutoUpdateIsNameField_af0dbca9 = 1
 SET
-  @AutoUpdateDefaultInView_4b969e46 = 1
+  @AutoUpdateDefaultInView_af0dbca9 = 1
 SET
-  @AutoUpdateCategory_4b969e46 = 1
+  @AutoUpdateCategory_af0dbca9 = 1
 SET
-  @AutoUpdateDisplayName_4b969e46 = 1
+  @AutoUpdateDisplayName_af0dbca9 = 1
 SET
-  @AutoUpdateIncludeInUserSearchAPI_4b969e46 = 1
+  @AutoUpdateIncludeInUserSearchAPI_af0dbca9 = 1
 SET
-  @Encrypt_4b969e46 = 0
+  @Encrypt_af0dbca9 = 0
 SET
-  @AllowDecryptInAPI_4b969e46 = 0
+  @AllowDecryptInAPI_af0dbca9 = 0
 SET
-  @SendEncryptedValue_4b969e46 = 0
+  @SendEncryptedValue_af0dbca9 = 0
 SET
-  @IsSoftPrimaryKey_4b969e46 = 0
+  @IsSoftPrimaryKey_af0dbca9 = 0
 SET
-  @IsSoftForeignKey_4b969e46 = 0
+  @IsSoftForeignKey_af0dbca9 = 0
 SET
-  @JSONTypeIsArray_4b969e46 = 0
+  @JSONTypeIsArray_af0dbca9 = 0
 SET
-  @UserSearchPredicateAPI_4b969e46 = N'Contains'
+  @UserSearchPredicateAPI_af0dbca9 = N'Contains'
 SET
-  @AutoUpdateUserSearchPredicate_4b969e46 = 1
+  @AutoUpdateUserSearchPredicate_af0dbca9 = 1
 SET
-  @AutoUpdateFullTextSearch_4b969e46 = 1
+  @AutoUpdateFullTextSearch_af0dbca9 = 1
 SET
-  @AutoUpdateExtendedType_4b969e46 = 1
+  @AutoUpdateExtendedType_af0dbca9 = 1
 SET
-  @IsComputed_4b969e46 = 0
+  @IsComputed_af0dbca9 = 0
 SET
-  @ID_4b969e46 = 'CE754B3E-F36B-1410-8A4E-0066522E4B7A' EXEC [${mjSchema}].spUpdateEntityField @DisplayName = @DisplayName_4b969e46,
-  @Description = @Description_4b969e46,
+  @ID_af0dbca9 = 'F3A74B3E-F36B-1410-8A4E-0066522E4B7A' EXEC [${mjSchema}].spUpdateEntityField @DisplayName = @DisplayName_af0dbca9,
+  @Description = @Description_af0dbca9,
   @Description_Clear = 1,
-  @AutoUpdateDescription = @AutoUpdateDescription_4b969e46,
-  @IsPrimaryKey = @IsPrimaryKey_4b969e46,
-  @IsUnique = @IsUnique_4b969e46,
-  @Category = @Category_4b969e46,
+  @AutoUpdateDescription = @AutoUpdateDescription_af0dbca9,
+  @IsPrimaryKey = @IsPrimaryKey_af0dbca9,
+  @IsUnique = @IsUnique_af0dbca9,
+  @Category = @Category_af0dbca9,
   @Category_Clear = 1,
-  @ValueListType = @ValueListType_4b969e46,
-  @ExtendedType = @ExtendedType_4b969e46,
+  @ValueListType = @ValueListType_af0dbca9,
+  @ExtendedType = @ExtendedType_af0dbca9,
   @ExtendedType_Clear = 1,
-  @CodeType = @CodeType_4b969e46,
+  @CodeType = @CodeType_af0dbca9,
   @CodeType_Clear = 1,
-  @DefaultInView = @DefaultInView_4b969e46,
-  @ViewCellTemplate = @ViewCellTemplate_4b969e46,
+  @DefaultInView = @DefaultInView_af0dbca9,
+  @ViewCellTemplate = @ViewCellTemplate_af0dbca9,
   @ViewCellTemplate_Clear = 1,
-  @DefaultColumnWidth = @DefaultColumnWidth_4b969e46,
+  @DefaultColumnWidth = @DefaultColumnWidth_af0dbca9,
   @DefaultColumnWidth_Clear = 1,
-  @AllowUpdateAPI = @AllowUpdateAPI_4b969e46,
-  @AllowUpdateInView = @AllowUpdateInView_4b969e46,
-  @IncludeInUserSearchAPI = @IncludeInUserSearchAPI_4b969e46,
-  @FullTextSearchEnabled = @FullTextSearchEnabled_4b969e46,
-  @UserSearchParamFormatAPI = @UserSearchParamFormatAPI_4b969e46,
+  @AllowUpdateAPI = @AllowUpdateAPI_af0dbca9,
+  @AllowUpdateInView = @AllowUpdateInView_af0dbca9,
+  @IncludeInUserSearchAPI = @IncludeInUserSearchAPI_af0dbca9,
+  @FullTextSearchEnabled = @FullTextSearchEnabled_af0dbca9,
+  @UserSearchParamFormatAPI = @UserSearchParamFormatAPI_af0dbca9,
   @UserSearchParamFormatAPI_Clear = 1,
-  @IncludeInGeneratedForm = @IncludeInGeneratedForm_4b969e46,
-  @GeneratedFormSection = @GeneratedFormSection_4b969e46,
-  @IsNameField = @IsNameField_4b969e46,
-  @RelatedEntityID = @RelatedEntityID_4b969e46,
+  @IncludeInGeneratedForm = @IncludeInGeneratedForm_af0dbca9,
+  @GeneratedFormSection = @GeneratedFormSection_af0dbca9,
+  @IsNameField = @IsNameField_af0dbca9,
+  @RelatedEntityID = @RelatedEntityID_af0dbca9,
   @RelatedEntityID_Clear = 1,
-  @RelatedEntityFieldName = @RelatedEntityFieldName_4b969e46,
+  @RelatedEntityFieldName = @RelatedEntityFieldName_af0dbca9,
   @RelatedEntityFieldName_Clear = 1,
-  @IncludeRelatedEntityNameFieldInBaseView = @IncludeRelatedEntityNameFieldInBaseView_4b969e46,
-  @RelatedEntityNameFieldMap = @RelatedEntityNameFieldMap_4b969e46,
+  @IncludeRelatedEntityNameFieldInBaseView = @IncludeRelatedEntityNameFieldInBaseView_af0dbca9,
+  @RelatedEntityNameFieldMap = @RelatedEntityNameFieldMap_af0dbca9,
   @RelatedEntityNameFieldMap_Clear = 1,
-  @RelatedEntityDisplayType = @RelatedEntityDisplayType_4b969e46,
-  @EntityIDFieldName = @EntityIDFieldName_4b969e46,
+  @RelatedEntityDisplayType = @RelatedEntityDisplayType_af0dbca9,
+  @EntityIDFieldName = @EntityIDFieldName_af0dbca9,
   @EntityIDFieldName_Clear = 1,
-  @ScopeDefault = @ScopeDefault_4b969e46,
+  @ScopeDefault = @ScopeDefault_af0dbca9,
   @ScopeDefault_Clear = 1,
-  @AutoUpdateRelatedEntityInfo = @AutoUpdateRelatedEntityInfo_4b969e46,
-  @ValuesToPackWithSchema = @ValuesToPackWithSchema_4b969e46,
-  @Status = @Status_4b969e46,
-  @AutoUpdateIsNameField = @AutoUpdateIsNameField_4b969e46,
-  @AutoUpdateDefaultInView = @AutoUpdateDefaultInView_4b969e46,
-  @AutoUpdateCategory = @AutoUpdateCategory_4b969e46,
-  @AutoUpdateDisplayName = @AutoUpdateDisplayName_4b969e46,
-  @AutoUpdateIncludeInUserSearchAPI = @AutoUpdateIncludeInUserSearchAPI_4b969e46,
-  @Encrypt = @Encrypt_4b969e46,
-  @EncryptionKeyID = @EncryptionKeyID_4b969e46,
+  @AutoUpdateRelatedEntityInfo = @AutoUpdateRelatedEntityInfo_af0dbca9,
+  @ValuesToPackWithSchema = @ValuesToPackWithSchema_af0dbca9,
+  @Status = @Status_af0dbca9,
+  @AutoUpdateIsNameField = @AutoUpdateIsNameField_af0dbca9,
+  @AutoUpdateDefaultInView = @AutoUpdateDefaultInView_af0dbca9,
+  @AutoUpdateCategory = @AutoUpdateCategory_af0dbca9,
+  @AutoUpdateDisplayName = @AutoUpdateDisplayName_af0dbca9,
+  @AutoUpdateIncludeInUserSearchAPI = @AutoUpdateIncludeInUserSearchAPI_af0dbca9,
+  @Encrypt = @Encrypt_af0dbca9,
+  @EncryptionKeyID = @EncryptionKeyID_af0dbca9,
   @EncryptionKeyID_Clear = 1,
-  @AllowDecryptInAPI = @AllowDecryptInAPI_4b969e46,
-  @SendEncryptedValue = @SendEncryptedValue_4b969e46,
-  @IsSoftPrimaryKey = @IsSoftPrimaryKey_4b969e46,
-  @IsSoftForeignKey = @IsSoftForeignKey_4b969e46,
-  @RelatedEntityJoinFields = @RelatedEntityJoinFields_4b969e46,
+  @AllowDecryptInAPI = @AllowDecryptInAPI_af0dbca9,
+  @SendEncryptedValue = @SendEncryptedValue_af0dbca9,
+  @IsSoftPrimaryKey = @IsSoftPrimaryKey_af0dbca9,
+  @IsSoftForeignKey = @IsSoftForeignKey_af0dbca9,
+  @RelatedEntityJoinFields = @RelatedEntityJoinFields_af0dbca9,
   @RelatedEntityJoinFields_Clear = 1,
-  @JSONType = @JSONType_4b969e46,
+  @JSONType = @JSONType_af0dbca9,
   @JSONType_Clear = 1,
-  @JSONTypeIsArray = @JSONTypeIsArray_4b969e46,
-  @JSONTypeDefinition = @JSONTypeDefinition_4b969e46,
+  @JSONTypeIsArray = @JSONTypeIsArray_af0dbca9,
+  @JSONTypeDefinition = @JSONTypeDefinition_af0dbca9,
   @JSONTypeDefinition_Clear = 1,
-  @UserSearchPredicateAPI = @UserSearchPredicateAPI_4b969e46,
-  @AutoUpdateUserSearchPredicate = @AutoUpdateUserSearchPredicate_4b969e46,
-  @AutoUpdateFullTextSearch = @AutoUpdateFullTextSearch_4b969e46,
-  @AutoUpdateExtendedType = @AutoUpdateExtendedType_4b969e46,
-  @IsComputed = @IsComputed_4b969e46,
-  @EmbeddedRecord = @EmbeddedRecord_4b969e46,
+  @UserSearchPredicateAPI = @UserSearchPredicateAPI_af0dbca9,
+  @AutoUpdateUserSearchPredicate = @AutoUpdateUserSearchPredicate_af0dbca9,
+  @AutoUpdateFullTextSearch = @AutoUpdateFullTextSearch_af0dbca9,
+  @AutoUpdateExtendedType = @AutoUpdateExtendedType_af0dbca9,
+  @IsComputed = @IsComputed_af0dbca9,
+  @EmbeddedRecord = @EmbeddedRecord_af0dbca9,
   @EmbeddedRecord_Clear = 1,
-  @Configuration = @Configuration_4b969e46,
+  @Configuration = @Configuration_af0dbca9,
   @Configuration_Clear = 1,
-  @ID = @ID_4b969e46;
+  @ID = @ID_af0dbca9;
 
 GO
 
 -- Save MJ_BizApps_Contracts: Contract Template Types (core SP call only)
-DECLARE @ID_5ed8cbd1 UNIQUEIDENTIFIER,
-@Name_5ed8cbd1 NVARCHAR(100),
-@Description_5ed8cbd1 NVARCHAR(MAX),
-@Status_5ed8cbd1 NVARCHAR(10)
+DECLARE @ID_b0d4fcb3 UNIQUEIDENTIFIER,
+@Name_b0d4fcb3 NVARCHAR(100),
+@Description_b0d4fcb3 NVARCHAR(MAX),
+@Status_b0d4fcb3 NVARCHAR(10)
 SET
-  @ID_5ed8cbd1 = '33333333-0000-4000-8000-000000002001'
+  @ID_b0d4fcb3 = '33333333-0000-4000-8000-000000002001'
 SET
-  @Name_5ed8cbd1 = N'Master Agreement'
+  @Name_b0d4fcb3 = N'Master Agreement'
 SET
-  @Description_5ed8cbd1 = N'The numbered-provision standard-terms document, versioned by publication date. Every Order Form and Payment Link incorporates one version of it, and a negotiated deviation from one of its provisions is a Contract Template Modification.'
+  @Description_b0d4fcb3 = N'The numbered-provision standard-terms document, versioned by publication date. Every Order Form and Payment Link incorporates one version of it, and a negotiated deviation from one of its provisions is a Contract Template Modification.'
 SET
-  @Status_5ed8cbd1 = N'Active' EXEC [${flyway:defaultSchema}].spCreateContractTemplateType @ID = @ID_5ed8cbd1,
-  @Name = @Name_5ed8cbd1,
-  @Description = @Description_5ed8cbd1,
-  @Status = @Status_5ed8cbd1;
+  @Status_b0d4fcb3 = N'Active' EXEC [${flyway:defaultSchema}].spCreateContractTemplateType @ID = @ID_b0d4fcb3,
+  @Name = @Name_b0d4fcb3,
+  @Description = @Description_b0d4fcb3,
+  @Status = @Status_b0d4fcb3;
 
 GO
 
 -- Save MJ_BizApps_Contracts: Contract Template Types (core SP call only)
-DECLARE @ID_b59c88b5 UNIQUEIDENTIFIER,
-@Name_b59c88b5 NVARCHAR(100),
-@Description_b59c88b5 NVARCHAR(MAX),
-@Status_b59c88b5 NVARCHAR(10)
+DECLARE @ID_a5b7685c UNIQUEIDENTIFIER,
+@Name_a5b7685c NVARCHAR(100),
+@Description_a5b7685c NVARCHAR(MAX),
+@Status_a5b7685c NVARCHAR(10)
 SET
-  @ID_b59c88b5 = '33333333-0000-4000-8000-000000002002'
+  @ID_a5b7685c = '33333333-0000-4000-8000-000000002002'
 SET
-  @Name_b59c88b5 = N'Statement of Work'
+  @Name_a5b7685c = N'Statement of Work'
 SET
-  @Description_b59c88b5 = N'Standard SOW language. Seeded so the type exists; no versioned template is registered against it yet, because the business does not version its SOW language (Amith, 2026-08-18).'
+  @Description_a5b7685c = N'Standard SOW language. Seeded so the type exists; no versioned template is registered against it yet, because the business does not version its SOW language (Amith, 2026-08-18).'
 SET
-  @Status_b59c88b5 = N'Active' EXEC [${flyway:defaultSchema}].spCreateContractTemplateType @ID = @ID_b59c88b5,
-  @Name = @Name_b59c88b5,
-  @Description = @Description_b59c88b5,
-  @Status = @Status_b59c88b5;
+  @Status_a5b7685c = N'Active' EXEC [${flyway:defaultSchema}].spCreateContractTemplateType @ID = @ID_a5b7685c,
+  @Name = @Name_a5b7685c,
+  @Description = @Description_a5b7685c,
+  @Status = @Status_a5b7685c;
 
 GO
 
 -- Save MJ_BizApps_Contracts: Contract Types (core SP call only)
-DECLARE @ID_ed96fbfd UNIQUEIDENTIFIER,
-@Name_ed96fbfd NVARCHAR(100),
-@Description_ed96fbfd NVARCHAR(MAX),
-@RequiresExecutedDocument_ed96fbfd BIT,
-@Status_ed96fbfd NVARCHAR(10),
-@MustBeRoot_ed96fbfd BIT,
-@MustBeChild_ed96fbfd BIT,
-@TemplateRequired_ed96fbfd BIT
+DECLARE @ID_5574320d UNIQUEIDENTIFIER,
+@Name_5574320d NVARCHAR(100),
+@Description_5574320d NVARCHAR(MAX),
+@RequiresExecutedDocument_5574320d BIT,
+@Status_5574320d NVARCHAR(10),
+@MustBeRoot_5574320d BIT,
+@MustBeChild_5574320d BIT,
+@TemplateRequired_5574320d BIT
 SET
-  @ID_ed96fbfd = '33333333-0000-4000-8000-000000001001'
+  @ID_5574320d = '33333333-0000-4000-8000-000000001001'
 SET
-  @Name_ed96fbfd = N'Order Form'
+  @Name_5574320d = N'Order Form'
 SET
-  @Description_ed96fbfd = N'The commercial document a customer signs to buy — the ordinary agreement. Sits beneath a Master Agreement whose provisions it incorporates by reference, which is why the Order Form carries the ContractTemplateID rather than the MA carrying anything about it — hence TemplateRequired = 1. Signed paper is expected (RequiresExecutedDocument = 1), so it appears on the Awaiting-documents worklist until the executed file is registered. Reinstated Active 2026-08-20 (Marcelo), reversing the R-4 retirement.'
+  @Description_5574320d = N'The commercial document a customer signs to buy — the ordinary agreement. Sits beneath a Master Agreement whose provisions it incorporates by reference, which is why the Order Form carries the ContractTemplateID rather than the MA carrying anything about it — hence TemplateRequired = 1. Signed paper is expected (RequiresExecutedDocument = 1), so it appears on the Awaiting-documents worklist until the executed file is registered. Reinstated Active 2026-08-20 (Marcelo), reversing the R-4 retirement.'
 SET
-  @RequiresExecutedDocument_ed96fbfd = 1
+  @RequiresExecutedDocument_5574320d = 1
 SET
-  @Status_ed96fbfd = N'Active'
+  @Status_5574320d = N'Active'
 SET
-  @MustBeRoot_ed96fbfd = 0
+  @MustBeRoot_5574320d = 0
 SET
-  @MustBeChild_ed96fbfd = 0
+  @MustBeChild_5574320d = 0
 SET
-  @TemplateRequired_ed96fbfd = 1
-EXEC [${flyway:defaultSchema}].spCreateContractType @ID = @ID_ed96fbfd,
-  @Name = @Name_ed96fbfd,
-  @Description = @Description_ed96fbfd,
-  @RequiresExecutedDocument = @RequiresExecutedDocument_ed96fbfd,
-  @Status = @Status_ed96fbfd,
-  @MustBeRoot = @MustBeRoot_ed96fbfd,
-  @MustBeChild = @MustBeChild_ed96fbfd,
-  @TemplateRequired = @TemplateRequired_ed96fbfd;
+  @TemplateRequired_5574320d = 1
+EXEC [${flyway:defaultSchema}].spCreateContractType @ID = @ID_5574320d,
+  @Name = @Name_5574320d,
+  @Description = @Description_5574320d,
+  @RequiresExecutedDocument = @RequiresExecutedDocument_5574320d,
+  @Status = @Status_5574320d,
+  @MustBeRoot = @MustBeRoot_5574320d,
+  @MustBeChild = @MustBeChild_5574320d,
+  @TemplateRequired = @TemplateRequired_5574320d;
 
 GO
 
 -- Save MJ_BizApps_Contracts: Contract Types (core SP call only)
-DECLARE @ID_7e20354a UNIQUEIDENTIFIER,
-@Name_7e20354a NVARCHAR(100),
-@Description_7e20354a NVARCHAR(MAX),
-@RequiresExecutedDocument_7e20354a BIT,
-@Status_7e20354a NVARCHAR(10),
-@MustBeRoot_7e20354a BIT,
-@MustBeChild_7e20354a BIT,
-@TemplateRequired_7e20354a BIT
+DECLARE @ID_9e472895 UNIQUEIDENTIFIER,
+@Name_9e472895 NVARCHAR(100),
+@Description_9e472895 NVARCHAR(MAX),
+@RequiresExecutedDocument_9e472895 BIT,
+@Status_9e472895 NVARCHAR(10),
+@MustBeRoot_9e472895 BIT,
+@MustBeChild_9e472895 BIT,
+@TemplateRequired_9e472895 BIT
 SET
-  @ID_7e20354a = '33333333-0000-4000-8000-000000001002'
+  @ID_9e472895 = '33333333-0000-4000-8000-000000001002'
 SET
-  @Name_7e20354a = N'Statement of Work'
+  @Name_9e472895 = N'Statement of Work'
 SET
-  @Description_7e20354a = N'Scoped services with a defined end. Amith, 2026-08-18: SOWs have standard language but no versioned template — so an SOW contract may have no ContractTemplateID, and that is not a gap to fill. Paper is still expected.'
+  @Description_9e472895 = N'Scoped services with a defined end. Amith, 2026-08-18: SOWs have standard language but no versioned template — so an SOW contract may have no ContractTemplateID, and that is not a gap to fill. Paper is still expected.'
 SET
-  @RequiresExecutedDocument_7e20354a = 1
+  @RequiresExecutedDocument_9e472895 = 1
 SET
-  @Status_7e20354a = N'Active'
+  @Status_9e472895 = N'Active'
 SET
-  @MustBeRoot_7e20354a = 1
+  @MustBeRoot_9e472895 = 1
 SET
-  @MustBeChild_7e20354a = 0
+  @MustBeChild_9e472895 = 0
 SET
-  @TemplateRequired_7e20354a = 1
-EXEC [${flyway:defaultSchema}].spCreateContractType @ID = @ID_7e20354a,
-  @Name = @Name_7e20354a,
-  @Description = @Description_7e20354a,
-  @RequiresExecutedDocument = @RequiresExecutedDocument_7e20354a,
-  @Status = @Status_7e20354a,
-  @MustBeRoot = @MustBeRoot_7e20354a,
-  @MustBeChild = @MustBeChild_7e20354a,
-  @TemplateRequired = @TemplateRequired_7e20354a;
+  @TemplateRequired_9e472895 = 1
+EXEC [${flyway:defaultSchema}].spCreateContractType @ID = @ID_9e472895,
+  @Name = @Name_9e472895,
+  @Description = @Description_9e472895,
+  @RequiresExecutedDocument = @RequiresExecutedDocument_9e472895,
+  @Status = @Status_9e472895,
+  @MustBeRoot = @MustBeRoot_9e472895,
+  @MustBeChild = @MustBeChild_9e472895,
+  @TemplateRequired = @TemplateRequired_9e472895;
 
 GO
 
 -- Save MJ_BizApps_Contracts: Contract Types (core SP call only)
-DECLARE @ID_e489e79e UNIQUEIDENTIFIER,
-@Name_e489e79e NVARCHAR(100),
-@Description_e489e79e NVARCHAR(MAX),
-@RequiresExecutedDocument_e489e79e BIT,
-@Status_e489e79e NVARCHAR(10),
-@MustBeRoot_e489e79e BIT,
-@MustBeChild_e489e79e BIT,
-@TemplateRequired_e489e79e BIT
+DECLARE @ID_8b89bf80 UNIQUEIDENTIFIER,
+@Name_8b89bf80 NVARCHAR(100),
+@Description_8b89bf80 NVARCHAR(MAX),
+@RequiresExecutedDocument_8b89bf80 BIT,
+@Status_8b89bf80 NVARCHAR(10),
+@MustBeRoot_8b89bf80 BIT,
+@MustBeChild_8b89bf80 BIT,
+@TemplateRequired_8b89bf80 BIT
 SET
-  @ID_e489e79e = '33333333-0000-4000-8000-000000001003'
+  @ID_8b89bf80 = '33333333-0000-4000-8000-000000001003'
 SET
-  @Name_e489e79e = N'Payment Link'
+  @Name_8b89bf80 = N'Payment Link'
 SET
-  @Description_e489e79e = N'The sub-$10k self-serve case: finance sends a HubSpot payment link that references the Master Agreement, and nobody signs anything. There is an implied contract, so it IS a contract — it carries a ContractTemplateID (TemplateRequired = 1, because the MA it incorporates is the only thing stating the terms) and no document. This is the one type where RequiresExecutedDocument is false, and the reason that column exists at all: it is what keeps a Payment Link OFF the Awaiting-documents worklist instead of sitting there forever waiting on paper that will never arrive. Reinstated Active 2026-08-20 (Marcelo), reversing the R-4 retirement; final shape pending Andrew''s confirmation.'
+  @Description_8b89bf80 = N'The sub-$10k self-serve case: finance sends a HubSpot payment link that references the Master Agreement, and nobody signs anything. There is an implied contract, so it IS a contract — it carries a ContractTemplateID (TemplateRequired = 1, because the MA it incorporates is the only thing stating the terms) and no document. This is the one type where RequiresExecutedDocument is false, and the reason that column exists at all: it is what keeps a Payment Link OFF the Awaiting-documents worklist instead of sitting there forever waiting on paper that will never arrive. Reinstated Active 2026-08-20 (Marcelo), reversing the R-4 retirement; final shape pending Andrew''s confirmation.'
 SET
-  @RequiresExecutedDocument_e489e79e = 0
+  @RequiresExecutedDocument_8b89bf80 = 0
 SET
-  @Status_e489e79e = N'Active'
+  @Status_8b89bf80 = N'Active'
 SET
-  @MustBeRoot_e489e79e = 0
+  @MustBeRoot_8b89bf80 = 0
 SET
-  @MustBeChild_e489e79e = 0
+  @MustBeChild_8b89bf80 = 0
 SET
-  @TemplateRequired_e489e79e = 1
-EXEC [${flyway:defaultSchema}].spCreateContractType @ID = @ID_e489e79e,
-  @Name = @Name_e489e79e,
-  @Description = @Description_e489e79e,
-  @RequiresExecutedDocument = @RequiresExecutedDocument_e489e79e,
-  @Status = @Status_e489e79e,
-  @MustBeRoot = @MustBeRoot_e489e79e,
-  @MustBeChild = @MustBeChild_e489e79e,
-  @TemplateRequired = @TemplateRequired_e489e79e;
+  @TemplateRequired_8b89bf80 = 1
+EXEC [${flyway:defaultSchema}].spCreateContractType @ID = @ID_8b89bf80,
+  @Name = @Name_8b89bf80,
+  @Description = @Description_8b89bf80,
+  @RequiresExecutedDocument = @RequiresExecutedDocument_8b89bf80,
+  @Status = @Status_8b89bf80,
+  @MustBeRoot = @MustBeRoot_8b89bf80,
+  @MustBeChild = @MustBeChild_8b89bf80,
+  @TemplateRequired = @TemplateRequired_8b89bf80;
 
 GO
 
 -- Save MJ_BizApps_Contracts: Contract Types (core SP call only)
-DECLARE @ID_7d40c62b UNIQUEIDENTIFIER,
-@Name_7d40c62b NVARCHAR(100),
-@Description_7d40c62b NVARCHAR(MAX),
-@RequiresExecutedDocument_7d40c62b BIT,
-@Status_7d40c62b NVARCHAR(10),
-@MustBeRoot_7d40c62b BIT,
-@MustBeChild_7d40c62b BIT,
-@TemplateRequired_7d40c62b BIT
+DECLARE @ID_d32186e0 UNIQUEIDENTIFIER,
+@Name_d32186e0 NVARCHAR(100),
+@Description_d32186e0 NVARCHAR(MAX),
+@RequiresExecutedDocument_d32186e0 BIT,
+@Status_d32186e0 NVARCHAR(10),
+@MustBeRoot_d32186e0 BIT,
+@MustBeChild_d32186e0 BIT,
+@TemplateRequired_d32186e0 BIT
 SET
-  @ID_7d40c62b = '33333333-0000-4000-8000-000000001004'
+  @ID_d32186e0 = '33333333-0000-4000-8000-000000001004'
 SET
-  @Name_7d40c62b = N'Change Order'
+  @Name_d32186e0 = N'Change Order'
 SET
-  @Description_7d40c62b = N'Amends an existing agreement rather than replacing it: signed paper of its own, its own dates, and a ParentContractID naming what it changes. MustBeChild = 1 is what enforces that parent — the server subclass reads that flag, where it once compared this row''s NAME to the string ''Change Order'' and silently stopped working if anyone renamed it. It carries no template of its own (TemplateRequired = 0); a modification recorded on a change order may cite any provision of a template at or above it in the tree.'
+  @Description_d32186e0 = N'Amends an existing agreement rather than replacing it: signed paper of its own, its own dates, and a ParentContractID naming what it changes. MustBeChild = 1 is what enforces that parent — the server subclass reads that flag, where it once compared this row''s NAME to the string ''Change Order'' and silently stopped working if anyone renamed it. It carries no template of its own (TemplateRequired = 0); a modification recorded on a change order may cite any provision of a template at or above it in the tree.'
 SET
-  @RequiresExecutedDocument_7d40c62b = 1
+  @RequiresExecutedDocument_d32186e0 = 1
 SET
-  @Status_7d40c62b = N'Active'
+  @Status_d32186e0 = N'Active'
 SET
-  @MustBeRoot_7d40c62b = 0
+  @MustBeRoot_d32186e0 = 0
 SET
-  @MustBeChild_7d40c62b = 1
+  @MustBeChild_d32186e0 = 1
 SET
-  @TemplateRequired_7d40c62b = 0
-EXEC [${flyway:defaultSchema}].spCreateContractType @ID = @ID_7d40c62b,
-  @Name = @Name_7d40c62b,
-  @Description = @Description_7d40c62b,
-  @RequiresExecutedDocument = @RequiresExecutedDocument_7d40c62b,
-  @Status = @Status_7d40c62b,
-  @MustBeRoot = @MustBeRoot_7d40c62b,
-  @MustBeChild = @MustBeChild_7d40c62b,
-  @TemplateRequired = @TemplateRequired_7d40c62b;
-
-GO
-
--- Save MJ_BizApps_Contracts: Contract Templates (core SP call only)
-DECLARE @ID_384bd641 UNIQUEIDENTIFIER,
-@Name_384bd641 NVARCHAR(200),
-@ContractTemplateTypeID_384bd641 UNIQUEIDENTIFIER,
-@VersionLabel_384bd641 NVARCHAR(50),
-@IntroducedDate_384bd641 DATE,
-@SourceURL_384bd641 NVARCHAR(1000),
-@Description_384bd641 NVARCHAR(MAX),
-@Status_384bd641 NVARCHAR(20)
-SET
-  @ID_384bd641 = '33333333-0000-4000-8000-000000003001'
-SET
-  @Name_384bd641 = N'Master Agreement — 2026-02-02'
-SET
-  @ContractTemplateTypeID_384bd641 = '33333333-0000-4000-8000-000000002001'
-SET
-  @VersionLabel_384bd641 = N'2026-02-02'
-SET
-  @IntroducedDate_384bd641 = '2026-02-02T00:00:00.000Z'
-SET
-  @SourceURL_384bd641 = N'https://bluecypress.io/masteragreement20260202/'
-SET
-  @Description_384bd641 = N'Blue Cypress Master Services Agreement, 2026-02-02 edition. 16 sections, 71 numbered provisions. Captured from the dated published URL; each provision carries its verbatim text so a negotiated deviation can be read beside the standard clause.'
-SET
-  @Status_384bd641 = N'Draft' EXEC [${flyway:defaultSchema}].spCreateContractTemplate @ID = @ID_384bd641,
-  @Name = @Name_384bd641,
-  @ContractTemplateTypeID = @ContractTemplateTypeID_384bd641,
-  @VersionLabel = @VersionLabel_384bd641,
-  @IntroducedDate = @IntroducedDate_384bd641,
-  @SourceURL = @SourceURL_384bd641,
-  @Description = @Description_384bd641,
-  @Status = @Status_384bd641;
-
-GO
-
--- Save MJ_BizApps_Contracts: Contract Template Provisions (core SP call only)
-DECLARE @ID_cd9b94ad UNIQUEIDENTIFIER,
-@ContractTemplateID_cd9b94ad UNIQUEIDENTIFIER,
-@ProvisionNumber_cd9b94ad NVARCHAR(20),
-@Title_cd9b94ad NVARCHAR(200),
-@ProvisionText_cd9b94ad NVARCHAR(MAX),
-@Description_cd9b94ad NVARCHAR(MAX)
-SET
-  @ID_cd9b94ad = '33333333-0000-4000-8000-000000004001'
-SET
-  @ContractTemplateID_cd9b94ad = '33333333-0000-4000-8000-000000003001'
-SET
-  @ProvisionNumber_cd9b94ad = N'1.1'
-SET
-  @Title_cd9b94ad = N'BC Affiliate'
-SET
-  @ProvisionText_cd9b94ad = N'“BC Affiliate” or “BC Affiliates” shall mean the particular company within BC’s Family of Companies as listed on https://bluecypress.io/BCAffiliates that is the party to a particular Order Form or Statement of Work.'
-SET
-  @Description_cd9b94ad = N'Section 1 — Definitions' EXEC [${flyway:defaultSchema}].spCreateContractTemplateProvision @ID = @ID_cd9b94ad,
-  @ContractTemplateID = @ContractTemplateID_cd9b94ad,
-  @ProvisionNumber = @ProvisionNumber_cd9b94ad,
-  @Title = @Title_cd9b94ad,
-  @ProvisionText = @ProvisionText_cd9b94ad,
-  @Description = @Description_cd9b94ad;
-
-GO
-
--- Save MJ_BizApps_Contracts: Contract Template Provisions (core SP call only)
-DECLARE @ID_6b9e025b UNIQUEIDENTIFIER,
-@ContractTemplateID_6b9e025b UNIQUEIDENTIFIER,
-@ProvisionNumber_6b9e025b NVARCHAR(20),
-@Title_6b9e025b NVARCHAR(200),
-@ProvisionText_6b9e025b NVARCHAR(MAX),
-@Description_6b9e025b NVARCHAR(MAX)
-SET
-  @ID_6b9e025b = '33333333-0000-4000-8000-000000004002'
-SET
-  @ContractTemplateID_6b9e025b = '33333333-0000-4000-8000-000000003001'
-SET
-  @ProvisionNumber_6b9e025b = N'1.2'
-SET
-  @Title_6b9e025b = N'Aggregated Data'
-SET
-  @ProvisionText_6b9e025b = N'“Aggregated Data” means data, which is based on or derived from Customer Data, and which has been aggregated and de-identified in a manner that does not designate or identify Customer or its users as the source of the data.'
-SET
-  @Description_6b9e025b = N'Section 1 — Definitions' EXEC [${flyway:defaultSchema}].spCreateContractTemplateProvision @ID = @ID_6b9e025b,
-  @ContractTemplateID = @ContractTemplateID_6b9e025b,
-  @ProvisionNumber = @ProvisionNumber_6b9e025b,
-  @Title = @Title_6b9e025b,
-  @ProvisionText = @ProvisionText_6b9e025b,
-  @Description = @Description_6b9e025b;
-
-GO
-
--- Save MJ_BizApps_Contracts: Contract Template Provisions (core SP call only)
-DECLARE @ID_eabfc47a UNIQUEIDENTIFIER,
-@ContractTemplateID_eabfc47a UNIQUEIDENTIFIER,
-@ProvisionNumber_eabfc47a NVARCHAR(20),
-@Title_eabfc47a NVARCHAR(200),
-@ProvisionText_eabfc47a NVARCHAR(MAX),
-@Description_eabfc47a NVARCHAR(MAX)
-SET
-  @ID_eabfc47a = '33333333-0000-4000-8000-000000004003'
-SET
-  @ContractTemplateID_eabfc47a = '33333333-0000-4000-8000-000000003001'
-SET
-  @ProvisionNumber_eabfc47a = N'1.3'
-SET
-  @Title_eabfc47a = N'Authorized User'
-SET
-  @ProvisionText_eabfc47a = N'“Authorized User” means any individual or entity authorized by the Customer to access or use the SaaS Services and/or Work Product provided under this Agreement. This includes Customer’s employees, consultants, contractors, agents, or other representatives who are provided with access credentials or other approved access by the Customer or BC Affiliates. Authorized Users have access to a broader set of functionalities, including administrative controls and Confidential Information, and are subject to the terms and conditions of this Agreement. In no event shall an Authorized User include an employee of a BC Affiliate Competitor or any individual or entity acting in a capacity that, in the commercially reasonable opinion of BC Affiliate, undermines the security or integrity of the Software. The Customer is solely responsible for ensuring that any and all activities conducted by its Authorized Users in violation of this Agreement.'
-SET
-  @Description_eabfc47a = N'Section 1 — Definitions' EXEC [${flyway:defaultSchema}].spCreateContractTemplateProvision @ID = @ID_eabfc47a,
-  @ContractTemplateID = @ContractTemplateID_eabfc47a,
-  @ProvisionNumber = @ProvisionNumber_eabfc47a,
-  @Title = @Title_eabfc47a,
-  @ProvisionText = @ProvisionText_eabfc47a,
-  @Description = @Description_eabfc47a;
-
-GO
-
--- Save MJ_BizApps_Contracts: Contract Template Provisions (core SP call only)
-DECLARE @ID_45d3885d UNIQUEIDENTIFIER,
-@ContractTemplateID_45d3885d UNIQUEIDENTIFIER,
-@ProvisionNumber_45d3885d NVARCHAR(20),
-@Title_45d3885d NVARCHAR(200),
-@ProvisionText_45d3885d NVARCHAR(MAX),
-@Description_45d3885d NVARCHAR(MAX)
-SET
-  @ID_45d3885d = '33333333-0000-4000-8000-000000004004'
-SET
-  @ContractTemplateID_45d3885d = '33333333-0000-4000-8000-000000003001'
-SET
-  @ProvisionNumber_45d3885d = N'1.4'
-SET
-  @Title_45d3885d = N'BC Affiliate Competitor'
-SET
-  @ProvisionText_45d3885d = N'“BC Affiliate Competitor” means any company, person or entity that generates a significant portion of their revenues from products or services that are substantially similar to products or services offered by any BC Affiliate.'
-SET
-  @Description_45d3885d = N'Section 1 — Definitions' EXEC [${flyway:defaultSchema}].spCreateContractTemplateProvision @ID = @ID_45d3885d,
-  @ContractTemplateID = @ContractTemplateID_45d3885d,
-  @ProvisionNumber = @ProvisionNumber_45d3885d,
-  @Title = @Title_45d3885d,
-  @ProvisionText = @ProvisionText_45d3885d,
-  @Description = @Description_45d3885d;
-
-GO
-
--- Save MJ_BizApps_Contracts: Contract Template Provisions (core SP call only)
-DECLARE @ID_9ef6cf82 UNIQUEIDENTIFIER,
-@ContractTemplateID_9ef6cf82 UNIQUEIDENTIFIER,
-@ProvisionNumber_9ef6cf82 NVARCHAR(20),
-@Title_9ef6cf82 NVARCHAR(200),
-@ProvisionText_9ef6cf82 NVARCHAR(MAX),
-@Description_9ef6cf82 NVARCHAR(MAX)
-SET
-  @ID_9ef6cf82 = '33333333-0000-4000-8000-000000004005'
-SET
-  @ContractTemplateID_9ef6cf82 = '33333333-0000-4000-8000-000000003001'
-SET
-  @ProvisionNumber_9ef6cf82 = N'1.5'
-SET
-  @Title_9ef6cf82 = N'End User'
-SET
-  @ProvisionText_9ef6cf82 = N'“End User” means any individual or entity, other than Customer, that interacts with or utilizes the functionalities of the Software provided under this Agreement, without requiring a license or direct authorization from the Customer or BC Affiliates. End Users may include, but are not limited to, customers, clients, or other third parties who access the Software through platforms or services owned, licensed, controlled, operated, or otherwise provided by the Customer. End Users are distinct from Authorized Users in that they do not have access to the full range of features, administrative controls, or Confidential Information available to Authorized Users and are not directly subject to the terms of this Agreement. The Customer is solely responsible for ensuring that End User interaction with or utilization of the Software complies with the terms of this Agreement and any applicable laws and regulations.'
-SET
-  @Description_9ef6cf82 = N'Section 1 — Definitions' EXEC [${flyway:defaultSchema}].spCreateContractTemplateProvision @ID = @ID_9ef6cf82,
-  @ContractTemplateID = @ContractTemplateID_9ef6cf82,
-  @ProvisionNumber = @ProvisionNumber_9ef6cf82,
-  @Title = @Title_9ef6cf82,
-  @ProvisionText = @ProvisionText_9ef6cf82,
-  @Description = @Description_9ef6cf82;
-
-GO
-
--- Save MJ_BizApps_Contracts: Contract Template Provisions (core SP call only)
-DECLARE @ID_ba11d1cd UNIQUEIDENTIFIER,
-@ContractTemplateID_ba11d1cd UNIQUEIDENTIFIER,
-@ProvisionNumber_ba11d1cd NVARCHAR(20),
-@Title_ba11d1cd NVARCHAR(200),
-@ProvisionText_ba11d1cd NVARCHAR(MAX),
-@Description_ba11d1cd NVARCHAR(MAX)
-SET
-  @ID_ba11d1cd = '33333333-0000-4000-8000-000000004006'
-SET
-  @ContractTemplateID_ba11d1cd = '33333333-0000-4000-8000-000000003001'
-SET
-  @ProvisionNumber_ba11d1cd = N'1.6'
-SET
-  @Title_ba11d1cd = N'Confidential Information'
-SET
-  @ProvisionText_ba11d1cd = N'“Confidential Information” means any information relating to or disclosed in the course of the Agreement, which is or should be reasonably understood to be confidential or proprietary to the disclosing party, or which is described in Section 8 of this Agreement.'
-SET
-  @Description_ba11d1cd = N'Section 1 — Definitions' EXEC [${flyway:defaultSchema}].spCreateContractTemplateProvision @ID = @ID_ba11d1cd,
-  @ContractTemplateID = @ContractTemplateID_ba11d1cd,
-  @ProvisionNumber = @ProvisionNumber_ba11d1cd,
-  @Title = @Title_ba11d1cd,
-  @ProvisionText = @ProvisionText_ba11d1cd,
-  @Description = @Description_ba11d1cd;
-
-GO
-
--- Save MJ_BizApps_Contracts: Contract Template Provisions (core SP call only)
-DECLARE @ID_fc8d74b9 UNIQUEIDENTIFIER,
-@ContractTemplateID_fc8d74b9 UNIQUEIDENTIFIER,
-@ProvisionNumber_fc8d74b9 NVARCHAR(20),
-@Title_fc8d74b9 NVARCHAR(200),
-@ProvisionText_fc8d74b9 NVARCHAR(MAX),
-@Description_fc8d74b9 NVARCHAR(MAX)
-SET
-  @ID_fc8d74b9 = '33333333-0000-4000-8000-000000004007'
-SET
-  @ContractTemplateID_fc8d74b9 = '33333333-0000-4000-8000-000000003001'
-SET
-  @ProvisionNumber_fc8d74b9 = N'1.7'
-SET
-  @Title_fc8d74b9 = N'Customer Data'
-SET
-  @ProvisionText_fc8d74b9 = N'“Customer Data” means any of Customer’s information, documents, or electronic files that are provided to a BC Affiliate hereunder.'
-SET
-  @Description_fc8d74b9 = N'Section 1 — Definitions' EXEC [${flyway:defaultSchema}].spCreateContractTemplateProvision @ID = @ID_fc8d74b9,
-  @ContractTemplateID = @ContractTemplateID_fc8d74b9,
-  @ProvisionNumber = @ProvisionNumber_fc8d74b9,
-  @Title = @Title_fc8d74b9,
-  @ProvisionText = @ProvisionText_fc8d74b9,
-  @Description = @Description_fc8d74b9;
-
-GO
-
--- Save MJ_BizApps_Contracts: Contract Template Provisions (core SP call only)
-DECLARE @ID_4753eba9 UNIQUEIDENTIFIER,
-@ContractTemplateID_4753eba9 UNIQUEIDENTIFIER,
-@ProvisionNumber_4753eba9 NVARCHAR(20),
-@Title_4753eba9 NVARCHAR(200),
-@ProvisionText_4753eba9 NVARCHAR(MAX),
-@Description_4753eba9 NVARCHAR(MAX)
-SET
-  @ID_4753eba9 = '33333333-0000-4000-8000-000000004008'
-SET
-  @ContractTemplateID_4753eba9 = '33333333-0000-4000-8000-000000003001'
-SET
-  @ProvisionNumber_4753eba9 = N'1.8'
-SET
-  @Title_4753eba9 = N'Enrichment Data'
-SET
-  @ProvisionText_4753eba9 = N'"Enrichment Data" means user interaction and behavioral data derived from individual users'' interactions with the Software and any communications received by them from the Software. Enrichment Data includes, but is not limited to, user application prompts, clicks, opens of emails, messages, and/or records, and time spent consuming specific pieces of content and any generated data that is created by the Software using other Enrichment Data. Depending on the product and/or service described in the relevant Order Form and/or Statement of Work, Enrichment Data may also include the correlation of Enrichment Data with the individual user’s IP and/or email address and the user’s IP and/or email address itself for purposes of linking other Enrichment Data to the user’s IP and/or email address.'
-SET
-  @Description_4753eba9 = N'Section 1 — Definitions' EXEC [${flyway:defaultSchema}].spCreateContractTemplateProvision @ID = @ID_4753eba9,
-  @ContractTemplateID = @ContractTemplateID_4753eba9,
-  @ProvisionNumber = @ProvisionNumber_4753eba9,
-  @Title = @Title_4753eba9,
-  @ProvisionText = @ProvisionText_4753eba9,
-  @Description = @Description_4753eba9;
-
-GO
-
--- Save MJ_BizApps_Contracts: Contract Template Provisions (core SP call only)
-DECLARE @ID_183d17dc UNIQUEIDENTIFIER,
-@ContractTemplateID_183d17dc UNIQUEIDENTIFIER,
-@ProvisionNumber_183d17dc NVARCHAR(20),
-@Title_183d17dc NVARCHAR(200),
-@ProvisionText_183d17dc NVARCHAR(MAX),
-@Description_183d17dc NVARCHAR(MAX)
-SET
-  @ID_183d17dc = '33333333-0000-4000-8000-000000004009'
-SET
-  @ContractTemplateID_183d17dc = '33333333-0000-4000-8000-000000003001'
-SET
-  @ProvisionNumber_183d17dc = N'1.9'
-SET
-  @Title_183d17dc = N'Error'
-SET
-  @ProvisionText_183d17dc = N'“Error” means any reproducible material failure of the Software to function in accordance with its Documentation.'
-SET
-  @Description_183d17dc = N'Section 1 — Definitions' EXEC [${flyway:defaultSchema}].spCreateContractTemplateProvision @ID = @ID_183d17dc,
-  @ContractTemplateID = @ContractTemplateID_183d17dc,
-  @ProvisionNumber = @ProvisionNumber_183d17dc,
-  @Title = @Title_183d17dc,
-  @ProvisionText = @ProvisionText_183d17dc,
-  @Description = @Description_183d17dc;
-
-GO
-
--- Save MJ_BizApps_Contracts: Contract Template Provisions (core SP call only)
-DECLARE @ID_1e3778cc UNIQUEIDENTIFIER,
-@ContractTemplateID_1e3778cc UNIQUEIDENTIFIER,
-@ProvisionNumber_1e3778cc NVARCHAR(20),
-@Title_1e3778cc NVARCHAR(200),
-@ProvisionText_1e3778cc NVARCHAR(MAX),
-@Description_1e3778cc NVARCHAR(MAX)
-SET
-  @ID_1e3778cc = '33333333-0000-4000-8000-000000004010'
-SET
-  @ContractTemplateID_1e3778cc = '33333333-0000-4000-8000-000000003001'
-SET
-  @ProvisionNumber_1e3778cc = N'1.10'
-SET
-  @Title_1e3778cc = N'Documentation'
-SET
-  @ProvisionText_1e3778cc = N'“Documentation” means any online or printed user manuals, functional specifications that are provided to Customer by any BC Affiliate, and any derivative works arising from or related to the foregoing.'
-SET
-  @Description_1e3778cc = N'Section 1 — Definitions' EXEC [${flyway:defaultSchema}].spCreateContractTemplateProvision @ID = @ID_1e3778cc,
-  @ContractTemplateID = @ContractTemplateID_1e3778cc,
-  @ProvisionNumber = @ProvisionNumber_1e3778cc,
-  @Title = @Title_1e3778cc,
-  @ProvisionText = @ProvisionText_1e3778cc,
-  @Description = @Description_1e3778cc;
-
-GO
-
--- Save MJ_BizApps_Contracts: Contract Template Provisions (core SP call only)
-DECLARE @ID_2e6b6f8b UNIQUEIDENTIFIER,
-@ContractTemplateID_2e6b6f8b UNIQUEIDENTIFIER,
-@ProvisionNumber_2e6b6f8b NVARCHAR(20),
-@Title_2e6b6f8b NVARCHAR(200),
-@ProvisionText_2e6b6f8b NVARCHAR(MAX),
-@Description_2e6b6f8b NVARCHAR(MAX)
-SET
-  @ID_2e6b6f8b = '33333333-0000-4000-8000-000000004011'
-SET
-  @ContractTemplateID_2e6b6f8b = '33333333-0000-4000-8000-000000003001'
-SET
-  @ProvisionNumber_2e6b6f8b = N'1.11'
-SET
-  @Title_2e6b6f8b = N'Order Form'
-SET
-  @ProvisionText_2e6b6f8b = N'“Order Form” means an addendum addressing the acquisition of a specific set of products and/or services executed by authorized representatives of Customer and any BC Affiliate. References to the Order Form include any exhibits to the Order Form, except where this Agreement specifically addresses exhibits separately. By executing an Order Form hereunder with any Affiliate, Customer agrees to be bound by the terms of this Agreement as if it were an original party hereto. Each Order Form constitutes a unique, separate contract between the Customer and the applicable BC Affiliate, and BC is not a party to, and has no liability under, any Order Form.'
-SET
-  @Description_2e6b6f8b = N'Section 1 — Definitions' EXEC [${flyway:defaultSchema}].spCreateContractTemplateProvision @ID = @ID_2e6b6f8b,
-  @ContractTemplateID = @ContractTemplateID_2e6b6f8b,
-  @ProvisionNumber = @ProvisionNumber_2e6b6f8b,
-  @Title = @Title_2e6b6f8b,
-  @ProvisionText = @ProvisionText_2e6b6f8b,
-  @Description = @Description_2e6b6f8b;
-
-GO
-
--- Save MJ_BizApps_Contracts: Contract Template Provisions (core SP call only)
-DECLARE @ID_1a4c1b0b UNIQUEIDENTIFIER,
-@ContractTemplateID_1a4c1b0b UNIQUEIDENTIFIER,
-@ProvisionNumber_1a4c1b0b NVARCHAR(20),
-@Title_1a4c1b0b NVARCHAR(200),
-@ProvisionText_1a4c1b0b NVARCHAR(MAX),
-@Description_1a4c1b0b NVARCHAR(MAX)
-SET
-  @ID_1a4c1b0b = '33333333-0000-4000-8000-000000004012'
-SET
-  @ContractTemplateID_1a4c1b0b = '33333333-0000-4000-8000-000000003001'
-SET
-  @ProvisionNumber_1a4c1b0b = N'1.12'
-SET
-  @Title_1a4c1b0b = N'Professional Services'
-SET
-  @ProvisionText_1a4c1b0b = N'“Professional Services” or “Services” means any services provided by any BC Affiliate to Customer pursuant to the applicable Order Form and/or Statement of Work.'
-SET
-  @Description_1a4c1b0b = N'Section 1 — Definitions' EXEC [${flyway:defaultSchema}].spCreateContractTemplateProvision @ID = @ID_1a4c1b0b,
-  @ContractTemplateID = @ContractTemplateID_1a4c1b0b,
-  @ProvisionNumber = @ProvisionNumber_1a4c1b0b,
-  @Title = @Title_1a4c1b0b,
-  @ProvisionText = @ProvisionText_1a4c1b0b,
-  @Description = @Description_1a4c1b0b;
-
-GO
-
--- Save MJ_BizApps_Contracts: Contract Template Provisions (core SP call only)
-DECLARE @ID_5c853440 UNIQUEIDENTIFIER,
-@ContractTemplateID_5c853440 UNIQUEIDENTIFIER,
-@ProvisionNumber_5c853440 NVARCHAR(20),
-@Title_5c853440 NVARCHAR(200),
-@ProvisionText_5c853440 NVARCHAR(MAX),
-@Description_5c853440 NVARCHAR(MAX)
-SET
-  @ID_5c853440 = '33333333-0000-4000-8000-000000004013'
-SET
-  @ContractTemplateID_5c853440 = '33333333-0000-4000-8000-000000003001'
-SET
-  @ProvisionNumber_5c853440 = N'1.13'
-SET
-  @Title_5c853440 = N'Software-as-a-Service'
-SET
-  @ProvisionText_5c853440 = N'“Software-as-a-Service” or “SaaS” or “Software” means the BC Affiliate software and tools, including any updates that may be provided by Affiliate, where the BC Affiliate hosts (directly or indirectly) for Customer’s use.'
-SET
-  @Description_5c853440 = N'Section 1 — Definitions' EXEC [${flyway:defaultSchema}].spCreateContractTemplateProvision @ID = @ID_5c853440,
-  @ContractTemplateID = @ContractTemplateID_5c853440,
-  @ProvisionNumber = @ProvisionNumber_5c853440,
-  @Title = @Title_5c853440,
-  @ProvisionText = @ProvisionText_5c853440,
-  @Description = @Description_5c853440;
-
-GO
-
--- Save MJ_BizApps_Contracts: Contract Template Provisions (core SP call only)
-DECLARE @ID_83f5a2db UNIQUEIDENTIFIER,
-@ContractTemplateID_83f5a2db UNIQUEIDENTIFIER,
-@ProvisionNumber_83f5a2db NVARCHAR(20),
-@Title_83f5a2db NVARCHAR(200),
-@ProvisionText_83f5a2db NVARCHAR(MAX),
-@Description_83f5a2db NVARCHAR(MAX)
-SET
-  @ID_83f5a2db = '33333333-0000-4000-8000-000000004014'
-SET
-  @ContractTemplateID_83f5a2db = '33333333-0000-4000-8000-000000003001'
-SET
-  @ProvisionNumber_83f5a2db = N'1.14'
-SET
-  @Title_83f5a2db = N'Statement of Work'
-SET
-  @ProvisionText_83f5a2db = N'“Statement of Work” means an addendum addressing the acquisition of a specific set of project-related services executed by authorized representatives of Customer and any BC Affiliate. References to the Statement of Work include any exhibits to the Statement of Work, except where this Agreement specifically addresses exhibits separately. By executing a Statement of Work hereunder, Customer agrees to be bound by the terms of this Agreement as if it were an original party hereto. Each Statement of Work constitutes a unique, separate contract between the Customer and the applicable BC Affiliate, and BC is not a party to, and has no liability under, any Statement of Work.'
-SET
-  @Description_83f5a2db = N'Section 1 — Definitions' EXEC [${flyway:defaultSchema}].spCreateContractTemplateProvision @ID = @ID_83f5a2db,
-  @ContractTemplateID = @ContractTemplateID_83f5a2db,
-  @ProvisionNumber = @ProvisionNumber_83f5a2db,
-  @Title = @Title_83f5a2db,
-  @ProvisionText = @ProvisionText_83f5a2db,
-  @Description = @Description_83f5a2db;
-
-GO
-
--- Save MJ_BizApps_Contracts: Contract Template Provisions (core SP call only)
-DECLARE @ID_96a78273 UNIQUEIDENTIFIER,
-@ContractTemplateID_96a78273 UNIQUEIDENTIFIER,
-@ProvisionNumber_96a78273 NVARCHAR(20),
-@Title_96a78273 NVARCHAR(200),
-@ProvisionText_96a78273 NVARCHAR(MAX),
-@Description_96a78273 NVARCHAR(MAX)
-SET
-  @ID_96a78273 = '33333333-0000-4000-8000-000000004015'
-SET
-  @ContractTemplateID_96a78273 = '33333333-0000-4000-8000-000000003001'
-SET
-  @ProvisionNumber_96a78273 = N'1.15'
-SET
-  @Title_96a78273 = N'Support Services'
-SET
-  @ProvisionText_96a78273 = N'“Support Services” means maintenance and technical support services for the Software.'
-SET
-  @Description_96a78273 = N'Section 1 — Definitions' EXEC [${flyway:defaultSchema}].spCreateContractTemplateProvision @ID = @ID_96a78273,
-  @ContractTemplateID = @ContractTemplateID_96a78273,
-  @ProvisionNumber = @ProvisionNumber_96a78273,
-  @Title = @Title_96a78273,
-  @ProvisionText = @ProvisionText_96a78273,
-  @Description = @Description_96a78273;
-
-GO
-
--- Save MJ_BizApps_Contracts: Contract Template Provisions (core SP call only)
-DECLARE @ID_ddc1c9a4 UNIQUEIDENTIFIER,
-@ContractTemplateID_ddc1c9a4 UNIQUEIDENTIFIER,
-@ProvisionNumber_ddc1c9a4 NVARCHAR(20),
-@Title_ddc1c9a4 NVARCHAR(200),
-@ProvisionText_ddc1c9a4 NVARCHAR(MAX),
-@Description_ddc1c9a4 NVARCHAR(MAX)
-SET
-  @ID_ddc1c9a4 = '33333333-0000-4000-8000-000000004016'
-SET
-  @ContractTemplateID_ddc1c9a4 = '33333333-0000-4000-8000-000000003001'
-SET
-  @ProvisionNumber_ddc1c9a4 = N'1.16'
-SET
-  @Title_ddc1c9a4 = N'Update'
-SET
-  @ProvisionText_ddc1c9a4 = N'“Update” means any patch, bug fix, release, version, modification, or successor to the Software.'
-SET
-  @Description_ddc1c9a4 = N'Section 1 — Definitions' EXEC [${flyway:defaultSchema}].spCreateContractTemplateProvision @ID = @ID_ddc1c9a4,
-  @ContractTemplateID = @ContractTemplateID_ddc1c9a4,
-  @ProvisionNumber = @ProvisionNumber_ddc1c9a4,
-  @Title = @Title_ddc1c9a4,
-  @ProvisionText = @ProvisionText_ddc1c9a4,
-  @Description = @Description_ddc1c9a4;
-
-GO
-
--- Save MJ_BizApps_Contracts: Contract Template Provisions (core SP call only)
-DECLARE @ID_09e76613 UNIQUEIDENTIFIER,
-@ContractTemplateID_09e76613 UNIQUEIDENTIFIER,
-@ProvisionNumber_09e76613 NVARCHAR(20),
-@Title_09e76613 NVARCHAR(200),
-@ProvisionText_09e76613 NVARCHAR(MAX),
-@Description_09e76613 NVARCHAR(MAX)
-SET
-  @ID_09e76613 = '33333333-0000-4000-8000-000000004017'
-SET
-  @ContractTemplateID_09e76613 = '33333333-0000-4000-8000-000000003001'
-SET
-  @ProvisionNumber_09e76613 = N'1.17'
-SET
-  @Title_09e76613 = N'Work Product'
-SET
-  @ProvisionText_09e76613 = N'“Work Product” means all work created under this Agreement by any BC Affiliate.'
-SET
-  @Description_09e76613 = N'Section 1 — Definitions' EXEC [${flyway:defaultSchema}].spCreateContractTemplateProvision @ID = @ID_09e76613,
-  @ContractTemplateID = @ContractTemplateID_09e76613,
-  @ProvisionNumber = @ProvisionNumber_09e76613,
-  @Title = @Title_09e76613,
-  @ProvisionText = @ProvisionText_09e76613,
-  @Description = @Description_09e76613;
-
-GO
-
--- Save MJ_BizApps_Contracts: Contract Template Provisions (core SP call only)
-DECLARE @ID_4c95d37b UNIQUEIDENTIFIER,
-@ContractTemplateID_4c95d37b UNIQUEIDENTIFIER,
-@ProvisionNumber_4c95d37b NVARCHAR(20),
-@Title_4c95d37b NVARCHAR(200),
-@ProvisionText_4c95d37b NVARCHAR(MAX),
-@Description_4c95d37b NVARCHAR(MAX)
-SET
-  @ID_4c95d37b = '33333333-0000-4000-8000-000000004018'
-SET
-  @ContractTemplateID_4c95d37b = '33333333-0000-4000-8000-000000003001'
-SET
-  @ProvisionNumber_4c95d37b = N'2.1'
-SET
-  @Title_4c95d37b = N'Scope of This Agreement'
-SET
-  @ProvisionText_4c95d37b = N'This Agreement covers one or more separate orders or projects to which the Customer and any BC Affiliate now or hereafter agree, with each such order or project to be described in separate Order Form(s) and/or Statement(s) of Work to be attached as an exhibit hereto.'
-SET
-  @Description_4c95d37b = N'Section 2 — Scope of This Agreement' EXEC [${flyway:defaultSchema}].spCreateContractTemplateProvision @ID = @ID_4c95d37b,
-  @ContractTemplateID = @ContractTemplateID_4c95d37b,
-  @ProvisionNumber = @ProvisionNumber_4c95d37b,
-  @Title = @Title_4c95d37b,
-  @ProvisionText = @ProvisionText_4c95d37b,
-  @Description = @Description_4c95d37b;
-
-GO
-
--- Save MJ_BizApps_Contracts: Contract Template Provisions (core SP call only)
-DECLARE @ID_f2c6d456 UNIQUEIDENTIFIER,
-@ContractTemplateID_f2c6d456 UNIQUEIDENTIFIER,
-@ProvisionNumber_f2c6d456 NVARCHAR(20),
-@Title_f2c6d456 NVARCHAR(200),
-@ProvisionText_f2c6d456 NVARCHAR(MAX),
-@Description_f2c6d456 NVARCHAR(MAX)
-SET
-  @ID_f2c6d456 = '33333333-0000-4000-8000-000000004019'
-SET
-  @ContractTemplateID_f2c6d456 = '33333333-0000-4000-8000-000000003001'
-SET
-  @ProvisionNumber_f2c6d456 = N'3.1'
-SET
-  @Title_f2c6d456 = N'Software-as-a-Service'
-SET
-  @ProvisionText_f2c6d456 = N'BC Affiliate, in conjunction with its Agreement to provide products and/or services, shall grant to Customer a non-exclusive, non-transferable license to use the Software for its internal business purposes during the term of the Order Form.'
-SET
-  @Description_f2c6d456 = N'Section 3 — Software-as-a-Service' EXEC [${flyway:defaultSchema}].spCreateContractTemplateProvision @ID = @ID_f2c6d456,
-  @ContractTemplateID = @ContractTemplateID_f2c6d456,
-  @ProvisionNumber = @ProvisionNumber_f2c6d456,
-  @Title = @Title_f2c6d456,
-  @ProvisionText = @ProvisionText_f2c6d456,
-  @Description = @Description_f2c6d456;
-
-GO
-
--- Save MJ_BizApps_Contracts: Contract Template Provisions (core SP call only)
-DECLARE @ID_3c4a9491 UNIQUEIDENTIFIER,
-@ContractTemplateID_3c4a9491 UNIQUEIDENTIFIER,
-@ProvisionNumber_3c4a9491 NVARCHAR(20),
-@Title_3c4a9491 NVARCHAR(200),
-@ProvisionText_3c4a9491 NVARCHAR(MAX),
-@Description_3c4a9491 NVARCHAR(MAX)
-SET
-  @ID_3c4a9491 = '33333333-0000-4000-8000-000000004020'
-SET
-  @ContractTemplateID_3c4a9491 = '33333333-0000-4000-8000-000000003001'
-SET
-  @ProvisionNumber_3c4a9491 = N'3.2'
-SET
-  @Title_3c4a9491 = N'Software-as-a-Service'
-SET
-  @ProvisionText_3c4a9491 = N'Customer shall not, directly, indirectly, alone, or with another party, (i) copy, disassemble, reverse engineer, or decompile the Software; (ii) modify, create derivative works based upon, or translate the Software; (iii) transfer or otherwise grant any rights in the Software in any form to any other party, nor shall Customer attempt to do any of the foregoing or cause or permit any third party to do or attempt to do any of the foregoing, except as expressly permitted hereunder.'
-SET
-  @Description_3c4a9491 = N'Section 3 — Software-as-a-Service' EXEC [${flyway:defaultSchema}].spCreateContractTemplateProvision @ID = @ID_3c4a9491,
-  @ContractTemplateID = @ContractTemplateID_3c4a9491,
-  @ProvisionNumber = @ProvisionNumber_3c4a9491,
-  @Title = @Title_3c4a9491,
-  @ProvisionText = @ProvisionText_3c4a9491,
-  @Description = @Description_3c4a9491;
-
-GO
-
--- Save MJ_BizApps_Contracts: Contract Template Provisions (core SP call only)
-DECLARE @ID_da375a25 UNIQUEIDENTIFIER,
-@ContractTemplateID_da375a25 UNIQUEIDENTIFIER,
-@ProvisionNumber_da375a25 NVARCHAR(20),
-@Title_da375a25 NVARCHAR(200),
-@ProvisionText_da375a25 NVARCHAR(MAX),
-@Description_da375a25 NVARCHAR(MAX)
-SET
-  @ID_da375a25 = '33333333-0000-4000-8000-000000004021'
-SET
-  @ContractTemplateID_da375a25 = '33333333-0000-4000-8000-000000003001'
-SET
-  @ProvisionNumber_da375a25 = N'3.3'
-SET
-  @Title_da375a25 = N'Software-as-a-Service'
-SET
-  @ProvisionText_da375a25 = N'Customer is solely responsible for maintaining the security of all usernames and passwords granted to it, for the security of its information systems used to access the Software, and for its Authorized Users’ compliance with the terms of this Agreement. BC Affiliate shall have the right at any time to terminate or suspend access to any Authorized User or to Customer if BC Affiliate reasonably believes that such termination or suspension is necessary to preserve the security, integrity, or accessibility of the Software, BC Affiliate (including its officers, directors, employees and agents), and BC Affiliate’s other customers.'
-SET
-  @Description_da375a25 = N'Section 3 — Software-as-a-Service' EXEC [${flyway:defaultSchema}].spCreateContractTemplateProvision @ID = @ID_da375a25,
-  @ContractTemplateID = @ContractTemplateID_da375a25,
-  @ProvisionNumber = @ProvisionNumber_da375a25,
-  @Title = @Title_da375a25,
-  @ProvisionText = @ProvisionText_da375a25,
-  @Description = @Description_da375a25;
-
-GO
-
--- Save MJ_BizApps_Contracts: Contract Template Provisions (core SP call only)
-DECLARE @ID_3616cd0a UNIQUEIDENTIFIER,
-@ContractTemplateID_3616cd0a UNIQUEIDENTIFIER,
-@ProvisionNumber_3616cd0a NVARCHAR(20),
-@Title_3616cd0a NVARCHAR(200),
-@ProvisionText_3616cd0a NVARCHAR(MAX),
-@Description_3616cd0a NVARCHAR(MAX)
-SET
-  @ID_3616cd0a = '33333333-0000-4000-8000-000000004022'
-SET
-  @ContractTemplateID_3616cd0a = '33333333-0000-4000-8000-000000003001'
-SET
-  @ProvisionNumber_3616cd0a = N'4.1'
-SET
-  @Title_3616cd0a = N'Support Services'
-SET
-  @ProvisionText_3616cd0a = N'BC Affiliate shall provide Customer, at no additional charge, with technical support services for the Software on the same basis as it provides such services to similarly situated customers purchasing comparable SaaS, Services, and/or Work Product.'
-SET
-  @Description_3616cd0a = N'Section 4 — Support Services' EXEC [${flyway:defaultSchema}].spCreateContractTemplateProvision @ID = @ID_3616cd0a,
-  @ContractTemplateID = @ContractTemplateID_3616cd0a,
-  @ProvisionNumber = @ProvisionNumber_3616cd0a,
-  @Title = @Title_3616cd0a,
-  @ProvisionText = @ProvisionText_3616cd0a,
-  @Description = @Description_3616cd0a;
-
-GO
-
--- Save MJ_BizApps_Contracts: Contract Template Provisions (core SP call only)
-DECLARE @ID_fff46bcf UNIQUEIDENTIFIER,
-@ContractTemplateID_fff46bcf UNIQUEIDENTIFIER,
-@ProvisionNumber_fff46bcf NVARCHAR(20),
-@Title_fff46bcf NVARCHAR(200),
-@ProvisionText_fff46bcf NVARCHAR(MAX),
-@Description_fff46bcf NVARCHAR(MAX)
-SET
-  @ID_fff46bcf = '33333333-0000-4000-8000-000000004023'
-SET
-  @ContractTemplateID_fff46bcf = '33333333-0000-4000-8000-000000003001'
-SET
-  @ProvisionNumber_fff46bcf = N'4.2'
-SET
-  @Title_fff46bcf = N'BC Affiliate shall apply updates to the Software from time to time'
-SET
-  @ProvisionText_fff46bcf = N'BC Affiliate shall apply updates to the Software from time to time. Updates of the Software shall be at no charge to Customer unless the Update includes new features for which additional charges apply, in which case, if Customer elects to use the new features, Customer and BC Affiliate will enter into an Order Form and/or Statement of Work specifying the additional fees.'
-SET
-  @Description_fff46bcf = N'Section 4 — Support Services' EXEC [${flyway:defaultSchema}].spCreateContractTemplateProvision @ID = @ID_fff46bcf,
-  @ContractTemplateID = @ContractTemplateID_fff46bcf,
-  @ProvisionNumber = @ProvisionNumber_fff46bcf,
-  @Title = @Title_fff46bcf,
-  @ProvisionText = @ProvisionText_fff46bcf,
-  @Description = @Description_fff46bcf;
-
-GO
-
--- Save MJ_BizApps_Contracts: Contract Template Provisions (core SP call only)
-DECLARE @ID_33f7b8ec UNIQUEIDENTIFIER,
-@ContractTemplateID_33f7b8ec UNIQUEIDENTIFIER,
-@ProvisionNumber_33f7b8ec NVARCHAR(20),
-@Title_33f7b8ec NVARCHAR(200),
-@ProvisionText_33f7b8ec NVARCHAR(MAX),
-@Description_33f7b8ec NVARCHAR(MAX)
-SET
-  @ID_33f7b8ec = '33333333-0000-4000-8000-000000004024'
-SET
-  @ContractTemplateID_33f7b8ec = '33333333-0000-4000-8000-000000003001'
-SET
-  @ProvisionNumber_33f7b8ec = N'4.3'
-SET
-  @Title_33f7b8ec = N'Support Services'
-SET
-  @ProvisionText_33f7b8ec = N'BC Affiliate shall use commercially reasonable efforts to correct all Errors or to provide a reasonable workaround as soon as is possible during BC Affiliate''s normal business hours. Customer shall provide such access, information, and support as BC Affiliate may reasonably require in the process of resolving any Error. This paragraph provides Customer’s sole and exclusive remedy for any Errors in the Software.'
-SET
-  @Description_33f7b8ec = N'Section 4 — Support Services' EXEC [${flyway:defaultSchema}].spCreateContractTemplateProvision @ID = @ID_33f7b8ec,
-  @ContractTemplateID = @ContractTemplateID_33f7b8ec,
-  @ProvisionNumber = @ProvisionNumber_33f7b8ec,
-  @Title = @Title_33f7b8ec,
-  @ProvisionText = @ProvisionText_33f7b8ec,
-  @Description = @Description_33f7b8ec;
-
-GO
-
--- Save MJ_BizApps_Contracts: Contract Template Provisions (core SP call only)
-DECLARE @ID_c205e525 UNIQUEIDENTIFIER,
-@ContractTemplateID_c205e525 UNIQUEIDENTIFIER,
-@ProvisionNumber_c205e525 NVARCHAR(20),
-@Title_c205e525 NVARCHAR(200),
-@ProvisionText_c205e525 NVARCHAR(MAX),
-@Description_c205e525 NVARCHAR(MAX)
-SET
-  @ID_c205e525 = '33333333-0000-4000-8000-000000004025'
-SET
-  @ContractTemplateID_c205e525 = '33333333-0000-4000-8000-000000003001'
-SET
-  @ProvisionNumber_c205e525 = N'4.4'
-SET
-  @Title_c205e525 = N'Support Services'
-SET
-  @ProvisionText_c205e525 = N'BC Affiliate is not obligated to correct any Errors or provide any other support to the extent such Errors or need for support was created in whole or in part by: (i) the acts, omissions, negligence or willful misconduct of Customer, or any third party acting on Customer’s behalf, including any unauthorized modifications of the Software or its operating environment; (ii) any failure or defect of Customer’s or a third party’s equipment, software, facilities, third party applications, or internet connectivity (or other causes outside of BC Affiliate’s or its managed services provider''s point of presence); (iii) Customer’s use of the Software other than in accordance with the Software’s documentation; or (iv) a Force Majeure Event.'
-SET
-  @Description_c205e525 = N'Section 4 — Support Services' EXEC [${flyway:defaultSchema}].spCreateContractTemplateProvision @ID = @ID_c205e525,
-  @ContractTemplateID = @ContractTemplateID_c205e525,
-  @ProvisionNumber = @ProvisionNumber_c205e525,
-  @Title = @Title_c205e525,
-  @ProvisionText = @ProvisionText_c205e525,
-  @Description = @Description_c205e525;
-
-GO
-
--- Save MJ_BizApps_Contracts: Contract Template Provisions (core SP call only)
-DECLARE @ID_a5f919c4 UNIQUEIDENTIFIER,
-@ContractTemplateID_a5f919c4 UNIQUEIDENTIFIER,
-@ProvisionNumber_a5f919c4 NVARCHAR(20),
-@Title_a5f919c4 NVARCHAR(200),
-@ProvisionText_a5f919c4 NVARCHAR(MAX),
-@Description_a5f919c4 NVARCHAR(MAX)
-SET
-  @ID_a5f919c4 = '33333333-0000-4000-8000-000000004026'
-SET
-  @ContractTemplateID_a5f919c4 = '33333333-0000-4000-8000-000000003001'
-SET
-  @ProvisionNumber_a5f919c4 = N'4.5'
-SET
-  @Title_a5f919c4 = N'Support Services'
-SET
-  @ProvisionText_a5f919c4 = N'BC Affiliate is not obligated to provide services for (i) development of new features, or (ii) any service change requested by Customer and not agreed by BC Affiliate in writing. BC Affiliate has the right to bill Customer at its standard services rates for any support issues excluded herein.'
-SET
-  @Description_a5f919c4 = N'Section 4 — Support Services' EXEC [${flyway:defaultSchema}].spCreateContractTemplateProvision @ID = @ID_a5f919c4,
-  @ContractTemplateID = @ContractTemplateID_a5f919c4,
-  @ProvisionNumber = @ProvisionNumber_a5f919c4,
-  @Title = @Title_a5f919c4,
-  @ProvisionText = @ProvisionText_a5f919c4,
-  @Description = @Description_a5f919c4;
-
-GO
-
--- Save MJ_BizApps_Contracts: Contract Template Provisions (core SP call only)
-DECLARE @ID_5caa3b21 UNIQUEIDENTIFIER,
-@ContractTemplateID_5caa3b21 UNIQUEIDENTIFIER,
-@ProvisionNumber_5caa3b21 NVARCHAR(20),
-@Title_5caa3b21 NVARCHAR(200),
-@ProvisionText_5caa3b21 NVARCHAR(MAX),
-@Description_5caa3b21 NVARCHAR(MAX)
-SET
-  @ID_5caa3b21 = '33333333-0000-4000-8000-000000004027'
-SET
-  @ContractTemplateID_5caa3b21 = '33333333-0000-4000-8000-000000003001'
-SET
-  @ProvisionNumber_5caa3b21 = N'4.6'
-SET
-  @Title_5caa3b21 = N'Support Services'
-SET
-  @ProvisionText_5caa3b21 = N'In the event that this Agreement covers any product or service for which an end user can request to unsubscribe, terminate or modify its access to or use of the product or service, BC Affiliate and Customer agree that Customer is solely responsible for deciding whether or not to grant any such end user requests: (i) submitted to BC Affiliate by end users and transmitted by BC Affiliate to Customer; and (ii) submitted to Customer directly by end users. Customer also agrees to hold harmless and, upon request, defend BC Affiliate from and against any and all claims, suits, actions or legal proceedings brought by any third party against BC Affiliate, its affiliates and their officers, directors, employees and representatives, seeking injunctive relief or damages to recover for any loss, damage or injury to person or property, caused by or arising out of any decision or action by Customer in response to any such end user request.'
-SET
-  @Description_5caa3b21 = N'Section 4 — Support Services' EXEC [${flyway:defaultSchema}].spCreateContractTemplateProvision @ID = @ID_5caa3b21,
-  @ContractTemplateID = @ContractTemplateID_5caa3b21,
-  @ProvisionNumber = @ProvisionNumber_5caa3b21,
-  @Title = @Title_5caa3b21,
-  @ProvisionText = @ProvisionText_5caa3b21,
-  @Description = @Description_5caa3b21;
-
-GO
-
--- Save MJ_BizApps_Contracts: Contract Template Provisions (core SP call only)
-DECLARE @ID_00b67bca UNIQUEIDENTIFIER,
-@ContractTemplateID_00b67bca UNIQUEIDENTIFIER,
-@ProvisionNumber_00b67bca NVARCHAR(20),
-@Title_00b67bca NVARCHAR(200),
-@ProvisionText_00b67bca NVARCHAR(MAX),
-@Description_00b67bca NVARCHAR(MAX)
-SET
-  @ID_00b67bca = '33333333-0000-4000-8000-000000004028'
-SET
-  @ContractTemplateID_00b67bca = '33333333-0000-4000-8000-000000003001'
-SET
-  @ProvisionNumber_00b67bca = N'5.1'
-SET
-  @Title_00b67bca = N'BC Affiliate Professional Services'
-SET
-  @ProvisionText_00b67bca = N'All Professional Services to be performed and Work Product to be developed by BC Affiliate shall be described in an Order Form and/or Statement of Work. All Work shall commence under the Order Form and/or Statement of Work once this Agreement and the Order Form or Statement of Work has been executed by an authorized individual for each party and deemed incorporated by reference in this Agreement.'
-SET
-  @Description_00b67bca = N'Section 5 — BC Affiliate Professional Services' EXEC [${flyway:defaultSchema}].spCreateContractTemplateProvision @ID = @ID_00b67bca,
-  @ContractTemplateID = @ContractTemplateID_00b67bca,
-  @ProvisionNumber = @ProvisionNumber_00b67bca,
-  @Title = @Title_00b67bca,
-  @ProvisionText = @ProvisionText_00b67bca,
-  @Description = @Description_00b67bca;
-
-GO
-
--- Save MJ_BizApps_Contracts: Contract Template Provisions (core SP call only)
-DECLARE @ID_dd1e7fed UNIQUEIDENTIFIER,
-@ContractTemplateID_dd1e7fed UNIQUEIDENTIFIER,
-@ProvisionNumber_dd1e7fed NVARCHAR(20),
-@Title_dd1e7fed NVARCHAR(200),
-@ProvisionText_dd1e7fed NVARCHAR(MAX),
-@Description_dd1e7fed NVARCHAR(MAX)
-SET
-  @ID_dd1e7fed = '33333333-0000-4000-8000-000000004029'
-SET
-  @ContractTemplateID_dd1e7fed = '33333333-0000-4000-8000-000000003001'
-SET
-  @ProvisionNumber_dd1e7fed = N'5.2'
-SET
-  @Title_dd1e7fed = N'BC Affiliate Professional Services'
-SET
-  @ProvisionText_dd1e7fed = N'If it becomes necessary to modify an Order Form or Statement of Work for any reason, BC Affiliate may initiate, or Customer may request a change order (“Change Order”) with respect to the Statement of Work. A Change Order may modify start date, completion date, cost or any other element of the Order Form or Statement of Work as may be mutually agreed upon in writing by Customer and BC Affiliate. A Change Order shall take effect once it has been signed by an authorized individual for each such party, at which time it shall become an exhibit to the applicable Order Form or Statement of Work, and deemed incorporated by reference in this Agreement.'
-SET
-  @Description_dd1e7fed = N'Section 5 — BC Affiliate Professional Services' EXEC [${flyway:defaultSchema}].spCreateContractTemplateProvision @ID = @ID_dd1e7fed,
-  @ContractTemplateID = @ContractTemplateID_dd1e7fed,
-  @ProvisionNumber = @ProvisionNumber_dd1e7fed,
-  @Title = @Title_dd1e7fed,
-  @ProvisionText = @ProvisionText_dd1e7fed,
-  @Description = @Description_dd1e7fed;
-
-GO
-
--- Save MJ_BizApps_Contracts: Contract Template Provisions (core SP call only)
-DECLARE @ID_f39bc4fd UNIQUEIDENTIFIER,
-@ContractTemplateID_f39bc4fd UNIQUEIDENTIFIER,
-@ProvisionNumber_f39bc4fd NVARCHAR(20),
-@Title_f39bc4fd NVARCHAR(200),
-@ProvisionText_f39bc4fd NVARCHAR(MAX),
-@Description_f39bc4fd NVARCHAR(MAX)
-SET
-  @ID_f39bc4fd = '33333333-0000-4000-8000-000000004030'
-SET
-  @ContractTemplateID_f39bc4fd = '33333333-0000-4000-8000-000000003001'
-SET
-  @ProvisionNumber_f39bc4fd = N'5.3'
-SET
-  @Title_f39bc4fd = N'BC Affiliate Professional Services'
-SET
-  @ProvisionText_f39bc4fd = N'Work Product may not be used by any person or entity that is not an Authorized User. Work Product is to be used for Customer’s internal use and only to process information or data of Customer, or such other data which Customer may through contractual agreements, have secured from third parties during the normal course of Customer’s business.'
-SET
-  @Description_f39bc4fd = N'Section 5 — BC Affiliate Professional Services' EXEC [${flyway:defaultSchema}].spCreateContractTemplateProvision @ID = @ID_f39bc4fd,
-  @ContractTemplateID = @ContractTemplateID_f39bc4fd,
-  @ProvisionNumber = @ProvisionNumber_f39bc4fd,
-  @Title = @Title_f39bc4fd,
-  @ProvisionText = @ProvisionText_f39bc4fd,
-  @Description = @Description_f39bc4fd;
-
-GO
-
--- Save MJ_BizApps_Contracts: Contract Template Provisions (core SP call only)
-DECLARE @ID_b3b5eb72 UNIQUEIDENTIFIER,
-@ContractTemplateID_b3b5eb72 UNIQUEIDENTIFIER,
-@ProvisionNumber_b3b5eb72 NVARCHAR(20),
-@Title_b3b5eb72 NVARCHAR(200),
-@ProvisionText_b3b5eb72 NVARCHAR(MAX),
-@Description_b3b5eb72 NVARCHAR(MAX)
-SET
-  @ID_b3b5eb72 = '33333333-0000-4000-8000-000000004031'
-SET
-  @ContractTemplateID_b3b5eb72 = '33333333-0000-4000-8000-000000003001'
-SET
-  @ProvisionNumber_b3b5eb72 = N'6.1'
-SET
-  @Title_b3b5eb72 = N'Fees'
-SET
-  @ProvisionText_b3b5eb72 = N'BC Affiliate shall bill Customer the fees and charges (“Fees”) pursuant to the billing schedule agreed to in each Order Form and/or Statement of Work. Payment terms for all invoices shall be defined in each Order Form and/or Statement of Work. Fees are non-cancelable and non-refundable.'
-SET
-  @Description_b3b5eb72 = N'Section 6 — Fees' EXEC [${flyway:defaultSchema}].spCreateContractTemplateProvision @ID = @ID_b3b5eb72,
-  @ContractTemplateID = @ContractTemplateID_b3b5eb72,
-  @ProvisionNumber = @ProvisionNumber_b3b5eb72,
-  @Title = @Title_b3b5eb72,
-  @ProvisionText = @ProvisionText_b3b5eb72,
-  @Description = @Description_b3b5eb72;
-
-GO
-
--- Save MJ_BizApps_Contracts: Contract Template Provisions (core SP call only)
-DECLARE @ID_fca85fcc UNIQUEIDENTIFIER,
-@ContractTemplateID_fca85fcc UNIQUEIDENTIFIER,
-@ProvisionNumber_fca85fcc NVARCHAR(20),
-@Title_fca85fcc NVARCHAR(200),
-@ProvisionText_fca85fcc NVARCHAR(MAX),
-@Description_fca85fcc NVARCHAR(MAX)
-SET
-  @ID_fca85fcc = '33333333-0000-4000-8000-000000004032'
-SET
-  @ContractTemplateID_fca85fcc = '33333333-0000-4000-8000-000000003001'
-SET
-  @ProvisionNumber_fca85fcc = N'6.2'
-SET
-  @Title_fca85fcc = N'Fees'
-SET
-  @ProvisionText_fca85fcc = N'Without limiting its other rights or liabilities, if any undisputed amount is not timely paid by Customer, BC Affiliate may (a) terminate the applicable Order Form and/or Statement of Work; (b) accelerate Customer’s unpaid fee obligations under the applicable Order Form and/or Statement of Work; or (c) suspend the applicable Services until all undisputed overdue amounts are paid in full.'
-SET
-  @Description_fca85fcc = N'Section 6 — Fees' EXEC [${flyway:defaultSchema}].spCreateContractTemplateProvision @ID = @ID_fca85fcc,
-  @ContractTemplateID = @ContractTemplateID_fca85fcc,
-  @ProvisionNumber = @ProvisionNumber_fca85fcc,
-  @Title = @Title_fca85fcc,
-  @ProvisionText = @ProvisionText_fca85fcc,
-  @Description = @Description_fca85fcc;
-
-GO
-
--- Save MJ_BizApps_Contracts: Contract Template Provisions (core SP call only)
-DECLARE @ID_7efae5df UNIQUEIDENTIFIER,
-@ContractTemplateID_7efae5df UNIQUEIDENTIFIER,
-@ProvisionNumber_7efae5df NVARCHAR(20),
-@Title_7efae5df NVARCHAR(200),
-@ProvisionText_7efae5df NVARCHAR(MAX),
-@Description_7efae5df NVARCHAR(MAX)
-SET
-  @ID_7efae5df = '33333333-0000-4000-8000-000000004033'
-SET
-  @ContractTemplateID_7efae5df = '33333333-0000-4000-8000-000000003001'
-SET
-  @ProvisionNumber_7efae5df = N'6.3'
-SET
-  @Title_7efae5df = N'Fees'
-SET
-  @ProvisionText_7efae5df = N'Customer shall have 10 days from receipt of invoice to advise BC Affiliate in writing of any disputed charge appearing on an invoice. Customer shall not unreasonably dispute an invoice from BC Affiliate. Customer agrees that time is of the essence in the resolution of disputes and agrees to work with BC Affiliate to resolve disputes in a timely fashion.'
-SET
-  @Description_7efae5df = N'Section 6 — Fees' EXEC [${flyway:defaultSchema}].spCreateContractTemplateProvision @ID = @ID_7efae5df,
-  @ContractTemplateID = @ContractTemplateID_7efae5df,
-  @ProvisionNumber = @ProvisionNumber_7efae5df,
-  @Title = @Title_7efae5df,
-  @ProvisionText = @ProvisionText_7efae5df,
-  @Description = @Description_7efae5df;
-
-GO
-
--- Save MJ_BizApps_Contracts: Contract Template Provisions (core SP call only)
-DECLARE @ID_a59ae6e1 UNIQUEIDENTIFIER,
-@ContractTemplateID_a59ae6e1 UNIQUEIDENTIFIER,
-@ProvisionNumber_a59ae6e1 NVARCHAR(20),
-@Title_a59ae6e1 NVARCHAR(200),
-@ProvisionText_a59ae6e1 NVARCHAR(MAX),
-@Description_a59ae6e1 NVARCHAR(MAX)
-SET
-  @ID_a59ae6e1 = '33333333-0000-4000-8000-000000004034'
-SET
-  @ContractTemplateID_a59ae6e1 = '33333333-0000-4000-8000-000000003001'
-SET
-  @ProvisionNumber_a59ae6e1 = N'6.4'
-SET
-  @Title_a59ae6e1 = N'Fees'
-SET
-  @ProvisionText_a59ae6e1 = N'Unless otherwise stipulated in the applicable Order Form and/or Statement of Work, BC Affiliate shall also be entitled to reimbursement for all reasonable out-of-pocket and other costs and expenses it incurs, and for which it provides documentation, directly related to performing services under this Agreement, including but not limited to all round-trip travel costs, food, and lodging costs. For any single expense in excess of $750 USD, BC Affiliate shall receive prior approval from Customer before incurring the expense. For purposes of this Subsection 6.4, prior approval may include email, text or similar approval of an expense. If any work is performed by BC Affiliate for Customer without an Order Form and/or Statement of Work in effect, BC Affiliate will be paid according to its then-current rate schedule, plus reimbursement for all reasonable out-of-pocket and other expenses it incurs.'
-SET
-  @Description_a59ae6e1 = N'Section 6 — Fees' EXEC [${flyway:defaultSchema}].spCreateContractTemplateProvision @ID = @ID_a59ae6e1,
-  @ContractTemplateID = @ContractTemplateID_a59ae6e1,
-  @ProvisionNumber = @ProvisionNumber_a59ae6e1,
-  @Title = @Title_a59ae6e1,
-  @ProvisionText = @ProvisionText_a59ae6e1,
-  @Description = @Description_a59ae6e1;
-
-GO
-
--- Save MJ_BizApps_Contracts: Contract Template Provisions (core SP call only)
-DECLARE @ID_599a6936 UNIQUEIDENTIFIER,
-@ContractTemplateID_599a6936 UNIQUEIDENTIFIER,
-@ProvisionNumber_599a6936 NVARCHAR(20),
-@Title_599a6936 NVARCHAR(200),
-@ProvisionText_599a6936 NVARCHAR(MAX),
-@Description_599a6936 NVARCHAR(MAX)
-SET
-  @ID_599a6936 = '33333333-0000-4000-8000-000000004035'
-SET
-  @ContractTemplateID_599a6936 = '33333333-0000-4000-8000-000000003001'
-SET
-  @ProvisionNumber_599a6936 = N'7.1'
-SET
-  @Title_599a6936 = N'Intellectual Property'
-SET
-  @ProvisionText_599a6936 = N'BC Affiliate acknowledges that it obtains no ownership rights in any intellectual property (including trademarks and copyright), content, data, or information that is solely developed or provided by Customer (“Customer IP”) under this Agreement. Customer is and shall remain the sole and exclusive owner of Customer IP.'
-SET
-  @Description_599a6936 = N'Section 7 — Intellectual Property' EXEC [${flyway:defaultSchema}].spCreateContractTemplateProvision @ID = @ID_599a6936,
-  @ContractTemplateID = @ContractTemplateID_599a6936,
-  @ProvisionNumber = @ProvisionNumber_599a6936,
-  @Title = @Title_599a6936,
-  @ProvisionText = @ProvisionText_599a6936,
-  @Description = @Description_599a6936;
-
-GO
-
--- Save MJ_BizApps_Contracts: Contract Template Provisions (core SP call only)
-DECLARE @ID_d2e4af92 UNIQUEIDENTIFIER,
-@ContractTemplateID_d2e4af92 UNIQUEIDENTIFIER,
-@ProvisionNumber_d2e4af92 NVARCHAR(20),
-@Title_d2e4af92 NVARCHAR(200),
-@ProvisionText_d2e4af92 NVARCHAR(MAX),
-@Description_d2e4af92 NVARCHAR(MAX)
-SET
-  @ID_d2e4af92 = '33333333-0000-4000-8000-000000004036'
-SET
-  @ContractTemplateID_d2e4af92 = '33333333-0000-4000-8000-000000003001'
-SET
-  @ProvisionNumber_d2e4af92 = N'7.2'
-SET
-  @Title_d2e4af92 = N'Intellectual Property'
-SET
-  @ProvisionText_d2e4af92 = N'Customer acknowledges that it obtains no ownership rights in any Services, Software, and/or Work Product, other than Work Product that is expressly designated in an Order Form or Statement of Work as “Customer-owned Work Product.” All rights to the Services, Software, and/or Work Product, including but not limited to any accompanying technical documentation, Confidential Information, trade secrets, trademarks, service marks, patents, copyrights, and other proprietary information, but specifically excluding Customer IP, are, shall be, and will remain the sole property of BC Affiliate or any third party from whom BC Affiliate has licensed such software or technology. Upon full payment of all relevant fees associated with each Order Form and/or Statement of Work, BC Affiliate hereby grants Customer a royalty-free, limited, non-exclusive, perpetual, irrevocable, worldwide license to make use of the Work Product other than Customer-owned Work Product and create derivative works subject to the same restrictions in Section 5.3.'
-SET
-  @Description_d2e4af92 = N'Section 7 — Intellectual Property' EXEC [${flyway:defaultSchema}].spCreateContractTemplateProvision @ID = @ID_d2e4af92,
-  @ContractTemplateID = @ContractTemplateID_d2e4af92,
-  @ProvisionNumber = @ProvisionNumber_d2e4af92,
-  @Title = @Title_d2e4af92,
-  @ProvisionText = @ProvisionText_d2e4af92,
-  @Description = @Description_d2e4af92;
-
-GO
-
--- Save MJ_BizApps_Contracts: Contract Template Provisions (core SP call only)
-DECLARE @ID_2ee27097 UNIQUEIDENTIFIER,
-@ContractTemplateID_2ee27097 UNIQUEIDENTIFIER,
-@ProvisionNumber_2ee27097 NVARCHAR(20),
-@Title_2ee27097 NVARCHAR(200),
-@ProvisionText_2ee27097 NVARCHAR(MAX),
-@Description_2ee27097 NVARCHAR(MAX)
-SET
-  @ID_2ee27097 = '33333333-0000-4000-8000-000000004037'
-SET
-  @ContractTemplateID_2ee27097 = '33333333-0000-4000-8000-000000003001'
-SET
-  @ProvisionNumber_2ee27097 = N'7.3'
-SET
-  @Title_2ee27097 = N'Customer owns all right, title and interest in the Customer Data'
-SET
-  @ProvisionText_2ee27097 = N'Customer owns all right, title and interest in the Customer Data. During the term of this agreement, Customer hereby grants to BC Affiliate, a non-exclusive, non-transferable, non-sublicensable right and license to use, copy, transmit, modify, and display the Customer Data solely for purposes of providing the Software and related services to Customer hereunder. BC Affiliate shall not use the Customer Data except as necessary to perform its obligations hereunder. Customer is solely responsible for obtaining any and all consents from individuals or third-party entities that are necessary or legally required for Customer to provide the Customer Data to BC Affiliate hereunder and for the Software to distribute communications to those individuals or third-party entities hereunder.'
-SET
-  @Description_2ee27097 = N'Section 7 — Intellectual Property' EXEC [${flyway:defaultSchema}].spCreateContractTemplateProvision @ID = @ID_2ee27097,
-  @ContractTemplateID = @ContractTemplateID_2ee27097,
-  @ProvisionNumber = @ProvisionNumber_2ee27097,
-  @Title = @Title_2ee27097,
-  @ProvisionText = @ProvisionText_2ee27097,
-  @Description = @Description_2ee27097;
-
-GO
-
--- Save MJ_BizApps_Contracts: Contract Template Provisions (core SP call only)
-DECLARE @ID_ed39821e UNIQUEIDENTIFIER,
-@ContractTemplateID_ed39821e UNIQUEIDENTIFIER,
-@ProvisionNumber_ed39821e NVARCHAR(20),
-@Title_ed39821e NVARCHAR(200),
-@ProvisionText_ed39821e NVARCHAR(MAX),
-@Description_ed39821e NVARCHAR(MAX)
-SET
-  @ID_ed39821e = '33333333-0000-4000-8000-000000004038'
-SET
-  @ContractTemplateID_ed39821e = '33333333-0000-4000-8000-000000003001'
-SET
-  @ProvisionNumber_ed39821e = N'7.4'
-SET
-  @Title_ed39821e = N'Intellectual Property'
-SET
-  @ProvisionText_ed39821e = N'Customer hereby grants to BC Affiliate a perpetual, irrevocable, worldwide, royalty-free, sublicensable, non-exclusive license to create, process, reproduce, store, display, modify, translate, create derivative works from, make available and otherwise use Aggregated Data in connection with developing, providing, maintaining, supporting, or improving BC Affiliate’s current and future products and services, as they may be provided to Customer or other customers of BC Affiliate, or for any other lawful purpose.'
-SET
-  @Description_ed39821e = N'Section 7 — Intellectual Property' EXEC [${flyway:defaultSchema}].spCreateContractTemplateProvision @ID = @ID_ed39821e,
-  @ContractTemplateID = @ContractTemplateID_ed39821e,
-  @ProvisionNumber = @ProvisionNumber_ed39821e,
-  @Title = @Title_ed39821e,
-  @ProvisionText = @ProvisionText_ed39821e,
-  @Description = @Description_ed39821e;
-
-GO
-
--- Save MJ_BizApps_Contracts: Contract Template Provisions (core SP call only)
-DECLARE @ID_c6cc3f5c UNIQUEIDENTIFIER,
-@ContractTemplateID_c6cc3f5c UNIQUEIDENTIFIER,
-@ProvisionNumber_c6cc3f5c NVARCHAR(20),
-@Title_c6cc3f5c NVARCHAR(200),
-@ProvisionText_c6cc3f5c NVARCHAR(MAX),
-@Description_c6cc3f5c NVARCHAR(MAX)
-SET
-  @ID_c6cc3f5c = '33333333-0000-4000-8000-000000004039'
-SET
-  @ContractTemplateID_c6cc3f5c = '33333333-0000-4000-8000-000000003001'
-SET
-  @ProvisionNumber_c6cc3f5c = N'7.5'
-SET
-  @Title_c6cc3f5c = N'Intellectual Property'
-SET
-  @ProvisionText_c6cc3f5c = N'In the event that the products or services covered by this Agreement produce Enrichment Data as defined in Section 1.8 herein, BC Affiliate and Customer agree that BC Affiliate owns all right, title and interest in the Enrichment Data. During the term of this agreement, BC Affiliate shall provide, at Customer’s request, access to summarized Enrichment Data derived from Customer''s use of the Software hereunder, and hereby grants to Customer a non-exclusive, non-transferable, non-sublicensable right and license to use, copy, transmit, modify and display that Enrichment Data solely for its internal business purposes and not for any other purpose. Notwithstanding anything else to the contrary in this agreement regarding Customer Data, BC Affiliate may retain the identity of an individual user for purposes of associating, supplementing, and maintaining Enrichment Data on that individual. Customer acknowledges that BC Affiliate utilizes Enrichment Data across its entire service to benefit the experience of all Customers, Authorized Users, and End Users and that Enrichment Data will not be deleted upon termination of this Agreement, except to the minimum extent required by applicable law.'
-SET
-  @Description_c6cc3f5c = N'Section 7 — Intellectual Property' EXEC [${flyway:defaultSchema}].spCreateContractTemplateProvision @ID = @ID_c6cc3f5c,
-  @ContractTemplateID = @ContractTemplateID_c6cc3f5c,
-  @ProvisionNumber = @ProvisionNumber_c6cc3f5c,
-  @Title = @Title_c6cc3f5c,
-  @ProvisionText = @ProvisionText_c6cc3f5c,
-  @Description = @Description_c6cc3f5c;
-
-GO
-
--- Save MJ_BizApps_Contracts: Contract Template Provisions (core SP call only)
-DECLARE @ID_fe51b73f UNIQUEIDENTIFIER,
-@ContractTemplateID_fe51b73f UNIQUEIDENTIFIER,
-@ProvisionNumber_fe51b73f NVARCHAR(20),
-@Title_fe51b73f NVARCHAR(200),
-@ProvisionText_fe51b73f NVARCHAR(MAX),
-@Description_fe51b73f NVARCHAR(MAX)
-SET
-  @ID_fe51b73f = '33333333-0000-4000-8000-000000004040'
-SET
-  @ContractTemplateID_fe51b73f = '33333333-0000-4000-8000-000000003001'
-SET
-  @ProvisionNumber_fe51b73f = N'8.1'
-SET
-  @Title_fe51b73f = N'Confidential Information'
-SET
-  @ProvisionText_fe51b73f = N'Customer and BC Affiliate (each a “Receiving Party”) understand that the other party (the “Disclosing Party”) has disclosed or may disclose confidential or proprietary business, technical or financial information relating to the Disclosing Party’s business (hereinafter referred to as “Confidential Information” of the Disclosing Party). In addition to the definition of Confidential Information in Section 1.6, Confidential Information of BC Affiliate includes non-public information regarding features, functionality and performance of the Software or Services. The Receiving Party agrees: (i) to take reasonable precautions to protect such Confidential Information, and (ii) not to use (except in performance of the Services or as otherwise permitted herein) or divulge to any third person any such Confidential Information. The Disclosing Party agrees that the foregoing shall not apply with respect to any information after the later of five (5) years following the disclosure thereof, or the termination of this Agreement, or any information that the Receiving Party can document (a) is or becomes generally available to the public, or (b) was in its possession or known by it prior to receipt from the Disclosing Party, or (c) was rightfully disclosed to it without restriction by a third party, or (d) was independently developed by Receiving Party prior to its disclosure and without use of any Confidential Information of the Disclosing Party or (e) is required to be disclosed by law.'
-SET
-  @Description_fe51b73f = N'Section 8 — Confidential Information' EXEC [${flyway:defaultSchema}].spCreateContractTemplateProvision @ID = @ID_fe51b73f,
-  @ContractTemplateID = @ContractTemplateID_fe51b73f,
-  @ProvisionNumber = @ProvisionNumber_fe51b73f,
-  @Title = @Title_fe51b73f,
-  @ProvisionText = @ProvisionText_fe51b73f,
-  @Description = @Description_fe51b73f;
-
-GO
-
--- Save MJ_BizApps_Contracts: Contract Template Provisions (core SP call only)
-DECLARE @ID_44322959 UNIQUEIDENTIFIER,
-@ContractTemplateID_44322959 UNIQUEIDENTIFIER,
-@ProvisionNumber_44322959 NVARCHAR(20),
-@Title_44322959 NVARCHAR(200),
-@ProvisionText_44322959 NVARCHAR(MAX),
-@Description_44322959 NVARCHAR(MAX)
-SET
-  @ID_44322959 = '33333333-0000-4000-8000-000000004041'
-SET
-  @ContractTemplateID_44322959 = '33333333-0000-4000-8000-000000003001'
-SET
-  @ProvisionNumber_44322959 = N'9.1'
-SET
-  @Title_44322959 = N'Overall Limitation of Damages'
-SET
-  @ProvisionText_44322959 = N'NOTWITHSTANDING ANYTHING TO THE CONTRARY, EXCEPT FOR BODILY INJURY OF A PERSON, BC AFFILIATE AND ITS SUPPLIERS (INCLUDING BUT NOT LIMITED TO ALL EQUIPMENT AND TECHNOLOGY SUPPLIERS), OFFICERS, OWNERS, SHAREHOLDERS, AFFILIATES, REPRESENTATIVES, CONTRACTORS AND EMPLOYEES SHALL NOT BE RESPONSIBLE OR LIABLE WITH RESPECT TO ANY SUBJECT MATTER OF THIS AGREEMENT OR TERMS AND CONDITIONS RELATED THERETO UNDER ANY CONTRACT, NEGLIGENCE, STRICT LIABILITY OR OTHER THEORY: (A) FOR ERROR OR INTERRUPTION OF USE OR FOR LOSS OR INACCURACY OR CORRUPTION OF DATA OR COST OF PROCUREMENT OF SUBSTITUTE GOODS, SERVICES OR TECHNOLOGY OR LOSS OF BUSINESS; (B) FOR ANY INDIRECT, EXEMPLARY, INCIDENTAL, SPECIAL OR CONSEQUENTIAL DAMAGES; (C) FOR ANY MATTER BEYOND BC AFFILIATE’S REASONABLE CONTROL; OR (D) FOR ANY AMOUNTS THAT, TOGETHER WITH AMOUNTS ASSOCIATED WITH ALL OTHER CLAIMS, EXCEED THE FEES PAID BY CUSTOMER TO BC AFFILIATE FOR THE SERVICES UNDER THIS AGREEMENT IN THE 12 MONTHS PRIOR TO THE ACT THAT GAVE RISE TO THE LIABILITY, IN EACH CASE, WHETHER OR NOT BC AFFILIATE HAS BEEN ADVISED OF THE POSSIBILITY OF SUCH DAMAGES.'
-SET
-  @Description_44322959 = N'Section 9 — Overall Limitation of Damages' EXEC [${flyway:defaultSchema}].spCreateContractTemplateProvision @ID = @ID_44322959,
-  @ContractTemplateID = @ContractTemplateID_44322959,
-  @ProvisionNumber = @ProvisionNumber_44322959,
-  @Title = @Title_44322959,
-  @ProvisionText = @ProvisionText_44322959,
-  @Description = @Description_44322959;
-
-GO
-
--- Save MJ_BizApps_Contracts: Contract Template Provisions (core SP call only)
-DECLARE @ID_3bf5e725 UNIQUEIDENTIFIER,
-@ContractTemplateID_3bf5e725 UNIQUEIDENTIFIER,
-@ProvisionNumber_3bf5e725 NVARCHAR(20),
-@Title_3bf5e725 NVARCHAR(200),
-@ProvisionText_3bf5e725 NVARCHAR(MAX),
-@Description_3bf5e725 NVARCHAR(MAX)
-SET
-  @ID_3bf5e725 = '33333333-0000-4000-8000-000000004042'
-SET
-  @ContractTemplateID_3bf5e725 = '33333333-0000-4000-8000-000000003001'
-SET
-  @ProvisionNumber_3bf5e725 = N'10.1'
-SET
-  @Title_3bf5e725 = N'Indemnification'
-SET
-  @ProvisionText_3bf5e725 = N'BC Affiliate agrees to indemnify and hold Customer harmless against any loss, damage, reasonable out-of-pocket expense, or cost, including reasonable attorneys’ fees, arising out of any third party claim, demand, or suit asserting that the Services or any BC Affiliate Work Product infringes or violates any copyright, patent, trade secret, trademark, or proprietary right existing under the laws of the United States or any state or territory thereof (“Claim”), subject to the Overall Limitation of Damages described in Section 9.'
-SET
-  @Description_3bf5e725 = N'Section 10 — Indemnification' EXEC [${flyway:defaultSchema}].spCreateContractTemplateProvision @ID = @ID_3bf5e725,
-  @ContractTemplateID = @ContractTemplateID_3bf5e725,
-  @ProvisionNumber = @ProvisionNumber_3bf5e725,
-  @Title = @Title_3bf5e725,
-  @ProvisionText = @ProvisionText_3bf5e725,
-  @Description = @Description_3bf5e725;
-
-GO
-
--- Save MJ_BizApps_Contracts: Contract Template Provisions (core SP call only)
-DECLARE @ID_463746eb UNIQUEIDENTIFIER,
-@ContractTemplateID_463746eb UNIQUEIDENTIFIER,
-@ProvisionNumber_463746eb NVARCHAR(20),
-@Title_463746eb NVARCHAR(200),
-@ProvisionText_463746eb NVARCHAR(MAX),
-@Description_463746eb NVARCHAR(MAX)
-SET
-  @ID_463746eb = '33333333-0000-4000-8000-000000004043'
-SET
-  @ContractTemplateID_463746eb = '33333333-0000-4000-8000-000000003001'
-SET
-  @ProvisionNumber_463746eb = N'10.2'
-SET
-  @Title_463746eb = N'Indemnification'
-SET
-  @ProvisionText_463746eb = N'The indemnification obligation in this section shall be effective only if (1) at the time of the alleged infringement, Customer gave prompt notice of the Claim and permitted BC Affiliate to defend, and (2) Customer has reasonably cooperated in the defense of the claim. BC Affiliate shall have no obligation to Customer to defend or satisfy any claims made against Customer that arise from the use, sale, licensing, or other disposition of the Work Product by Customer other than as permitted by this Agreement or from the Customer’s modification of the product.'
-SET
-  @Description_463746eb = N'Section 10 — Indemnification' EXEC [${flyway:defaultSchema}].spCreateContractTemplateProvision @ID = @ID_463746eb,
-  @ContractTemplateID = @ContractTemplateID_463746eb,
-  @ProvisionNumber = @ProvisionNumber_463746eb,
-  @Title = @Title_463746eb,
-  @ProvisionText = @ProvisionText_463746eb,
-  @Description = @Description_463746eb;
-
-GO
-
--- Save MJ_BizApps_Contracts: Contract Template Provisions (core SP call only)
-DECLARE @ID_f6ba4d03 UNIQUEIDENTIFIER,
-@ContractTemplateID_f6ba4d03 UNIQUEIDENTIFIER,
-@ProvisionNumber_f6ba4d03 NVARCHAR(20),
-@Title_f6ba4d03 NVARCHAR(200),
-@ProvisionText_f6ba4d03 NVARCHAR(MAX),
-@Description_f6ba4d03 NVARCHAR(MAX)
-SET
-  @ID_f6ba4d03 = '33333333-0000-4000-8000-000000004044'
-SET
-  @ContractTemplateID_f6ba4d03 = '33333333-0000-4000-8000-000000003001'
-SET
-  @ProvisionNumber_f6ba4d03 = N'10.3'
-SET
-  @Title_f6ba4d03 = N'Indemnification'
-SET
-  @ProvisionText_f6ba4d03 = N'Notwithstanding anything to the contrary contained in this Agreement, Customer acknowledges and agrees that BC shall have no obligation to indemnify, hold harmless or defend Customer, its successors or assigns, for any losses, claims, damages or liabilities to which Customer or any of its successors or assigns may become subject that, directly or indirectly, arise out of or are related to this Agreement or its performance by any BC Affiliate.'
-SET
-  @Description_f6ba4d03 = N'Section 10 — Indemnification' EXEC [${flyway:defaultSchema}].spCreateContractTemplateProvision @ID = @ID_f6ba4d03,
-  @ContractTemplateID = @ContractTemplateID_f6ba4d03,
-  @ProvisionNumber = @ProvisionNumber_f6ba4d03,
-  @Title = @Title_f6ba4d03,
-  @ProvisionText = @ProvisionText_f6ba4d03,
-  @Description = @Description_f6ba4d03;
-
-GO
-
--- Save MJ_BizApps_Contracts: Contract Template Provisions (core SP call only)
-DECLARE @ID_f499db80 UNIQUEIDENTIFIER,
-@ContractTemplateID_f499db80 UNIQUEIDENTIFIER,
-@ProvisionNumber_f499db80 NVARCHAR(20),
-@Title_f499db80 NVARCHAR(200),
-@ProvisionText_f499db80 NVARCHAR(MAX),
-@Description_f499db80 NVARCHAR(MAX)
-SET
-  @ID_f499db80 = '33333333-0000-4000-8000-000000004045'
-SET
-  @ContractTemplateID_f499db80 = '33333333-0000-4000-8000-000000003001'
-SET
-  @ProvisionNumber_f499db80 = N'11.1'
-SET
-  @Title_f499db80 = N'Termination'
-SET
-  @ProvisionText_f499db80 = N'It is agreed that Customer and BC Affiliate may terminate this Agreement immediately upon written notice to the other party in the event that the other party (a) becomes insolvent or makes an assignment for the benefit of creditors; (b) files or has filed against it any petition under any Title of the United States Code or any applicable bankruptcy, insolvency, reorganization or similar debtor relief law which is not discharged within 30 days of said filing; (c) requests or suffers the appointment of a trustee or receiver, or the entry of an attachment or execution as to a substantial part of its business or assets; or (d) becomes unresponsive, or halts the program at any time during the contract, for a period of 45 days or greater.'
-SET
-  @Description_f499db80 = N'Section 11 — Termination' EXEC [${flyway:defaultSchema}].spCreateContractTemplateProvision @ID = @ID_f499db80,
-  @ContractTemplateID = @ContractTemplateID_f499db80,
-  @ProvisionNumber = @ProvisionNumber_f499db80,
-  @Title = @Title_f499db80,
-  @ProvisionText = @ProvisionText_f499db80,
-  @Description = @Description_f499db80;
-
-GO
-
--- Save MJ_BizApps_Contracts: Contract Template Provisions (core SP call only)
-DECLARE @ID_3bcc3289 UNIQUEIDENTIFIER,
-@ContractTemplateID_3bcc3289 UNIQUEIDENTIFIER,
-@ProvisionNumber_3bcc3289 NVARCHAR(20),
-@Title_3bcc3289 NVARCHAR(200),
-@ProvisionText_3bcc3289 NVARCHAR(MAX),
-@Description_3bcc3289 NVARCHAR(MAX)
-SET
-  @ID_3bcc3289 = '33333333-0000-4000-8000-000000004046'
-SET
-  @ContractTemplateID_3bcc3289 = '33333333-0000-4000-8000-000000003001'
-SET
-  @ProvisionNumber_3bcc3289 = N'11.2'
-SET
-  @Title_3bcc3289 = N'Termination'
-SET
-  @ProvisionText_3bcc3289 = N'BC Affiliate may terminate this Agreement in the event Customer (a) fails to make when due any payment required under this Agreement and such failure continues for a period of 30 days after notice thereof by BC Affiliate to Customer; (b) commits a material breach of any of its obligations concerning scope of use or the protection of, Work Product, intellectual property of BC Affiliate, and Confidential Information; or (c) materially breaches any of its other obligations under any provision of this Agreement, which breach is not remedied within 30 days after notice thereof by BC Affiliate to Customer.'
-SET
-  @Description_3bcc3289 = N'Section 11 — Termination' EXEC [${flyway:defaultSchema}].spCreateContractTemplateProvision @ID = @ID_3bcc3289,
-  @ContractTemplateID = @ContractTemplateID_3bcc3289,
-  @ProvisionNumber = @ProvisionNumber_3bcc3289,
-  @Title = @Title_3bcc3289,
-  @ProvisionText = @ProvisionText_3bcc3289,
-  @Description = @Description_3bcc3289;
-
-GO
-
--- Save MJ_BizApps_Contracts: Contract Template Provisions (core SP call only)
-DECLARE @ID_68dd17dc UNIQUEIDENTIFIER,
-@ContractTemplateID_68dd17dc UNIQUEIDENTIFIER,
-@ProvisionNumber_68dd17dc NVARCHAR(20),
-@Title_68dd17dc NVARCHAR(200),
-@ProvisionText_68dd17dc NVARCHAR(MAX),
-@Description_68dd17dc NVARCHAR(MAX)
-SET
-  @ID_68dd17dc = '33333333-0000-4000-8000-000000004047'
-SET
-  @ContractTemplateID_68dd17dc = '33333333-0000-4000-8000-000000003001'
-SET
-  @ProvisionNumber_68dd17dc = N'11.3'
-SET
-  @Title_68dd17dc = N'Termination'
-SET
-  @ProvisionText_68dd17dc = N'Either party may terminate this Agreement for any reason after all obligations associated with any associated Order Forms and/or Statements of Work have been fully satisfied by furnishing thirty days advance written notice to the other party.'
-SET
-  @Description_68dd17dc = N'Section 11 — Termination' EXEC [${flyway:defaultSchema}].spCreateContractTemplateProvision @ID = @ID_68dd17dc,
-  @ContractTemplateID = @ContractTemplateID_68dd17dc,
-  @ProvisionNumber = @ProvisionNumber_68dd17dc,
-  @Title = @Title_68dd17dc,
-  @ProvisionText = @ProvisionText_68dd17dc,
-  @Description = @Description_68dd17dc;
-
-GO
-
--- Save MJ_BizApps_Contracts: Contract Template Provisions (core SP call only)
-DECLARE @ID_165bd1c1 UNIQUEIDENTIFIER,
-@ContractTemplateID_165bd1c1 UNIQUEIDENTIFIER,
-@ProvisionNumber_165bd1c1 NVARCHAR(20),
-@Title_165bd1c1 NVARCHAR(200),
-@ProvisionText_165bd1c1 NVARCHAR(MAX),
-@Description_165bd1c1 NVARCHAR(MAX)
-SET
-  @ID_165bd1c1 = '33333333-0000-4000-8000-000000004048'
-SET
-  @ContractTemplateID_165bd1c1 = '33333333-0000-4000-8000-000000003001'
-SET
-  @ProvisionNumber_165bd1c1 = N'12.1'
-SET
-  @Title_165bd1c1 = N'Rights Upon Termination'
-SET
-  @ProvisionText_165bd1c1 = N'In the event that termination of this Agreement should occur as a result of Customer’s failure to successfully execute its obligations under this Agreement, Customer shall immediately turn over to BC Affiliate any Confidential Information relating to the services provided.'
-SET
-  @Description_165bd1c1 = N'Section 12 — Rights Upon Termination' EXEC [${flyway:defaultSchema}].spCreateContractTemplateProvision @ID = @ID_165bd1c1,
-  @ContractTemplateID = @ContractTemplateID_165bd1c1,
-  @ProvisionNumber = @ProvisionNumber_165bd1c1,
-  @Title = @Title_165bd1c1,
-  @ProvisionText = @ProvisionText_165bd1c1,
-  @Description = @Description_165bd1c1;
-
-GO
-
--- Save MJ_BizApps_Contracts: Contract Template Provisions (core SP call only)
-DECLARE @ID_405462d1 UNIQUEIDENTIFIER,
-@ContractTemplateID_405462d1 UNIQUEIDENTIFIER,
-@ProvisionNumber_405462d1 NVARCHAR(20),
-@Title_405462d1 NVARCHAR(200),
-@ProvisionText_405462d1 NVARCHAR(MAX),
-@Description_405462d1 NVARCHAR(MAX)
-SET
-  @ID_405462d1 = '33333333-0000-4000-8000-000000004049'
-SET
-  @ContractTemplateID_405462d1 = '33333333-0000-4000-8000-000000003001'
-SET
-  @ProvisionNumber_405462d1 = N'12.2'
-SET
-  @Title_405462d1 = N'Rights Upon Termination'
-SET
-  @ProvisionText_405462d1 = N'Upon such termination, Customer shall immediately pay BC Affiliate all fees due through the end of the applicable Order Form’s and/or Statement of Work’s term and all rights granted with respect to the services will immediately terminate.'
-SET
-  @Description_405462d1 = N'Section 12 — Rights Upon Termination' EXEC [${flyway:defaultSchema}].spCreateContractTemplateProvision @ID = @ID_405462d1,
-  @ContractTemplateID = @ContractTemplateID_405462d1,
-  @ProvisionNumber = @ProvisionNumber_405462d1,
-  @Title = @Title_405462d1,
-  @ProvisionText = @ProvisionText_405462d1,
-  @Description = @Description_405462d1;
-
-GO
-
--- Save MJ_BizApps_Contracts: Contract Template Provisions (core SP call only)
-DECLARE @ID_6d147ddb UNIQUEIDENTIFIER,
-@ContractTemplateID_6d147ddb UNIQUEIDENTIFIER,
-@ProvisionNumber_6d147ddb NVARCHAR(20),
-@Title_6d147ddb NVARCHAR(200),
-@ProvisionText_6d147ddb NVARCHAR(MAX),
-@Description_6d147ddb NVARCHAR(MAX)
-SET
-  @ID_6d147ddb = '33333333-0000-4000-8000-000000004050'
-SET
-  @ContractTemplateID_6d147ddb = '33333333-0000-4000-8000-000000003001'
-SET
-  @ProvisionNumber_6d147ddb = N'12.3'
-SET
-  @Title_6d147ddb = N'Rights Upon Termination'
-SET
-  @ProvisionText_6d147ddb = N'The termination of this Agreement shall not extinguish any rights or obligations of the parties relating to protection of Confidential Information or to the protection of BC Affiliate’s intellectual property rights.'
-SET
-  @Description_6d147ddb = N'Section 12 — Rights Upon Termination' EXEC [${flyway:defaultSchema}].spCreateContractTemplateProvision @ID = @ID_6d147ddb,
-  @ContractTemplateID = @ContractTemplateID_6d147ddb,
-  @ProvisionNumber = @ProvisionNumber_6d147ddb,
-  @Title = @Title_6d147ddb,
-  @ProvisionText = @ProvisionText_6d147ddb,
-  @Description = @Description_6d147ddb;
-
-GO
-
--- Save MJ_BizApps_Contracts: Contract Template Provisions (core SP call only)
-DECLARE @ID_78200de0 UNIQUEIDENTIFIER,
-@ContractTemplateID_78200de0 UNIQUEIDENTIFIER,
-@ProvisionNumber_78200de0 NVARCHAR(20),
-@Title_78200de0 NVARCHAR(200),
-@ProvisionText_78200de0 NVARCHAR(MAX),
-@Description_78200de0 NVARCHAR(MAX)
-SET
-  @ID_78200de0 = '33333333-0000-4000-8000-000000004051'
-SET
-  @ContractTemplateID_78200de0 = '33333333-0000-4000-8000-000000003001'
-SET
-  @ProvisionNumber_78200de0 = N'13.1'
-SET
-  @Title_78200de0 = N'Assignment'
-SET
-  @ProvisionText_78200de0 = N'Customer shall not sell, pledge, assign, sublicense, or otherwise assign, transfer or share its rights or delegate its obligations under this Agreement without the prior written consent of BC Affiliate. Any attempt to sell, pledge, assign, sublicense or other transfer in violation hereof shall be void and of no force or effect. BC Affiliate may assign its rights and delegate its duties hereunder at any time without the consent of Customer.'
-SET
-  @Description_78200de0 = N'Section 13 — Assignment' EXEC [${flyway:defaultSchema}].spCreateContractTemplateProvision @ID = @ID_78200de0,
-  @ContractTemplateID = @ContractTemplateID_78200de0,
-  @ProvisionNumber = @ProvisionNumber_78200de0,
-  @Title = @Title_78200de0,
-  @ProvisionText = @ProvisionText_78200de0,
-  @Description = @Description_78200de0;
-
-GO
-
--- Save MJ_BizApps_Contracts: Contract Template Provisions (core SP call only)
-DECLARE @ID_42e9ea32 UNIQUEIDENTIFIER,
-@ContractTemplateID_42e9ea32 UNIQUEIDENTIFIER,
-@ProvisionNumber_42e9ea32 NVARCHAR(20),
-@Title_42e9ea32 NVARCHAR(200),
-@ProvisionText_42e9ea32 NVARCHAR(MAX),
-@Description_42e9ea32 NVARCHAR(MAX)
-SET
-  @ID_42e9ea32 = '33333333-0000-4000-8000-000000004052'
-SET
-  @ContractTemplateID_42e9ea32 = '33333333-0000-4000-8000-000000003001'
-SET
-  @ProvisionNumber_42e9ea32 = N'14.1'
-SET
-  @Title_42e9ea32 = N'Employee Relationship'
-SET
-  @ProvisionText_42e9ea32 = N'Neither Customer nor BC Affiliate will hire, employ, or contract for services directly or indirectly, with any current employee or agent of the other without prior written consent of the other, for a minimum time period of the later of twelve months after termination of this agreement or completion of the last completed Order Form and/or Statement of Work, whichever is earlier. Customer and BC Affiliate may hire any prior employee or agent of the other so long as said employee or agent has been terminated from such relationship with the other party for at least twelve months.'
-SET
-  @Description_42e9ea32 = N'Section 14 — Employee Relationship' EXEC [${flyway:defaultSchema}].spCreateContractTemplateProvision @ID = @ID_42e9ea32,
-  @ContractTemplateID = @ContractTemplateID_42e9ea32,
-  @ProvisionNumber = @ProvisionNumber_42e9ea32,
-  @Title = @Title_42e9ea32,
-  @ProvisionText = @ProvisionText_42e9ea32,
-  @Description = @Description_42e9ea32;
-
-GO
-
--- Save MJ_BizApps_Contracts: Contract Template Provisions (core SP call only)
-DECLARE @ID_2f53b57f UNIQUEIDENTIFIER,
-@ContractTemplateID_2f53b57f UNIQUEIDENTIFIER,
-@ProvisionNumber_2f53b57f NVARCHAR(20),
-@Title_2f53b57f NVARCHAR(200),
-@ProvisionText_2f53b57f NVARCHAR(MAX),
-@Description_2f53b57f NVARCHAR(MAX)
-SET
-  @ID_2f53b57f = '33333333-0000-4000-8000-000000004053'
-SET
-  @ContractTemplateID_2f53b57f = '33333333-0000-4000-8000-000000003001'
-SET
-  @ProvisionNumber_2f53b57f = N'15.1'
-SET
-  @Title_2f53b57f = N'Covenant Not to Sue'
-SET
-  @ProvisionText_2f53b57f = N'Customer, for itself and its predecessors, successors, owners, shareholders, officers, directors, employees, or representatives, agrees that it will not, under any circumstances, initiate any legal action or administrative proceeding against BC, its predecessors, successors, owners, shareholders, officers, directors, employees, or representatives, nor will Customer assist in the prosecution of any such legal action or administrative proceeding filed by any third party, arising out of the performance by any BC Affiliate of its obligations under this Agreement or any Order Form or Schedule of Work referenced herein. Customer further agrees that any proceeding brought in breach of this covenant not to sue shall entitle BC to its costs, including reasonable attorney''s fees incurred in defense of that proceeding.'
-SET
-  @Description_2f53b57f = N'Section 15 — Covenant Not to Sue' EXEC [${flyway:defaultSchema}].spCreateContractTemplateProvision @ID = @ID_2f53b57f,
-  @ContractTemplateID = @ContractTemplateID_2f53b57f,
-  @ProvisionNumber = @ProvisionNumber_2f53b57f,
-  @Title = @Title_2f53b57f,
-  @ProvisionText = @ProvisionText_2f53b57f,
-  @Description = @Description_2f53b57f;
-
-GO
-
--- Save MJ_BizApps_Contracts: Contract Template Provisions (core SP call only)
-DECLARE @ID_a813e8d8 UNIQUEIDENTIFIER,
-@ContractTemplateID_a813e8d8 UNIQUEIDENTIFIER,
-@ProvisionNumber_a813e8d8 NVARCHAR(20),
-@Title_a813e8d8 NVARCHAR(200),
-@ProvisionText_a813e8d8 NVARCHAR(MAX),
-@Description_a813e8d8 NVARCHAR(MAX)
-SET
-  @ID_a813e8d8 = '33333333-0000-4000-8000-000000004054'
-SET
-  @ContractTemplateID_a813e8d8 = '33333333-0000-4000-8000-000000003001'
-SET
-  @ProvisionNumber_a813e8d8 = N'16.1'
-SET
-  @Title_a813e8d8 = N'Relationship to Order Forms, Statements of Work and Change Orders'
-SET
-  @ProvisionText_a813e8d8 = N'Relationship to Order Forms, Statements of Work and Change Orders. If there is a conflict between this Agreement and the provisions of an individual Order Form, Statement of Work, or Change Order the terms of the Order Form, Statement of Work, or Change Order will control, with the most recently executed document controlling the conflicting provision(s).'
-SET
-  @Description_a813e8d8 = N'Section 16 — General Provisions' EXEC [${flyway:defaultSchema}].spCreateContractTemplateProvision @ID = @ID_a813e8d8,
-  @ContractTemplateID = @ContractTemplateID_a813e8d8,
-  @ProvisionNumber = @ProvisionNumber_a813e8d8,
-  @Title = @Title_a813e8d8,
-  @ProvisionText = @ProvisionText_a813e8d8,
-  @Description = @Description_a813e8d8;
-
-GO
-
--- Save MJ_BizApps_Contracts: Contract Template Provisions (core SP call only)
-DECLARE @ID_e9c58432 UNIQUEIDENTIFIER,
-@ContractTemplateID_e9c58432 UNIQUEIDENTIFIER,
-@ProvisionNumber_e9c58432 NVARCHAR(20),
-@Title_e9c58432 NVARCHAR(200),
-@ProvisionText_e9c58432 NVARCHAR(MAX),
-@Description_e9c58432 NVARCHAR(MAX)
-SET
-  @ID_e9c58432 = '33333333-0000-4000-8000-000000004055'
-SET
-  @ContractTemplateID_e9c58432 = '33333333-0000-4000-8000-000000003001'
-SET
-  @ProvisionNumber_e9c58432 = N'16.2'
-SET
-  @Title_e9c58432 = N'Applicable Law'
-SET
-  @ProvisionText_e9c58432 = N'Applicable Law. The parties agree that this Agreement and interpretation thereof shall be governed, construed and performed in accordance with the laws of the State of Louisiana, exclusive of its choice of law provisions. The parties agree that the United Nations Convention for the International Sale of Goods shall not apply to this agreement.'
-SET
-  @Description_e9c58432 = N'Section 16 — General Provisions' EXEC [${flyway:defaultSchema}].spCreateContractTemplateProvision @ID = @ID_e9c58432,
-  @ContractTemplateID = @ContractTemplateID_e9c58432,
-  @ProvisionNumber = @ProvisionNumber_e9c58432,
-  @Title = @Title_e9c58432,
-  @ProvisionText = @ProvisionText_e9c58432,
-  @Description = @Description_e9c58432;
-
-GO
-
--- Save MJ_BizApps_Contracts: Contract Template Provisions (core SP call only)
-DECLARE @ID_83b8cf32 UNIQUEIDENTIFIER,
-@ContractTemplateID_83b8cf32 UNIQUEIDENTIFIER,
-@ProvisionNumber_83b8cf32 NVARCHAR(20),
-@Title_83b8cf32 NVARCHAR(200),
-@ProvisionText_83b8cf32 NVARCHAR(MAX),
-@Description_83b8cf32 NVARCHAR(MAX)
-SET
-  @ID_83b8cf32 = '33333333-0000-4000-8000-000000004056'
-SET
-  @ContractTemplateID_83b8cf32 = '33333333-0000-4000-8000-000000003001'
-SET
-  @ProvisionNumber_83b8cf32 = N'16.3'
-SET
-  @Title_83b8cf32 = N'Taxes'
-SET
-  @ProvisionText_83b8cf32 = N'Taxes. Customer shall pay, in addition to the other amounts payable under this Agreement, all local, state and federal and/or national excise, sales, use, personal property, gross receipts and similar taxes (excluding taxes imposed on or measured by BC Affiliate’s net income) levied or imposed by reason of the transactions under this Agreement. Customer shall, upon demand, pay to BC Affiliate an amount equal to any such tax(es) actually paid or required to be collected or paid by BC Affiliate.'
-SET
-  @Description_83b8cf32 = N'Section 16 — General Provisions' EXEC [${flyway:defaultSchema}].spCreateContractTemplateProvision @ID = @ID_83b8cf32,
-  @ContractTemplateID = @ContractTemplateID_83b8cf32,
-  @ProvisionNumber = @ProvisionNumber_83b8cf32,
-  @Title = @Title_83b8cf32,
-  @ProvisionText = @ProvisionText_83b8cf32,
-  @Description = @Description_83b8cf32;
-
-GO
-
--- Save MJ_BizApps_Contracts: Contract Template Provisions (core SP call only)
-DECLARE @ID_61d1df90 UNIQUEIDENTIFIER,
-@ContractTemplateID_61d1df90 UNIQUEIDENTIFIER,
-@ProvisionNumber_61d1df90 NVARCHAR(20),
-@Title_61d1df90 NVARCHAR(200),
-@ProvisionText_61d1df90 NVARCHAR(MAX),
-@Description_61d1df90 NVARCHAR(MAX)
-SET
-  @ID_61d1df90 = '33333333-0000-4000-8000-000000004057'
-SET
-  @ContractTemplateID_61d1df90 = '33333333-0000-4000-8000-000000003001'
-SET
-  @ProvisionNumber_61d1df90 = N'16.4'
-SET
-  @Title_61d1df90 = N'Required Consents'
-SET
-  @ProvisionText_61d1df90 = N'Required Consents. Customer warrants that it has obtained lawful permission to use all hardware and software required in order for the services to take place.'
-SET
-  @Description_61d1df90 = N'Section 16 — General Provisions' EXEC [${flyway:defaultSchema}].spCreateContractTemplateProvision @ID = @ID_61d1df90,
-  @ContractTemplateID = @ContractTemplateID_61d1df90,
-  @ProvisionNumber = @ProvisionNumber_61d1df90,
-  @Title = @Title_61d1df90,
-  @ProvisionText = @ProvisionText_61d1df90,
-  @Description = @Description_61d1df90;
-
-GO
-
--- Save MJ_BizApps_Contracts: Contract Template Provisions (core SP call only)
-DECLARE @ID_58a664ce UNIQUEIDENTIFIER,
-@ContractTemplateID_58a664ce UNIQUEIDENTIFIER,
-@ProvisionNumber_58a664ce NVARCHAR(20),
-@Title_58a664ce NVARCHAR(200),
-@ProvisionText_58a664ce NVARCHAR(MAX),
-@Description_58a664ce NVARCHAR(MAX)
-SET
-  @ID_58a664ce = '33333333-0000-4000-8000-000000004058'
-SET
-  @ContractTemplateID_58a664ce = '33333333-0000-4000-8000-000000003001'
-SET
-  @ProvisionNumber_58a664ce = N'16.5'
-SET
-  @Title_58a664ce = N'Publicity'
-SET
-  @ProvisionText_58a664ce = N'Publicity. The terms of the Agreement, including Exhibits attached hereto, are agreed to be Confidential and shall not be disclosed by the Customer or any person or entity having access to it. The existence but not any of the terms of this Agreement may be disclosed by either party without the prior written consent of the other. Each of the parties may reveal the terms of this Agreement to its own officers, directors, shareholders, employees, agents, investors or prospective investors who have a need to know the terms of this Agreement, and who are subject to confidentiality agreements no less restrictive than the relevant provisions herein.'
-SET
-  @Description_58a664ce = N'Section 16 — General Provisions' EXEC [${flyway:defaultSchema}].spCreateContractTemplateProvision @ID = @ID_58a664ce,
-  @ContractTemplateID = @ContractTemplateID_58a664ce,
-  @ProvisionNumber = @ProvisionNumber_58a664ce,
-  @Title = @Title_58a664ce,
-  @ProvisionText = @ProvisionText_58a664ce,
-  @Description = @Description_58a664ce;
-
-GO
-
--- Save MJ_BizApps_Contracts: Contract Template Provisions (core SP call only)
-DECLARE @ID_0e41ff89 UNIQUEIDENTIFIER,
-@ContractTemplateID_0e41ff89 UNIQUEIDENTIFIER,
-@ProvisionNumber_0e41ff89 NVARCHAR(20),
-@Title_0e41ff89 NVARCHAR(200),
-@ProvisionText_0e41ff89 NVARCHAR(MAX),
-@Description_0e41ff89 NVARCHAR(MAX)
-SET
-  @ID_0e41ff89 = '33333333-0000-4000-8000-000000004059'
-SET
-  @ContractTemplateID_0e41ff89 = '33333333-0000-4000-8000-000000003001'
-SET
-  @ProvisionNumber_0e41ff89 = N'16.6'
-SET
-  @Title_0e41ff89 = N'Public Reference'
-SET
-  @ProvisionText_0e41ff89 = N'Public Reference. Customer must consent to any public use of its name as a Customer of BC Affiliate. Upon approval by Customer of a specific instance of use (such as a case study or press release), the specific instance of use may be provided by BC Affiliate to any number of individuals or entities without additional consent from Customer. Upon written notice by Customer, BC Affiliate will remove all reference to Customer’s name that is within BC Affiliate''s control as soon as reasonably possible.'
-SET
-  @Description_0e41ff89 = N'Section 16 — General Provisions' EXEC [${flyway:defaultSchema}].spCreateContractTemplateProvision @ID = @ID_0e41ff89,
-  @ContractTemplateID = @ContractTemplateID_0e41ff89,
-  @ProvisionNumber = @ProvisionNumber_0e41ff89,
-  @Title = @Title_0e41ff89,
-  @ProvisionText = @ProvisionText_0e41ff89,
-  @Description = @Description_0e41ff89;
-
-GO
-
--- Save MJ_BizApps_Contracts: Contract Template Provisions (core SP call only)
-DECLARE @ID_cda07599 UNIQUEIDENTIFIER,
-@ContractTemplateID_cda07599 UNIQUEIDENTIFIER,
-@ProvisionNumber_cda07599 NVARCHAR(20),
-@Title_cda07599 NVARCHAR(200),
-@ProvisionText_cda07599 NVARCHAR(MAX),
-@Description_cda07599 NVARCHAR(MAX)
-SET
-  @ID_cda07599 = '33333333-0000-4000-8000-000000004060'
-SET
-  @ContractTemplateID_cda07599 = '33333333-0000-4000-8000-000000003001'
-SET
-  @ProvisionNumber_cda07599 = N'16.7'
-SET
-  @Title_cda07599 = N'Modification'
-SET
-  @ProvisionText_cda07599 = N'Modification. This Agreement may not be modified or amended except in writing when signed by authorized representatives of each of the parties. No purported modification or amendment shall be binding until approved in writing by an authorized representative of BC Affiliate.'
-SET
-  @Description_cda07599 = N'Section 16 — General Provisions' EXEC [${flyway:defaultSchema}].spCreateContractTemplateProvision @ID = @ID_cda07599,
-  @ContractTemplateID = @ContractTemplateID_cda07599,
-  @ProvisionNumber = @ProvisionNumber_cda07599,
-  @Title = @Title_cda07599,
-  @ProvisionText = @ProvisionText_cda07599,
-  @Description = @Description_cda07599;
-
-GO
-
--- Save MJ_BizApps_Contracts: Contract Template Provisions (core SP call only)
-DECLARE @ID_5066c208 UNIQUEIDENTIFIER,
-@ContractTemplateID_5066c208 UNIQUEIDENTIFIER,
-@ProvisionNumber_5066c208 NVARCHAR(20),
-@Title_5066c208 NVARCHAR(200),
-@ProvisionText_5066c208 NVARCHAR(MAX),
-@Description_5066c208 NVARCHAR(MAX)
-SET
-  @ID_5066c208 = '33333333-0000-4000-8000-000000004061'
-SET
-  @ContractTemplateID_5066c208 = '33333333-0000-4000-8000-000000003001'
-SET
-  @ProvisionNumber_5066c208 = N'16.8'
-SET
-  @Title_5066c208 = N'No Waiver'
-SET
-  @ProvisionText_5066c208 = N'No Waiver. The failure of Customer or BC Affiliate to exercise any right or the waiver by either party of any breach, shall not prevent subsequent exercise of such right or be deemed a waiver of any subsequent breach of the same or any other term of the Agreement.'
-SET
-  @Description_5066c208 = N'Section 16 — General Provisions' EXEC [${flyway:defaultSchema}].spCreateContractTemplateProvision @ID = @ID_5066c208,
-  @ContractTemplateID = @ContractTemplateID_5066c208,
-  @ProvisionNumber = @ProvisionNumber_5066c208,
-  @Title = @Title_5066c208,
-  @ProvisionText = @ProvisionText_5066c208,
-  @Description = @Description_5066c208;
-
-GO
-
--- Save MJ_BizApps_Contracts: Contract Template Provisions (core SP call only)
-DECLARE @ID_b0a8828f UNIQUEIDENTIFIER,
-@ContractTemplateID_b0a8828f UNIQUEIDENTIFIER,
-@ProvisionNumber_b0a8828f NVARCHAR(20),
-@Title_b0a8828f NVARCHAR(200),
-@ProvisionText_b0a8828f NVARCHAR(MAX),
-@Description_b0a8828f NVARCHAR(MAX)
-SET
-  @ID_b0a8828f = '33333333-0000-4000-8000-000000004062'
-SET
-  @ContractTemplateID_b0a8828f = '33333333-0000-4000-8000-000000003001'
-SET
-  @ProvisionNumber_b0a8828f = N'16.9'
-SET
-  @Title_b0a8828f = N'Notices'
-SET
-  @ProvisionText_b0a8828f = N'Notices. Except as otherwise specified in this Agreement, all notices related to this Agreement will be in writing and will be effective upon the later of (a) personal delivery, or (b) the second business day after mailing, except that notices of termination or an indemnifiable claim (“Legal Notices”), which are identifiable as Legal Notices, will be effective the day of sending by email. Billing-related notices to Customer will be addressed to the relevant billing contact designated by Customer.'
-SET
-  @Description_b0a8828f = N'Section 16 — General Provisions' EXEC [${flyway:defaultSchema}].spCreateContractTemplateProvision @ID = @ID_b0a8828f,
-  @ContractTemplateID = @ContractTemplateID_b0a8828f,
-  @ProvisionNumber = @ProvisionNumber_b0a8828f,
-  @Title = @Title_b0a8828f,
-  @ProvisionText = @ProvisionText_b0a8828f,
-  @Description = @Description_b0a8828f;
-
-GO
-
--- Save MJ_BizApps_Contracts: Contract Template Provisions (core SP call only)
-DECLARE @ID_84da8bee UNIQUEIDENTIFIER,
-@ContractTemplateID_84da8bee UNIQUEIDENTIFIER,
-@ProvisionNumber_84da8bee NVARCHAR(20),
-@Title_84da8bee NVARCHAR(200),
-@ProvisionText_84da8bee NVARCHAR(MAX),
-@Description_84da8bee NVARCHAR(MAX)
-SET
-  @ID_84da8bee = '33333333-0000-4000-8000-000000004063'
-SET
-  @ContractTemplateID_84da8bee = '33333333-0000-4000-8000-000000003001'
-SET
-  @ProvisionNumber_84da8bee = N'16.10'
-SET
-  @Title_84da8bee = N'Force Majeure'
-SET
-  @ProvisionText_84da8bee = N'Force Majeure. Neither Customer or BC Affiliate shall be deemed in default of this Agreement to the extent that performance of their obligations or attempts to cure any breach are delayed or prevented by reason of any act of God, fire, natural disaster, accident, act of government, shortages of materials or supplies or any other cause beyond the control of such party ("Force Majeure"), provided that such party gives the other party written notice thereof promptly and, in any event, within fifteen days of discovery thereof and uses its best efforts to cure the delay. In the event of such Force Majeure, the time for performance or cure shall be extended for a period equal to the duration of the Force Majeure but not in excess of twelve months.'
-SET
-  @Description_84da8bee = N'Section 16 — General Provisions' EXEC [${flyway:defaultSchema}].spCreateContractTemplateProvision @ID = @ID_84da8bee,
-  @ContractTemplateID = @ContractTemplateID_84da8bee,
-  @ProvisionNumber = @ProvisionNumber_84da8bee,
-  @Title = @Title_84da8bee,
-  @ProvisionText = @ProvisionText_84da8bee,
-  @Description = @Description_84da8bee;
-
-GO
-
--- Save MJ_BizApps_Contracts: Contract Template Provisions (core SP call only)
-DECLARE @ID_b9a06a44 UNIQUEIDENTIFIER,
-@ContractTemplateID_b9a06a44 UNIQUEIDENTIFIER,
-@ProvisionNumber_b9a06a44 NVARCHAR(20),
-@Title_b9a06a44 NVARCHAR(200),
-@ProvisionText_b9a06a44 NVARCHAR(MAX),
-@Description_b9a06a44 NVARCHAR(MAX)
-SET
-  @ID_b9a06a44 = '33333333-0000-4000-8000-000000004064'
-SET
-  @ContractTemplateID_b9a06a44 = '33333333-0000-4000-8000-000000003001'
-SET
-  @ProvisionNumber_b9a06a44 = N'16.11'
-SET
-  @Title_b9a06a44 = N'Entire Agreement'
-SET
-  @ProvisionText_b9a06a44 = N'Entire Agreement. This Agreement constitutes the sole and entire agreement of Customer and BC Affiliate with respect to the subject matter hereof and supersedes any prior oral or written promises or agreements. There are no promises, covenants, or undertakings other than those expressly set forth in this Agreement and any related Statements of Work.'
-SET
-  @Description_b9a06a44 = N'Section 16 — General Provisions' EXEC [${flyway:defaultSchema}].spCreateContractTemplateProvision @ID = @ID_b9a06a44,
-  @ContractTemplateID = @ContractTemplateID_b9a06a44,
-  @ProvisionNumber = @ProvisionNumber_b9a06a44,
-  @Title = @Title_b9a06a44,
-  @ProvisionText = @ProvisionText_b9a06a44,
-  @Description = @Description_b9a06a44;
-
-GO
-
--- Save MJ_BizApps_Contracts: Contract Template Provisions (core SP call only)
-DECLARE @ID_893a259c UNIQUEIDENTIFIER,
-@ContractTemplateID_893a259c UNIQUEIDENTIFIER,
-@ProvisionNumber_893a259c NVARCHAR(20),
-@Title_893a259c NVARCHAR(200),
-@ProvisionText_893a259c NVARCHAR(MAX),
-@Description_893a259c NVARCHAR(MAX)
-SET
-  @ID_893a259c = '33333333-0000-4000-8000-000000004065'
-SET
-  @ContractTemplateID_893a259c = '33333333-0000-4000-8000-000000003001'
-SET
-  @ProvisionNumber_893a259c = N'16.12'
-SET
-  @Title_893a259c = N'Equitable Remedies'
-SET
-  @ProvisionText_893a259c = N'Equitable Remedies. The parties recognize that money damages may not be an adequate remedy for any breach or threatened breach of any obligation hereunder by Customer involving intellectual property or Confidential Information. The parties therefore agree that, in addition to any other remedies available hereunder, by law or otherwise, BC Affiliate and any third party from whom BC Affiliate has licensed software or technology shall be entitled to an injunction against any such continued breach by Customer of such obligations.'
-SET
-  @Description_893a259c = N'Section 16 — General Provisions' EXEC [${flyway:defaultSchema}].spCreateContractTemplateProvision @ID = @ID_893a259c,
-  @ContractTemplateID = @ContractTemplateID_893a259c,
-  @ProvisionNumber = @ProvisionNumber_893a259c,
-  @Title = @Title_893a259c,
-  @ProvisionText = @ProvisionText_893a259c,
-  @Description = @Description_893a259c;
-
-GO
-
--- Save MJ_BizApps_Contracts: Contract Template Provisions (core SP call only)
-DECLARE @ID_ba7e7280 UNIQUEIDENTIFIER,
-@ContractTemplateID_ba7e7280 UNIQUEIDENTIFIER,
-@ProvisionNumber_ba7e7280 NVARCHAR(20),
-@Title_ba7e7280 NVARCHAR(200),
-@ProvisionText_ba7e7280 NVARCHAR(MAX),
-@Description_ba7e7280 NVARCHAR(MAX)
-SET
-  @ID_ba7e7280 = '33333333-0000-4000-8000-000000004066'
-SET
-  @ContractTemplateID_ba7e7280 = '33333333-0000-4000-8000-000000003001'
-SET
-  @ProvisionNumber_ba7e7280 = N'16.13'
-SET
-  @Title_ba7e7280 = N'Late Fees, Costs, and Attorneys'' Fees'
-SET
-  @ProvisionText_ba7e7280 = N'Late Fees, Costs, and Attorneys'' Fees. A late payment charge of 1.5% per month, compounded monthly, shall apply to any undisputed payment due from Customer that is in arrears for a period exceeding 30 days. Any disputes not timely submitted per Section 6.3 of this Agreement shall also be subject to the late payment charge in this section. In any legal action or arbitration proceeding brought on account of a breach, the prevailing party shall recover from the other party all costs of litigation or arbitration, including reasonable attorneys'' fees.'
-SET
-  @Description_ba7e7280 = N'Section 16 — General Provisions' EXEC [${flyway:defaultSchema}].spCreateContractTemplateProvision @ID = @ID_ba7e7280,
-  @ContractTemplateID = @ContractTemplateID_ba7e7280,
-  @ProvisionNumber = @ProvisionNumber_ba7e7280,
-  @Title = @Title_ba7e7280,
-  @ProvisionText = @ProvisionText_ba7e7280,
-  @Description = @Description_ba7e7280;
-
-GO
-
--- Save MJ_BizApps_Contracts: Contract Template Provisions (core SP call only)
-DECLARE @ID_59bf59c0 UNIQUEIDENTIFIER,
-@ContractTemplateID_59bf59c0 UNIQUEIDENTIFIER,
-@ProvisionNumber_59bf59c0 NVARCHAR(20),
-@Title_59bf59c0 NVARCHAR(200),
-@ProvisionText_59bf59c0 NVARCHAR(MAX),
-@Description_59bf59c0 NVARCHAR(MAX)
-SET
-  @ID_59bf59c0 = '33333333-0000-4000-8000-000000004067'
-SET
-  @ContractTemplateID_59bf59c0 = '33333333-0000-4000-8000-000000003001'
-SET
-  @ProvisionNumber_59bf59c0 = N'16.14'
-SET
-  @Title_59bf59c0 = N'Use of Consultants or Subcontractors'
-SET
-  @ProvisionText_59bf59c0 = N'Use of Consultants or Subcontractors. In the performance of its duties under this Agreement, BC Affiliate may employ subcontractors or consultants to provide services which are not available on an "In-House" basis to the BC Affiliate and who are qualified, licensed and experienced in their areas of expertise (collectively, "Consultants"). Any work or services performed by such Consultants shall be deemed to be performed by BC Affiliate, shall be subject to all obligations contained herein, and BC Affiliate shall be responsible for such work and for insuring Consultant''s compliance herewith.'
-SET
-  @Description_59bf59c0 = N'Section 16 — General Provisions' EXEC [${flyway:defaultSchema}].spCreateContractTemplateProvision @ID = @ID_59bf59c0,
-  @ContractTemplateID = @ContractTemplateID_59bf59c0,
-  @ProvisionNumber = @ProvisionNumber_59bf59c0,
-  @Title = @Title_59bf59c0,
-  @ProvisionText = @ProvisionText_59bf59c0,
-  @Description = @Description_59bf59c0;
-
-GO
-
--- Save MJ_BizApps_Contracts: Contract Template Provisions (core SP call only)
-DECLARE @ID_12c7cbf7 UNIQUEIDENTIFIER,
-@ContractTemplateID_12c7cbf7 UNIQUEIDENTIFIER,
-@ProvisionNumber_12c7cbf7 NVARCHAR(20),
-@Title_12c7cbf7 NVARCHAR(200),
-@ProvisionText_12c7cbf7 NVARCHAR(MAX),
-@Description_12c7cbf7 NVARCHAR(MAX)
-SET
-  @ID_12c7cbf7 = '33333333-0000-4000-8000-000000004068'
-SET
-  @ContractTemplateID_12c7cbf7 = '33333333-0000-4000-8000-000000003001'
-SET
-  @ProvisionNumber_12c7cbf7 = N'16.15'
-SET
-  @Title_12c7cbf7 = N'Relationship of the Parties'
-SET
-  @ProvisionText_12c7cbf7 = N'Relationship of the Parties. BC Affiliate shall perform the Services as an independent contractor. Nothing in this Agreement nor in the course its performance shall be construed to create a relationship of principal and agent, joint venture, partnership, association or employment between Customer and BC Affiliate. Neither party shall represent to any third party that it is the agent or employee of the other.'
-SET
-  @Description_12c7cbf7 = N'Section 16 — General Provisions' EXEC [${flyway:defaultSchema}].spCreateContractTemplateProvision @ID = @ID_12c7cbf7,
-  @ContractTemplateID = @ContractTemplateID_12c7cbf7,
-  @ProvisionNumber = @ProvisionNumber_12c7cbf7,
-  @Title = @Title_12c7cbf7,
-  @ProvisionText = @ProvisionText_12c7cbf7,
-  @Description = @Description_12c7cbf7;
-
-GO
-
--- Save MJ_BizApps_Contracts: Contract Template Provisions (core SP call only)
-DECLARE @ID_86729515 UNIQUEIDENTIFIER,
-@ContractTemplateID_86729515 UNIQUEIDENTIFIER,
-@ProvisionNumber_86729515 NVARCHAR(20),
-@Title_86729515 NVARCHAR(200),
-@ProvisionText_86729515 NVARCHAR(MAX),
-@Description_86729515 NVARCHAR(MAX)
-SET
-  @ID_86729515 = '33333333-0000-4000-8000-000000004069'
-SET
-  @ContractTemplateID_86729515 = '33333333-0000-4000-8000-000000003001'
-SET
-  @ProvisionNumber_86729515 = N'16.16'
-SET
-  @Title_86729515 = N'Exclusive Jurisdiction and Venue'
-SET
-  @ProvisionText_86729515 = N'Exclusive Jurisdiction and Venue. Any cause of action arising out of or related to this Agreement, including an action to confirm or challenge an arbitration award, may only be brought in the courts of applicable jurisdiction in New Orleans Louisiana, and the parties hereby submit to the jurisdiction and venue of such courts.'
-SET
-  @Description_86729515 = N'Section 16 — General Provisions' EXEC [${flyway:defaultSchema}].spCreateContractTemplateProvision @ID = @ID_86729515,
-  @ContractTemplateID = @ContractTemplateID_86729515,
-  @ProvisionNumber = @ProvisionNumber_86729515,
-  @Title = @Title_86729515,
-  @ProvisionText = @ProvisionText_86729515,
-  @Description = @Description_86729515;
-
-GO
-
--- Save MJ_BizApps_Contracts: Contract Template Provisions (core SP call only)
-DECLARE @ID_f948f7ef UNIQUEIDENTIFIER,
-@ContractTemplateID_f948f7ef UNIQUEIDENTIFIER,
-@ProvisionNumber_f948f7ef NVARCHAR(20),
-@Title_f948f7ef NVARCHAR(200),
-@ProvisionText_f948f7ef NVARCHAR(MAX),
-@Description_f948f7ef NVARCHAR(MAX)
-SET
-  @ID_f948f7ef = '33333333-0000-4000-8000-000000004070'
-SET
-  @ContractTemplateID_f948f7ef = '33333333-0000-4000-8000-000000003001'
-SET
-  @ProvisionNumber_f948f7ef = N'16.17'
-SET
-  @Title_f948f7ef = N'Dispute Resolution'
-SET
-  @ProvisionText_f948f7ef = N'Dispute Resolution. Except for actions seeking Equitable Remedies as described in Section 16.12, any dispute occurring or relating to this agreement, or breach thereof, should be determined by arbitration in accordance with the arbitration rules of the American Arbitration Association. Any arbitration shall proceed in the State of Louisiana. Judgment upon the award of the arbitrator(s) may be entered in any court having jurisdiction thereof.'
-SET
-  @Description_f948f7ef = N'Section 16 — General Provisions' EXEC [${flyway:defaultSchema}].spCreateContractTemplateProvision @ID = @ID_f948f7ef,
-  @ContractTemplateID = @ContractTemplateID_f948f7ef,
-  @ProvisionNumber = @ProvisionNumber_f948f7ef,
-  @Title = @Title_f948f7ef,
-  @ProvisionText = @ProvisionText_f948f7ef,
-  @Description = @Description_f948f7ef;
-
-GO
-
--- Save MJ_BizApps_Contracts: Contract Template Provisions (core SP call only)
-DECLARE @ID_5ff0976f UNIQUEIDENTIFIER,
-@ContractTemplateID_5ff0976f UNIQUEIDENTIFIER,
-@ProvisionNumber_5ff0976f NVARCHAR(20),
-@Title_5ff0976f NVARCHAR(200),
-@ProvisionText_5ff0976f NVARCHAR(MAX),
-@Description_5ff0976f NVARCHAR(MAX)
-SET
-  @ID_5ff0976f = '33333333-0000-4000-8000-000000004071'
-SET
-  @ContractTemplateID_5ff0976f = '33333333-0000-4000-8000-000000003001'
-SET
-  @ProvisionNumber_5ff0976f = N'16.18'
-SET
-  @Title_5ff0976f = N'Validity of Provisions'
-SET
-  @ProvisionText_5ff0976f = N'Validity of Provisions. In the event any provision, or any part or portion of any provision, of this Agreement, or of any Statement of Work or Order Form included herewith, shall be held to be invalid, void or otherwise unenforceable, that provision shall be deemed modified so as to carry out the intent of Customer and BC Affiliate to the maximum extent permitted by law, and shall not affect the remaining part or portions of that provision, or any other provision hereof.'
-SET
-  @Description_5ff0976f = N'Section 16 — General Provisions' EXEC [${flyway:defaultSchema}].spCreateContractTemplateProvision @ID = @ID_5ff0976f,
-  @ContractTemplateID = @ContractTemplateID_5ff0976f,
-  @ProvisionNumber = @ProvisionNumber_5ff0976f,
-  @Title = @Title_5ff0976f,
-  @ProvisionText = @ProvisionText_5ff0976f,
-  @Description = @Description_5ff0976f;
+  @TemplateRequired_d32186e0 = 0
+EXEC [${flyway:defaultSchema}].spCreateContractType @ID = @ID_d32186e0,
+  @Name = @Name_d32186e0,
+  @Description = @Description_d32186e0,
+  @RequiresExecutedDocument = @RequiresExecutedDocument_d32186e0,
+  @Status = @Status_d32186e0,
+  @MustBeRoot = @MustBeRoot_d32186e0,
+  @MustBeChild = @MustBeChild_d32186e0,
+  @TemplateRequired = @TemplateRequired_d32186e0;
 
 GO
 
 -- Save MJ: Entity Relationships (core SP call only)
-DECLARE @EntityID_86130074 UNIQUEIDENTIFIER,
-@Sequence_86130074 INT,
-@RelatedEntityID_86130074 UNIQUEIDENTIFIER,
-@BundleInAPI_86130074 BIT,
-@IncludeInParentAllQuery_86130074 BIT,
-@Type_86130074 NCHAR(20),
-@EntityKeyField_86130074 NVARCHAR(255),
-@RelatedEntityJoinField_86130074 NVARCHAR(255),
-@JoinView_86130074 NVARCHAR(255),
-@JoinEntityJoinField_86130074 NVARCHAR(255),
-@JoinEntityInverseJoinField_86130074 NVARCHAR(255),
-@DisplayInForm_86130074 BIT,
-@DisplayLocation_86130074 NVARCHAR(50),
-@DisplayName_86130074 NVARCHAR(255),
-@DisplayIconType_86130074 NVARCHAR(50),
-@DisplayIcon_86130074 NVARCHAR(255),
-@DisplayComponentID_86130074 UNIQUEIDENTIFIER,
-@DisplayComponentConfiguration_86130074 NVARCHAR(MAX),
-@AutoUpdateFromSchema_86130074 BIT,
-@AdditionalFieldsToInclude_86130074 NVARCHAR(MAX),
-@AutoUpdateAdditionalFieldsToInclude_86130074 BIT,
-@RelatedRecordCollection_86130074 NVARCHAR(MAX),
-@Configuration_86130074 NVARCHAR(MAX),
-@ID_86130074 UNIQUEIDENTIFIER
+DECLARE @EntityID_c4aabc10 UNIQUEIDENTIFIER,
+@Sequence_c4aabc10 INT,
+@RelatedEntityID_c4aabc10 UNIQUEIDENTIFIER,
+@BundleInAPI_c4aabc10 BIT,
+@IncludeInParentAllQuery_c4aabc10 BIT,
+@Type_c4aabc10 NCHAR(20),
+@EntityKeyField_c4aabc10 NVARCHAR(255),
+@RelatedEntityJoinField_c4aabc10 NVARCHAR(255),
+@JoinView_c4aabc10 NVARCHAR(255),
+@JoinEntityJoinField_c4aabc10 NVARCHAR(255),
+@JoinEntityInverseJoinField_c4aabc10 NVARCHAR(255),
+@DisplayInForm_c4aabc10 BIT,
+@DisplayLocation_c4aabc10 NVARCHAR(50),
+@DisplayName_c4aabc10 NVARCHAR(255),
+@DisplayIconType_c4aabc10 NVARCHAR(50),
+@DisplayIcon_c4aabc10 NVARCHAR(255),
+@DisplayComponentID_c4aabc10 UNIQUEIDENTIFIER,
+@DisplayComponentConfiguration_c4aabc10 NVARCHAR(MAX),
+@AutoUpdateFromSchema_c4aabc10 BIT,
+@AdditionalFieldsToInclude_c4aabc10 NVARCHAR(MAX),
+@AutoUpdateAdditionalFieldsToInclude_c4aabc10 BIT,
+@RelatedRecordCollection_c4aabc10 NVARCHAR(MAX),
+@Configuration_c4aabc10 NVARCHAR(MAX),
+@ID_c4aabc10 UNIQUEIDENTIFIER
 SET
-  @EntityID_86130074 = '5DEB0B11-ED6C-48B3-9200-F4441396C5E2'
+  @EntityID_c4aabc10 = '731F2890-1415-40DE-9073-D22EA23392B3'
 SET
-  @Sequence_86130074 = 1
+  @Sequence_c4aabc10 = 1
 SET
-  @RelatedEntityID_86130074 = 'B05A480F-F7C5-4D45-8EA3-C90E9A14F225'
+  @RelatedEntityID_c4aabc10 = '317DF592-8C20-473D-B097-2AB239877438'
 SET
-  @BundleInAPI_86130074 = 1
+  @BundleInAPI_c4aabc10 = 1
 SET
-  @IncludeInParentAllQuery_86130074 = 0
+  @IncludeInParentAllQuery_c4aabc10 = 0
 SET
-  @Type_86130074 = N'One To Many'
+  @Type_c4aabc10 = N'One To Many'
 SET
-  @RelatedEntityJoinField_86130074 = N'ContractID'
+  @RelatedEntityJoinField_c4aabc10 = N'ContractTemplateID'
 SET
-  @DisplayInForm_86130074 = 1
+  @DisplayInForm_c4aabc10 = 1
 SET
-  @DisplayLocation_86130074 = N'After Field Tabs'
+  @DisplayLocation_c4aabc10 = N'After Field Tabs'
 SET
-  @DisplayIconType_86130074 = N'Related Entity Icon'
+  @DisplayIconType_c4aabc10 = N'Related Entity Icon'
 SET
-  @AutoUpdateFromSchema_86130074 = 1
+  @AutoUpdateFromSchema_c4aabc10 = 1
 SET
-  @AutoUpdateAdditionalFieldsToInclude_86130074 = 1
+  @AutoUpdateAdditionalFieldsToInclude_c4aabc10 = 1
 SET
-  @RelatedRecordCollection_86130074 = N'{"Name":"Modifications","Source":"database","Load":"explicit","OnRemove":"delete","OrderBy":"__mj_CreatedAt ASC","ClearAfterSave":false}'
+  @RelatedRecordCollection_c4aabc10 = N'{"Name":"Provisions","Source":"database","Load":"explicit","OnRemove":"delete","OrderBy":"ProvisionSortKey ASC","ClearAfterSave":false}'
 SET
-  @ID_86130074 = '0A972E9E-ABAA-47FE-8DD7-90D1A60DC25D' EXEC [${mjSchema}].spUpdateEntityRelationship @EntityID = @EntityID_86130074,
-  @Sequence = @Sequence_86130074,
-  @RelatedEntityID = @RelatedEntityID_86130074,
-  @BundleInAPI = @BundleInAPI_86130074,
-  @IncludeInParentAllQuery = @IncludeInParentAllQuery_86130074,
-  @Type = @Type_86130074,
-  @EntityKeyField = @EntityKeyField_86130074,
+  @ID_c4aabc10 = 'E415E5BF-FCAA-49A6-BF33-EF3BC2D0D865' EXEC [${mjSchema}].spUpdateEntityRelationship @EntityID = @EntityID_c4aabc10,
+  @Sequence = @Sequence_c4aabc10,
+  @RelatedEntityID = @RelatedEntityID_c4aabc10,
+  @BundleInAPI = @BundleInAPI_c4aabc10,
+  @IncludeInParentAllQuery = @IncludeInParentAllQuery_c4aabc10,
+  @Type = @Type_c4aabc10,
+  @EntityKeyField = @EntityKeyField_c4aabc10,
   @EntityKeyField_Clear = 1,
-  @RelatedEntityJoinField = @RelatedEntityJoinField_86130074,
-  @JoinView = @JoinView_86130074,
+  @RelatedEntityJoinField = @RelatedEntityJoinField_c4aabc10,
+  @JoinView = @JoinView_c4aabc10,
   @JoinView_Clear = 1,
-  @JoinEntityJoinField = @JoinEntityJoinField_86130074,
+  @JoinEntityJoinField = @JoinEntityJoinField_c4aabc10,
   @JoinEntityJoinField_Clear = 1,
-  @JoinEntityInverseJoinField = @JoinEntityInverseJoinField_86130074,
+  @JoinEntityInverseJoinField = @JoinEntityInverseJoinField_c4aabc10,
   @JoinEntityInverseJoinField_Clear = 1,
-  @DisplayInForm = @DisplayInForm_86130074,
-  @DisplayLocation = @DisplayLocation_86130074,
-  @DisplayName = @DisplayName_86130074,
+  @DisplayInForm = @DisplayInForm_c4aabc10,
+  @DisplayLocation = @DisplayLocation_c4aabc10,
+  @DisplayName = @DisplayName_c4aabc10,
   @DisplayName_Clear = 1,
-  @DisplayIconType = @DisplayIconType_86130074,
-  @DisplayIcon = @DisplayIcon_86130074,
+  @DisplayIconType = @DisplayIconType_c4aabc10,
+  @DisplayIcon = @DisplayIcon_c4aabc10,
   @DisplayIcon_Clear = 1,
-  @DisplayComponentID = @DisplayComponentID_86130074,
+  @DisplayComponentID = @DisplayComponentID_c4aabc10,
   @DisplayComponentID_Clear = 1,
-  @DisplayComponentConfiguration = @DisplayComponentConfiguration_86130074,
+  @DisplayComponentConfiguration = @DisplayComponentConfiguration_c4aabc10,
   @DisplayComponentConfiguration_Clear = 1,
-  @AutoUpdateFromSchema = @AutoUpdateFromSchema_86130074,
-  @AdditionalFieldsToInclude = @AdditionalFieldsToInclude_86130074,
+  @AutoUpdateFromSchema = @AutoUpdateFromSchema_c4aabc10,
+  @AdditionalFieldsToInclude = @AdditionalFieldsToInclude_c4aabc10,
   @AdditionalFieldsToInclude_Clear = 1,
-  @AutoUpdateAdditionalFieldsToInclude = @AutoUpdateAdditionalFieldsToInclude_86130074,
-  @RelatedRecordCollection = @RelatedRecordCollection_86130074,
-  @Configuration = @Configuration_86130074,
+  @AutoUpdateAdditionalFieldsToInclude = @AutoUpdateAdditionalFieldsToInclude_c4aabc10,
+  @RelatedRecordCollection = @RelatedRecordCollection_c4aabc10,
+  @Configuration = @Configuration_c4aabc10,
   @Configuration_Clear = 1,
-  @ID = @ID_86130074;
+  @ID = @ID_c4aabc10;
 
 GO
 
 -- Save MJ: Entity Relationships (core SP call only)
-DECLARE @EntityID_d27b0fc0 UNIQUEIDENTIFIER,
-@Sequence_d27b0fc0 INT,
-@RelatedEntityID_d27b0fc0 UNIQUEIDENTIFIER,
-@BundleInAPI_d27b0fc0 BIT,
-@IncludeInParentAllQuery_d27b0fc0 BIT,
-@Type_d27b0fc0 NCHAR(20),
-@EntityKeyField_d27b0fc0 NVARCHAR(255),
-@RelatedEntityJoinField_d27b0fc0 NVARCHAR(255),
-@JoinView_d27b0fc0 NVARCHAR(255),
-@JoinEntityJoinField_d27b0fc0 NVARCHAR(255),
-@JoinEntityInverseJoinField_d27b0fc0 NVARCHAR(255),
-@DisplayInForm_d27b0fc0 BIT,
-@DisplayLocation_d27b0fc0 NVARCHAR(50),
-@DisplayName_d27b0fc0 NVARCHAR(255),
-@DisplayIconType_d27b0fc0 NVARCHAR(50),
-@DisplayIcon_d27b0fc0 NVARCHAR(255),
-@DisplayComponentID_d27b0fc0 UNIQUEIDENTIFIER,
-@DisplayComponentConfiguration_d27b0fc0 NVARCHAR(MAX),
-@AutoUpdateFromSchema_d27b0fc0 BIT,
-@AdditionalFieldsToInclude_d27b0fc0 NVARCHAR(MAX),
-@AutoUpdateAdditionalFieldsToInclude_d27b0fc0 BIT,
-@RelatedRecordCollection_d27b0fc0 NVARCHAR(MAX),
-@Configuration_d27b0fc0 NVARCHAR(MAX),
-@ID_d27b0fc0 UNIQUEIDENTIFIER
+DECLARE @EntityID_fb6d0f3b UNIQUEIDENTIFIER,
+@Sequence_fb6d0f3b INT,
+@RelatedEntityID_fb6d0f3b UNIQUEIDENTIFIER,
+@BundleInAPI_fb6d0f3b BIT,
+@IncludeInParentAllQuery_fb6d0f3b BIT,
+@Type_fb6d0f3b NCHAR(20),
+@EntityKeyField_fb6d0f3b NVARCHAR(255),
+@RelatedEntityJoinField_fb6d0f3b NVARCHAR(255),
+@JoinView_fb6d0f3b NVARCHAR(255),
+@JoinEntityJoinField_fb6d0f3b NVARCHAR(255),
+@JoinEntityInverseJoinField_fb6d0f3b NVARCHAR(255),
+@DisplayInForm_fb6d0f3b BIT,
+@DisplayLocation_fb6d0f3b NVARCHAR(50),
+@DisplayName_fb6d0f3b NVARCHAR(255),
+@DisplayIconType_fb6d0f3b NVARCHAR(50),
+@DisplayIcon_fb6d0f3b NVARCHAR(255),
+@DisplayComponentID_fb6d0f3b UNIQUEIDENTIFIER,
+@DisplayComponentConfiguration_fb6d0f3b NVARCHAR(MAX),
+@AutoUpdateFromSchema_fb6d0f3b BIT,
+@AdditionalFieldsToInclude_fb6d0f3b NVARCHAR(MAX),
+@AutoUpdateAdditionalFieldsToInclude_fb6d0f3b BIT,
+@RelatedRecordCollection_fb6d0f3b NVARCHAR(MAX),
+@Configuration_fb6d0f3b NVARCHAR(MAX),
+@ID_fb6d0f3b UNIQUEIDENTIFIER
 SET
-  @EntityID_d27b0fc0 = '731F2890-1415-40DE-9073-D22EA23392B3'
+  @EntityID_fb6d0f3b = '5DEB0B11-ED6C-48B3-9200-F4441396C5E2'
 SET
-  @Sequence_d27b0fc0 = 1
+  @Sequence_fb6d0f3b = 1
 SET
-  @RelatedEntityID_d27b0fc0 = '317DF592-8C20-473D-B097-2AB239877438'
+  @RelatedEntityID_fb6d0f3b = 'B05A480F-F7C5-4D45-8EA3-C90E9A14F225'
 SET
-  @BundleInAPI_d27b0fc0 = 1
+  @BundleInAPI_fb6d0f3b = 1
 SET
-  @IncludeInParentAllQuery_d27b0fc0 = 0
+  @IncludeInParentAllQuery_fb6d0f3b = 0
 SET
-  @Type_d27b0fc0 = N'One To Many'
+  @Type_fb6d0f3b = N'One To Many'
 SET
-  @RelatedEntityJoinField_d27b0fc0 = N'ContractTemplateID'
+  @RelatedEntityJoinField_fb6d0f3b = N'ContractID'
 SET
-  @DisplayInForm_d27b0fc0 = 1
+  @DisplayInForm_fb6d0f3b = 1
 SET
-  @DisplayLocation_d27b0fc0 = N'After Field Tabs'
+  @DisplayLocation_fb6d0f3b = N'After Field Tabs'
 SET
-  @DisplayIconType_d27b0fc0 = N'Related Entity Icon'
+  @DisplayIconType_fb6d0f3b = N'Related Entity Icon'
 SET
-  @AutoUpdateFromSchema_d27b0fc0 = 1
+  @AutoUpdateFromSchema_fb6d0f3b = 1
 SET
-  @AutoUpdateAdditionalFieldsToInclude_d27b0fc0 = 1
+  @AutoUpdateAdditionalFieldsToInclude_fb6d0f3b = 1
 SET
-  @RelatedRecordCollection_d27b0fc0 = N'{"Name":"Provisions","Source":"database","Load":"explicit","OnRemove":"delete","OrderBy":"ProvisionSortKey ASC","ClearAfterSave":false}'
+  @RelatedRecordCollection_fb6d0f3b = N'{"Name":"Modifications","Source":"database","Load":"explicit","OnRemove":"delete","OrderBy":"__mj_CreatedAt ASC","ClearAfterSave":false}'
 SET
-  @ID_d27b0fc0 = 'E415E5BF-FCAA-49A6-BF33-EF3BC2D0D865' EXEC [${mjSchema}].spUpdateEntityRelationship @EntityID = @EntityID_d27b0fc0,
-  @Sequence = @Sequence_d27b0fc0,
-  @RelatedEntityID = @RelatedEntityID_d27b0fc0,
-  @BundleInAPI = @BundleInAPI_d27b0fc0,
-  @IncludeInParentAllQuery = @IncludeInParentAllQuery_d27b0fc0,
-  @Type = @Type_d27b0fc0,
-  @EntityKeyField = @EntityKeyField_d27b0fc0,
+  @ID_fb6d0f3b = '0A972E9E-ABAA-47FE-8DD7-90D1A60DC25D' EXEC [${mjSchema}].spUpdateEntityRelationship @EntityID = @EntityID_fb6d0f3b,
+  @Sequence = @Sequence_fb6d0f3b,
+  @RelatedEntityID = @RelatedEntityID_fb6d0f3b,
+  @BundleInAPI = @BundleInAPI_fb6d0f3b,
+  @IncludeInParentAllQuery = @IncludeInParentAllQuery_fb6d0f3b,
+  @Type = @Type_fb6d0f3b,
+  @EntityKeyField = @EntityKeyField_fb6d0f3b,
   @EntityKeyField_Clear = 1,
-  @RelatedEntityJoinField = @RelatedEntityJoinField_d27b0fc0,
-  @JoinView = @JoinView_d27b0fc0,
+  @RelatedEntityJoinField = @RelatedEntityJoinField_fb6d0f3b,
+  @JoinView = @JoinView_fb6d0f3b,
   @JoinView_Clear = 1,
-  @JoinEntityJoinField = @JoinEntityJoinField_d27b0fc0,
+  @JoinEntityJoinField = @JoinEntityJoinField_fb6d0f3b,
   @JoinEntityJoinField_Clear = 1,
-  @JoinEntityInverseJoinField = @JoinEntityInverseJoinField_d27b0fc0,
+  @JoinEntityInverseJoinField = @JoinEntityInverseJoinField_fb6d0f3b,
   @JoinEntityInverseJoinField_Clear = 1,
-  @DisplayInForm = @DisplayInForm_d27b0fc0,
-  @DisplayLocation = @DisplayLocation_d27b0fc0,
-  @DisplayName = @DisplayName_d27b0fc0,
+  @DisplayInForm = @DisplayInForm_fb6d0f3b,
+  @DisplayLocation = @DisplayLocation_fb6d0f3b,
+  @DisplayName = @DisplayName_fb6d0f3b,
   @DisplayName_Clear = 1,
-  @DisplayIconType = @DisplayIconType_d27b0fc0,
-  @DisplayIcon = @DisplayIcon_d27b0fc0,
+  @DisplayIconType = @DisplayIconType_fb6d0f3b,
+  @DisplayIcon = @DisplayIcon_fb6d0f3b,
   @DisplayIcon_Clear = 1,
-  @DisplayComponentID = @DisplayComponentID_d27b0fc0,
+  @DisplayComponentID = @DisplayComponentID_fb6d0f3b,
   @DisplayComponentID_Clear = 1,
-  @DisplayComponentConfiguration = @DisplayComponentConfiguration_d27b0fc0,
+  @DisplayComponentConfiguration = @DisplayComponentConfiguration_fb6d0f3b,
   @DisplayComponentConfiguration_Clear = 1,
-  @AutoUpdateFromSchema = @AutoUpdateFromSchema_d27b0fc0,
-  @AdditionalFieldsToInclude = @AdditionalFieldsToInclude_d27b0fc0,
+  @AutoUpdateFromSchema = @AutoUpdateFromSchema_fb6d0f3b,
+  @AdditionalFieldsToInclude = @AdditionalFieldsToInclude_fb6d0f3b,
   @AdditionalFieldsToInclude_Clear = 1,
-  @AutoUpdateAdditionalFieldsToInclude = @AutoUpdateAdditionalFieldsToInclude_d27b0fc0,
-  @RelatedRecordCollection = @RelatedRecordCollection_d27b0fc0,
-  @Configuration = @Configuration_d27b0fc0,
+  @AutoUpdateAdditionalFieldsToInclude = @AutoUpdateAdditionalFieldsToInclude_fb6d0f3b,
+  @RelatedRecordCollection = @RelatedRecordCollection_fb6d0f3b,
+  @Configuration = @Configuration_fb6d0f3b,
   @Configuration_Clear = 1,
-  @ID = @ID_d27b0fc0;
+  @ID = @ID_fb6d0f3b;
 
 GO
 
 -- Save MJ: Entity Relationships (core SP call only)
-DECLARE @EntityID_3bf6756a UNIQUEIDENTIFIER,
-@Sequence_3bf6756a INT,
-@RelatedEntityID_3bf6756a UNIQUEIDENTIFIER,
-@BundleInAPI_3bf6756a BIT,
-@IncludeInParentAllQuery_3bf6756a BIT,
-@Type_3bf6756a NCHAR(20),
-@EntityKeyField_3bf6756a NVARCHAR(255),
-@RelatedEntityJoinField_3bf6756a NVARCHAR(255),
-@JoinView_3bf6756a NVARCHAR(255),
-@JoinEntityJoinField_3bf6756a NVARCHAR(255),
-@JoinEntityInverseJoinField_3bf6756a NVARCHAR(255),
-@DisplayInForm_3bf6756a BIT,
-@DisplayLocation_3bf6756a NVARCHAR(50),
-@DisplayName_3bf6756a NVARCHAR(255),
-@DisplayIconType_3bf6756a NVARCHAR(50),
-@DisplayIcon_3bf6756a NVARCHAR(255),
-@DisplayComponentID_3bf6756a UNIQUEIDENTIFIER,
-@DisplayComponentConfiguration_3bf6756a NVARCHAR(MAX),
-@AutoUpdateFromSchema_3bf6756a BIT,
-@AdditionalFieldsToInclude_3bf6756a NVARCHAR(MAX),
-@AutoUpdateAdditionalFieldsToInclude_3bf6756a BIT,
-@RelatedRecordCollection_3bf6756a NVARCHAR(MAX),
-@Configuration_3bf6756a NVARCHAR(MAX),
-@ID_3bf6756a UNIQUEIDENTIFIER
+DECLARE @EntityID_9a5ada02 UNIQUEIDENTIFIER,
+@Sequence_9a5ada02 INT,
+@RelatedEntityID_9a5ada02 UNIQUEIDENTIFIER,
+@BundleInAPI_9a5ada02 BIT,
+@IncludeInParentAllQuery_9a5ada02 BIT,
+@Type_9a5ada02 NCHAR(20),
+@EntityKeyField_9a5ada02 NVARCHAR(255),
+@RelatedEntityJoinField_9a5ada02 NVARCHAR(255),
+@JoinView_9a5ada02 NVARCHAR(255),
+@JoinEntityJoinField_9a5ada02 NVARCHAR(255),
+@JoinEntityInverseJoinField_9a5ada02 NVARCHAR(255),
+@DisplayInForm_9a5ada02 BIT,
+@DisplayLocation_9a5ada02 NVARCHAR(50),
+@DisplayName_9a5ada02 NVARCHAR(255),
+@DisplayIconType_9a5ada02 NVARCHAR(50),
+@DisplayIcon_9a5ada02 NVARCHAR(255),
+@DisplayComponentID_9a5ada02 UNIQUEIDENTIFIER,
+@DisplayComponentConfiguration_9a5ada02 NVARCHAR(MAX),
+@AutoUpdateFromSchema_9a5ada02 BIT,
+@AdditionalFieldsToInclude_9a5ada02 NVARCHAR(MAX),
+@AutoUpdateAdditionalFieldsToInclude_9a5ada02 BIT,
+@RelatedRecordCollection_9a5ada02 NVARCHAR(MAX),
+@Configuration_9a5ada02 NVARCHAR(MAX),
+@ID_9a5ada02 UNIQUEIDENTIFIER
 SET
-  @EntityID_3bf6756a = '5DEB0B11-ED6C-48B3-9200-F4441396C5E2'
+  @EntityID_9a5ada02 = '5DEB0B11-ED6C-48B3-9200-F4441396C5E2'
 SET
-  @Sequence_3bf6756a = 1
+  @Sequence_9a5ada02 = 1
 SET
-  @RelatedEntityID_3bf6756a = 'B05A480F-F7C5-4D45-8EA3-C90E9A14F225'
+  @RelatedEntityID_9a5ada02 = 'B05A480F-F7C5-4D45-8EA3-C90E9A14F225'
 SET
-  @BundleInAPI_3bf6756a = 1
+  @BundleInAPI_9a5ada02 = 1
 SET
-  @IncludeInParentAllQuery_3bf6756a = 0
+  @IncludeInParentAllQuery_9a5ada02 = 0
 SET
-  @Type_3bf6756a = N'One To Many'
+  @Type_9a5ada02 = N'One To Many'
 SET
-  @RelatedEntityJoinField_3bf6756a = N'ContractID'
+  @RelatedEntityJoinField_9a5ada02 = N'ContractID'
 SET
-  @DisplayInForm_3bf6756a = 1
+  @DisplayInForm_9a5ada02 = 1
 SET
-  @DisplayLocation_3bf6756a = N'After Field Tabs'
+  @DisplayLocation_9a5ada02 = N'After Field Tabs'
 SET
-  @DisplayName_3bf6756a = N'Modifications'
+  @DisplayName_9a5ada02 = N'Modifications'
 SET
-  @DisplayIconType_3bf6756a = N'Related Entity Icon'
+  @DisplayIconType_9a5ada02 = N'Related Entity Icon'
 SET
-  @AutoUpdateFromSchema_3bf6756a = 1
+  @AutoUpdateFromSchema_9a5ada02 = 1
 SET
-  @AutoUpdateAdditionalFieldsToInclude_3bf6756a = 1
+  @AutoUpdateAdditionalFieldsToInclude_9a5ada02 = 1
 SET
-  @RelatedRecordCollection_3bf6756a = N'{"Name":"Modifications","Source":"database","Load":"explicit","OnRemove":"delete","OrderBy":"__mj_CreatedAt ASC","ClearAfterSave":false}'
+  @RelatedRecordCollection_9a5ada02 = N'{"Name":"Modifications","Source":"database","Load":"explicit","OnRemove":"delete","OrderBy":"__mj_CreatedAt ASC","ClearAfterSave":false}'
 SET
-  @Configuration_3bf6756a = N'{
+  @Configuration_9a5ada02 = N'{
   "UI": {
     "inclusion": "Primary"
   }
 }'
 SET
-  @ID_3bf6756a = '0A972E9E-ABAA-47FE-8DD7-90D1A60DC25D' EXEC [${mjSchema}].spUpdateEntityRelationship @EntityID = @EntityID_3bf6756a,
-  @Sequence = @Sequence_3bf6756a,
-  @RelatedEntityID = @RelatedEntityID_3bf6756a,
-  @BundleInAPI = @BundleInAPI_3bf6756a,
-  @IncludeInParentAllQuery = @IncludeInParentAllQuery_3bf6756a,
-  @Type = @Type_3bf6756a,
-  @EntityKeyField = @EntityKeyField_3bf6756a,
+  @ID_9a5ada02 = '0A972E9E-ABAA-47FE-8DD7-90D1A60DC25D' EXEC [${mjSchema}].spUpdateEntityRelationship @EntityID = @EntityID_9a5ada02,
+  @Sequence = @Sequence_9a5ada02,
+  @RelatedEntityID = @RelatedEntityID_9a5ada02,
+  @BundleInAPI = @BundleInAPI_9a5ada02,
+  @IncludeInParentAllQuery = @IncludeInParentAllQuery_9a5ada02,
+  @Type = @Type_9a5ada02,
+  @EntityKeyField = @EntityKeyField_9a5ada02,
   @EntityKeyField_Clear = 1,
-  @RelatedEntityJoinField = @RelatedEntityJoinField_3bf6756a,
-  @JoinView = @JoinView_3bf6756a,
+  @RelatedEntityJoinField = @RelatedEntityJoinField_9a5ada02,
+  @JoinView = @JoinView_9a5ada02,
   @JoinView_Clear = 1,
-  @JoinEntityJoinField = @JoinEntityJoinField_3bf6756a,
+  @JoinEntityJoinField = @JoinEntityJoinField_9a5ada02,
   @JoinEntityJoinField_Clear = 1,
-  @JoinEntityInverseJoinField = @JoinEntityInverseJoinField_3bf6756a,
+  @JoinEntityInverseJoinField = @JoinEntityInverseJoinField_9a5ada02,
   @JoinEntityInverseJoinField_Clear = 1,
-  @DisplayInForm = @DisplayInForm_3bf6756a,
-  @DisplayLocation = @DisplayLocation_3bf6756a,
-  @DisplayName = @DisplayName_3bf6756a,
-  @DisplayIconType = @DisplayIconType_3bf6756a,
-  @DisplayIcon = @DisplayIcon_3bf6756a,
+  @DisplayInForm = @DisplayInForm_9a5ada02,
+  @DisplayLocation = @DisplayLocation_9a5ada02,
+  @DisplayName = @DisplayName_9a5ada02,
+  @DisplayIconType = @DisplayIconType_9a5ada02,
+  @DisplayIcon = @DisplayIcon_9a5ada02,
   @DisplayIcon_Clear = 1,
-  @DisplayComponentID = @DisplayComponentID_3bf6756a,
+  @DisplayComponentID = @DisplayComponentID_9a5ada02,
   @DisplayComponentID_Clear = 1,
-  @DisplayComponentConfiguration = @DisplayComponentConfiguration_3bf6756a,
+  @DisplayComponentConfiguration = @DisplayComponentConfiguration_9a5ada02,
   @DisplayComponentConfiguration_Clear = 1,
-  @AutoUpdateFromSchema = @AutoUpdateFromSchema_3bf6756a,
-  @AdditionalFieldsToInclude = @AdditionalFieldsToInclude_3bf6756a,
+  @AutoUpdateFromSchema = @AutoUpdateFromSchema_9a5ada02,
+  @AdditionalFieldsToInclude = @AdditionalFieldsToInclude_9a5ada02,
   @AdditionalFieldsToInclude_Clear = 1,
-  @AutoUpdateAdditionalFieldsToInclude = @AutoUpdateAdditionalFieldsToInclude_3bf6756a,
-  @RelatedRecordCollection = @RelatedRecordCollection_3bf6756a,
-  @Configuration = @Configuration_3bf6756a,
-  @ID = @ID_3bf6756a;
+  @AutoUpdateAdditionalFieldsToInclude = @AutoUpdateAdditionalFieldsToInclude_9a5ada02,
+  @RelatedRecordCollection = @RelatedRecordCollection_9a5ada02,
+  @Configuration = @Configuration_9a5ada02,
+  @ID = @ID_9a5ada02;
 
 GO
 
 -- Save MJ: Entity Relationships (core SP call only)
-DECLARE @EntityID_952d0856 UNIQUEIDENTIFIER,
-@Sequence_952d0856 INT,
-@RelatedEntityID_952d0856 UNIQUEIDENTIFIER,
-@BundleInAPI_952d0856 BIT,
-@IncludeInParentAllQuery_952d0856 BIT,
-@Type_952d0856 NCHAR(20),
-@EntityKeyField_952d0856 NVARCHAR(255),
-@RelatedEntityJoinField_952d0856 NVARCHAR(255),
-@JoinView_952d0856 NVARCHAR(255),
-@JoinEntityJoinField_952d0856 NVARCHAR(255),
-@JoinEntityInverseJoinField_952d0856 NVARCHAR(255),
-@DisplayInForm_952d0856 BIT,
-@DisplayLocation_952d0856 NVARCHAR(50),
-@DisplayName_952d0856 NVARCHAR(255),
-@DisplayIconType_952d0856 NVARCHAR(50),
-@DisplayIcon_952d0856 NVARCHAR(255),
-@DisplayComponentID_952d0856 UNIQUEIDENTIFIER,
-@DisplayComponentConfiguration_952d0856 NVARCHAR(MAX),
-@AutoUpdateFromSchema_952d0856 BIT,
-@AdditionalFieldsToInclude_952d0856 NVARCHAR(MAX),
-@AutoUpdateAdditionalFieldsToInclude_952d0856 BIT,
-@RelatedRecordCollection_952d0856 NVARCHAR(MAX),
-@Configuration_952d0856 NVARCHAR(MAX),
-@ID_952d0856 UNIQUEIDENTIFIER
+DECLARE @EntityID_a775608f UNIQUEIDENTIFIER,
+@Sequence_a775608f INT,
+@RelatedEntityID_a775608f UNIQUEIDENTIFIER,
+@BundleInAPI_a775608f BIT,
+@IncludeInParentAllQuery_a775608f BIT,
+@Type_a775608f NCHAR(20),
+@EntityKeyField_a775608f NVARCHAR(255),
+@RelatedEntityJoinField_a775608f NVARCHAR(255),
+@JoinView_a775608f NVARCHAR(255),
+@JoinEntityJoinField_a775608f NVARCHAR(255),
+@JoinEntityInverseJoinField_a775608f NVARCHAR(255),
+@DisplayInForm_a775608f BIT,
+@DisplayLocation_a775608f NVARCHAR(50),
+@DisplayName_a775608f NVARCHAR(255),
+@DisplayIconType_a775608f NVARCHAR(50),
+@DisplayIcon_a775608f NVARCHAR(255),
+@DisplayComponentID_a775608f UNIQUEIDENTIFIER,
+@DisplayComponentConfiguration_a775608f NVARCHAR(MAX),
+@AutoUpdateFromSchema_a775608f BIT,
+@AdditionalFieldsToInclude_a775608f NVARCHAR(MAX),
+@AutoUpdateAdditionalFieldsToInclude_a775608f BIT,
+@RelatedRecordCollection_a775608f NVARCHAR(MAX),
+@Configuration_a775608f NVARCHAR(MAX),
+@ID_a775608f UNIQUEIDENTIFIER
 SET
-  @EntityID_952d0856 = '731F2890-1415-40DE-9073-D22EA23392B3'
+  @EntityID_a775608f = '731F2890-1415-40DE-9073-D22EA23392B3'
 SET
-  @Sequence_952d0856 = 1
+  @Sequence_a775608f = 1
 SET
-  @RelatedEntityID_952d0856 = '317DF592-8C20-473D-B097-2AB239877438'
+  @RelatedEntityID_a775608f = '317DF592-8C20-473D-B097-2AB239877438'
 SET
-  @BundleInAPI_952d0856 = 1
+  @BundleInAPI_a775608f = 1
 SET
-  @IncludeInParentAllQuery_952d0856 = 0
+  @IncludeInParentAllQuery_a775608f = 0
 SET
-  @Type_952d0856 = N'One To Many'
+  @Type_a775608f = N'One To Many'
 SET
-  @RelatedEntityJoinField_952d0856 = N'ContractTemplateID'
+  @RelatedEntityJoinField_a775608f = N'ContractTemplateID'
 SET
-  @DisplayInForm_952d0856 = 1
+  @DisplayInForm_a775608f = 1
 SET
-  @DisplayLocation_952d0856 = N'After Field Tabs'
+  @DisplayLocation_a775608f = N'After Field Tabs'
 SET
-  @DisplayName_952d0856 = N'Provisions'
+  @DisplayName_a775608f = N'Provisions'
 SET
-  @DisplayIconType_952d0856 = N'Related Entity Icon'
+  @DisplayIconType_a775608f = N'Related Entity Icon'
 SET
-  @AutoUpdateFromSchema_952d0856 = 1
+  @AutoUpdateFromSchema_a775608f = 1
 SET
-  @AutoUpdateAdditionalFieldsToInclude_952d0856 = 1
+  @AutoUpdateAdditionalFieldsToInclude_a775608f = 1
 SET
-  @RelatedRecordCollection_952d0856 = N'{"Name":"Provisions","Source":"database","Load":"explicit","OnRemove":"delete","OrderBy":"ProvisionSortKey ASC","ClearAfterSave":false}'
+  @RelatedRecordCollection_a775608f = N'{"Name":"Provisions","Source":"database","Load":"explicit","OnRemove":"delete","OrderBy":"ProvisionSortKey ASC","ClearAfterSave":false}'
 SET
-  @Configuration_952d0856 = N'{
+  @Configuration_a775608f = N'{
   "UI": {
     "inclusion": "Primary"
   }
 }'
 SET
-  @ID_952d0856 = 'E415E5BF-FCAA-49A6-BF33-EF3BC2D0D865' EXEC [${mjSchema}].spUpdateEntityRelationship @EntityID = @EntityID_952d0856,
-  @Sequence = @Sequence_952d0856,
-  @RelatedEntityID = @RelatedEntityID_952d0856,
-  @BundleInAPI = @BundleInAPI_952d0856,
-  @IncludeInParentAllQuery = @IncludeInParentAllQuery_952d0856,
-  @Type = @Type_952d0856,
-  @EntityKeyField = @EntityKeyField_952d0856,
+  @ID_a775608f = 'E415E5BF-FCAA-49A6-BF33-EF3BC2D0D865' EXEC [${mjSchema}].spUpdateEntityRelationship @EntityID = @EntityID_a775608f,
+  @Sequence = @Sequence_a775608f,
+  @RelatedEntityID = @RelatedEntityID_a775608f,
+  @BundleInAPI = @BundleInAPI_a775608f,
+  @IncludeInParentAllQuery = @IncludeInParentAllQuery_a775608f,
+  @Type = @Type_a775608f,
+  @EntityKeyField = @EntityKeyField_a775608f,
   @EntityKeyField_Clear = 1,
-  @RelatedEntityJoinField = @RelatedEntityJoinField_952d0856,
-  @JoinView = @JoinView_952d0856,
+  @RelatedEntityJoinField = @RelatedEntityJoinField_a775608f,
+  @JoinView = @JoinView_a775608f,
   @JoinView_Clear = 1,
-  @JoinEntityJoinField = @JoinEntityJoinField_952d0856,
+  @JoinEntityJoinField = @JoinEntityJoinField_a775608f,
   @JoinEntityJoinField_Clear = 1,
-  @JoinEntityInverseJoinField = @JoinEntityInverseJoinField_952d0856,
+  @JoinEntityInverseJoinField = @JoinEntityInverseJoinField_a775608f,
   @JoinEntityInverseJoinField_Clear = 1,
-  @DisplayInForm = @DisplayInForm_952d0856,
-  @DisplayLocation = @DisplayLocation_952d0856,
-  @DisplayName = @DisplayName_952d0856,
-  @DisplayIconType = @DisplayIconType_952d0856,
-  @DisplayIcon = @DisplayIcon_952d0856,
+  @DisplayInForm = @DisplayInForm_a775608f,
+  @DisplayLocation = @DisplayLocation_a775608f,
+  @DisplayName = @DisplayName_a775608f,
+  @DisplayIconType = @DisplayIconType_a775608f,
+  @DisplayIcon = @DisplayIcon_a775608f,
   @DisplayIcon_Clear = 1,
-  @DisplayComponentID = @DisplayComponentID_952d0856,
+  @DisplayComponentID = @DisplayComponentID_a775608f,
   @DisplayComponentID_Clear = 1,
-  @DisplayComponentConfiguration = @DisplayComponentConfiguration_952d0856,
+  @DisplayComponentConfiguration = @DisplayComponentConfiguration_a775608f,
   @DisplayComponentConfiguration_Clear = 1,
-  @AutoUpdateFromSchema = @AutoUpdateFromSchema_952d0856,
-  @AdditionalFieldsToInclude = @AdditionalFieldsToInclude_952d0856,
+  @AutoUpdateFromSchema = @AutoUpdateFromSchema_a775608f,
+  @AdditionalFieldsToInclude = @AdditionalFieldsToInclude_a775608f,
   @AdditionalFieldsToInclude_Clear = 1,
-  @AutoUpdateAdditionalFieldsToInclude = @AutoUpdateAdditionalFieldsToInclude_952d0856,
-  @RelatedRecordCollection = @RelatedRecordCollection_952d0856,
-  @Configuration = @Configuration_952d0856,
-  @ID = @ID_952d0856;
+  @AutoUpdateAdditionalFieldsToInclude = @AutoUpdateAdditionalFieldsToInclude_a775608f,
+  @RelatedRecordCollection = @RelatedRecordCollection_a775608f,
+  @Configuration = @Configuration_a775608f,
+  @ID = @ID_a775608f;
 
 GO
 
 -- Save MJ: Entity Relationships (core SP call only)
-DECLARE @EntityID_4cfec002 UNIQUEIDENTIFIER,
-@Sequence_4cfec002 INT,
-@RelatedEntityID_4cfec002 UNIQUEIDENTIFIER,
-@BundleInAPI_4cfec002 BIT,
-@IncludeInParentAllQuery_4cfec002 BIT,
-@Type_4cfec002 NCHAR(20),
-@EntityKeyField_4cfec002 NVARCHAR(255),
-@RelatedEntityJoinField_4cfec002 NVARCHAR(255),
-@JoinView_4cfec002 NVARCHAR(255),
-@JoinEntityJoinField_4cfec002 NVARCHAR(255),
-@JoinEntityInverseJoinField_4cfec002 NVARCHAR(255),
-@DisplayInForm_4cfec002 BIT,
-@DisplayLocation_4cfec002 NVARCHAR(50),
-@DisplayName_4cfec002 NVARCHAR(255),
-@DisplayIconType_4cfec002 NVARCHAR(50),
-@DisplayIcon_4cfec002 NVARCHAR(255),
-@DisplayComponentID_4cfec002 UNIQUEIDENTIFIER,
-@DisplayComponentConfiguration_4cfec002 NVARCHAR(MAX),
-@AutoUpdateFromSchema_4cfec002 BIT,
-@AdditionalFieldsToInclude_4cfec002 NVARCHAR(MAX),
-@AutoUpdateAdditionalFieldsToInclude_4cfec002 BIT,
-@RelatedRecordCollection_4cfec002 NVARCHAR(MAX),
-@Configuration_4cfec002 NVARCHAR(MAX),
-@ID_4cfec002 UNIQUEIDENTIFIER
+DECLARE @EntityID_a8608b08 UNIQUEIDENTIFIER,
+@Sequence_a8608b08 INT,
+@RelatedEntityID_a8608b08 UNIQUEIDENTIFIER,
+@BundleInAPI_a8608b08 BIT,
+@IncludeInParentAllQuery_a8608b08 BIT,
+@Type_a8608b08 NCHAR(20),
+@EntityKeyField_a8608b08 NVARCHAR(255),
+@RelatedEntityJoinField_a8608b08 NVARCHAR(255),
+@JoinView_a8608b08 NVARCHAR(255),
+@JoinEntityJoinField_a8608b08 NVARCHAR(255),
+@JoinEntityInverseJoinField_a8608b08 NVARCHAR(255),
+@DisplayInForm_a8608b08 BIT,
+@DisplayLocation_a8608b08 NVARCHAR(50),
+@DisplayName_a8608b08 NVARCHAR(255),
+@DisplayIconType_a8608b08 NVARCHAR(50),
+@DisplayIcon_a8608b08 NVARCHAR(255),
+@DisplayComponentID_a8608b08 UNIQUEIDENTIFIER,
+@DisplayComponentConfiguration_a8608b08 NVARCHAR(MAX),
+@AutoUpdateFromSchema_a8608b08 BIT,
+@AdditionalFieldsToInclude_a8608b08 NVARCHAR(MAX),
+@AutoUpdateAdditionalFieldsToInclude_a8608b08 BIT,
+@RelatedRecordCollection_a8608b08 NVARCHAR(MAX),
+@Configuration_a8608b08 NVARCHAR(MAX),
+@ID_a8608b08 UNIQUEIDENTIFIER
 SET
-  @EntityID_4cfec002 = 'C70448F9-9792-41D7-A82C-784B66429D54'
+  @EntityID_a8608b08 = 'C70448F9-9792-41D7-A82C-784B66429D54'
 SET
-  @Sequence_4cfec002 = 5
+  @Sequence_a8608b08 = 5
 SET
-  @RelatedEntityID_4cfec002 = '5DEB0B11-ED6C-48B3-9200-F4441396C5E2'
+  @RelatedEntityID_a8608b08 = '5DEB0B11-ED6C-48B3-9200-F4441396C5E2'
 SET
-  @BundleInAPI_4cfec002 = 1
+  @BundleInAPI_a8608b08 = 1
 SET
-  @IncludeInParentAllQuery_4cfec002 = 0
+  @IncludeInParentAllQuery_a8608b08 = 0
 SET
-  @Type_4cfec002 = N'One To Many'
+  @Type_a8608b08 = N'One To Many'
 SET
-  @RelatedEntityJoinField_4cfec002 = N'CustomerOrganizationID'
+  @RelatedEntityJoinField_a8608b08 = N'CustomerOrganizationID'
 SET
-  @DisplayInForm_4cfec002 = 1
+  @DisplayInForm_a8608b08 = 1
 SET
-  @DisplayLocation_4cfec002 = N'After Field Tabs'
+  @DisplayLocation_a8608b08 = N'After Field Tabs'
 SET
-  @DisplayName_4cfec002 = N'Agreements'
+  @DisplayName_a8608b08 = N'Agreements'
 SET
-  @DisplayIconType_4cfec002 = N'Related Entity Icon'
+  @DisplayIconType_a8608b08 = N'Related Entity Icon'
 SET
-  @AutoUpdateFromSchema_4cfec002 = 1
+  @AutoUpdateFromSchema_a8608b08 = 1
 SET
-  @AutoUpdateAdditionalFieldsToInclude_4cfec002 = 1
+  @AutoUpdateAdditionalFieldsToInclude_a8608b08 = 1
 SET
-  @Configuration_4cfec002 = N'{
+  @Configuration_a8608b08 = N'{
   "UI": {
     "inclusion": "Primary"
   }
 }'
 SET
-  @ID_4cfec002 = 'C674FABB-6DF9-434E-90C0-99EC631F234B' EXEC [${mjSchema}].spUpdateEntityRelationship @EntityID = @EntityID_4cfec002,
-  @Sequence = @Sequence_4cfec002,
-  @RelatedEntityID = @RelatedEntityID_4cfec002,
-  @BundleInAPI = @BundleInAPI_4cfec002,
-  @IncludeInParentAllQuery = @IncludeInParentAllQuery_4cfec002,
-  @Type = @Type_4cfec002,
-  @EntityKeyField = @EntityKeyField_4cfec002,
+  @ID_a8608b08 = 'C674FABB-6DF9-434E-90C0-99EC631F234B' EXEC [${mjSchema}].spUpdateEntityRelationship @EntityID = @EntityID_a8608b08,
+  @Sequence = @Sequence_a8608b08,
+  @RelatedEntityID = @RelatedEntityID_a8608b08,
+  @BundleInAPI = @BundleInAPI_a8608b08,
+  @IncludeInParentAllQuery = @IncludeInParentAllQuery_a8608b08,
+  @Type = @Type_a8608b08,
+  @EntityKeyField = @EntityKeyField_a8608b08,
   @EntityKeyField_Clear = 1,
-  @RelatedEntityJoinField = @RelatedEntityJoinField_4cfec002,
-  @JoinView = @JoinView_4cfec002,
+  @RelatedEntityJoinField = @RelatedEntityJoinField_a8608b08,
+  @JoinView = @JoinView_a8608b08,
   @JoinView_Clear = 1,
-  @JoinEntityJoinField = @JoinEntityJoinField_4cfec002,
+  @JoinEntityJoinField = @JoinEntityJoinField_a8608b08,
   @JoinEntityJoinField_Clear = 1,
-  @JoinEntityInverseJoinField = @JoinEntityInverseJoinField_4cfec002,
+  @JoinEntityInverseJoinField = @JoinEntityInverseJoinField_a8608b08,
   @JoinEntityInverseJoinField_Clear = 1,
-  @DisplayInForm = @DisplayInForm_4cfec002,
-  @DisplayLocation = @DisplayLocation_4cfec002,
-  @DisplayName = @DisplayName_4cfec002,
-  @DisplayIconType = @DisplayIconType_4cfec002,
-  @DisplayIcon = @DisplayIcon_4cfec002,
+  @DisplayInForm = @DisplayInForm_a8608b08,
+  @DisplayLocation = @DisplayLocation_a8608b08,
+  @DisplayName = @DisplayName_a8608b08,
+  @DisplayIconType = @DisplayIconType_a8608b08,
+  @DisplayIcon = @DisplayIcon_a8608b08,
   @DisplayIcon_Clear = 1,
-  @DisplayComponentID = @DisplayComponentID_4cfec002,
+  @DisplayComponentID = @DisplayComponentID_a8608b08,
   @DisplayComponentID_Clear = 1,
-  @DisplayComponentConfiguration = @DisplayComponentConfiguration_4cfec002,
+  @DisplayComponentConfiguration = @DisplayComponentConfiguration_a8608b08,
   @DisplayComponentConfiguration_Clear = 1,
-  @AutoUpdateFromSchema = @AutoUpdateFromSchema_4cfec002,
-  @AdditionalFieldsToInclude = @AdditionalFieldsToInclude_4cfec002,
+  @AutoUpdateFromSchema = @AutoUpdateFromSchema_a8608b08,
+  @AdditionalFieldsToInclude = @AdditionalFieldsToInclude_a8608b08,
   @AdditionalFieldsToInclude_Clear = 1,
-  @AutoUpdateAdditionalFieldsToInclude = @AutoUpdateAdditionalFieldsToInclude_4cfec002,
-  @RelatedRecordCollection = @RelatedRecordCollection_4cfec002,
+  @AutoUpdateAdditionalFieldsToInclude = @AutoUpdateAdditionalFieldsToInclude_a8608b08,
+  @RelatedRecordCollection = @RelatedRecordCollection_a8608b08,
   @RelatedRecordCollection_Clear = 1,
-  @Configuration = @Configuration_4cfec002,
-  @ID = @ID_4cfec002;
+  @Configuration = @Configuration_a8608b08,
+  @ID = @ID_a8608b08;
 
 GO
 
 -- Save MJ: Entity Relationships (core SP call only)
-DECLARE @EntityID_f358b23a UNIQUEIDENTIFIER,
-@Sequence_f358b23a INT,
-@RelatedEntityID_f358b23a UNIQUEIDENTIFIER,
-@BundleInAPI_f358b23a BIT,
-@IncludeInParentAllQuery_f358b23a BIT,
-@Type_f358b23a NCHAR(20),
-@EntityKeyField_f358b23a NVARCHAR(255),
-@RelatedEntityJoinField_f358b23a NVARCHAR(255),
-@JoinView_f358b23a NVARCHAR(255),
-@JoinEntityJoinField_f358b23a NVARCHAR(255),
-@JoinEntityInverseJoinField_f358b23a NVARCHAR(255),
-@DisplayInForm_f358b23a BIT,
-@DisplayLocation_f358b23a NVARCHAR(50),
-@DisplayName_f358b23a NVARCHAR(255),
-@DisplayIconType_f358b23a NVARCHAR(50),
-@DisplayIcon_f358b23a NVARCHAR(255),
-@DisplayComponentID_f358b23a UNIQUEIDENTIFIER,
-@DisplayComponentConfiguration_f358b23a NVARCHAR(MAX),
-@AutoUpdateFromSchema_f358b23a BIT,
-@AdditionalFieldsToInclude_f358b23a NVARCHAR(MAX),
-@AutoUpdateAdditionalFieldsToInclude_f358b23a BIT,
-@RelatedRecordCollection_f358b23a NVARCHAR(MAX),
-@Configuration_f358b23a NVARCHAR(MAX),
-@ID_f358b23a UNIQUEIDENTIFIER
+DECLARE @EntityID_3a6e513b UNIQUEIDENTIFIER,
+@Sequence_3a6e513b INT,
+@RelatedEntityID_3a6e513b UNIQUEIDENTIFIER,
+@BundleInAPI_3a6e513b BIT,
+@IncludeInParentAllQuery_3a6e513b BIT,
+@Type_3a6e513b NCHAR(20),
+@EntityKeyField_3a6e513b NVARCHAR(255),
+@RelatedEntityJoinField_3a6e513b NVARCHAR(255),
+@JoinView_3a6e513b NVARCHAR(255),
+@JoinEntityJoinField_3a6e513b NVARCHAR(255),
+@JoinEntityInverseJoinField_3a6e513b NVARCHAR(255),
+@DisplayInForm_3a6e513b BIT,
+@DisplayLocation_3a6e513b NVARCHAR(50),
+@DisplayName_3a6e513b NVARCHAR(255),
+@DisplayIconType_3a6e513b NVARCHAR(50),
+@DisplayIcon_3a6e513b NVARCHAR(255),
+@DisplayComponentID_3a6e513b UNIQUEIDENTIFIER,
+@DisplayComponentConfiguration_3a6e513b NVARCHAR(MAX),
+@AutoUpdateFromSchema_3a6e513b BIT,
+@AdditionalFieldsToInclude_3a6e513b NVARCHAR(MAX),
+@AutoUpdateAdditionalFieldsToInclude_3a6e513b BIT,
+@RelatedRecordCollection_3a6e513b NVARCHAR(MAX),
+@Configuration_3a6e513b NVARCHAR(MAX),
+@ID_3a6e513b UNIQUEIDENTIFIER
 SET
-  @EntityID_f358b23a = 'D4238F34-2837-EF11-86D4-6045BDEE16E6'
+  @EntityID_3a6e513b = 'D4238F34-2837-EF11-86D4-6045BDEE16E6'
 SET
-  @Sequence_f358b23a = 7
+  @Sequence_3a6e513b = 7
 SET
-  @RelatedEntityID_f358b23a = '5DEB0B11-ED6C-48B3-9200-F4441396C5E2'
+  @RelatedEntityID_3a6e513b = '5DEB0B11-ED6C-48B3-9200-F4441396C5E2'
 SET
-  @BundleInAPI_f358b23a = 1
+  @BundleInAPI_3a6e513b = 1
 SET
-  @IncludeInParentAllQuery_f358b23a = 0
+  @IncludeInParentAllQuery_3a6e513b = 0
 SET
-  @Type_f358b23a = N'One To Many'
+  @Type_3a6e513b = N'One To Many'
 SET
-  @RelatedEntityJoinField_f358b23a = N'CompanyID'
+  @RelatedEntityJoinField_3a6e513b = N'CompanyID'
 SET
-  @DisplayInForm_f358b23a = 0
+  @DisplayInForm_3a6e513b = 0
 SET
-  @DisplayLocation_f358b23a = N'After Field Tabs'
+  @DisplayLocation_3a6e513b = N'After Field Tabs'
 SET
-  @DisplayIconType_f358b23a = N'Related Entity Icon'
+  @DisplayIconType_3a6e513b = N'Related Entity Icon'
 SET
-  @AutoUpdateFromSchema_f358b23a = 1
+  @AutoUpdateFromSchema_3a6e513b = 1
 SET
-  @AutoUpdateAdditionalFieldsToInclude_f358b23a = 1
+  @AutoUpdateAdditionalFieldsToInclude_3a6e513b = 1
 SET
-  @Configuration_f358b23a = N'{
+  @Configuration_3a6e513b = N'{
   "UI": {
     "inclusion": "None"
   }
 }'
 SET
-  @ID_f358b23a = 'AA2AA995-A5FA-4565-8355-90E26F36365D' EXEC [${mjSchema}].spUpdateEntityRelationship @EntityID = @EntityID_f358b23a,
-  @Sequence = @Sequence_f358b23a,
-  @RelatedEntityID = @RelatedEntityID_f358b23a,
-  @BundleInAPI = @BundleInAPI_f358b23a,
-  @IncludeInParentAllQuery = @IncludeInParentAllQuery_f358b23a,
-  @Type = @Type_f358b23a,
-  @EntityKeyField = @EntityKeyField_f358b23a,
+  @ID_3a6e513b = 'AA2AA995-A5FA-4565-8355-90E26F36365D' EXEC [${mjSchema}].spUpdateEntityRelationship @EntityID = @EntityID_3a6e513b,
+  @Sequence = @Sequence_3a6e513b,
+  @RelatedEntityID = @RelatedEntityID_3a6e513b,
+  @BundleInAPI = @BundleInAPI_3a6e513b,
+  @IncludeInParentAllQuery = @IncludeInParentAllQuery_3a6e513b,
+  @Type = @Type_3a6e513b,
+  @EntityKeyField = @EntityKeyField_3a6e513b,
   @EntityKeyField_Clear = 1,
-  @RelatedEntityJoinField = @RelatedEntityJoinField_f358b23a,
-  @JoinView = @JoinView_f358b23a,
+  @RelatedEntityJoinField = @RelatedEntityJoinField_3a6e513b,
+  @JoinView = @JoinView_3a6e513b,
   @JoinView_Clear = 1,
-  @JoinEntityJoinField = @JoinEntityJoinField_f358b23a,
+  @JoinEntityJoinField = @JoinEntityJoinField_3a6e513b,
   @JoinEntityJoinField_Clear = 1,
-  @JoinEntityInverseJoinField = @JoinEntityInverseJoinField_f358b23a,
+  @JoinEntityInverseJoinField = @JoinEntityInverseJoinField_3a6e513b,
   @JoinEntityInverseJoinField_Clear = 1,
-  @DisplayInForm = @DisplayInForm_f358b23a,
-  @DisplayLocation = @DisplayLocation_f358b23a,
-  @DisplayName = @DisplayName_f358b23a,
+  @DisplayInForm = @DisplayInForm_3a6e513b,
+  @DisplayLocation = @DisplayLocation_3a6e513b,
+  @DisplayName = @DisplayName_3a6e513b,
   @DisplayName_Clear = 1,
-  @DisplayIconType = @DisplayIconType_f358b23a,
-  @DisplayIcon = @DisplayIcon_f358b23a,
+  @DisplayIconType = @DisplayIconType_3a6e513b,
+  @DisplayIcon = @DisplayIcon_3a6e513b,
   @DisplayIcon_Clear = 1,
-  @DisplayComponentID = @DisplayComponentID_f358b23a,
+  @DisplayComponentID = @DisplayComponentID_3a6e513b,
   @DisplayComponentID_Clear = 1,
-  @DisplayComponentConfiguration = @DisplayComponentConfiguration_f358b23a,
+  @DisplayComponentConfiguration = @DisplayComponentConfiguration_3a6e513b,
   @DisplayComponentConfiguration_Clear = 1,
-  @AutoUpdateFromSchema = @AutoUpdateFromSchema_f358b23a,
-  @AdditionalFieldsToInclude = @AdditionalFieldsToInclude_f358b23a,
+  @AutoUpdateFromSchema = @AutoUpdateFromSchema_3a6e513b,
+  @AdditionalFieldsToInclude = @AdditionalFieldsToInclude_3a6e513b,
   @AdditionalFieldsToInclude_Clear = 1,
-  @AutoUpdateAdditionalFieldsToInclude = @AutoUpdateAdditionalFieldsToInclude_f358b23a,
-  @RelatedRecordCollection = @RelatedRecordCollection_f358b23a,
+  @AutoUpdateAdditionalFieldsToInclude = @AutoUpdateAdditionalFieldsToInclude_3a6e513b,
+  @RelatedRecordCollection = @RelatedRecordCollection_3a6e513b,
   @RelatedRecordCollection_Clear = 1,
-  @Configuration = @Configuration_f358b23a,
-  @ID = @ID_f358b23a;
+  @Configuration = @Configuration_3a6e513b,
+  @ID = @ID_3a6e513b;
 
 GO
 
 -- Save MJ: Entity Relationships (core SP call only)
-DECLARE @EntityID_b883dd0d UNIQUEIDENTIFIER,
-@Sequence_b883dd0d INT,
-@RelatedEntityID_b883dd0d UNIQUEIDENTIFIER,
-@BundleInAPI_b883dd0d BIT,
-@IncludeInParentAllQuery_b883dd0d BIT,
-@Type_b883dd0d NCHAR(20),
-@EntityKeyField_b883dd0d NVARCHAR(255),
-@RelatedEntityJoinField_b883dd0d NVARCHAR(255),
-@JoinView_b883dd0d NVARCHAR(255),
-@JoinEntityJoinField_b883dd0d NVARCHAR(255),
-@JoinEntityInverseJoinField_b883dd0d NVARCHAR(255),
-@DisplayInForm_b883dd0d BIT,
-@DisplayLocation_b883dd0d NVARCHAR(50),
-@DisplayName_b883dd0d NVARCHAR(255),
-@DisplayIconType_b883dd0d NVARCHAR(50),
-@DisplayIcon_b883dd0d NVARCHAR(255),
-@DisplayComponentID_b883dd0d UNIQUEIDENTIFIER,
-@DisplayComponentConfiguration_b883dd0d NVARCHAR(MAX),
-@AutoUpdateFromSchema_b883dd0d BIT,
-@AdditionalFieldsToInclude_b883dd0d NVARCHAR(MAX),
-@AutoUpdateAdditionalFieldsToInclude_b883dd0d BIT,
-@RelatedRecordCollection_b883dd0d NVARCHAR(MAX),
-@Configuration_b883dd0d NVARCHAR(MAX),
-@ID_b883dd0d UNIQUEIDENTIFIER
+DECLARE @EntityID_a33b8232 UNIQUEIDENTIFIER,
+@Sequence_a33b8232 INT,
+@RelatedEntityID_a33b8232 UNIQUEIDENTIFIER,
+@BundleInAPI_a33b8232 BIT,
+@IncludeInParentAllQuery_a33b8232 BIT,
+@Type_a33b8232 NCHAR(20),
+@EntityKeyField_a33b8232 NVARCHAR(255),
+@RelatedEntityJoinField_a33b8232 NVARCHAR(255),
+@JoinView_a33b8232 NVARCHAR(255),
+@JoinEntityJoinField_a33b8232 NVARCHAR(255),
+@JoinEntityInverseJoinField_a33b8232 NVARCHAR(255),
+@DisplayInForm_a33b8232 BIT,
+@DisplayLocation_a33b8232 NVARCHAR(50),
+@DisplayName_a33b8232 NVARCHAR(255),
+@DisplayIconType_a33b8232 NVARCHAR(50),
+@DisplayIcon_a33b8232 NVARCHAR(255),
+@DisplayComponentID_a33b8232 UNIQUEIDENTIFIER,
+@DisplayComponentConfiguration_a33b8232 NVARCHAR(MAX),
+@AutoUpdateFromSchema_a33b8232 BIT,
+@AdditionalFieldsToInclude_a33b8232 NVARCHAR(MAX),
+@AutoUpdateAdditionalFieldsToInclude_a33b8232 BIT,
+@RelatedRecordCollection_a33b8232 NVARCHAR(MAX),
+@Configuration_a33b8232 NVARCHAR(MAX),
+@ID_a33b8232 UNIQUEIDENTIFIER
 SET
-  @EntityID_b883dd0d = '7A94ADA9-7880-4FAE-97D8-DB0E934C3F5F'
+  @EntityID_a33b8232 = '7A94ADA9-7880-4FAE-97D8-DB0E934C3F5F'
 SET
-  @Sequence_b883dd0d = 4
+  @Sequence_a33b8232 = 4
 SET
-  @RelatedEntityID_b883dd0d = '5DEB0B11-ED6C-48B3-9200-F4441396C5E2'
+  @RelatedEntityID_a33b8232 = '5DEB0B11-ED6C-48B3-9200-F4441396C5E2'
 SET
-  @BundleInAPI_b883dd0d = 1
+  @BundleInAPI_a33b8232 = 1
 SET
-  @IncludeInParentAllQuery_b883dd0d = 0
+  @IncludeInParentAllQuery_a33b8232 = 0
 SET
-  @Type_b883dd0d = N'One To Many'
+  @Type_a33b8232 = N'One To Many'
 SET
-  @RelatedEntityJoinField_b883dd0d = N'PrimaryContactPersonID'
+  @RelatedEntityJoinField_a33b8232 = N'PrimaryContactPersonID'
 SET
-  @DisplayInForm_b883dd0d = 1
+  @DisplayInForm_a33b8232 = 1
 SET
-  @DisplayLocation_b883dd0d = N'After Field Tabs'
+  @DisplayLocation_a33b8232 = N'After Field Tabs'
 SET
-  @DisplayName_b883dd0d = N'Agreements'
+  @DisplayName_a33b8232 = N'Agreements'
 SET
-  @DisplayIconType_b883dd0d = N'Related Entity Icon'
+  @DisplayIconType_a33b8232 = N'Related Entity Icon'
 SET
-  @AutoUpdateFromSchema_b883dd0d = 1
+  @AutoUpdateFromSchema_a33b8232 = 1
 SET
-  @AutoUpdateAdditionalFieldsToInclude_b883dd0d = 1
+  @AutoUpdateAdditionalFieldsToInclude_a33b8232 = 1
 SET
-  @Configuration_b883dd0d = N'{
+  @Configuration_a33b8232 = N'{
   "UI": {
     "inclusion": "More"
   }
 }'
 SET
-  @ID_b883dd0d = '6F16093E-BA7A-44C9-8E06-901F3383C7DC' EXEC [${mjSchema}].spUpdateEntityRelationship @EntityID = @EntityID_b883dd0d,
-  @Sequence = @Sequence_b883dd0d,
-  @RelatedEntityID = @RelatedEntityID_b883dd0d,
-  @BundleInAPI = @BundleInAPI_b883dd0d,
-  @IncludeInParentAllQuery = @IncludeInParentAllQuery_b883dd0d,
-  @Type = @Type_b883dd0d,
-  @EntityKeyField = @EntityKeyField_b883dd0d,
+  @ID_a33b8232 = '6F16093E-BA7A-44C9-8E06-901F3383C7DC' EXEC [${mjSchema}].spUpdateEntityRelationship @EntityID = @EntityID_a33b8232,
+  @Sequence = @Sequence_a33b8232,
+  @RelatedEntityID = @RelatedEntityID_a33b8232,
+  @BundleInAPI = @BundleInAPI_a33b8232,
+  @IncludeInParentAllQuery = @IncludeInParentAllQuery_a33b8232,
+  @Type = @Type_a33b8232,
+  @EntityKeyField = @EntityKeyField_a33b8232,
   @EntityKeyField_Clear = 1,
-  @RelatedEntityJoinField = @RelatedEntityJoinField_b883dd0d,
-  @JoinView = @JoinView_b883dd0d,
+  @RelatedEntityJoinField = @RelatedEntityJoinField_a33b8232,
+  @JoinView = @JoinView_a33b8232,
   @JoinView_Clear = 1,
-  @JoinEntityJoinField = @JoinEntityJoinField_b883dd0d,
+  @JoinEntityJoinField = @JoinEntityJoinField_a33b8232,
   @JoinEntityJoinField_Clear = 1,
-  @JoinEntityInverseJoinField = @JoinEntityInverseJoinField_b883dd0d,
+  @JoinEntityInverseJoinField = @JoinEntityInverseJoinField_a33b8232,
   @JoinEntityInverseJoinField_Clear = 1,
-  @DisplayInForm = @DisplayInForm_b883dd0d,
-  @DisplayLocation = @DisplayLocation_b883dd0d,
-  @DisplayName = @DisplayName_b883dd0d,
-  @DisplayIconType = @DisplayIconType_b883dd0d,
-  @DisplayIcon = @DisplayIcon_b883dd0d,
+  @DisplayInForm = @DisplayInForm_a33b8232,
+  @DisplayLocation = @DisplayLocation_a33b8232,
+  @DisplayName = @DisplayName_a33b8232,
+  @DisplayIconType = @DisplayIconType_a33b8232,
+  @DisplayIcon = @DisplayIcon_a33b8232,
   @DisplayIcon_Clear = 1,
-  @DisplayComponentID = @DisplayComponentID_b883dd0d,
+  @DisplayComponentID = @DisplayComponentID_a33b8232,
   @DisplayComponentID_Clear = 1,
-  @DisplayComponentConfiguration = @DisplayComponentConfiguration_b883dd0d,
+  @DisplayComponentConfiguration = @DisplayComponentConfiguration_a33b8232,
   @DisplayComponentConfiguration_Clear = 1,
-  @AutoUpdateFromSchema = @AutoUpdateFromSchema_b883dd0d,
-  @AdditionalFieldsToInclude = @AdditionalFieldsToInclude_b883dd0d,
+  @AutoUpdateFromSchema = @AutoUpdateFromSchema_a33b8232,
+  @AdditionalFieldsToInclude = @AdditionalFieldsToInclude_a33b8232,
   @AdditionalFieldsToInclude_Clear = 1,
-  @AutoUpdateAdditionalFieldsToInclude = @AutoUpdateAdditionalFieldsToInclude_b883dd0d,
-  @RelatedRecordCollection = @RelatedRecordCollection_b883dd0d,
+  @AutoUpdateAdditionalFieldsToInclude = @AutoUpdateAdditionalFieldsToInclude_a33b8232,
+  @RelatedRecordCollection = @RelatedRecordCollection_a33b8232,
   @RelatedRecordCollection_Clear = 1,
-  @Configuration = @Configuration_b883dd0d,
-  @ID = @ID_b883dd0d;
+  @Configuration = @Configuration_a33b8232,
+  @ID = @ID_a33b8232;
 
 GO
 
 -- Save MJ: Entity Relationships (core SP call only)
-DECLARE @EntityID_d4c86d95 UNIQUEIDENTIFIER,
-@Sequence_d4c86d95 INT,
-@RelatedEntityID_d4c86d95 UNIQUEIDENTIFIER,
-@BundleInAPI_d4c86d95 BIT,
-@IncludeInParentAllQuery_d4c86d95 BIT,
-@Type_d4c86d95 NCHAR(20),
-@EntityKeyField_d4c86d95 NVARCHAR(255),
-@RelatedEntityJoinField_d4c86d95 NVARCHAR(255),
-@JoinView_d4c86d95 NVARCHAR(255),
-@JoinEntityJoinField_d4c86d95 NVARCHAR(255),
-@JoinEntityInverseJoinField_d4c86d95 NVARCHAR(255),
-@DisplayInForm_d4c86d95 BIT,
-@DisplayLocation_d4c86d95 NVARCHAR(50),
-@DisplayName_d4c86d95 NVARCHAR(255),
-@DisplayIconType_d4c86d95 NVARCHAR(50),
-@DisplayIcon_d4c86d95 NVARCHAR(255),
-@DisplayComponentID_d4c86d95 UNIQUEIDENTIFIER,
-@DisplayComponentConfiguration_d4c86d95 NVARCHAR(MAX),
-@AutoUpdateFromSchema_d4c86d95 BIT,
-@AdditionalFieldsToInclude_d4c86d95 NVARCHAR(MAX),
-@AutoUpdateAdditionalFieldsToInclude_d4c86d95 BIT,
-@RelatedRecordCollection_d4c86d95 NVARCHAR(MAX),
-@Configuration_d4c86d95 NVARCHAR(MAX),
-@ID_d4c86d95 UNIQUEIDENTIFIER
+DECLARE @EntityID_857da0cf UNIQUEIDENTIFIER,
+@Sequence_857da0cf INT,
+@RelatedEntityID_857da0cf UNIQUEIDENTIFIER,
+@BundleInAPI_857da0cf BIT,
+@IncludeInParentAllQuery_857da0cf BIT,
+@Type_857da0cf NCHAR(20),
+@EntityKeyField_857da0cf NVARCHAR(255),
+@RelatedEntityJoinField_857da0cf NVARCHAR(255),
+@JoinView_857da0cf NVARCHAR(255),
+@JoinEntityJoinField_857da0cf NVARCHAR(255),
+@JoinEntityInverseJoinField_857da0cf NVARCHAR(255),
+@DisplayInForm_857da0cf BIT,
+@DisplayLocation_857da0cf NVARCHAR(50),
+@DisplayName_857da0cf NVARCHAR(255),
+@DisplayIconType_857da0cf NVARCHAR(50),
+@DisplayIcon_857da0cf NVARCHAR(255),
+@DisplayComponentID_857da0cf UNIQUEIDENTIFIER,
+@DisplayComponentConfiguration_857da0cf NVARCHAR(MAX),
+@AutoUpdateFromSchema_857da0cf BIT,
+@AdditionalFieldsToInclude_857da0cf NVARCHAR(MAX),
+@AutoUpdateAdditionalFieldsToInclude_857da0cf BIT,
+@RelatedRecordCollection_857da0cf NVARCHAR(MAX),
+@Configuration_857da0cf NVARCHAR(MAX),
+@ID_857da0cf UNIQUEIDENTIFIER
 SET
-  @EntityID_d4c86d95 = 'E0238F34-2837-EF11-86D4-6045BDEE16E6'
+  @EntityID_857da0cf = 'E0238F34-2837-EF11-86D4-6045BDEE16E6'
 SET
-  @Sequence_d4c86d95 = 77
+  @Sequence_857da0cf = 77
 SET
-  @RelatedEntityID_d4c86d95 = '5DEB0B11-ED6C-48B3-9200-F4441396C5E2'
+  @RelatedEntityID_857da0cf = '5DEB0B11-ED6C-48B3-9200-F4441396C5E2'
 SET
-  @BundleInAPI_d4c86d95 = 1
+  @BundleInAPI_857da0cf = 1
 SET
-  @IncludeInParentAllQuery_d4c86d95 = 0
+  @IncludeInParentAllQuery_857da0cf = 0
 SET
-  @Type_d4c86d95 = N'One To Many'
+  @Type_857da0cf = N'One To Many'
 SET
-  @RelatedEntityJoinField_d4c86d95 = N'CreatingEntityID'
+  @RelatedEntityJoinField_857da0cf = N'CreatingEntityID'
 SET
-  @DisplayInForm_d4c86d95 = 0
+  @DisplayInForm_857da0cf = 0
 SET
-  @DisplayLocation_d4c86d95 = N'After Field Tabs'
+  @DisplayLocation_857da0cf = N'After Field Tabs'
 SET
-  @DisplayIconType_d4c86d95 = N'Related Entity Icon'
+  @DisplayIconType_857da0cf = N'Related Entity Icon'
 SET
-  @AutoUpdateFromSchema_d4c86d95 = 1
+  @AutoUpdateFromSchema_857da0cf = 1
 SET
-  @AutoUpdateAdditionalFieldsToInclude_d4c86d95 = 1
+  @AutoUpdateAdditionalFieldsToInclude_857da0cf = 1
 SET
-  @Configuration_d4c86d95 = N'{
+  @Configuration_857da0cf = N'{
   "UI": {
     "inclusion": "None"
   }
 }'
 SET
-  @ID_d4c86d95 = '7FA39DE0-72C9-4956-AD6C-476397A1AEAC' EXEC [${mjSchema}].spUpdateEntityRelationship @EntityID = @EntityID_d4c86d95,
-  @Sequence = @Sequence_d4c86d95,
-  @RelatedEntityID = @RelatedEntityID_d4c86d95,
-  @BundleInAPI = @BundleInAPI_d4c86d95,
-  @IncludeInParentAllQuery = @IncludeInParentAllQuery_d4c86d95,
-  @Type = @Type_d4c86d95,
-  @EntityKeyField = @EntityKeyField_d4c86d95,
+  @ID_857da0cf = '7FA39DE0-72C9-4956-AD6C-476397A1AEAC' EXEC [${mjSchema}].spUpdateEntityRelationship @EntityID = @EntityID_857da0cf,
+  @Sequence = @Sequence_857da0cf,
+  @RelatedEntityID = @RelatedEntityID_857da0cf,
+  @BundleInAPI = @BundleInAPI_857da0cf,
+  @IncludeInParentAllQuery = @IncludeInParentAllQuery_857da0cf,
+  @Type = @Type_857da0cf,
+  @EntityKeyField = @EntityKeyField_857da0cf,
   @EntityKeyField_Clear = 1,
-  @RelatedEntityJoinField = @RelatedEntityJoinField_d4c86d95,
-  @JoinView = @JoinView_d4c86d95,
+  @RelatedEntityJoinField = @RelatedEntityJoinField_857da0cf,
+  @JoinView = @JoinView_857da0cf,
   @JoinView_Clear = 1,
-  @JoinEntityJoinField = @JoinEntityJoinField_d4c86d95,
+  @JoinEntityJoinField = @JoinEntityJoinField_857da0cf,
   @JoinEntityJoinField_Clear = 1,
-  @JoinEntityInverseJoinField = @JoinEntityInverseJoinField_d4c86d95,
+  @JoinEntityInverseJoinField = @JoinEntityInverseJoinField_857da0cf,
   @JoinEntityInverseJoinField_Clear = 1,
-  @DisplayInForm = @DisplayInForm_d4c86d95,
-  @DisplayLocation = @DisplayLocation_d4c86d95,
-  @DisplayName = @DisplayName_d4c86d95,
+  @DisplayInForm = @DisplayInForm_857da0cf,
+  @DisplayLocation = @DisplayLocation_857da0cf,
+  @DisplayName = @DisplayName_857da0cf,
   @DisplayName_Clear = 1,
-  @DisplayIconType = @DisplayIconType_d4c86d95,
-  @DisplayIcon = @DisplayIcon_d4c86d95,
+  @DisplayIconType = @DisplayIconType_857da0cf,
+  @DisplayIcon = @DisplayIcon_857da0cf,
   @DisplayIcon_Clear = 1,
-  @DisplayComponentID = @DisplayComponentID_d4c86d95,
+  @DisplayComponentID = @DisplayComponentID_857da0cf,
   @DisplayComponentID_Clear = 1,
-  @DisplayComponentConfiguration = @DisplayComponentConfiguration_d4c86d95,
+  @DisplayComponentConfiguration = @DisplayComponentConfiguration_857da0cf,
   @DisplayComponentConfiguration_Clear = 1,
-  @AutoUpdateFromSchema = @AutoUpdateFromSchema_d4c86d95,
-  @AdditionalFieldsToInclude = @AdditionalFieldsToInclude_d4c86d95,
+  @AutoUpdateFromSchema = @AutoUpdateFromSchema_857da0cf,
+  @AdditionalFieldsToInclude = @AdditionalFieldsToInclude_857da0cf,
   @AdditionalFieldsToInclude_Clear = 1,
-  @AutoUpdateAdditionalFieldsToInclude = @AutoUpdateAdditionalFieldsToInclude_d4c86d95,
-  @RelatedRecordCollection = @RelatedRecordCollection_d4c86d95,
+  @AutoUpdateAdditionalFieldsToInclude = @AutoUpdateAdditionalFieldsToInclude_857da0cf,
+  @RelatedRecordCollection = @RelatedRecordCollection_857da0cf,
   @RelatedRecordCollection_Clear = 1,
-  @Configuration = @Configuration_d4c86d95,
-  @ID = @ID_d4c86d95;
+  @Configuration = @Configuration_857da0cf,
+  @ID = @ID_857da0cf;
 
 GO
 
 -- Save MJ: Entity Relationships (core SP call only)
-DECLARE @EntityID_d0154c2d UNIQUEIDENTIFIER,
-@Sequence_d0154c2d INT,
-@RelatedEntityID_d0154c2d UNIQUEIDENTIFIER,
-@BundleInAPI_d0154c2d BIT,
-@IncludeInParentAllQuery_d0154c2d BIT,
-@Type_d0154c2d NCHAR(20),
-@EntityKeyField_d0154c2d NVARCHAR(255),
-@RelatedEntityJoinField_d0154c2d NVARCHAR(255),
-@JoinView_d0154c2d NVARCHAR(255),
-@JoinEntityJoinField_d0154c2d NVARCHAR(255),
-@JoinEntityInverseJoinField_d0154c2d NVARCHAR(255),
-@DisplayInForm_d0154c2d BIT,
-@DisplayLocation_d0154c2d NVARCHAR(50),
-@DisplayName_d0154c2d NVARCHAR(255),
-@DisplayIconType_d0154c2d NVARCHAR(50),
-@DisplayIcon_d0154c2d NVARCHAR(255),
-@DisplayComponentID_d0154c2d UNIQUEIDENTIFIER,
-@DisplayComponentConfiguration_d0154c2d NVARCHAR(MAX),
-@AutoUpdateFromSchema_d0154c2d BIT,
-@AdditionalFieldsToInclude_d0154c2d NVARCHAR(MAX),
-@AutoUpdateAdditionalFieldsToInclude_d0154c2d BIT,
-@RelatedRecordCollection_d0154c2d NVARCHAR(MAX),
-@Configuration_d0154c2d NVARCHAR(MAX),
-@ID_d0154c2d UNIQUEIDENTIFIER
+DECLARE @EntityID_340b4a93 UNIQUEIDENTIFIER,
+@Sequence_340b4a93 INT,
+@RelatedEntityID_340b4a93 UNIQUEIDENTIFIER,
+@BundleInAPI_340b4a93 BIT,
+@IncludeInParentAllQuery_340b4a93 BIT,
+@Type_340b4a93 NCHAR(20),
+@EntityKeyField_340b4a93 NVARCHAR(255),
+@RelatedEntityJoinField_340b4a93 NVARCHAR(255),
+@JoinView_340b4a93 NVARCHAR(255),
+@JoinEntityJoinField_340b4a93 NVARCHAR(255),
+@JoinEntityInverseJoinField_340b4a93 NVARCHAR(255),
+@DisplayInForm_340b4a93 BIT,
+@DisplayLocation_340b4a93 NVARCHAR(50),
+@DisplayName_340b4a93 NVARCHAR(255),
+@DisplayIconType_340b4a93 NVARCHAR(50),
+@DisplayIcon_340b4a93 NVARCHAR(255),
+@DisplayComponentID_340b4a93 UNIQUEIDENTIFIER,
+@DisplayComponentConfiguration_340b4a93 NVARCHAR(MAX),
+@AutoUpdateFromSchema_340b4a93 BIT,
+@AdditionalFieldsToInclude_340b4a93 NVARCHAR(MAX),
+@AutoUpdateAdditionalFieldsToInclude_340b4a93 BIT,
+@RelatedRecordCollection_340b4a93 NVARCHAR(MAX),
+@Configuration_340b4a93 NVARCHAR(MAX),
+@ID_340b4a93 UNIQUEIDENTIFIER
 SET
-  @EntityID_d0154c2d = '317DF592-8C20-473D-B097-2AB239877438'
+  @EntityID_340b4a93 = '317DF592-8C20-473D-B097-2AB239877438'
 SET
-  @Sequence_d0154c2d = 1
+  @Sequence_340b4a93 = 1
 SET
-  @RelatedEntityID_d0154c2d = 'B05A480F-F7C5-4D45-8EA3-C90E9A14F225'
+  @RelatedEntityID_340b4a93 = 'B05A480F-F7C5-4D45-8EA3-C90E9A14F225'
 SET
-  @BundleInAPI_d0154c2d = 1
+  @BundleInAPI_340b4a93 = 1
 SET
-  @IncludeInParentAllQuery_d0154c2d = 0
+  @IncludeInParentAllQuery_340b4a93 = 0
 SET
-  @Type_d0154c2d = N'One To Many'
+  @Type_340b4a93 = N'One To Many'
 SET
-  @RelatedEntityJoinField_d0154c2d = N'ContractTemplateProvisionID'
+  @RelatedEntityJoinField_340b4a93 = N'ContractTemplateProvisionID'
 SET
-  @DisplayInForm_d0154c2d = 0
+  @DisplayInForm_340b4a93 = 0
 SET
-  @DisplayLocation_d0154c2d = N'After Field Tabs'
+  @DisplayLocation_340b4a93 = N'After Field Tabs'
 SET
-  @DisplayIconType_d0154c2d = N'Related Entity Icon'
+  @DisplayIconType_340b4a93 = N'Related Entity Icon'
 SET
-  @AutoUpdateFromSchema_d0154c2d = 1
+  @AutoUpdateFromSchema_340b4a93 = 1
 SET
-  @AutoUpdateAdditionalFieldsToInclude_d0154c2d = 1
+  @AutoUpdateAdditionalFieldsToInclude_340b4a93 = 1
 SET
-  @Configuration_d0154c2d = N'{
+  @Configuration_340b4a93 = N'{
   "UI": {
     "inclusion": "None"
   }
 }'
 SET
-  @ID_d0154c2d = '82939A7C-51C9-4723-BCD7-3CAECF976536' EXEC [${mjSchema}].spUpdateEntityRelationship @EntityID = @EntityID_d0154c2d,
-  @Sequence = @Sequence_d0154c2d,
-  @RelatedEntityID = @RelatedEntityID_d0154c2d,
-  @BundleInAPI = @BundleInAPI_d0154c2d,
-  @IncludeInParentAllQuery = @IncludeInParentAllQuery_d0154c2d,
-  @Type = @Type_d0154c2d,
-  @EntityKeyField = @EntityKeyField_d0154c2d,
+  @ID_340b4a93 = '82939A7C-51C9-4723-BCD7-3CAECF976536' EXEC [${mjSchema}].spUpdateEntityRelationship @EntityID = @EntityID_340b4a93,
+  @Sequence = @Sequence_340b4a93,
+  @RelatedEntityID = @RelatedEntityID_340b4a93,
+  @BundleInAPI = @BundleInAPI_340b4a93,
+  @IncludeInParentAllQuery = @IncludeInParentAllQuery_340b4a93,
+  @Type = @Type_340b4a93,
+  @EntityKeyField = @EntityKeyField_340b4a93,
   @EntityKeyField_Clear = 1,
-  @RelatedEntityJoinField = @RelatedEntityJoinField_d0154c2d,
-  @JoinView = @JoinView_d0154c2d,
+  @RelatedEntityJoinField = @RelatedEntityJoinField_340b4a93,
+  @JoinView = @JoinView_340b4a93,
   @JoinView_Clear = 1,
-  @JoinEntityJoinField = @JoinEntityJoinField_d0154c2d,
+  @JoinEntityJoinField = @JoinEntityJoinField_340b4a93,
   @JoinEntityJoinField_Clear = 1,
-  @JoinEntityInverseJoinField = @JoinEntityInverseJoinField_d0154c2d,
+  @JoinEntityInverseJoinField = @JoinEntityInverseJoinField_340b4a93,
   @JoinEntityInverseJoinField_Clear = 1,
-  @DisplayInForm = @DisplayInForm_d0154c2d,
-  @DisplayLocation = @DisplayLocation_d0154c2d,
-  @DisplayName = @DisplayName_d0154c2d,
+  @DisplayInForm = @DisplayInForm_340b4a93,
+  @DisplayLocation = @DisplayLocation_340b4a93,
+  @DisplayName = @DisplayName_340b4a93,
   @DisplayName_Clear = 1,
-  @DisplayIconType = @DisplayIconType_d0154c2d,
-  @DisplayIcon = @DisplayIcon_d0154c2d,
+  @DisplayIconType = @DisplayIconType_340b4a93,
+  @DisplayIcon = @DisplayIcon_340b4a93,
   @DisplayIcon_Clear = 1,
-  @DisplayComponentID = @DisplayComponentID_d0154c2d,
+  @DisplayComponentID = @DisplayComponentID_340b4a93,
   @DisplayComponentID_Clear = 1,
-  @DisplayComponentConfiguration = @DisplayComponentConfiguration_d0154c2d,
+  @DisplayComponentConfiguration = @DisplayComponentConfiguration_340b4a93,
   @DisplayComponentConfiguration_Clear = 1,
-  @AutoUpdateFromSchema = @AutoUpdateFromSchema_d0154c2d,
-  @AdditionalFieldsToInclude = @AdditionalFieldsToInclude_d0154c2d,
+  @AutoUpdateFromSchema = @AutoUpdateFromSchema_340b4a93,
+  @AdditionalFieldsToInclude = @AdditionalFieldsToInclude_340b4a93,
   @AdditionalFieldsToInclude_Clear = 1,
-  @AutoUpdateAdditionalFieldsToInclude = @AutoUpdateAdditionalFieldsToInclude_d0154c2d,
-  @RelatedRecordCollection = @RelatedRecordCollection_d0154c2d,
+  @AutoUpdateAdditionalFieldsToInclude = @AutoUpdateAdditionalFieldsToInclude_340b4a93,
+  @RelatedRecordCollection = @RelatedRecordCollection_340b4a93,
   @RelatedRecordCollection_Clear = 1,
-  @Configuration = @Configuration_d0154c2d,
-  @ID = @ID_d0154c2d;
+  @Configuration = @Configuration_340b4a93,
+  @ID = @ID_340b4a93;
 
 GO
 
 -- Save MJ: Entity Relationships (core SP call only)
-DECLARE @EntityID_b4736105 UNIQUEIDENTIFIER,
-@Sequence_b4736105 INT,
-@RelatedEntityID_b4736105 UNIQUEIDENTIFIER,
-@BundleInAPI_b4736105 BIT,
-@IncludeInParentAllQuery_b4736105 BIT,
-@Type_b4736105 NCHAR(20),
-@EntityKeyField_b4736105 NVARCHAR(255),
-@RelatedEntityJoinField_b4736105 NVARCHAR(255),
-@JoinView_b4736105 NVARCHAR(255),
-@JoinEntityJoinField_b4736105 NVARCHAR(255),
-@JoinEntityInverseJoinField_b4736105 NVARCHAR(255),
-@DisplayInForm_b4736105 BIT,
-@DisplayLocation_b4736105 NVARCHAR(50),
-@DisplayName_b4736105 NVARCHAR(255),
-@DisplayIconType_b4736105 NVARCHAR(50),
-@DisplayIcon_b4736105 NVARCHAR(255),
-@DisplayComponentID_b4736105 UNIQUEIDENTIFIER,
-@DisplayComponentConfiguration_b4736105 NVARCHAR(MAX),
-@AutoUpdateFromSchema_b4736105 BIT,
-@AdditionalFieldsToInclude_b4736105 NVARCHAR(MAX),
-@AutoUpdateAdditionalFieldsToInclude_b4736105 BIT,
-@RelatedRecordCollection_b4736105 NVARCHAR(MAX),
-@Configuration_b4736105 NVARCHAR(MAX),
-@ID_b4736105 UNIQUEIDENTIFIER
+DECLARE @EntityID_b4742e6a UNIQUEIDENTIFIER,
+@Sequence_b4742e6a INT,
+@RelatedEntityID_b4742e6a UNIQUEIDENTIFIER,
+@BundleInAPI_b4742e6a BIT,
+@IncludeInParentAllQuery_b4742e6a BIT,
+@Type_b4742e6a NCHAR(20),
+@EntityKeyField_b4742e6a NVARCHAR(255),
+@RelatedEntityJoinField_b4742e6a NVARCHAR(255),
+@JoinView_b4742e6a NVARCHAR(255),
+@JoinEntityJoinField_b4742e6a NVARCHAR(255),
+@JoinEntityInverseJoinField_b4742e6a NVARCHAR(255),
+@DisplayInForm_b4742e6a BIT,
+@DisplayLocation_b4742e6a NVARCHAR(50),
+@DisplayName_b4742e6a NVARCHAR(255),
+@DisplayIconType_b4742e6a NVARCHAR(50),
+@DisplayIcon_b4742e6a NVARCHAR(255),
+@DisplayComponentID_b4742e6a UNIQUEIDENTIFIER,
+@DisplayComponentConfiguration_b4742e6a NVARCHAR(MAX),
+@AutoUpdateFromSchema_b4742e6a BIT,
+@AdditionalFieldsToInclude_b4742e6a NVARCHAR(MAX),
+@AutoUpdateAdditionalFieldsToInclude_b4742e6a BIT,
+@RelatedRecordCollection_b4742e6a NVARCHAR(MAX),
+@Configuration_b4742e6a NVARCHAR(MAX),
+@ID_b4742e6a UNIQUEIDENTIFIER
 SET
-  @EntityID_b4736105 = '5DEB0B11-ED6C-48B3-9200-F4441396C5E2'
+  @EntityID_b4742e6a = '5DEB0B11-ED6C-48B3-9200-F4441396C5E2'
 SET
-  @Sequence_b4736105 = 2
+  @Sequence_b4742e6a = 2
 SET
-  @RelatedEntityID_b4736105 = '5DEB0B11-ED6C-48B3-9200-F4441396C5E2'
+  @RelatedEntityID_b4742e6a = '5DEB0B11-ED6C-48B3-9200-F4441396C5E2'
 SET
-  @BundleInAPI_b4736105 = 1
+  @BundleInAPI_b4742e6a = 1
 SET
-  @IncludeInParentAllQuery_b4736105 = 0
+  @IncludeInParentAllQuery_b4742e6a = 0
 SET
-  @Type_b4736105 = N'One To Many'
+  @Type_b4742e6a = N'One To Many'
 SET
-  @RelatedEntityJoinField_b4736105 = N'SupersededByContractID'
+  @RelatedEntityJoinField_b4742e6a = N'SupersededByContractID'
 SET
-  @DisplayInForm_b4736105 = 1
+  @DisplayInForm_b4742e6a = 1
 SET
-  @DisplayLocation_b4736105 = N'After Field Tabs'
+  @DisplayLocation_b4742e6a = N'After Field Tabs'
 SET
-  @DisplayName_b4736105 = N'Supersedes'
+  @DisplayName_b4742e6a = N'Supersedes'
 SET
-  @DisplayIconType_b4736105 = N'Related Entity Icon'
+  @DisplayIconType_b4742e6a = N'Related Entity Icon'
 SET
-  @AutoUpdateFromSchema_b4736105 = 1
+  @AutoUpdateFromSchema_b4742e6a = 1
 SET
-  @AutoUpdateAdditionalFieldsToInclude_b4736105 = 1
+  @AutoUpdateAdditionalFieldsToInclude_b4742e6a = 1
 SET
-  @Configuration_b4736105 = N'{
+  @Configuration_b4742e6a = N'{
   "UI": {
     "inclusion": "Primary"
   }
 }'
 SET
-  @ID_b4736105 = '3B056BC8-B985-403A-9DCC-ACCEF921C323' EXEC [${mjSchema}].spUpdateEntityRelationship @EntityID = @EntityID_b4736105,
-  @Sequence = @Sequence_b4736105,
-  @RelatedEntityID = @RelatedEntityID_b4736105,
-  @BundleInAPI = @BundleInAPI_b4736105,
-  @IncludeInParentAllQuery = @IncludeInParentAllQuery_b4736105,
-  @Type = @Type_b4736105,
-  @EntityKeyField = @EntityKeyField_b4736105,
+  @ID_b4742e6a = '3B056BC8-B985-403A-9DCC-ACCEF921C323' EXEC [${mjSchema}].spUpdateEntityRelationship @EntityID = @EntityID_b4742e6a,
+  @Sequence = @Sequence_b4742e6a,
+  @RelatedEntityID = @RelatedEntityID_b4742e6a,
+  @BundleInAPI = @BundleInAPI_b4742e6a,
+  @IncludeInParentAllQuery = @IncludeInParentAllQuery_b4742e6a,
+  @Type = @Type_b4742e6a,
+  @EntityKeyField = @EntityKeyField_b4742e6a,
   @EntityKeyField_Clear = 1,
-  @RelatedEntityJoinField = @RelatedEntityJoinField_b4736105,
-  @JoinView = @JoinView_b4736105,
+  @RelatedEntityJoinField = @RelatedEntityJoinField_b4742e6a,
+  @JoinView = @JoinView_b4742e6a,
   @JoinView_Clear = 1,
-  @JoinEntityJoinField = @JoinEntityJoinField_b4736105,
+  @JoinEntityJoinField = @JoinEntityJoinField_b4742e6a,
   @JoinEntityJoinField_Clear = 1,
-  @JoinEntityInverseJoinField = @JoinEntityInverseJoinField_b4736105,
+  @JoinEntityInverseJoinField = @JoinEntityInverseJoinField_b4742e6a,
   @JoinEntityInverseJoinField_Clear = 1,
-  @DisplayInForm = @DisplayInForm_b4736105,
-  @DisplayLocation = @DisplayLocation_b4736105,
-  @DisplayName = @DisplayName_b4736105,
-  @DisplayIconType = @DisplayIconType_b4736105,
-  @DisplayIcon = @DisplayIcon_b4736105,
+  @DisplayInForm = @DisplayInForm_b4742e6a,
+  @DisplayLocation = @DisplayLocation_b4742e6a,
+  @DisplayName = @DisplayName_b4742e6a,
+  @DisplayIconType = @DisplayIconType_b4742e6a,
+  @DisplayIcon = @DisplayIcon_b4742e6a,
   @DisplayIcon_Clear = 1,
-  @DisplayComponentID = @DisplayComponentID_b4736105,
+  @DisplayComponentID = @DisplayComponentID_b4742e6a,
   @DisplayComponentID_Clear = 1,
-  @DisplayComponentConfiguration = @DisplayComponentConfiguration_b4736105,
+  @DisplayComponentConfiguration = @DisplayComponentConfiguration_b4742e6a,
   @DisplayComponentConfiguration_Clear = 1,
-  @AutoUpdateFromSchema = @AutoUpdateFromSchema_b4736105,
-  @AdditionalFieldsToInclude = @AdditionalFieldsToInclude_b4736105,
+  @AutoUpdateFromSchema = @AutoUpdateFromSchema_b4742e6a,
+  @AdditionalFieldsToInclude = @AdditionalFieldsToInclude_b4742e6a,
   @AdditionalFieldsToInclude_Clear = 1,
-  @AutoUpdateAdditionalFieldsToInclude = @AutoUpdateAdditionalFieldsToInclude_b4736105,
-  @RelatedRecordCollection = @RelatedRecordCollection_b4736105,
+  @AutoUpdateAdditionalFieldsToInclude = @AutoUpdateAdditionalFieldsToInclude_b4742e6a,
+  @RelatedRecordCollection = @RelatedRecordCollection_b4742e6a,
   @RelatedRecordCollection_Clear = 1,
-  @Configuration = @Configuration_b4736105,
-  @ID = @ID_b4736105;
+  @Configuration = @Configuration_b4742e6a,
+  @ID = @ID_b4742e6a;
 
 GO
 
 -- Save MJ: Entity Relationships (core SP call only)
-DECLARE @EntityID_2c167d30 UNIQUEIDENTIFIER,
-@Sequence_2c167d30 INT,
-@RelatedEntityID_2c167d30 UNIQUEIDENTIFIER,
-@BundleInAPI_2c167d30 BIT,
-@IncludeInParentAllQuery_2c167d30 BIT,
-@Type_2c167d30 NCHAR(20),
-@EntityKeyField_2c167d30 NVARCHAR(255),
-@RelatedEntityJoinField_2c167d30 NVARCHAR(255),
-@JoinView_2c167d30 NVARCHAR(255),
-@JoinEntityJoinField_2c167d30 NVARCHAR(255),
-@JoinEntityInverseJoinField_2c167d30 NVARCHAR(255),
-@DisplayInForm_2c167d30 BIT,
-@DisplayLocation_2c167d30 NVARCHAR(50),
-@DisplayName_2c167d30 NVARCHAR(255),
-@DisplayIconType_2c167d30 NVARCHAR(50),
-@DisplayIcon_2c167d30 NVARCHAR(255),
-@DisplayComponentID_2c167d30 UNIQUEIDENTIFIER,
-@DisplayComponentConfiguration_2c167d30 NVARCHAR(MAX),
-@AutoUpdateFromSchema_2c167d30 BIT,
-@AdditionalFieldsToInclude_2c167d30 NVARCHAR(MAX),
-@AutoUpdateAdditionalFieldsToInclude_2c167d30 BIT,
-@RelatedRecordCollection_2c167d30 NVARCHAR(MAX),
-@Configuration_2c167d30 NVARCHAR(MAX),
-@ID_2c167d30 UNIQUEIDENTIFIER
+DECLARE @EntityID_01eb08fb UNIQUEIDENTIFIER,
+@Sequence_01eb08fb INT,
+@RelatedEntityID_01eb08fb UNIQUEIDENTIFIER,
+@BundleInAPI_01eb08fb BIT,
+@IncludeInParentAllQuery_01eb08fb BIT,
+@Type_01eb08fb NCHAR(20),
+@EntityKeyField_01eb08fb NVARCHAR(255),
+@RelatedEntityJoinField_01eb08fb NVARCHAR(255),
+@JoinView_01eb08fb NVARCHAR(255),
+@JoinEntityJoinField_01eb08fb NVARCHAR(255),
+@JoinEntityInverseJoinField_01eb08fb NVARCHAR(255),
+@DisplayInForm_01eb08fb BIT,
+@DisplayLocation_01eb08fb NVARCHAR(50),
+@DisplayName_01eb08fb NVARCHAR(255),
+@DisplayIconType_01eb08fb NVARCHAR(50),
+@DisplayIcon_01eb08fb NVARCHAR(255),
+@DisplayComponentID_01eb08fb UNIQUEIDENTIFIER,
+@DisplayComponentConfiguration_01eb08fb NVARCHAR(MAX),
+@AutoUpdateFromSchema_01eb08fb BIT,
+@AdditionalFieldsToInclude_01eb08fb NVARCHAR(MAX),
+@AutoUpdateAdditionalFieldsToInclude_01eb08fb BIT,
+@RelatedRecordCollection_01eb08fb NVARCHAR(MAX),
+@Configuration_01eb08fb NVARCHAR(MAX),
+@ID_01eb08fb UNIQUEIDENTIFIER
 SET
-  @EntityID_2c167d30 = '5DEB0B11-ED6C-48B3-9200-F4441396C5E2'
+  @EntityID_01eb08fb = '5DEB0B11-ED6C-48B3-9200-F4441396C5E2'
 SET
-  @Sequence_2c167d30 = 3
+  @Sequence_01eb08fb = 3
 SET
-  @RelatedEntityID_2c167d30 = '5DEB0B11-ED6C-48B3-9200-F4441396C5E2'
+  @RelatedEntityID_01eb08fb = '5DEB0B11-ED6C-48B3-9200-F4441396C5E2'
 SET
-  @BundleInAPI_2c167d30 = 1
+  @BundleInAPI_01eb08fb = 1
 SET
-  @IncludeInParentAllQuery_2c167d30 = 0
+  @IncludeInParentAllQuery_01eb08fb = 0
 SET
-  @Type_2c167d30 = N'One To Many'
+  @Type_01eb08fb = N'One To Many'
 SET
-  @RelatedEntityJoinField_2c167d30 = N'ParentContractID'
+  @RelatedEntityJoinField_01eb08fb = N'ParentContractID'
 SET
-  @DisplayInForm_2c167d30 = 1
+  @DisplayInForm_01eb08fb = 1
 SET
-  @DisplayLocation_2c167d30 = N'After Field Tabs'
+  @DisplayLocation_01eb08fb = N'After Field Tabs'
 SET
-  @DisplayName_2c167d30 = N'Lineage'
+  @DisplayName_01eb08fb = N'Lineage'
 SET
-  @DisplayIconType_2c167d30 = N'Related Entity Icon'
+  @DisplayIconType_01eb08fb = N'Related Entity Icon'
 SET
-  @AutoUpdateFromSchema_2c167d30 = 1
+  @AutoUpdateFromSchema_01eb08fb = 1
 SET
-  @AutoUpdateAdditionalFieldsToInclude_2c167d30 = 1
+  @AutoUpdateAdditionalFieldsToInclude_01eb08fb = 1
 SET
-  @Configuration_2c167d30 = N'{
+  @Configuration_01eb08fb = N'{
   "UI": {
     "inclusion": "Primary"
   }
 }'
 SET
-  @ID_2c167d30 = 'E45A646D-9A56-45E8-9C64-5583E38654C2' EXEC [${mjSchema}].spUpdateEntityRelationship @EntityID = @EntityID_2c167d30,
-  @Sequence = @Sequence_2c167d30,
-  @RelatedEntityID = @RelatedEntityID_2c167d30,
-  @BundleInAPI = @BundleInAPI_2c167d30,
-  @IncludeInParentAllQuery = @IncludeInParentAllQuery_2c167d30,
-  @Type = @Type_2c167d30,
-  @EntityKeyField = @EntityKeyField_2c167d30,
+  @ID_01eb08fb = 'E45A646D-9A56-45E8-9C64-5583E38654C2' EXEC [${mjSchema}].spUpdateEntityRelationship @EntityID = @EntityID_01eb08fb,
+  @Sequence = @Sequence_01eb08fb,
+  @RelatedEntityID = @RelatedEntityID_01eb08fb,
+  @BundleInAPI = @BundleInAPI_01eb08fb,
+  @IncludeInParentAllQuery = @IncludeInParentAllQuery_01eb08fb,
+  @Type = @Type_01eb08fb,
+  @EntityKeyField = @EntityKeyField_01eb08fb,
   @EntityKeyField_Clear = 1,
-  @RelatedEntityJoinField = @RelatedEntityJoinField_2c167d30,
-  @JoinView = @JoinView_2c167d30,
+  @RelatedEntityJoinField = @RelatedEntityJoinField_01eb08fb,
+  @JoinView = @JoinView_01eb08fb,
   @JoinView_Clear = 1,
-  @JoinEntityJoinField = @JoinEntityJoinField_2c167d30,
+  @JoinEntityJoinField = @JoinEntityJoinField_01eb08fb,
   @JoinEntityJoinField_Clear = 1,
-  @JoinEntityInverseJoinField = @JoinEntityInverseJoinField_2c167d30,
+  @JoinEntityInverseJoinField = @JoinEntityInverseJoinField_01eb08fb,
   @JoinEntityInverseJoinField_Clear = 1,
-  @DisplayInForm = @DisplayInForm_2c167d30,
-  @DisplayLocation = @DisplayLocation_2c167d30,
-  @DisplayName = @DisplayName_2c167d30,
-  @DisplayIconType = @DisplayIconType_2c167d30,
-  @DisplayIcon = @DisplayIcon_2c167d30,
+  @DisplayInForm = @DisplayInForm_01eb08fb,
+  @DisplayLocation = @DisplayLocation_01eb08fb,
+  @DisplayName = @DisplayName_01eb08fb,
+  @DisplayIconType = @DisplayIconType_01eb08fb,
+  @DisplayIcon = @DisplayIcon_01eb08fb,
   @DisplayIcon_Clear = 1,
-  @DisplayComponentID = @DisplayComponentID_2c167d30,
+  @DisplayComponentID = @DisplayComponentID_01eb08fb,
   @DisplayComponentID_Clear = 1,
-  @DisplayComponentConfiguration = @DisplayComponentConfiguration_2c167d30,
+  @DisplayComponentConfiguration = @DisplayComponentConfiguration_01eb08fb,
   @DisplayComponentConfiguration_Clear = 1,
-  @AutoUpdateFromSchema = @AutoUpdateFromSchema_2c167d30,
-  @AdditionalFieldsToInclude = @AdditionalFieldsToInclude_2c167d30,
+  @AutoUpdateFromSchema = @AutoUpdateFromSchema_01eb08fb,
+  @AdditionalFieldsToInclude = @AdditionalFieldsToInclude_01eb08fb,
   @AdditionalFieldsToInclude_Clear = 1,
-  @AutoUpdateAdditionalFieldsToInclude = @AutoUpdateAdditionalFieldsToInclude_2c167d30,
-  @RelatedRecordCollection = @RelatedRecordCollection_2c167d30,
+  @AutoUpdateAdditionalFieldsToInclude = @AutoUpdateAdditionalFieldsToInclude_01eb08fb,
+  @RelatedRecordCollection = @RelatedRecordCollection_01eb08fb,
   @RelatedRecordCollection_Clear = 1,
-  @Configuration = @Configuration_2c167d30,
-  @ID = @ID_2c167d30;
+  @Configuration = @Configuration_01eb08fb,
+  @ID = @ID_01eb08fb;
 
 GO
 
 -- Save MJ: Applications (core SP call only)
-DECLARE @ID_51ba6fba UNIQUEIDENTIFIER,
-@Name_51ba6fba NVARCHAR(100),
-@Description_51ba6fba NVARCHAR(MAX),
-@Icon_51ba6fba NVARCHAR(500),
-@DefaultForNewUser_51ba6fba BIT,
-@SchemaAutoAddNewEntities_51ba6fba NVARCHAR(MAX),
-@Color_51ba6fba NVARCHAR(20),
-@DefaultNavItems_51ba6fba NVARCHAR(MAX),
-@ClassName_51ba6fba NVARCHAR(255),
-@DefaultSequence_51ba6fba INT,
-@Status_51ba6fba NVARCHAR(20),
-@NavigationStyle_51ba6fba NVARCHAR(20),
-@TopNavLocation_51ba6fba NVARCHAR(30),
-@HideNavBarIconWhenActive_51ba6fba BIT,
-@Path_51ba6fba NVARCHAR(100),
-@AutoUpdatePath_51ba6fba BIT,
-@AgentSettings_51ba6fba NVARCHAR(MAX)
+DECLARE @ID_61e7f6e6 UNIQUEIDENTIFIER,
+@Name_61e7f6e6 NVARCHAR(100),
+@Description_61e7f6e6 NVARCHAR(MAX),
+@Icon_61e7f6e6 NVARCHAR(500),
+@DefaultForNewUser_61e7f6e6 BIT,
+@SchemaAutoAddNewEntities_61e7f6e6 NVARCHAR(MAX),
+@Color_61e7f6e6 NVARCHAR(20),
+@DefaultNavItems_61e7f6e6 NVARCHAR(MAX),
+@ClassName_61e7f6e6 NVARCHAR(255),
+@DefaultSequence_61e7f6e6 INT,
+@Status_61e7f6e6 NVARCHAR(20),
+@NavigationStyle_61e7f6e6 NVARCHAR(20),
+@TopNavLocation_61e7f6e6 NVARCHAR(30),
+@HideNavBarIconWhenActive_61e7f6e6 BIT,
+@Path_61e7f6e6 NVARCHAR(100),
+@AutoUpdatePath_61e7f6e6 BIT,
+@AgentSettings_61e7f6e6 NVARCHAR(MAX)
 SET
-  @ID_51ba6fba = '7C1D2E3F-4A5B-4C6D-8E9F-0A1B2C3D4E5F'
+  @ID_61e7f6e6 = '7C1D2E3F-4A5B-4C6D-8E9F-0A1B2C3D4E5F'
 SET
-  @Name_51ba6fba = N'Contracts'
+  @Name_61e7f6e6 = N'Contracts'
 SET
-  @Description_51ba6fba = N'The record of what we agreed: every agreement, the standard terms it incorporates, the provisions negotiated away from those terms, and the executed paper. Contracts tracks obligations and documents; orders bills, and sales sells.'
+  @Description_61e7f6e6 = N'The record of what we agreed: every agreement, the standard terms it incorporates, the provisions negotiated away from those terms, and the executed paper. Contracts tracks obligations and documents; orders bills, and sales sells.'
 SET
-  @Icon_51ba6fba = N'fa-solid fa-file-signature'
+  @Icon_61e7f6e6 = N'fa-solid fa-file-signature'
 SET
-  @DefaultForNewUser_51ba6fba = 1
+  @DefaultForNewUser_61e7f6e6 = 1
 SET
-  @DefaultNavItems_51ba6fba = N'[
+  @DefaultNavItems_61e7f6e6 = N'[
   {
     "Label": "Contracts",
     "Icon": "fa-solid fa-file-signature",
@@ -4767,38 +2827,38 @@ SET
   }
 ]'
 SET
-  @DefaultSequence_51ba6fba = 100
+  @DefaultSequence_61e7f6e6 = 100
 SET
-  @Status_51ba6fba = N'Active'
+  @Status_61e7f6e6 = N'Active'
 SET
-  @NavigationStyle_51ba6fba = N'App Switcher'
+  @NavigationStyle_61e7f6e6 = N'App Switcher'
 SET
-  @HideNavBarIconWhenActive_51ba6fba = 0
+  @HideNavBarIconWhenActive_61e7f6e6 = 0
 SET
-  @Path_51ba6fba = N'contracts'
+  @Path_61e7f6e6 = N'contracts'
 SET
-  @AutoUpdatePath_51ba6fba = 1
-EXEC [${mjSchema}].spCreateApplication @ID = @ID_51ba6fba,
-  @Name = @Name_51ba6fba,
-  @Description = @Description_51ba6fba,
-  @Icon = @Icon_51ba6fba,
-  @DefaultForNewUser = @DefaultForNewUser_51ba6fba,
-  @SchemaAutoAddNewEntities = @SchemaAutoAddNewEntities_51ba6fba,
+  @AutoUpdatePath_61e7f6e6 = 1
+EXEC [${mjSchema}].spCreateApplication @ID = @ID_61e7f6e6,
+  @Name = @Name_61e7f6e6,
+  @Description = @Description_61e7f6e6,
+  @Icon = @Icon_61e7f6e6,
+  @DefaultForNewUser = @DefaultForNewUser_61e7f6e6,
+  @SchemaAutoAddNewEntities = @SchemaAutoAddNewEntities_61e7f6e6,
   @SchemaAutoAddNewEntities_Clear = 1,
-  @Color = @Color_51ba6fba,
+  @Color = @Color_61e7f6e6,
   @Color_Clear = 1,
-  @DefaultNavItems = @DefaultNavItems_51ba6fba,
-  @ClassName = @ClassName_51ba6fba,
+  @DefaultNavItems = @DefaultNavItems_61e7f6e6,
+  @ClassName = @ClassName_61e7f6e6,
   @ClassName_Clear = 1,
-  @DefaultSequence = @DefaultSequence_51ba6fba,
-  @Status = @Status_51ba6fba,
-  @NavigationStyle = @NavigationStyle_51ba6fba,
-  @TopNavLocation = @TopNavLocation_51ba6fba,
+  @DefaultSequence = @DefaultSequence_61e7f6e6,
+  @Status = @Status_61e7f6e6,
+  @NavigationStyle = @NavigationStyle_61e7f6e6,
+  @TopNavLocation = @TopNavLocation_61e7f6e6,
   @TopNavLocation_Clear = 1,
-  @HideNavBarIconWhenActive = @HideNavBarIconWhenActive_51ba6fba,
-  @Path = @Path_51ba6fba,
-  @AutoUpdatePath = @AutoUpdatePath_51ba6fba,
-  @AgentSettings = @AgentSettings_51ba6fba,
+  @HideNavBarIconWhenActive = @HideNavBarIconWhenActive_61e7f6e6,
+  @Path = @Path_61e7f6e6,
+  @AutoUpdatePath = @AutoUpdatePath_61e7f6e6,
+  @AgentSettings = @AgentSettings_61e7f6e6,
   @AgentSettings_Clear = 1;
 
 GO
@@ -4807,7 +2867,7 @@ GO
 
 
 -- End of SQL Logging Session
--- Session ID: f7ba49fc-7a67-4aa9-b4a3-f6f5d080ab24
--- Completed: 2026-08-23T15:37:13.597Z
--- Duration: 18069ms
--- Total Statements: 99
+-- Session ID: d1c3204d-5a28-4007-96df-2cdc3d478801
+-- Completed: 2026-08-24T02:34:23.408Z
+-- Duration: 16608ms
+-- Total Statements: 27

@@ -79,6 +79,21 @@ expensive to reverse.
   negotiated one — so a paraphrase there is worse than an empty column, because it looks
   authoritative. **Any recapture must parse the page source, not a summary of it.** The integrity
   check to re-run is in `.contract-provisions.json`'s comment block.
+- **FOLLOW-ON RULING, 2026-08-24 (Marcelo): the list moved OUT of `metadata/` to `demo-data/`.**
+  Answering Q-5 solved the half of the problem that was in view — *do not invent legal text* — and
+  left the other half standing. This entry's own reasoning is what identifies it: "plausible-looking
+  clause text committed to `metadata/` would install into a real database and appear on screen next
+  to a customer's negotiated language." That objection is about `metadata/` being the **install
+  seed**, and it does not stop applying once the text is real. It changes who is harmed: not a
+  reader misled by synthetic wording, but every consumer of this app receiving one company's actual
+  Master Services Agreement as reference data. Since v0.1.0 publishes these packages, it would have
+  shipped inside `V202608240300__…__Metadata_Sync.sql`.
+  The line that holds: **a kind of contract is vocabulary and ships; a particular company's
+  agreement is content and does not.** Contract types and template types stay in `metadata/`; the
+  template and its 71 provisions are in `demo-data/`, pushed only when someone asks for them. That
+  also made `demo-data/` self-contained for the first time — its contracts and modifications cite
+  the template by `VersionLabel` and its provisions by number, so pushing it previously worked only
+  because `metadata/` happened to be shipping the agreement.
 
 
 ## Q-6 · `ContractTemplate.SourceURL` is NOT NULL — which forecloses a file-only template version

@@ -1,16 +1,25 @@
-# migrations/ — Skyway (Flyway-compatible) migrations for `__mj_BizAppsContracts`
+# Database migrations
 
-Applied in filename order against this app's schema at install/upgrade and during
-development.
+**Binding for this repo.** Skyway (Flyway-compatible) migrations for
+`__mj_BizAppsContracts`, in `migrations/`, applied in filename order against this app's
+schema at install/upgrade and during development.
+
+The short version, if you read nothing else: **schema changes are new `V` migrations, never
+edits to the baseline**; a filename must sort after everything the target branch has already
+shipped; and a migration that changes a table's shape needs a CodeGen capture behind it or MJ
+cannot see the column.
 
 ## Naming
 
     B<YYYYMMDDHHMM>__v<app-version>__<Description>.sql    baseline (first schema drop of a new app)
     V<YYYYMMDDHHMM>__v<app-version>__<Description>.sql    everything after
 
-- Timestamps must be strictly increasing. **Not enforced by CI.** Flyway applies in filename
-  order, so a migration numbered behind one already applied is skipped silently on an existing
-  database and applied in the wrong order on a fresh one.
+- Timestamps must be strictly increasing. **Enforced by CI** (`changes.yml` compares every
+  newly added migration against the highest timestamp already on the base branch). Flyway
+  applies in filename order, so a migration numbered behind one already applied is skipped
+  silently on an existing database and applied in the wrong order on a fresh one. This was
+  documented as "not enforced" and then caught a real defect the first time it ran — see
+  "Why the three V files are numbered Aug 24" below.
 - Use `${flyway:defaultSchema}` for THIS schema; literal `__mj` for MJ core rows.
 - Do **not** add `__mj_CreatedAt` / `__mj_UpdatedAt` columns or FK indexes — CodeGen does.
 
@@ -21,7 +30,7 @@ development.
 | `B…__Baseline.sql` | schema, `__mj.SchemaInfo`, the sequence, the sort-key function, all seven tables + constraints, the two app-owned programmable objects, then the CodeGen capture |
 | `V202608240100__…__Layered_base_view_flags.sql` | flips two entities to layered base views + the capture that re-points CodeGen to `vw*Generated` |
 | `V202608240200__…__Layered_base_views_and_derived_fields.sql` | the two application-owned wrapper views + explicit registration of the 8 columns they add |
-| `V202608240300__…__Metadata_Sync.sql` | the reference vocabulary `mj sync push` writes from `metadata/` |
+| `V202608240300__…__Metadata_Sync.sql` | the reference vocabulary `mj sync push` writes from `metadata/` — contract types, template types, entity/field/relationship metadata, the application row |
 
 **The count is forced, not stylistic.** Everything that CAN be folded into the baseline
 has been — 22 incremental files collapsed into it on 2026-08-23 (see below). What remains
@@ -91,6 +100,24 @@ For a development database the fix is to rebuild from zero, which is routine and
 train is verified. There is no supported upgrade path from the old train, and there does not
 need to be: nothing had shipped. **This is the last point at which that is true** — see
 "Baseline edits are CLOSED" below.
+
+### What `metadata/` may contain — vocabulary, never one organisation's content
+
+`metadata/` is the **install seed**: it ships inside `V…__Metadata_Sync.sql` and lands in every
+consumer's database. So the test for anything added there is not "is it correct?" but "should
+*everyone* receive it?"
+
+- **Ships:** structural metadata (`schema-info`, `entities`, `entity-fields`,
+  `entity-relationships`, `applications`) and genuine vocabulary — contract types, template types.
+- **Does not ship:** any particular organisation's records, *including their agreement text*.
+
+This was got wrong once and is worth stating plainly. `metadata/contract-templates/` and
+`metadata/contract-provisions/` carried Blue Cypress's actual Master Services Agreement — 71
+verbatim provisions — so the published migration seeded one company's contract terms into every
+install as reference data. They moved to `demo-data/` on 2026-08-24, which is opt-in and never
+shipped. The distinction: **a KIND of contract is vocabulary; a particular company's AGREEMENT is
+content.** `plans/QUESTIONS.md` Q-5 carries the full ruling, including why answering "do not invent
+legal text" left this half of the problem standing.
 
 ## The 50-blank-line rule (where hand-written DDL stops and CodeGen output starts)
 
