@@ -5,8 +5,7 @@
       "ProvisionNumber": "1.1",
       "Title": "BC Affiliate",
       "ProvisionText": "“BC Affiliate” or “BC Affiliates” shall mean the particular company within BC’s Family of Companies as listed on https://bluecypress.io/BCAffiliates that is the party to a particular Order Form or Statement of Work.",
-      "Description": "Section 1 — Definitions",
-      "Sequence": 1
+      "Description": "Section 1 — Definitions"
     },
     "primaryKey": {
       "ID": "33333333-0000-4000-8000-000000004001"
@@ -37,8 +36,8 @@
       "14.1, 15.1, 16.1-16.18), no clause under 40 characters. Re-run that check if this is recaptured."
     ],
     "sync": {
-      "lastModified": "2026-08-19T03:02:18.666Z",
-      "checksum": "cd1b1c5cde4a8464c76fdfa0dd753fcb333f1c14497d909948bc5d0ec3ec65a5"
+      "lastModified": "2026-08-20T06:46:02.740Z",
+      "checksum": "669e4464b414daffaee733fe47405af398d4711a928119a052e8449778945b90"
     }
   },
   {
@@ -47,15 +46,14 @@
       "ProvisionNumber": "1.2",
       "Title": "Aggregated Data",
       "ProvisionText": "“Aggregated Data” means data, which is based on or derived from Customer Data, and which has been aggregated and de-identified in a manner that does not designate or identify Customer or its users as the source of the data.",
-      "Description": "Section 1 — Definitions",
-      "Sequence": 2
+      "Description": "Section 1 — Definitions"
     },
     "primaryKey": {
       "ID": "33333333-0000-4000-8000-000000004002"
     },
     "sync": {
-      "lastModified": "2026-08-19T03:02:18.681Z",
-      "checksum": "67a586950e6ac9950900a2c521fa75d51b77ed3e38e02d5a6ecf9383a788073a"
+      "lastModified": "2026-08-20T06:46:02.740Z",
+      "checksum": "7bd7a4bf7e361bc1bd9340ae005da0dcc073aad2f0648930355f1a890b23e1bd"
     }
   },
   {
@@ -64,15 +62,14 @@
       "ProvisionNumber": "1.3",
       "Title": "Authorized User",
       "ProvisionText": "“Authorized User” means any individual or entity authorized by the Customer to access or use the SaaS Services and/or Work Product provided under this Agreement. This includes Customer’s employees, consultants, contractors, agents, or other representatives who are provided with access credentials or other approved access by the Customer or BC Affiliates. Authorized Users have access to a broader set of functionalities, including administrative controls and Confidential Information, and are subject to the terms and conditions of this Agreement. In no event shall an Authorized User include an employee of a BC Affiliate Competitor or any individual or entity acting in a capacity that, in the commercially reasonable opinion of BC Affiliate, undermines the security or integrity of the Software. The Customer is solely responsible for ensuring that any and all activities conducted by its Authorized Users in violation of this Agreement.",
-      "Description": "Section 1 — Definitions",
-      "Sequence": 3
+      "Description": "Section 1 — Definitions"
     },
     "primaryKey": {
       "ID": "33333333-0000-4000-8000-000000004003"
     },
     "sync": {
-      "lastModified": "2026-08-19T03:02:18.697Z",
-      "checksum": "bdba38fda10fdb23850b23d19f073739e9f1143ac75ab284577eccee6fff3033"
+      "lastModified": "2026-08-20T06:46:02.740Z",
+      "checksum": "e8b0b9937d7534a19f19d7c2cb293e7bc0a31df8fac68c5831cd98c7a6a817e3"
     }
   },
   {
@@ -81,15 +78,14 @@
       "ProvisionNumber": "1.4",
       "Title": "BC Affiliate Competitor",
       "ProvisionText": "“BC Affiliate Competitor” means any company, person or entity that generates a significant portion of their revenues from products or services that are substantially similar to products or services offered by any BC Affiliate.",
-      "Description": "Section 1 — Definitions",
-      "Sequence": 4
+      "Description": "Section 1 — Definitions"
     },
     "primaryKey": {
       "ID": "33333333-0000-4000-8000-000000004004"
     },
     "sync": {
-      "lastModified": "2026-08-19T03:02:18.711Z",
-      "checksum": "befc8df5795fbb2612f79014cf151e2e41e11c648fb48df869508ef515d7ea56"
+      "lastModified": "2026-08-20T06:46:02.740Z",
+      "checksum": "f33fae2c8b90d28d16a2e8e221959f884f94582ab06473e38200bbd498172c6d"
     }
   },
   {
@@ -98,15 +94,14 @@
       "ProvisionNumber": "1.5",
       "Title": "End User",
       "ProvisionText": "“End User” means any individual or entity, other than Customer, that interacts with or utilizes the functionalities of the Software provided under this Agreement, without requiring a license or direct authorization from the Customer or BC Affiliates. End Users may include, but are not limited to, customers, clients, or other third parties who access the Software through platforms or services owned, licensed, controlled, operated, or otherwise provided by the Customer. End Users are distinct from Authorized Users in that they do not have access to the full range of features, administrative controls, or Confidential Information available to Authorized Users and are not directly subject to the terms of this Agreement. The Customer is solely responsible for ensuring that End User interaction with or utilization of the Software complies with the terms of this Agreement and any applicable laws and regulations.",
-      "Description": "Section 1 — Definitions",
-      "Sequence": 5
+      "Description": "Section 1 — Definitions"
     },
     "primaryKey": {
       "ID": "33333333-0000-4000-8000-000000004005"
     },
     "sync": {
-      "lastModified": "2026-08-19T03:02:18.727Z",
-      "checksum": "ea6e1449bffa8003af0964ddea226aac744061d944898f382d77261af767e297"
+      "lastModified": "2026-08-20T06:46:02.740Z",
+      "checksum": "32e1c0ef66745a7acff59ff4f65df52f67c90b8460004fa33691841d9fc1579a"
     }
   },
   {
@@ -115,15 +110,14 @@
       "ProvisionNumber": "1.6",
       "Title": "Confidential Information",
       "ProvisionText": "“Confidential Information” means any information relating to or disclosed in the course of the Agreement, which is or should be reasonably understood to be confidential or proprietary to the disclosing party, or which is described in Section 8 of this Agreement.",
-      "Description": "Section 1 — Definitions",
-      "Sequence": 6
+      "Description": "Section 1 — Definitions"
     },
     "primaryKey": {
       "ID": "33333333-0000-4000-8000-000000004006"
     },
     "sync": {
-      "lastModified": "2026-08-19T03:02:18.742Z",
-      "checksum": "9fd66761ac6cf23f733b76bfeaf09dc9a9e7604ca377a5769d1bd1a78f52b9e2"
+      "lastModified": "2026-08-20T06:46:02.740Z",
+      "checksum": "85d3253be49dc5e90715b680a26e84a2199808db6516b01102a9b0e3e7c56e31"
     }
   },
   {
@@ -132,15 +126,14 @@
       "ProvisionNumber": "1.7",
       "Title": "Customer Data",
       "ProvisionText": "“Customer Data” means any of Customer’s information, documents, or electronic files that are provided to a BC Affiliate hereunder.",
-      "Description": "Section 1 — Definitions",
-      "Sequence": 7
+      "Description": "Section 1 — Definitions"
     },
     "primaryKey": {
       "ID": "33333333-0000-4000-8000-000000004007"
     },
     "sync": {
-      "lastModified": "2026-08-19T03:02:18.756Z",
-      "checksum": "3c52be9622af87c15d6f5d5f152e5ada991602debaecdf637b3b81b1f4685450"
+      "lastModified": "2026-08-20T06:46:02.740Z",
+      "checksum": "675001c7f328177cb273e1181a41577ded54cc9062dc7d4ad29e5dd807791077"
     }
   },
   {
@@ -149,15 +142,14 @@
       "ProvisionNumber": "1.8",
       "Title": "Enrichment Data",
       "ProvisionText": "\"Enrichment Data\" means user interaction and behavioral data derived from individual users' interactions with the Software and any communications received by them from the Software. Enrichment Data includes, but is not limited to, user application prompts, clicks, opens of emails, messages, and/or records, and time spent consuming specific pieces of content and any generated data that is created by the Software using other Enrichment Data. Depending on the product and/or service described in the relevant Order Form and/or Statement of Work, Enrichment Data may also include the correlation of Enrichment Data with the individual user’s IP and/or email address and the user’s IP and/or email address itself for purposes of linking other Enrichment Data to the user’s IP and/or email address.",
-      "Description": "Section 1 — Definitions",
-      "Sequence": 8
+      "Description": "Section 1 — Definitions"
     },
     "primaryKey": {
       "ID": "33333333-0000-4000-8000-000000004008"
     },
     "sync": {
-      "lastModified": "2026-08-19T03:02:18.770Z",
-      "checksum": "a11427f3ae5b7e65793067f95e6f8360c43ba5f6fc4edd425039e3aa9d57bb0a"
+      "lastModified": "2026-08-20T06:46:02.740Z",
+      "checksum": "78f930e95d2486f44953e8edc8995f88819c660b1e1d452d797813a37a1600b3"
     }
   },
   {
@@ -166,15 +158,14 @@
       "ProvisionNumber": "1.9",
       "Title": "Error",
       "ProvisionText": "“Error” means any reproducible material failure of the Software to function in accordance with its Documentation.",
-      "Description": "Section 1 — Definitions",
-      "Sequence": 9
+      "Description": "Section 1 — Definitions"
     },
     "primaryKey": {
       "ID": "33333333-0000-4000-8000-000000004009"
     },
     "sync": {
-      "lastModified": "2026-08-19T03:02:18.784Z",
-      "checksum": "f7d2d512fb0d2e456e274599aaaf786c24e14e38d59f01c48125e933f2a14cdc"
+      "lastModified": "2026-08-20T06:46:02.740Z",
+      "checksum": "2e2b44f8b84ecece7686098c85f616f2d83334b35f1f397e4d5d54ba7f3f8d3f"
     }
   },
   {
@@ -183,15 +174,14 @@
       "ProvisionNumber": "1.10",
       "Title": "Documentation",
       "ProvisionText": "“Documentation” means any online or printed user manuals, functional specifications that are provided to Customer by any BC Affiliate, and any derivative works arising from or related to the foregoing.",
-      "Description": "Section 1 — Definitions",
-      "Sequence": 10
+      "Description": "Section 1 — Definitions"
     },
     "primaryKey": {
       "ID": "33333333-0000-4000-8000-000000004010"
     },
     "sync": {
-      "lastModified": "2026-08-19T03:02:18.798Z",
-      "checksum": "72d1c4cae0ed1b0237b1048c57128d1a865439753b935dbf03e03913bc79ea35"
+      "lastModified": "2026-08-20T06:46:02.740Z",
+      "checksum": "cb535f2051dcd26ec50af96e4e1c3121e26680616de7292fbd758f8ae01b962c"
     }
   },
   {
@@ -200,15 +190,14 @@
       "ProvisionNumber": "1.11",
       "Title": "Order Form",
       "ProvisionText": "“Order Form” means an addendum addressing the acquisition of a specific set of products and/or services executed by authorized representatives of Customer and any BC Affiliate. References to the Order Form include any exhibits to the Order Form, except where this Agreement specifically addresses exhibits separately. By executing an Order Form hereunder with any Affiliate, Customer agrees to be bound by the terms of this Agreement as if it were an original party hereto. Each Order Form constitutes a unique, separate contract between the Customer and the applicable BC Affiliate, and BC is not a party to, and has no liability under, any Order Form.",
-      "Description": "Section 1 — Definitions",
-      "Sequence": 11
+      "Description": "Section 1 — Definitions"
     },
     "primaryKey": {
       "ID": "33333333-0000-4000-8000-000000004011"
     },
     "sync": {
-      "lastModified": "2026-08-19T03:02:18.822Z",
-      "checksum": "738497af1dd3eb4cee17acfcbcf24fe323e65a21c1261407d58f5b5c7ccf5375"
+      "lastModified": "2026-08-20T06:46:02.746Z",
+      "checksum": "454fa51963a65251631771d30909d7acabef71632ad4621d7a745e11b71875f3"
     }
   },
   {
@@ -217,15 +206,14 @@
       "ProvisionNumber": "1.12",
       "Title": "Professional Services",
       "ProvisionText": "“Professional Services” or “Services” means any services provided by any BC Affiliate to Customer pursuant to the applicable Order Form and/or Statement of Work.",
-      "Description": "Section 1 — Definitions",
-      "Sequence": 12
+      "Description": "Section 1 — Definitions"
     },
     "primaryKey": {
       "ID": "33333333-0000-4000-8000-000000004012"
     },
     "sync": {
-      "lastModified": "2026-08-19T03:02:18.836Z",
-      "checksum": "1878c0c3d27e5717df70608425ea3fea243355d7f69b7063f1a827f0a03a20e3"
+      "lastModified": "2026-08-20T06:46:02.746Z",
+      "checksum": "0f54664cea76fdd4a0ca6ac8dafb3f9c73e2cc6c8fe82c724f54838147c1f548"
     }
   },
   {
@@ -234,15 +222,14 @@
       "ProvisionNumber": "1.13",
       "Title": "Software-as-a-Service",
       "ProvisionText": "“Software-as-a-Service” or “SaaS” or “Software” means the BC Affiliate software and tools, including any updates that may be provided by Affiliate, where the BC Affiliate hosts (directly or indirectly) for Customer’s use.",
-      "Description": "Section 1 — Definitions",
-      "Sequence": 13
+      "Description": "Section 1 — Definitions"
     },
     "primaryKey": {
       "ID": "33333333-0000-4000-8000-000000004013"
     },
     "sync": {
-      "lastModified": "2026-08-19T03:02:18.852Z",
-      "checksum": "6ded91bae15373cb3fe6ea669486cba37517da92992daf5b380e7ebe27e83ddf"
+      "lastModified": "2026-08-20T06:46:02.746Z",
+      "checksum": "2da81972397c0c536bf1caefee677904bf3a3342042aea0eda9df44f97c5d013"
     }
   },
   {
@@ -251,15 +238,14 @@
       "ProvisionNumber": "1.14",
       "Title": "Statement of Work",
       "ProvisionText": "“Statement of Work” means an addendum addressing the acquisition of a specific set of project-related services executed by authorized representatives of Customer and any BC Affiliate. References to the Statement of Work include any exhibits to the Statement of Work, except where this Agreement specifically addresses exhibits separately. By executing a Statement of Work hereunder, Customer agrees to be bound by the terms of this Agreement as if it were an original party hereto. Each Statement of Work constitutes a unique, separate contract between the Customer and the applicable BC Affiliate, and BC is not a party to, and has no liability under, any Statement of Work.",
-      "Description": "Section 1 — Definitions",
-      "Sequence": 14
+      "Description": "Section 1 — Definitions"
     },
     "primaryKey": {
       "ID": "33333333-0000-4000-8000-000000004014"
     },
     "sync": {
-      "lastModified": "2026-08-19T03:02:18.870Z",
-      "checksum": "087cb9da08d510234cb8af9df26a48e0fc37622c3ac6086c88d07623d7f6c0c9"
+      "lastModified": "2026-08-20T06:46:02.746Z",
+      "checksum": "cb67dcc3fcc1fa748c5bf4567a87905f3fc1ee741134d83ed5f89377c143de17"
     }
   },
   {
@@ -268,15 +254,14 @@
       "ProvisionNumber": "1.15",
       "Title": "Support Services",
       "ProvisionText": "“Support Services” means maintenance and technical support services for the Software.",
-      "Description": "Section 1 — Definitions",
-      "Sequence": 15
+      "Description": "Section 1 — Definitions"
     },
     "primaryKey": {
       "ID": "33333333-0000-4000-8000-000000004015"
     },
     "sync": {
-      "lastModified": "2026-08-19T03:02:18.889Z",
-      "checksum": "77cdb5d0520f8d8c97d6561540710cbc710037b24d5da0056360ef686fe5b418"
+      "lastModified": "2026-08-20T06:46:02.746Z",
+      "checksum": "20bfc144a76cbffdecc082640cc4f4af133103c591784b1b0b33bf00bc6adabd"
     }
   },
   {
@@ -285,15 +270,14 @@
       "ProvisionNumber": "1.16",
       "Title": "Update",
       "ProvisionText": "“Update” means any patch, bug fix, release, version, modification, or successor to the Software.",
-      "Description": "Section 1 — Definitions",
-      "Sequence": 16
+      "Description": "Section 1 — Definitions"
     },
     "primaryKey": {
       "ID": "33333333-0000-4000-8000-000000004016"
     },
     "sync": {
-      "lastModified": "2026-08-19T03:02:18.908Z",
-      "checksum": "163e746a9e13307bb3193bb35c1e67d87c38fa508a0ac34473a5c256b928dbef"
+      "lastModified": "2026-08-20T06:46:02.747Z",
+      "checksum": "d20282efa5dea6f10ecff38a1f5eb58acfbe5f0a5a080efca046d3834d84c114"
     }
   },
   {
@@ -302,15 +286,14 @@
       "ProvisionNumber": "1.17",
       "Title": "Work Product",
       "ProvisionText": "“Work Product” means all work created under this Agreement by any BC Affiliate.",
-      "Description": "Section 1 — Definitions",
-      "Sequence": 17
+      "Description": "Section 1 — Definitions"
     },
     "primaryKey": {
       "ID": "33333333-0000-4000-8000-000000004017"
     },
     "sync": {
-      "lastModified": "2026-08-19T03:02:18.926Z",
-      "checksum": "3f96d4a4ec048d813f4cad12623cb5c341b25899587c21f7228421680d65b558"
+      "lastModified": "2026-08-20T06:46:02.747Z",
+      "checksum": "e0d385da12318275f368c14a5b491a2fa306d025d5cee7459aa5b297a961a4dc"
     }
   },
   {
@@ -319,15 +302,14 @@
       "ProvisionNumber": "2.1",
       "Title": "Scope of This Agreement",
       "ProvisionText": "This Agreement covers one or more separate orders or projects to which the Customer and any BC Affiliate now or hereafter agree, with each such order or project to be described in separate Order Form(s) and/or Statement(s) of Work to be attached as an exhibit hereto.",
-      "Description": "Section 2 — Scope of This Agreement",
-      "Sequence": 18
+      "Description": "Section 2 — Scope of This Agreement"
     },
     "primaryKey": {
       "ID": "33333333-0000-4000-8000-000000004018"
     },
     "sync": {
-      "lastModified": "2026-08-19T03:02:18.942Z",
-      "checksum": "b2661f1e5a1a674a76749915390c5486230a5cfd6f405ed4a858c22cd16d73a7"
+      "lastModified": "2026-08-20T06:46:02.747Z",
+      "checksum": "6f5e10c89d560ea1f7a0133be2d5e259e5bbe802f143b90d47bbf737846bba59"
     }
   },
   {
@@ -336,15 +318,14 @@
       "ProvisionNumber": "3.1",
       "Title": "Software-as-a-Service",
       "ProvisionText": "BC Affiliate, in conjunction with its Agreement to provide products and/or services, shall grant to Customer a non-exclusive, non-transferable license to use the Software for its internal business purposes during the term of the Order Form.",
-      "Description": "Section 3 — Software-as-a-Service",
-      "Sequence": 19
+      "Description": "Section 3 — Software-as-a-Service"
     },
     "primaryKey": {
       "ID": "33333333-0000-4000-8000-000000004019"
     },
     "sync": {
-      "lastModified": "2026-08-19T03:02:18.958Z",
-      "checksum": "ae37ea0dcd421df88e29b529064bcc3dafc05199e42faf9e4f8605655b59a2f3"
+      "lastModified": "2026-08-20T06:46:02.747Z",
+      "checksum": "19cb4a738d5d53226eda87a696297695df5fc27597e2c6a949bafc4b52b36f84"
     }
   },
   {
@@ -353,15 +334,14 @@
       "ProvisionNumber": "3.2",
       "Title": "Software-as-a-Service",
       "ProvisionText": "Customer shall not, directly, indirectly, alone, or with another party, (i) copy, disassemble, reverse engineer, or decompile the Software; (ii) modify, create derivative works based upon, or translate the Software; (iii) transfer or otherwise grant any rights in the Software in any form to any other party, nor shall Customer attempt to do any of the foregoing or cause or permit any third party to do or attempt to do any of the foregoing, except as expressly permitted hereunder.",
-      "Description": "Section 3 — Software-as-a-Service",
-      "Sequence": 20
+      "Description": "Section 3 — Software-as-a-Service"
     },
     "primaryKey": {
       "ID": "33333333-0000-4000-8000-000000004020"
     },
     "sync": {
-      "lastModified": "2026-08-19T03:02:18.975Z",
-      "checksum": "45ef8ccc25f5eba236f970bdcbe7443ed487df2f6cd0cf6e4046a7829086ceda"
+      "lastModified": "2026-08-20T06:46:02.747Z",
+      "checksum": "20c64fe0e2969f3c9b71ab9176abaed2df86016c547e96ca46d9b0f00cde99ee"
     }
   },
   {
@@ -370,15 +350,14 @@
       "ProvisionNumber": "3.3",
       "Title": "Software-as-a-Service",
       "ProvisionText": "Customer is solely responsible for maintaining the security of all usernames and passwords granted to it, for the security of its information systems used to access the Software, and for its Authorized Users’ compliance with the terms of this Agreement. BC Affiliate shall have the right at any time to terminate or suspend access to any Authorized User or to Customer if BC Affiliate reasonably believes that such termination or suspension is necessary to preserve the security, integrity, or accessibility of the Software, BC Affiliate (including its officers, directors, employees and agents), and BC Affiliate’s other customers.",
-      "Description": "Section 3 — Software-as-a-Service",
-      "Sequence": 21
+      "Description": "Section 3 — Software-as-a-Service"
     },
     "primaryKey": {
       "ID": "33333333-0000-4000-8000-000000004021"
     },
     "sync": {
-      "lastModified": "2026-08-19T03:02:19.004Z",
-      "checksum": "39c0aa86e2f89e64fc85967fbbca34e45624d9d078b03c98e04d9e8067c100f7"
+      "lastModified": "2026-08-20T06:46:02.751Z",
+      "checksum": "eb4a829759aebe6ca088cef7308af0f77e88f308f7da3d5aa52f25258a2464bd"
     }
   },
   {
@@ -387,15 +366,14 @@
       "ProvisionNumber": "4.1",
       "Title": "Support Services",
       "ProvisionText": "BC Affiliate shall provide Customer, at no additional charge, with technical support services for the Software on the same basis as it provides such services to similarly situated customers purchasing comparable SaaS, Services, and/or Work Product.",
-      "Description": "Section 4 — Support Services",
-      "Sequence": 22
+      "Description": "Section 4 — Support Services"
     },
     "primaryKey": {
       "ID": "33333333-0000-4000-8000-000000004022"
     },
     "sync": {
-      "lastModified": "2026-08-19T03:02:19.019Z",
-      "checksum": "c80714c143c0f76e53c5c1f50847d6bad0391ed73114ef25f4cbb1fee59c4776"
+      "lastModified": "2026-08-20T06:46:02.751Z",
+      "checksum": "c590ce45bb55332829fea6535ef3183ea3e3c378aa7612f437a74d1445d0c2b8"
     }
   },
   {
@@ -404,15 +382,14 @@
       "ProvisionNumber": "4.2",
       "Title": "BC Affiliate shall apply updates to the Software from time to time",
       "ProvisionText": "BC Affiliate shall apply updates to the Software from time to time. Updates of the Software shall be at no charge to Customer unless the Update includes new features for which additional charges apply, in which case, if Customer elects to use the new features, Customer and BC Affiliate will enter into an Order Form and/or Statement of Work specifying the additional fees.",
-      "Description": "Section 4 — Support Services",
-      "Sequence": 23
+      "Description": "Section 4 — Support Services"
     },
     "primaryKey": {
       "ID": "33333333-0000-4000-8000-000000004023"
     },
     "sync": {
-      "lastModified": "2026-08-19T03:02:19.034Z",
-      "checksum": "8ef68f7265d20e0e49aab9131aab763e97892af81e2479bc6ed857f347ccdd9d"
+      "lastModified": "2026-08-20T06:46:02.751Z",
+      "checksum": "5b69b88c2f43189fe57e99b24bcb0cff68de009b924c1e8818feecd4fbcfecca"
     }
   },
   {
@@ -421,15 +398,14 @@
       "ProvisionNumber": "4.3",
       "Title": "Support Services",
       "ProvisionText": "BC Affiliate shall use commercially reasonable efforts to correct all Errors or to provide a reasonable workaround as soon as is possible during BC Affiliate's normal business hours. Customer shall provide such access, information, and support as BC Affiliate may reasonably require in the process of resolving any Error. This paragraph provides Customer’s sole and exclusive remedy for any Errors in the Software.",
-      "Description": "Section 4 — Support Services",
-      "Sequence": 24
+      "Description": "Section 4 — Support Services"
     },
     "primaryKey": {
       "ID": "33333333-0000-4000-8000-000000004024"
     },
     "sync": {
-      "lastModified": "2026-08-19T03:02:19.049Z",
-      "checksum": "f1d0324540a22800efda91aea90a3a68a6131454155dd2972007a6d816d63bf3"
+      "lastModified": "2026-08-20T06:46:02.751Z",
+      "checksum": "1c25a2e9d930c0c2620d7c78f9cfd6a09a2b07947da8192312304f8435436c36"
     }
   },
   {
@@ -438,15 +414,14 @@
       "ProvisionNumber": "4.4",
       "Title": "Support Services",
       "ProvisionText": "BC Affiliate is not obligated to correct any Errors or provide any other support to the extent such Errors or need for support was created in whole or in part by: (i) the acts, omissions, negligence or willful misconduct of Customer, or any third party acting on Customer’s behalf, including any unauthorized modifications of the Software or its operating environment; (ii) any failure or defect of Customer’s or a third party’s equipment, software, facilities, third party applications, or internet connectivity (or other causes outside of BC Affiliate’s or its managed services provider's point of presence); (iii) Customer’s use of the Software other than in accordance with the Software’s documentation; or (iv) a Force Majeure Event.",
-      "Description": "Section 4 — Support Services",
-      "Sequence": 25
+      "Description": "Section 4 — Support Services"
     },
     "primaryKey": {
       "ID": "33333333-0000-4000-8000-000000004025"
     },
     "sync": {
-      "lastModified": "2026-08-19T03:02:19.064Z",
-      "checksum": "cc4e7f07a1bd6555df1f5592329587a08558c642c9f34f5649e5607f65f639af"
+      "lastModified": "2026-08-20T06:46:02.751Z",
+      "checksum": "56f5ae050a07f6cd7e8a5010b412d1efb2c8f8b522fb61527cb4f73242adeb4b"
     }
   },
   {
@@ -455,15 +430,14 @@
       "ProvisionNumber": "4.5",
       "Title": "Support Services",
       "ProvisionText": "BC Affiliate is not obligated to provide services for (i) development of new features, or (ii) any service change requested by Customer and not agreed by BC Affiliate in writing. BC Affiliate has the right to bill Customer at its standard services rates for any support issues excluded herein.",
-      "Description": "Section 4 — Support Services",
-      "Sequence": 26
+      "Description": "Section 4 — Support Services"
     },
     "primaryKey": {
       "ID": "33333333-0000-4000-8000-000000004026"
     },
     "sync": {
-      "lastModified": "2026-08-19T03:02:19.079Z",
-      "checksum": "382eb6a7cd70ba5a5ae76d13e4e9965e1195ab5747966c37ce24e700ae63aaa8"
+      "lastModified": "2026-08-20T06:46:02.751Z",
+      "checksum": "306fa942f22bb7df0c6ac21b3b9ed492de34d03349af1084273d6d02e5c92ab6"
     }
   },
   {
@@ -472,15 +446,14 @@
       "ProvisionNumber": "4.6",
       "Title": "Support Services",
       "ProvisionText": "In the event that this Agreement covers any product or service for which an end user can request to unsubscribe, terminate or modify its access to or use of the product or service, BC Affiliate and Customer agree that Customer is solely responsible for deciding whether or not to grant any such end user requests: (i) submitted to BC Affiliate by end users and transmitted by BC Affiliate to Customer; and (ii) submitted to Customer directly by end users. Customer also agrees to hold harmless and, upon request, defend BC Affiliate from and against any and all claims, suits, actions or legal proceedings brought by any third party against BC Affiliate, its affiliates and their officers, directors, employees and representatives, seeking injunctive relief or damages to recover for any loss, damage or injury to person or property, caused by or arising out of any decision or action by Customer in response to any such end user request.",
-      "Description": "Section 4 — Support Services",
-      "Sequence": 27
+      "Description": "Section 4 — Support Services"
     },
     "primaryKey": {
       "ID": "33333333-0000-4000-8000-000000004027"
     },
     "sync": {
-      "lastModified": "2026-08-19T03:02:19.095Z",
-      "checksum": "0af1ccd8ac517d439168587dbbb059147525024385d37cd4eb3ade5220eed5db"
+      "lastModified": "2026-08-20T06:46:02.751Z",
+      "checksum": "c11b951108c3a45f794dd82ffba30f25533aeeea22e08a995849e6972316ec77"
     }
   },
   {
@@ -489,15 +462,14 @@
       "ProvisionNumber": "5.1",
       "Title": "BC Affiliate Professional Services",
       "ProvisionText": "All Professional Services to be performed and Work Product to be developed by BC Affiliate shall be described in an Order Form and/or Statement of Work. All Work shall commence under the Order Form and/or Statement of Work once this Agreement and the Order Form or Statement of Work has been executed by an authorized individual for each party and deemed incorporated by reference in this Agreement.",
-      "Description": "Section 5 — BC Affiliate Professional Services",
-      "Sequence": 28
+      "Description": "Section 5 — BC Affiliate Professional Services"
     },
     "primaryKey": {
       "ID": "33333333-0000-4000-8000-000000004028"
     },
     "sync": {
-      "lastModified": "2026-08-19T03:02:19.110Z",
-      "checksum": "413816350301717ad1e80406c94363088ccf1d5722142433e4bdcf6100cf477b"
+      "lastModified": "2026-08-20T06:46:02.751Z",
+      "checksum": "5eddf031e20570c700d5fdf8ba766ed036283521f7d63b74bba74c5ebb28fc3f"
     }
   },
   {
@@ -506,15 +478,14 @@
       "ProvisionNumber": "5.2",
       "Title": "BC Affiliate Professional Services",
       "ProvisionText": "If it becomes necessary to modify an Order Form or Statement of Work for any reason, BC Affiliate may initiate, or Customer may request a change order (“Change Order”) with respect to the Statement of Work. A Change Order may modify start date, completion date, cost or any other element of the Order Form or Statement of Work as may be mutually agreed upon in writing by Customer and BC Affiliate. A Change Order shall take effect once it has been signed by an authorized individual for each such party, at which time it shall become an exhibit to the applicable Order Form or Statement of Work, and deemed incorporated by reference in this Agreement.",
-      "Description": "Section 5 — BC Affiliate Professional Services",
-      "Sequence": 29
+      "Description": "Section 5 — BC Affiliate Professional Services"
     },
     "primaryKey": {
       "ID": "33333333-0000-4000-8000-000000004029"
     },
     "sync": {
-      "lastModified": "2026-08-19T03:02:19.127Z",
-      "checksum": "c49c4ba7c250696d94d35ccadfa534d2a920773410b71ce12aa479d4e3911e9d"
+      "lastModified": "2026-08-20T06:46:02.751Z",
+      "checksum": "37b5cff898f9997b1ad229ea91948c7585b68b4a1e7ad7e75be1e8f702f394a6"
     }
   },
   {
@@ -523,15 +494,14 @@
       "ProvisionNumber": "5.3",
       "Title": "BC Affiliate Professional Services",
       "ProvisionText": "Work Product may not be used by any person or entity that is not an Authorized User. Work Product is to be used for Customer’s internal use and only to process information or data of Customer, or such other data which Customer may through contractual agreements, have secured from third parties during the normal course of Customer’s business.",
-      "Description": "Section 5 — BC Affiliate Professional Services",
-      "Sequence": 30
+      "Description": "Section 5 — BC Affiliate Professional Services"
     },
     "primaryKey": {
       "ID": "33333333-0000-4000-8000-000000004030"
     },
     "sync": {
-      "lastModified": "2026-08-19T03:02:19.142Z",
-      "checksum": "b80561856fb9ca856e247f31c63b891020b1d2f13b85d886b04f010cc672a37e"
+      "lastModified": "2026-08-20T06:46:02.751Z",
+      "checksum": "a790db5c777a75dd4b46237af6a751873703783ab1cb1875b3a919444ddd372d"
     }
   },
   {
@@ -540,15 +510,14 @@
       "ProvisionNumber": "6.1",
       "Title": "Fees",
       "ProvisionText": "BC Affiliate shall bill Customer the fees and charges (“Fees”) pursuant to the billing schedule agreed to in each Order Form and/or Statement of Work. Payment terms for all invoices shall be defined in each Order Form and/or Statement of Work. Fees are non-cancelable and non-refundable.",
-      "Description": "Section 6 — Fees",
-      "Sequence": 31
+      "Description": "Section 6 — Fees"
     },
     "primaryKey": {
       "ID": "33333333-0000-4000-8000-000000004031"
     },
     "sync": {
-      "lastModified": "2026-08-19T03:02:19.168Z",
-      "checksum": "dc057e3e6741eb8f1461eca33bb9070f3a54e3489233fba2d5d0b65cf9cbb8e7"
+      "lastModified": "2026-08-20T06:46:02.756Z",
+      "checksum": "f9c4386f3c8e1a7c043f606390edbf420cfe25d4ad855715b1824408f8f82e89"
     }
   },
   {
@@ -557,15 +526,14 @@
       "ProvisionNumber": "6.2",
       "Title": "Fees",
       "ProvisionText": "Without limiting its other rights or liabilities, if any undisputed amount is not timely paid by Customer, BC Affiliate may (a) terminate the applicable Order Form and/or Statement of Work; (b) accelerate Customer’s unpaid fee obligations under the applicable Order Form and/or Statement of Work; or (c) suspend the applicable Services until all undisputed overdue amounts are paid in full.",
-      "Description": "Section 6 — Fees",
-      "Sequence": 32
+      "Description": "Section 6 — Fees"
     },
     "primaryKey": {
       "ID": "33333333-0000-4000-8000-000000004032"
     },
     "sync": {
-      "lastModified": "2026-08-19T03:02:19.183Z",
-      "checksum": "cab85931aa4f958a3307d120631c1b4b4d3dca369d653c029cea93fe0a78308e"
+      "lastModified": "2026-08-20T06:46:02.756Z",
+      "checksum": "34b651522502916e60c39372fe499d81baed82b9a26aefb7451611eb74ae414c"
     }
   },
   {
@@ -574,15 +542,14 @@
       "ProvisionNumber": "6.3",
       "Title": "Fees",
       "ProvisionText": "Customer shall have 10 days from receipt of invoice to advise BC Affiliate in writing of any disputed charge appearing on an invoice. Customer shall not unreasonably dispute an invoice from BC Affiliate. Customer agrees that time is of the essence in the resolution of disputes and agrees to work with BC Affiliate to resolve disputes in a timely fashion.",
-      "Description": "Section 6 — Fees",
-      "Sequence": 33
+      "Description": "Section 6 — Fees"
     },
     "primaryKey": {
       "ID": "33333333-0000-4000-8000-000000004033"
     },
     "sync": {
-      "lastModified": "2026-08-19T03:02:19.196Z",
-      "checksum": "cdc39b38220e0f54352f98ccca5641cdbec1dcc69ea56fafe85b59a4280554fb"
+      "lastModified": "2026-08-20T06:46:02.756Z",
+      "checksum": "892952f0903f3b4405316b1784fd7fed6470bb921c372ddbc6d735b7dfe2b467"
     }
   },
   {
@@ -591,15 +558,14 @@
       "ProvisionNumber": "6.4",
       "Title": "Fees",
       "ProvisionText": "Unless otherwise stipulated in the applicable Order Form and/or Statement of Work, BC Affiliate shall also be entitled to reimbursement for all reasonable out-of-pocket and other costs and expenses it incurs, and for which it provides documentation, directly related to performing services under this Agreement, including but not limited to all round-trip travel costs, food, and lodging costs. For any single expense in excess of $750 USD, BC Affiliate shall receive prior approval from Customer before incurring the expense. For purposes of this Subsection 6.4, prior approval may include email, text or similar approval of an expense. If any work is performed by BC Affiliate for Customer without an Order Form and/or Statement of Work in effect, BC Affiliate will be paid according to its then-current rate schedule, plus reimbursement for all reasonable out-of-pocket and other expenses it incurs.",
-      "Description": "Section 6 — Fees",
-      "Sequence": 34
+      "Description": "Section 6 — Fees"
     },
     "primaryKey": {
       "ID": "33333333-0000-4000-8000-000000004034"
     },
     "sync": {
-      "lastModified": "2026-08-19T03:02:19.210Z",
-      "checksum": "c0c1bd74983c678677398ecd986a8d836060d5162b2f2e8dc65b2ddd048f4910"
+      "lastModified": "2026-08-20T06:46:02.756Z",
+      "checksum": "7cf73c01a48a419393a80a8f504c215d0a39133de3c51537919e2d6fbe53df28"
     }
   },
   {
@@ -608,15 +574,14 @@
       "ProvisionNumber": "7.1",
       "Title": "Intellectual Property",
       "ProvisionText": "BC Affiliate acknowledges that it obtains no ownership rights in any intellectual property (including trademarks and copyright), content, data, or information that is solely developed or provided by Customer (“Customer IP”) under this Agreement. Customer is and shall remain the sole and exclusive owner of Customer IP.",
-      "Description": "Section 7 — Intellectual Property",
-      "Sequence": 35
+      "Description": "Section 7 — Intellectual Property"
     },
     "primaryKey": {
       "ID": "33333333-0000-4000-8000-000000004035"
     },
     "sync": {
-      "lastModified": "2026-08-19T03:02:19.224Z",
-      "checksum": "45ea612163b1744fff34927d7c7ea527b3a4ac7bdf6ff8899abe21cffee1344f"
+      "lastModified": "2026-08-20T06:46:02.756Z",
+      "checksum": "5d7a065c21d9e7fe2aa9b15c455418b89138f91bbf61d45a2ba70f9b6fcd7e26"
     }
   },
   {
@@ -625,15 +590,14 @@
       "ProvisionNumber": "7.2",
       "Title": "Intellectual Property",
       "ProvisionText": "Customer acknowledges that it obtains no ownership rights in any Services, Software, and/or Work Product, other than Work Product that is expressly designated in an Order Form or Statement of Work as “Customer-owned Work Product.” All rights to the Services, Software, and/or Work Product, including but not limited to any accompanying technical documentation, Confidential Information, trade secrets, trademarks, service marks, patents, copyrights, and other proprietary information, but specifically excluding Customer IP, are, shall be, and will remain the sole property of BC Affiliate or any third party from whom BC Affiliate has licensed such software or technology. Upon full payment of all relevant fees associated with each Order Form and/or Statement of Work, BC Affiliate hereby grants Customer a royalty-free, limited, non-exclusive, perpetual, irrevocable, worldwide license to make use of the Work Product other than Customer-owned Work Product and create derivative works subject to the same restrictions in Section 5.3.",
-      "Description": "Section 7 — Intellectual Property",
-      "Sequence": 36
+      "Description": "Section 7 — Intellectual Property"
     },
     "primaryKey": {
       "ID": "33333333-0000-4000-8000-000000004036"
     },
     "sync": {
-      "lastModified": "2026-08-19T03:02:19.239Z",
-      "checksum": "ae13b6579eb06b67cd77e79f9e1e6c6614fbe0d43a0289529d4b5067ef1da4cf"
+      "lastModified": "2026-08-20T06:46:02.756Z",
+      "checksum": "31a54631e3d2aa3ed809494e93fb14bf61f19ce94cf8848141f05b309024a981"
     }
   },
   {
@@ -642,15 +606,14 @@
       "ProvisionNumber": "7.3",
       "Title": "Customer owns all right, title and interest in the Customer Data",
       "ProvisionText": "Customer owns all right, title and interest in the Customer Data. During the term of this agreement, Customer hereby grants to BC Affiliate, a non-exclusive, non-transferable, non-sublicensable right and license to use, copy, transmit, modify, and display the Customer Data solely for purposes of providing the Software and related services to Customer hereunder. BC Affiliate shall not use the Customer Data except as necessary to perform its obligations hereunder. Customer is solely responsible for obtaining any and all consents from individuals or third-party entities that are necessary or legally required for Customer to provide the Customer Data to BC Affiliate hereunder and for the Software to distribute communications to those individuals or third-party entities hereunder.",
-      "Description": "Section 7 — Intellectual Property",
-      "Sequence": 37
+      "Description": "Section 7 — Intellectual Property"
     },
     "primaryKey": {
       "ID": "33333333-0000-4000-8000-000000004037"
     },
     "sync": {
-      "lastModified": "2026-08-19T03:02:19.253Z",
-      "checksum": "4ad9181e235f23a53348c564f093bb84a556c14f0c26339b413546e1c8d1be32"
+      "lastModified": "2026-08-20T06:46:02.756Z",
+      "checksum": "144ee7bff7e948fd6bdb9c1100c7a5d62542aff958992bc6ccf763dbb287e362"
     }
   },
   {
@@ -659,15 +622,14 @@
       "ProvisionNumber": "7.4",
       "Title": "Intellectual Property",
       "ProvisionText": "Customer hereby grants to BC Affiliate a perpetual, irrevocable, worldwide, royalty-free, sublicensable, non-exclusive license to create, process, reproduce, store, display, modify, translate, create derivative works from, make available and otherwise use Aggregated Data in connection with developing, providing, maintaining, supporting, or improving BC Affiliate’s current and future products and services, as they may be provided to Customer or other customers of BC Affiliate, or for any other lawful purpose.",
-      "Description": "Section 7 — Intellectual Property",
-      "Sequence": 38
+      "Description": "Section 7 — Intellectual Property"
     },
     "primaryKey": {
       "ID": "33333333-0000-4000-8000-000000004038"
     },
     "sync": {
-      "lastModified": "2026-08-19T03:02:19.267Z",
-      "checksum": "62c1de27fa1cc4a57dacc505cb247f0c84163f523c1aef0da424eb841f12b7cd"
+      "lastModified": "2026-08-20T06:46:02.756Z",
+      "checksum": "6fc436066cbc5df421fdfea223b48c5ba7f8396cdbd4915586fae975c13738f6"
     }
   },
   {
@@ -676,15 +638,14 @@
       "ProvisionNumber": "7.5",
       "Title": "Intellectual Property",
       "ProvisionText": "In the event that the products or services covered by this Agreement produce Enrichment Data as defined in Section 1.8 herein, BC Affiliate and Customer agree that BC Affiliate owns all right, title and interest in the Enrichment Data. During the term of this agreement, BC Affiliate shall provide, at Customer’s request, access to summarized Enrichment Data derived from Customer's use of the Software hereunder, and hereby grants to Customer a non-exclusive, non-transferable, non-sublicensable right and license to use, copy, transmit, modify and display that Enrichment Data solely for its internal business purposes and not for any other purpose. Notwithstanding anything else to the contrary in this agreement regarding Customer Data, BC Affiliate may retain the identity of an individual user for purposes of associating, supplementing, and maintaining Enrichment Data on that individual. Customer acknowledges that BC Affiliate utilizes Enrichment Data across its entire service to benefit the experience of all Customers, Authorized Users, and End Users and that Enrichment Data will not be deleted upon termination of this Agreement, except to the minimum extent required by applicable law.",
-      "Description": "Section 7 — Intellectual Property",
-      "Sequence": 39
+      "Description": "Section 7 — Intellectual Property"
     },
     "primaryKey": {
       "ID": "33333333-0000-4000-8000-000000004039"
     },
     "sync": {
-      "lastModified": "2026-08-19T03:02:19.281Z",
-      "checksum": "846f723e554f3c5681c88335213e011840a21653f891160e40d9abe02e63b974"
+      "lastModified": "2026-08-20T06:46:02.756Z",
+      "checksum": "7c7575af7f6f6fae4e37256e0d6510d651d043a81ecd155e8ecfc27cb7c32d97"
     }
   },
   {
@@ -693,15 +654,14 @@
       "ProvisionNumber": "8.1",
       "Title": "Confidential Information",
       "ProvisionText": "Customer and BC Affiliate (each a “Receiving Party”) understand that the other party (the “Disclosing Party”) has disclosed or may disclose confidential or proprietary business, technical or financial information relating to the Disclosing Party’s business (hereinafter referred to as “Confidential Information” of the Disclosing Party). In addition to the definition of Confidential Information in Section 1.6, Confidential Information of BC Affiliate includes non-public information regarding features, functionality and performance of the Software or Services. The Receiving Party agrees: (i) to take reasonable precautions to protect such Confidential Information, and (ii) not to use (except in performance of the Services or as otherwise permitted herein) or divulge to any third person any such Confidential Information. The Disclosing Party agrees that the foregoing shall not apply with respect to any information after the later of five (5) years following the disclosure thereof, or the termination of this Agreement, or any information that the Receiving Party can document (a) is or becomes generally available to the public, or (b) was in its possession or known by it prior to receipt from the Disclosing Party, or (c) was rightfully disclosed to it without restriction by a third party, or (d) was independently developed by Receiving Party prior to its disclosure and without use of any Confidential Information of the Disclosing Party or (e) is required to be disclosed by law.",
-      "Description": "Section 8 — Confidential Information",
-      "Sequence": 40
+      "Description": "Section 8 — Confidential Information"
     },
     "primaryKey": {
       "ID": "33333333-0000-4000-8000-000000004040"
     },
     "sync": {
-      "lastModified": "2026-08-19T03:02:19.295Z",
-      "checksum": "187fb3510f1472f00ea5ec7e35d69d5cb62a01ffb4aab39c36bb2f0bd2a4a2ee"
+      "lastModified": "2026-08-20T06:46:02.756Z",
+      "checksum": "1c352f1e37b6de52af44e01b45f27282006c1f8752828f44741d72180675f34d"
     }
   },
   {
@@ -710,15 +670,14 @@
       "ProvisionNumber": "9.1",
       "Title": "Overall Limitation of Damages",
       "ProvisionText": "NOTWITHSTANDING ANYTHING TO THE CONTRARY, EXCEPT FOR BODILY INJURY OF A PERSON, BC AFFILIATE AND ITS SUPPLIERS (INCLUDING BUT NOT LIMITED TO ALL EQUIPMENT AND TECHNOLOGY SUPPLIERS), OFFICERS, OWNERS, SHAREHOLDERS, AFFILIATES, REPRESENTATIVES, CONTRACTORS AND EMPLOYEES SHALL NOT BE RESPONSIBLE OR LIABLE WITH RESPECT TO ANY SUBJECT MATTER OF THIS AGREEMENT OR TERMS AND CONDITIONS RELATED THERETO UNDER ANY CONTRACT, NEGLIGENCE, STRICT LIABILITY OR OTHER THEORY: (A) FOR ERROR OR INTERRUPTION OF USE OR FOR LOSS OR INACCURACY OR CORRUPTION OF DATA OR COST OF PROCUREMENT OF SUBSTITUTE GOODS, SERVICES OR TECHNOLOGY OR LOSS OF BUSINESS; (B) FOR ANY INDIRECT, EXEMPLARY, INCIDENTAL, SPECIAL OR CONSEQUENTIAL DAMAGES; (C) FOR ANY MATTER BEYOND BC AFFILIATE’S REASONABLE CONTROL; OR (D) FOR ANY AMOUNTS THAT, TOGETHER WITH AMOUNTS ASSOCIATED WITH ALL OTHER CLAIMS, EXCEED THE FEES PAID BY CUSTOMER TO BC AFFILIATE FOR THE SERVICES UNDER THIS AGREEMENT IN THE 12 MONTHS PRIOR TO THE ACT THAT GAVE RISE TO THE LIABILITY, IN EACH CASE, WHETHER OR NOT BC AFFILIATE HAS BEEN ADVISED OF THE POSSIBILITY OF SUCH DAMAGES.",
-      "Description": "Section 9 — Overall Limitation of Damages",
-      "Sequence": 41
+      "Description": "Section 9 — Overall Limitation of Damages"
     },
     "primaryKey": {
       "ID": "33333333-0000-4000-8000-000000004041"
     },
     "sync": {
-      "lastModified": "2026-08-19T03:02:19.320Z",
-      "checksum": "c17fe2874ea4fd32c189b59e5e910d5411e13e81d5188b8c4d8f9b72adaef218"
+      "lastModified": "2026-08-20T06:46:02.760Z",
+      "checksum": "79b4e8372c321d17d82dd864dc4f7cea177a0801f44c6b61ce9e5acbf3075cc9"
     }
   },
   {
@@ -727,15 +686,14 @@
       "ProvisionNumber": "10.1",
       "Title": "Indemnification",
       "ProvisionText": "BC Affiliate agrees to indemnify and hold Customer harmless against any loss, damage, reasonable out-of-pocket expense, or cost, including reasonable attorneys’ fees, arising out of any third party claim, demand, or suit asserting that the Services or any BC Affiliate Work Product infringes or violates any copyright, patent, trade secret, trademark, or proprietary right existing under the laws of the United States or any state or territory thereof (“Claim”), subject to the Overall Limitation of Damages described in Section 9.",
-      "Description": "Section 10 — Indemnification",
-      "Sequence": 42
+      "Description": "Section 10 — Indemnification"
     },
     "primaryKey": {
       "ID": "33333333-0000-4000-8000-000000004042"
     },
     "sync": {
-      "lastModified": "2026-08-19T03:02:19.335Z",
-      "checksum": "85550e3d8d9ce446d1886594fb34d7368a34e13dd06a189fcb5efb0279a84efa"
+      "lastModified": "2026-08-20T06:46:02.761Z",
+      "checksum": "cc08c01ea0784595998efc783d9bbe4fed186120d1f0930a473263ab6f873738"
     }
   },
   {
@@ -744,15 +702,14 @@
       "ProvisionNumber": "10.2",
       "Title": "Indemnification",
       "ProvisionText": "The indemnification obligation in this section shall be effective only if (1) at the time of the alleged infringement, Customer gave prompt notice of the Claim and permitted BC Affiliate to defend, and (2) Customer has reasonably cooperated in the defense of the claim. BC Affiliate shall have no obligation to Customer to defend or satisfy any claims made against Customer that arise from the use, sale, licensing, or other disposition of the Work Product by Customer other than as permitted by this Agreement or from the Customer’s modification of the product.",
-      "Description": "Section 10 — Indemnification",
-      "Sequence": 43
+      "Description": "Section 10 — Indemnification"
     },
     "primaryKey": {
       "ID": "33333333-0000-4000-8000-000000004043"
     },
     "sync": {
-      "lastModified": "2026-08-19T03:02:19.351Z",
-      "checksum": "379f4aa8c3e05bc648526cef61f13cbad14ac9ff6f08e97d63e3138a6d4e4c59"
+      "lastModified": "2026-08-20T06:46:02.761Z",
+      "checksum": "92a95953e5279e4d18c05f2d35d5dbb328e450a1f77a95fe028cb499a9523dad"
     }
   },
   {
@@ -761,15 +718,14 @@
       "ProvisionNumber": "10.3",
       "Title": "Indemnification",
       "ProvisionText": "Notwithstanding anything to the contrary contained in this Agreement, Customer acknowledges and agrees that BC shall have no obligation to indemnify, hold harmless or defend Customer, its successors or assigns, for any losses, claims, damages or liabilities to which Customer or any of its successors or assigns may become subject that, directly or indirectly, arise out of or are related to this Agreement or its performance by any BC Affiliate.",
-      "Description": "Section 10 — Indemnification",
-      "Sequence": 44
+      "Description": "Section 10 — Indemnification"
     },
     "primaryKey": {
       "ID": "33333333-0000-4000-8000-000000004044"
     },
     "sync": {
-      "lastModified": "2026-08-19T03:02:19.367Z",
-      "checksum": "bbcacc4f3f8e172c7b38fea0d59053be7d11be3995d6d647b4573440a0fc9637"
+      "lastModified": "2026-08-20T06:46:02.761Z",
+      "checksum": "dc9fdcbbde6aedb1e50a3f18fed8ae2d2d00c2966fc8e20cafe562cc86f29608"
     }
   },
   {
@@ -778,15 +734,14 @@
       "ProvisionNumber": "11.1",
       "Title": "Termination",
       "ProvisionText": "It is agreed that Customer and BC Affiliate may terminate this Agreement immediately upon written notice to the other party in the event that the other party (a) becomes insolvent or makes an assignment for the benefit of creditors; (b) files or has filed against it any petition under any Title of the United States Code or any applicable bankruptcy, insolvency, reorganization or similar debtor relief law which is not discharged within 30 days of said filing; (c) requests or suffers the appointment of a trustee or receiver, or the entry of an attachment or execution as to a substantial part of its business or assets; or (d) becomes unresponsive, or halts the program at any time during the contract, for a period of 45 days or greater.",
-      "Description": "Section 11 — Termination",
-      "Sequence": 45
+      "Description": "Section 11 — Termination"
     },
     "primaryKey": {
       "ID": "33333333-0000-4000-8000-000000004045"
     },
     "sync": {
-      "lastModified": "2026-08-19T03:02:19.381Z",
-      "checksum": "b1d73e98a17b92a7c2d0df5ae517cf268f798166c715dd256da5c5753b326339"
+      "lastModified": "2026-08-20T06:46:02.761Z",
+      "checksum": "9f60f32fd152ed91e79fee0c98ff8a1e6c917b5dea2eab74ba062cc8a1be6864"
     }
   },
   {
@@ -795,15 +750,14 @@
       "ProvisionNumber": "11.2",
       "Title": "Termination",
       "ProvisionText": "BC Affiliate may terminate this Agreement in the event Customer (a) fails to make when due any payment required under this Agreement and such failure continues for a period of 30 days after notice thereof by BC Affiliate to Customer; (b) commits a material breach of any of its obligations concerning scope of use or the protection of, Work Product, intellectual property of BC Affiliate, and Confidential Information; or (c) materially breaches any of its other obligations under any provision of this Agreement, which breach is not remedied within 30 days after notice thereof by BC Affiliate to Customer.",
-      "Description": "Section 11 — Termination",
-      "Sequence": 46
+      "Description": "Section 11 — Termination"
     },
     "primaryKey": {
       "ID": "33333333-0000-4000-8000-000000004046"
     },
     "sync": {
-      "lastModified": "2026-08-19T03:02:19.395Z",
-      "checksum": "60d9d00329a66dea773984afe7671d034b11038191eef67673139b80ed1eff04"
+      "lastModified": "2026-08-20T06:46:02.761Z",
+      "checksum": "dde74c1fe01ffed34c531843ee80f141bf455a6de70318c0e55862460aca5d5b"
     }
   },
   {
@@ -812,15 +766,14 @@
       "ProvisionNumber": "11.3",
       "Title": "Termination",
       "ProvisionText": "Either party may terminate this Agreement for any reason after all obligations associated with any associated Order Forms and/or Statements of Work have been fully satisfied by furnishing thirty days advance written notice to the other party.",
-      "Description": "Section 11 — Termination",
-      "Sequence": 47
+      "Description": "Section 11 — Termination"
     },
     "primaryKey": {
       "ID": "33333333-0000-4000-8000-000000004047"
     },
     "sync": {
-      "lastModified": "2026-08-19T03:02:19.408Z",
-      "checksum": "fe9e53cd4eab0bc58e238770902896e342cf0be072c727950dffe42a71d44aa0"
+      "lastModified": "2026-08-20T06:46:02.761Z",
+      "checksum": "7724bacff00a06343315ea91e7a3d3eb7daf328808c92946e7597d07451c3417"
     }
   },
   {
@@ -829,15 +782,14 @@
       "ProvisionNumber": "12.1",
       "Title": "Rights Upon Termination",
       "ProvisionText": "In the event that termination of this Agreement should occur as a result of Customer’s failure to successfully execute its obligations under this Agreement, Customer shall immediately turn over to BC Affiliate any Confidential Information relating to the services provided.",
-      "Description": "Section 12 — Rights Upon Termination",
-      "Sequence": 48
+      "Description": "Section 12 — Rights Upon Termination"
     },
     "primaryKey": {
       "ID": "33333333-0000-4000-8000-000000004048"
     },
     "sync": {
-      "lastModified": "2026-08-19T03:02:19.425Z",
-      "checksum": "869b5659ddf06c749d35f9aa74309335955f4b508aa5356f811fa339fa6b3417"
+      "lastModified": "2026-08-20T06:46:02.761Z",
+      "checksum": "381867efd43e562f16743db1ea68c18fbf7314dc5aec84af1ccc3844d784b670"
     }
   },
   {
@@ -846,15 +798,14 @@
       "ProvisionNumber": "12.2",
       "Title": "Rights Upon Termination",
       "ProvisionText": "Upon such termination, Customer shall immediately pay BC Affiliate all fees due through the end of the applicable Order Form’s and/or Statement of Work’s term and all rights granted with respect to the services will immediately terminate.",
-      "Description": "Section 12 — Rights Upon Termination",
-      "Sequence": 49
+      "Description": "Section 12 — Rights Upon Termination"
     },
     "primaryKey": {
       "ID": "33333333-0000-4000-8000-000000004049"
     },
     "sync": {
-      "lastModified": "2026-08-19T03:02:19.442Z",
-      "checksum": "434fe56bf25355541be34e1ba9b2de6f32290717b5c0253620409d1f80629a9c"
+      "lastModified": "2026-08-20T06:46:02.761Z",
+      "checksum": "d600ce83f81e37e512046c4fcfed51e9ac4947a109f76eba696d4cf4be190c17"
     }
   },
   {
@@ -863,15 +814,14 @@
       "ProvisionNumber": "12.3",
       "Title": "Rights Upon Termination",
       "ProvisionText": "The termination of this Agreement shall not extinguish any rights or obligations of the parties relating to protection of Confidential Information or to the protection of BC Affiliate’s intellectual property rights.",
-      "Description": "Section 12 — Rights Upon Termination",
-      "Sequence": 50
+      "Description": "Section 12 — Rights Upon Termination"
     },
     "primaryKey": {
       "ID": "33333333-0000-4000-8000-000000004050"
     },
     "sync": {
-      "lastModified": "2026-08-19T03:02:19.458Z",
-      "checksum": "6544bffb9fe66c43fd3eda9daa2020d171d1f3dede8a00e6b600f37bce8339a0"
+      "lastModified": "2026-08-20T06:46:02.761Z",
+      "checksum": "77dad619d0904e75a3c959f901efd00352c2ad11fb6db95a39b81cf4c393f535"
     }
   },
   {
@@ -880,15 +830,14 @@
       "ProvisionNumber": "13.1",
       "Title": "Assignment",
       "ProvisionText": "Customer shall not sell, pledge, assign, sublicense, or otherwise assign, transfer or share its rights or delegate its obligations under this Agreement without the prior written consent of BC Affiliate. Any attempt to sell, pledge, assign, sublicense or other transfer in violation hereof shall be void and of no force or effect. BC Affiliate may assign its rights and delegate its duties hereunder at any time without the consent of Customer.",
-      "Description": "Section 13 — Assignment",
-      "Sequence": 51
+      "Description": "Section 13 — Assignment"
     },
     "primaryKey": {
       "ID": "33333333-0000-4000-8000-000000004051"
     },
     "sync": {
-      "lastModified": "2026-08-19T03:02:19.488Z",
-      "checksum": "7fc7d46350da6a7b72f599f85fc32b4b673b76050413b4e22f4819cf1a85fc76"
+      "lastModified": "2026-08-20T06:46:02.765Z",
+      "checksum": "277807fec313d4032e51edd940aacce1708abf72c2595e0dc36ce633a93f5985"
     }
   },
   {
@@ -897,15 +846,14 @@
       "ProvisionNumber": "14.1",
       "Title": "Employee Relationship",
       "ProvisionText": "Neither Customer nor BC Affiliate will hire, employ, or contract for services directly or indirectly, with any current employee or agent of the other without prior written consent of the other, for a minimum time period of the later of twelve months after termination of this agreement or completion of the last completed Order Form and/or Statement of Work, whichever is earlier. Customer and BC Affiliate may hire any prior employee or agent of the other so long as said employee or agent has been terminated from such relationship with the other party for at least twelve months.",
-      "Description": "Section 14 — Employee Relationship",
-      "Sequence": 52
+      "Description": "Section 14 — Employee Relationship"
     },
     "primaryKey": {
       "ID": "33333333-0000-4000-8000-000000004052"
     },
     "sync": {
-      "lastModified": "2026-08-19T03:02:19.503Z",
-      "checksum": "0048f99ba713dd9df9f8955d6ce2d69ad43163afff499429b8c7e13f44c14044"
+      "lastModified": "2026-08-20T06:46:02.765Z",
+      "checksum": "658d78aa517b5cc7eb6db6aa97d3a3fc7447d6f2f100d03b749843bf9c70f58c"
     }
   },
   {
@@ -914,15 +862,14 @@
       "ProvisionNumber": "15.1",
       "Title": "Covenant Not to Sue",
       "ProvisionText": "Customer, for itself and its predecessors, successors, owners, shareholders, officers, directors, employees, or representatives, agrees that it will not, under any circumstances, initiate any legal action or administrative proceeding against BC, its predecessors, successors, owners, shareholders, officers, directors, employees, or representatives, nor will Customer assist in the prosecution of any such legal action or administrative proceeding filed by any third party, arising out of the performance by any BC Affiliate of its obligations under this Agreement or any Order Form or Schedule of Work referenced herein. Customer further agrees that any proceeding brought in breach of this covenant not to sue shall entitle BC to its costs, including reasonable attorney's fees incurred in defense of that proceeding.",
-      "Description": "Section 15 — Covenant Not to Sue",
-      "Sequence": 53
+      "Description": "Section 15 — Covenant Not to Sue"
     },
     "primaryKey": {
       "ID": "33333333-0000-4000-8000-000000004053"
     },
     "sync": {
-      "lastModified": "2026-08-19T03:02:19.522Z",
-      "checksum": "c933572d0c52f1e34ef45d366dcf8967e6e841e0fc6ed3944c9d45100cb1ca42"
+      "lastModified": "2026-08-20T06:46:02.765Z",
+      "checksum": "90294774756c45c8ec92245b6ea328c3af8e26e7e4125c713edb05cf1c35537c"
     }
   },
   {
@@ -931,15 +878,14 @@
       "ProvisionNumber": "16.1",
       "Title": "Relationship to Order Forms, Statements of Work and Change Orders",
       "ProvisionText": "Relationship to Order Forms, Statements of Work and Change Orders. If there is a conflict between this Agreement and the provisions of an individual Order Form, Statement of Work, or Change Order the terms of the Order Form, Statement of Work, or Change Order will control, with the most recently executed document controlling the conflicting provision(s).",
-      "Description": "Section 16 — General Provisions",
-      "Sequence": 54
+      "Description": "Section 16 — General Provisions"
     },
     "primaryKey": {
       "ID": "33333333-0000-4000-8000-000000004054"
     },
     "sync": {
-      "lastModified": "2026-08-19T03:02:19.540Z",
-      "checksum": "45b300210f4d2e0c69f9e92e48652e92ddd73ee9edfe60e45fff1662f3286d15"
+      "lastModified": "2026-08-20T06:46:02.765Z",
+      "checksum": "8e0c407859ff7257955ac7ad8338ce06c4dd6882493763e18cd3bb29b7ff9c7f"
     }
   },
   {
@@ -948,15 +894,14 @@
       "ProvisionNumber": "16.2",
       "Title": "Applicable Law",
       "ProvisionText": "Applicable Law. The parties agree that this Agreement and interpretation thereof shall be governed, construed and performed in accordance with the laws of the State of Louisiana, exclusive of its choice of law provisions. The parties agree that the United Nations Convention for the International Sale of Goods shall not apply to this agreement.",
-      "Description": "Section 16 — General Provisions",
-      "Sequence": 55
+      "Description": "Section 16 — General Provisions"
     },
     "primaryKey": {
       "ID": "33333333-0000-4000-8000-000000004055"
     },
     "sync": {
-      "lastModified": "2026-08-19T03:02:19.558Z",
-      "checksum": "580a78e29b5687784acdc1d227b422c73124e4fbff79420c1d02cb5c52e4d9f9"
+      "lastModified": "2026-08-20T06:46:02.765Z",
+      "checksum": "71b70ac162943ab1f70d0efafbc5b4fb67b73addda2a8d779a2604ac1d687fc9"
     }
   },
   {
@@ -965,15 +910,14 @@
       "ProvisionNumber": "16.3",
       "Title": "Taxes",
       "ProvisionText": "Taxes. Customer shall pay, in addition to the other amounts payable under this Agreement, all local, state and federal and/or national excise, sales, use, personal property, gross receipts and similar taxes (excluding taxes imposed on or measured by BC Affiliate’s net income) levied or imposed by reason of the transactions under this Agreement. Customer shall, upon demand, pay to BC Affiliate an amount equal to any such tax(es) actually paid or required to be collected or paid by BC Affiliate.",
-      "Description": "Section 16 — General Provisions",
-      "Sequence": 56
+      "Description": "Section 16 — General Provisions"
     },
     "primaryKey": {
       "ID": "33333333-0000-4000-8000-000000004056"
     },
     "sync": {
-      "lastModified": "2026-08-19T03:02:19.576Z",
-      "checksum": "3df4ef4be428dd8587e0a24b0b2beb4edf2ec6c52c9a37ad21b52cc59c1e7f4b"
+      "lastModified": "2026-08-20T06:46:02.766Z",
+      "checksum": "126e40aa23595a8f280e8e9aba6c0bda34021c31d5a0eaa529186789bbd0e2bd"
     }
   },
   {
@@ -982,15 +926,14 @@
       "ProvisionNumber": "16.4",
       "Title": "Required Consents",
       "ProvisionText": "Required Consents. Customer warrants that it has obtained lawful permission to use all hardware and software required in order for the services to take place.",
-      "Description": "Section 16 — General Provisions",
-      "Sequence": 57
+      "Description": "Section 16 — General Provisions"
     },
     "primaryKey": {
       "ID": "33333333-0000-4000-8000-000000004057"
     },
     "sync": {
-      "lastModified": "2026-08-19T03:02:19.594Z",
-      "checksum": "0aec871f34d682e3c4ffc1e3204e23f6890447ca35add94e59eb87c2db58c890"
+      "lastModified": "2026-08-20T06:46:02.766Z",
+      "checksum": "36fb6e3d2a6283dd1923b6381f4045b5e8e026ab3914f93abbf7790000f50ed1"
     }
   },
   {
@@ -999,15 +942,14 @@
       "ProvisionNumber": "16.5",
       "Title": "Publicity",
       "ProvisionText": "Publicity. The terms of the Agreement, including Exhibits attached hereto, are agreed to be Confidential and shall not be disclosed by the Customer or any person or entity having access to it. The existence but not any of the terms of this Agreement may be disclosed by either party without the prior written consent of the other. Each of the parties may reveal the terms of this Agreement to its own officers, directors, shareholders, employees, agents, investors or prospective investors who have a need to know the terms of this Agreement, and who are subject to confidentiality agreements no less restrictive than the relevant provisions herein.",
-      "Description": "Section 16 — General Provisions",
-      "Sequence": 58
+      "Description": "Section 16 — General Provisions"
     },
     "primaryKey": {
       "ID": "33333333-0000-4000-8000-000000004058"
     },
     "sync": {
-      "lastModified": "2026-08-19T03:02:19.610Z",
-      "checksum": "5f2b27b2b4636a8123eccccc222fc73f9f4bde11f60881e109ee5d24a97bee68"
+      "lastModified": "2026-08-20T06:46:02.766Z",
+      "checksum": "d6139c6e55e785429e51561694c7f13d1b256e4c89df2f33d798030b4a5cbfcb"
     }
   },
   {
@@ -1016,15 +958,14 @@
       "ProvisionNumber": "16.6",
       "Title": "Public Reference",
       "ProvisionText": "Public Reference. Customer must consent to any public use of its name as a Customer of BC Affiliate. Upon approval by Customer of a specific instance of use (such as a case study or press release), the specific instance of use may be provided by BC Affiliate to any number of individuals or entities without additional consent from Customer. Upon written notice by Customer, BC Affiliate will remove all reference to Customer’s name that is within BC Affiliate's control as soon as reasonably possible.",
-      "Description": "Section 16 — General Provisions",
-      "Sequence": 59
+      "Description": "Section 16 — General Provisions"
     },
     "primaryKey": {
       "ID": "33333333-0000-4000-8000-000000004059"
     },
     "sync": {
-      "lastModified": "2026-08-19T03:02:19.628Z",
-      "checksum": "13958b8069cba699d51a9e203ebc630e0eca6df5b834448e57049bc4ed51fb01"
+      "lastModified": "2026-08-20T06:46:02.766Z",
+      "checksum": "dd9405e67581da6965b7d4b168d4eab99ae5f700aac93604ca08c52cded04c2e"
     }
   },
   {
@@ -1033,15 +974,14 @@
       "ProvisionNumber": "16.7",
       "Title": "Modification",
       "ProvisionText": "Modification. This Agreement may not be modified or amended except in writing when signed by authorized representatives of each of the parties. No purported modification or amendment shall be binding until approved in writing by an authorized representative of BC Affiliate.",
-      "Description": "Section 16 — General Provisions",
-      "Sequence": 60
+      "Description": "Section 16 — General Provisions"
     },
     "primaryKey": {
       "ID": "33333333-0000-4000-8000-000000004060"
     },
     "sync": {
-      "lastModified": "2026-08-19T03:02:19.647Z",
-      "checksum": "5a30654c235a4047b981b3d4280bb159e5d7bc3a6b13f47efe71e96f15a889e1"
+      "lastModified": "2026-08-20T06:46:02.766Z",
+      "checksum": "029ae6a30d28d2aa6a3269273ceb48e67a2a795e752730da3b9bfbea0791efcb"
     }
   },
   {
@@ -1050,15 +990,14 @@
       "ProvisionNumber": "16.8",
       "Title": "No Waiver",
       "ProvisionText": "No Waiver. The failure of Customer or BC Affiliate to exercise any right or the waiver by either party of any breach, shall not prevent subsequent exercise of such right or be deemed a waiver of any subsequent breach of the same or any other term of the Agreement.",
-      "Description": "Section 16 — General Provisions",
-      "Sequence": 61
+      "Description": "Section 16 — General Provisions"
     },
     "primaryKey": {
       "ID": "33333333-0000-4000-8000-000000004061"
     },
     "sync": {
-      "lastModified": "2026-08-19T03:02:19.674Z",
-      "checksum": "ceea9e9ce7dc0f261cacc9062ea256a63c9bc19c1ccbe48d2d302eb186adca33"
+      "lastModified": "2026-08-20T06:46:02.770Z",
+      "checksum": "69f9f989ba6b2006bc968a720bec961b9ea4b76986b6c38bccd12899dea78a38"
     }
   },
   {
@@ -1067,15 +1006,14 @@
       "ProvisionNumber": "16.9",
       "Title": "Notices",
       "ProvisionText": "Notices. Except as otherwise specified in this Agreement, all notices related to this Agreement will be in writing and will be effective upon the later of (a) personal delivery, or (b) the second business day after mailing, except that notices of termination or an indemnifiable claim (“Legal Notices”), which are identifiable as Legal Notices, will be effective the day of sending by email. Billing-related notices to Customer will be addressed to the relevant billing contact designated by Customer.",
-      "Description": "Section 16 — General Provisions",
-      "Sequence": 62
+      "Description": "Section 16 — General Provisions"
     },
     "primaryKey": {
       "ID": "33333333-0000-4000-8000-000000004062"
     },
     "sync": {
-      "lastModified": "2026-08-19T03:02:19.689Z",
-      "checksum": "efe8f82a45b64a6cbbb372b14f3f3432eff91c066dd728b6f8e3f23c9b341bf7"
+      "lastModified": "2026-08-20T06:46:02.770Z",
+      "checksum": "283d2a30a30bd7f17af6ec9de3273a9cae69c8c9948fac7c7a6669cb7fecf9a4"
     }
   },
   {
@@ -1084,15 +1022,14 @@
       "ProvisionNumber": "16.10",
       "Title": "Force Majeure",
       "ProvisionText": "Force Majeure. Neither Customer or BC Affiliate shall be deemed in default of this Agreement to the extent that performance of their obligations or attempts to cure any breach are delayed or prevented by reason of any act of God, fire, natural disaster, accident, act of government, shortages of materials or supplies or any other cause beyond the control of such party (\"Force Majeure\"), provided that such party gives the other party written notice thereof promptly and, in any event, within fifteen days of discovery thereof and uses its best efforts to cure the delay. In the event of such Force Majeure, the time for performance or cure shall be extended for a period equal to the duration of the Force Majeure but not in excess of twelve months.",
-      "Description": "Section 16 — General Provisions",
-      "Sequence": 63
+      "Description": "Section 16 — General Provisions"
     },
     "primaryKey": {
       "ID": "33333333-0000-4000-8000-000000004063"
     },
     "sync": {
-      "lastModified": "2026-08-19T03:02:19.708Z",
-      "checksum": "54ba3a46d9840e46034ec8787da49ae92121c110cbecc0c6ca871257262f362f"
+      "lastModified": "2026-08-20T06:46:02.770Z",
+      "checksum": "ce3f63090ae8ddf06f942de957b26fe1ad2545b54984b85f546261a57de71c77"
     }
   },
   {
@@ -1101,15 +1038,14 @@
       "ProvisionNumber": "16.11",
       "Title": "Entire Agreement",
       "ProvisionText": "Entire Agreement. This Agreement constitutes the sole and entire agreement of Customer and BC Affiliate with respect to the subject matter hereof and supersedes any prior oral or written promises or agreements. There are no promises, covenants, or undertakings other than those expressly set forth in this Agreement and any related Statements of Work.",
-      "Description": "Section 16 — General Provisions",
-      "Sequence": 64
+      "Description": "Section 16 — General Provisions"
     },
     "primaryKey": {
       "ID": "33333333-0000-4000-8000-000000004064"
     },
     "sync": {
-      "lastModified": "2026-08-19T03:02:19.727Z",
-      "checksum": "f54b0b177e5cddbe5fe4898717e081dd1aa0f4c5c505ef69222cf701e9e1b253"
+      "lastModified": "2026-08-20T06:46:02.770Z",
+      "checksum": "9794de4d577358d480f7f283d4a64c127c6f1af5660eac83adbb972bd63dfb04"
     }
   },
   {
@@ -1118,15 +1054,14 @@
       "ProvisionNumber": "16.12",
       "Title": "Equitable Remedies",
       "ProvisionText": "Equitable Remedies. The parties recognize that money damages may not be an adequate remedy for any breach or threatened breach of any obligation hereunder by Customer involving intellectual property or Confidential Information. The parties therefore agree that, in addition to any other remedies available hereunder, by law or otherwise, BC Affiliate and any third party from whom BC Affiliate has licensed software or technology shall be entitled to an injunction against any such continued breach by Customer of such obligations.",
-      "Description": "Section 16 — General Provisions",
-      "Sequence": 65
+      "Description": "Section 16 — General Provisions"
     },
     "primaryKey": {
       "ID": "33333333-0000-4000-8000-000000004065"
     },
     "sync": {
-      "lastModified": "2026-08-19T03:02:19.745Z",
-      "checksum": "213a3bbc34757f59e3ca5133d5e5c5f1b16858672c66a9a9119f4e2601e5d30b"
+      "lastModified": "2026-08-20T06:46:02.770Z",
+      "checksum": "1f13ee5d89d359ecc5266d9147f77fb4a9952d16540c1da2ae91644c5fbaf103"
     }
   },
   {
@@ -1135,15 +1070,14 @@
       "ProvisionNumber": "16.13",
       "Title": "Late Fees, Costs, and Attorneys' Fees",
       "ProvisionText": "Late Fees, Costs, and Attorneys' Fees. A late payment charge of 1.5% per month, compounded monthly, shall apply to any undisputed payment due from Customer that is in arrears for a period exceeding 30 days. Any disputes not timely submitted per Section 6.3 of this Agreement shall also be subject to the late payment charge in this section. In any legal action or arbitration proceeding brought on account of a breach, the prevailing party shall recover from the other party all costs of litigation or arbitration, including reasonable attorneys' fees.",
-      "Description": "Section 16 — General Provisions",
-      "Sequence": 66
+      "Description": "Section 16 — General Provisions"
     },
     "primaryKey": {
       "ID": "33333333-0000-4000-8000-000000004066"
     },
     "sync": {
-      "lastModified": "2026-08-19T03:02:19.763Z",
-      "checksum": "fa48d4f018220d2e07952c0e4c71f39a0f88a1d9b3b0e57654cc598eeac526fe"
+      "lastModified": "2026-08-20T06:46:02.770Z",
+      "checksum": "869e5b35bbcb21c6e103600a6095cf5f717cb1952c2dda5b3a647c9a2c0fd3e5"
     }
   },
   {
@@ -1152,15 +1086,14 @@
       "ProvisionNumber": "16.14",
       "Title": "Use of Consultants or Subcontractors",
       "ProvisionText": "Use of Consultants or Subcontractors. In the performance of its duties under this Agreement, BC Affiliate may employ subcontractors or consultants to provide services which are not available on an \"In-House\" basis to the BC Affiliate and who are qualified, licensed and experienced in their areas of expertise (collectively, \"Consultants\"). Any work or services performed by such Consultants shall be deemed to be performed by BC Affiliate, shall be subject to all obligations contained herein, and BC Affiliate shall be responsible for such work and for insuring Consultant's compliance herewith.",
-      "Description": "Section 16 — General Provisions",
-      "Sequence": 67
+      "Description": "Section 16 — General Provisions"
     },
     "primaryKey": {
       "ID": "33333333-0000-4000-8000-000000004067"
     },
     "sync": {
-      "lastModified": "2026-08-19T03:02:19.785Z",
-      "checksum": "ad8b92d72f78e7aad8a55638857296f5af6f241813e38143fc5475a0a19df44d"
+      "lastModified": "2026-08-20T06:46:02.770Z",
+      "checksum": "4fb0f0b7eb0e6274307597016948171cd72a6eeb9baa3b860f92a7b3110749c8"
     }
   },
   {
@@ -1169,15 +1102,14 @@
       "ProvisionNumber": "16.15",
       "Title": "Relationship of the Parties",
       "ProvisionText": "Relationship of the Parties. BC Affiliate shall perform the Services as an independent contractor. Nothing in this Agreement nor in the course its performance shall be construed to create a relationship of principal and agent, joint venture, partnership, association or employment between Customer and BC Affiliate. Neither party shall represent to any third party that it is the agent or employee of the other.",
-      "Description": "Section 16 — General Provisions",
-      "Sequence": 68
+      "Description": "Section 16 — General Provisions"
     },
     "primaryKey": {
       "ID": "33333333-0000-4000-8000-000000004068"
     },
     "sync": {
-      "lastModified": "2026-08-19T03:02:19.808Z",
-      "checksum": "d04c61e1c51b9bcf38bb9925b5e55acc6c7c434c0e4991144b6decab482e0200"
+      "lastModified": "2026-08-20T06:46:02.770Z",
+      "checksum": "cc535de593ccf0d3ea513ea7a8988b6e3007ba9ef14861863b39abcd17a098b3"
     }
   },
   {
@@ -1186,15 +1118,14 @@
       "ProvisionNumber": "16.16",
       "Title": "Exclusive Jurisdiction and Venue",
       "ProvisionText": "Exclusive Jurisdiction and Venue. Any cause of action arising out of or related to this Agreement, including an action to confirm or challenge an arbitration award, may only be brought in the courts of applicable jurisdiction in New Orleans Louisiana, and the parties hereby submit to the jurisdiction and venue of such courts.",
-      "Description": "Section 16 — General Provisions",
-      "Sequence": 69
+      "Description": "Section 16 — General Provisions"
     },
     "primaryKey": {
       "ID": "33333333-0000-4000-8000-000000004069"
     },
     "sync": {
-      "lastModified": "2026-08-19T03:02:19.835Z",
-      "checksum": "77dfed2da536c2e08b9ecdd14c886af8733fea5c68a16677f0e5a8a25e9a4e2a"
+      "lastModified": "2026-08-20T06:46:02.771Z",
+      "checksum": "b6eac1e79cb455ecad0a792dd32adc81b14d97df96c621508075a784578c4edd"
     }
   },
   {
@@ -1203,15 +1134,14 @@
       "ProvisionNumber": "16.17",
       "Title": "Dispute Resolution",
       "ProvisionText": "Dispute Resolution. Except for actions seeking Equitable Remedies as described in Section 16.12, any dispute occurring or relating to this agreement, or breach thereof, should be determined by arbitration in accordance with the arbitration rules of the American Arbitration Association. Any arbitration shall proceed in the State of Louisiana. Judgment upon the award of the arbitrator(s) may be entered in any court having jurisdiction thereof.",
-      "Description": "Section 16 — General Provisions",
-      "Sequence": 70
+      "Description": "Section 16 — General Provisions"
     },
     "primaryKey": {
       "ID": "33333333-0000-4000-8000-000000004070"
     },
     "sync": {
-      "lastModified": "2026-08-19T03:02:19.860Z",
-      "checksum": "aa6f0db1032b61f72cc2e1cb8096af7dc09ada6925af1331b8c16960701f7483"
+      "lastModified": "2026-08-20T06:46:02.771Z",
+      "checksum": "6be8319def1f771baa70c797c8841712782e44f48cf49704feb7393d80d88962"
     }
   },
   {
@@ -1220,15 +1150,14 @@
       "ProvisionNumber": "16.18",
       "Title": "Validity of Provisions",
       "ProvisionText": "Validity of Provisions. In the event any provision, or any part or portion of any provision, of this Agreement, or of any Statement of Work or Order Form included herewith, shall be held to be invalid, void or otherwise unenforceable, that provision shall be deemed modified so as to carry out the intent of Customer and BC Affiliate to the maximum extent permitted by law, and shall not affect the remaining part or portions of that provision, or any other provision hereof.",
-      "Description": "Section 16 — General Provisions",
-      "Sequence": 71
+      "Description": "Section 16 — General Provisions"
     },
     "primaryKey": {
       "ID": "33333333-0000-4000-8000-000000004071"
     },
     "sync": {
-      "lastModified": "2026-08-19T03:02:19.891Z",
-      "checksum": "974c45fc0a167c83bb680a27d70b6a7622e6fddaa4134b33ff11ec44507bb322"
+      "lastModified": "2026-08-20T06:46:02.771Z",
+      "checksum": "3071a290fc0572ab7c059283aadc49a8b2f5cf5a6c23ca917c0a5b0b96876ffa"
     }
   }
 ]

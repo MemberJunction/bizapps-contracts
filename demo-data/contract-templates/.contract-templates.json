@@ -21,14 +21,15 @@
       "VersionLabel": "2026-02-02",
       "IntroducedDate": "2026-02-02",
       "SourceURL": "https://bluecypress.io/masteragreement20260202/",
-      "Description": "Blue Cypress Master Services Agreement, 2026-02-02 edition. 16 sections, 71 numbered provisions. Captured from the dated published URL; each provision carries its verbatim text so a negotiated deviation can be read beside the standard clause."
+      "Description": "Blue Cypress Master Services Agreement, 2026-02-02 edition. 16 sections, 71 numbered provisions. Captured from the dated published URL; each provision carries its verbatim text so a negotiated deviation can be read beside the standard clause.",
+      "Status": "Draft"
     },
     "primaryKey": {
       "ID": "33333333-0000-4000-8000-000000003001"
     },
     "sync": {
-      "lastModified": "2026-08-19T03:02:18.620Z",
-      "checksum": "1fbd4314731d5ee19f834a25a247bf0279281413b87e04fa2fc59282c3f377fd"
+      "lastModified": "2026-08-21T15:11:27.492Z",
+      "checksum": "2bac8b1a21927ddc01e2b0baeb467840f2c8a073ce924e1fc243537e38ba2d30"
     }
   }
 ]

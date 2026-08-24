@@ -44,10 +44,10 @@
     "_comments": [
       "Declares Contract Templates -> Contract Template Provisions as a related-record collection.",
       "",
-      "This is the Lines-shaped one: Sequence is genuinely positional. Provision NUMBERS do not sort as",
-      "text (ERD §5.1 — '10' sorts before '2', and real MAs use 4.2.1-style numbering), so the canonical",
-      "order is an integer the collection maintains gap-free across adds and removals.",
-      "",
+      "R-11 REMOVED the Sequence column and this collection's auto-numbering with it. Ordering is now",
+      "ProvisionSortKey ASC — a derived collation key computed from ProvisionNumber, which sorts",
+      "naturally ('1.9' before '1.10') where the number itself does not. The old maintained int was a",
+      "second copy of an order the number already stated, and the two had already disagreed in the seed.",
       "Both writers go through it, which is the point: item 4's seed of the current Master Agreement's",
       "clause list and item 7's registry UI where finance registers the NEXT version. One code path, so",
       "the seed exercises what the UI will do.",
@@ -63,8 +63,8 @@
       "ID": "@lookup:MJ: Entity Relationships.Entity=MJ_BizApps_Contracts: Contract Templates&RelatedEntity=MJ_BizApps_Contracts: Contract Template Provisions"
     },
     "sync": {
-      "lastModified": "2026-08-19T02:44:49.653Z",
-      "checksum": "514235a1576e5e7b8d1094907c3643f48bf54be8fdd208741c5e50718572a1cd"
+      "lastModified": "2026-08-20T06:46:03.877Z",
+      "checksum": "5b1cc18f044930bd9ad93fa0583dd6934e240e41dbe00c8077bfe9b998050081"
     }
   }
 ]

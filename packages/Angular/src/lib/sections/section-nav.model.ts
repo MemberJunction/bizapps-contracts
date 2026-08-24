@@ -89,7 +89,6 @@ export const TEMPLATES_SUB_PAGES: MJCSubPage[] = [
 export const CONFIGURATION_SUB_PAGES: MJCSubPage[] = [
     { Id: 'contract-types', Label: 'Contract types', Icon: 'fa-solid fa-tags' },
     { Id: 'template-types', Label: 'Template types', Icon: 'fa-solid fa-sitemap' },
-    { Id: 'numbering', Label: 'Numbering', Icon: 'fa-solid fa-hashtag', Description: 'The CTR- sequence' },
 ];
 
 /* ────────────────────────────────────────────────────────────────────────────

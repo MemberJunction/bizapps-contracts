@@ -289,6 +289,18 @@ table.mjc-grid tbody tr:hover td { background: var(--mj-bg-surface-sunken); }
   line-height: 1.55;
 }
 
+/* ── Invalid input ─────────────────────────────────────────────────────────── */
+
+/* A required field the user has emptied. Border + ring only — no background change, because these
+   are prose textareas and tinting the reading surface makes the text itself harder to read, which
+   is the opposite of helpful when the point is "write something here". Tokens only, per the
+   design-token gate. */
+.mjc-invalid {
+  border-color: var(--mj-status-error) !important;
+  box-shadow: 0 0 0 2px var(--mj-status-error-bg);
+  outline: none;
+}
+
 /* ── Filter pills (watchlist) ──────────────────────────────────────────────── */
 
 .mjc-pills { display: flex; flex-wrap: wrap; gap: var(--mj-space-2); align-items: center; }

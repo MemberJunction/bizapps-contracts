@@ -19,7 +19,6 @@ export const MJC_ENTITIES = {
     ContractTemplateType: 'MJ_BizApps_Contracts: Contract Template Types',
     ContractTemplateProvision: 'MJ_BizApps_Contracts: Contract Template Provisions',
     ContractTemplateModification: 'MJ_BizApps_Contracts: Contract Template Modifications',
-    ContractSequence: 'MJ_BizApps_Contracts: Contract Sequences',
 } as const;
 
 /** Entities in OTHER apps that contracts reads. Named here so a cross-app rename is one edit. */

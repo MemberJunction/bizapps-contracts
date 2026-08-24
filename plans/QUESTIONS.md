@@ -79,8 +79,119 @@ expensive to reverse.
   negotiated one — so a paraphrase there is worse than an empty column, because it looks
   authoritative. **Any recapture must parse the page source, not a summary of it.** The integrity
   check to re-run is in `.contract-provisions.json`'s comment block.
+- **FOLLOW-ON RULING, 2026-08-24 (Marcelo): the list moved OUT of `metadata/` to `demo-data/`.**
+  Answering Q-5 solved the half of the problem that was in view — *do not invent legal text* — and
+  left the other half standing. This entry's own reasoning is what identifies it: "plausible-looking
+  clause text committed to `metadata/` would install into a real database and appear on screen next
+  to a customer's negotiated language." That objection is about `metadata/` being the **install
+  seed**, and it does not stop applying once the text is real. It changes who is harmed: not a
+  reader misled by synthetic wording, but every consumer of this app receiving one company's actual
+  Master Services Agreement as reference data. Since v0.1.0 publishes these packages, it would have
+  shipped inside `V202608240300__…__Metadata_Sync.sql`.
+  The line that holds: **a kind of contract is vocabulary and ships; a particular company's
+  agreement is content and does not.** Contract types and template types stay in `metadata/`; the
+  template and its 71 provisions are in `demo-data/`, pushed only when someone asks for them. That
+  also made `demo-data/` self-contained for the first time — its contracts and modifications cite
+  the template by `VersionLabel` and its provisions by number, so pushing it previously worked only
+  because `metadata/` happened to be shipping the agreement.
+
+
+## Q-6 · `ContractTemplate.SourceURL` is NOT NULL — which forecloses a file-only template version
+
+> ✅ **ANSWERED and IMPLEMENTED 2026-08-20.** Ruled by Marcelo 2026-08-19: `SourceURL` becomes
+> **nullable**, and the "URL or file" requirement is surfaced as a **derived `IsUsable` flag the UI
+> shows** rather than a save-time refusal — because a template with neither is *incomplete*, not
+> invalid, and that is an ordinary state to pass through while authoring one.
+>
+> Shipped as R-12 (`V202608200500` + `V202608200600`): nullable column, `IsUsable` derived in a layered
+> `vwContractTemplates`, a red "Unusable" chip on the template panel, and — ruled 2026-08-20 — a
+> **refusal one step downstream**, where the actual harm is: `ContractEntityServer` rejects a CONTRACT
+> that newly references an unusable version. The flag is the affordance; the refusal is the floor.
+>
+> The reachability half of the original question stands as unanswerable and is no longer attempted:
+> nothing can assert that a URL still resolves. What happens to an existing contract whose template
+> later becomes unusable is **R-15**, not this.
+>
+> The original entry follows, unedited.
+
+
+- **Proposed solution / what I am doing:** leaving the column NOT NULL and changing nothing. The
+  primary case is a Blue Cypress-hosted URL we maintain, which the current shape suits exactly, and
+  loosening a NOT NULL later is additive and cheap while tightening one is a data migration.
+- **The question:** the ERD asks a template version to record *"a public URL that never goes away"*.
+  Two parts, and only one is answerable in the schema. **Reachability cannot be enforced at all** —
+  whether a URL still resolves is a fact about the outside world, so no `CHECK`, trigger or subclass
+  can assert it, and format validation (`https://…`) is weak because a well-formed dead link passes.
+  What IS a real decision is whether NOT NULL is right: it forecloses a template version that exists
+  only as an **attached file**, which is a supported shape everywhere else here — documents attach
+  through `__mj.FileEntityRecordLink` and this schema ships no named file column on purpose (R-8).
+- **The options, if it matters:** (a) keep NOT NULL and accept that a file-only version records the
+  file's URL; (b) make it nullable plus a rule that a template has *either* a `SourceURL` or a linked
+  file — the both-or-neither shape of `CK_Contract_CreatingPairBothOrNeither`, but cross-table, so
+  subclass-tier rather than a `CHECK`.
+- **Reviewer:** Marcelo · **Raised:** 2026-08-19 · **Status:** ANSWERED 2026-08-19
+- **Answer (Marcelo):** *"NOT NULL is wrong for now."* The column becomes nullable. The conditional
+  rule — a URL **or** an attached file — is wanted but cannot be enforced at entry time, and the
+  reason is ordering rather than verdicts: a file links through `__mj.FileEntityRecordLink` keyed on
+  `RecordID`, so **it cannot be attached to a record that does not exist yet**. A remotable operation
+  was considered and rejected for the same reason — it would restate a rule the save channel already
+  carries (D-24 rung 4) without solving the create-ordering problem.
+- **Refined the same day (Marcelo):** refusing the referencing contract would work, but reads as
+  confusing to a user. A template with neither is **incomplete, not invalid** — an ordinary state to
+  pass through while authoring one. So the requirement becomes a **derived `IsUsable` bit** in an
+  app-owned layered view (the same shape as `Contract.IsAwaitingDocument`: a column plus an `EXISTS`
+  over `FileEntityRecordLink`), which the UI renders as a red "Unusable" chip until a URL or a file
+  exists. Visible and fixable, rather than discovered by being blocked.
+- **Routed to** `plans/backend-requirements.md` **R-12**, which carries the migration, the view pair
+  and the UI work. Whether a contract should ALSO be refused for citing an unusable template is left
+  open there — cheap to add once the flag exists, and recommended only if it turns out to happen.
 
 
 ## Answered
 
 *(none yet)*
+
+## Q-R6a · Should `MODIFICATION_REQUIRED_FIELD_PROSE` exist at all? — OPEN (Marcelo asked 2026-08-20)
+
+**Proposed solution (implemented, proceeding by default): KEEP it.** It is not a workaround for the
+message-plumbing bug, so #3973 landing does not make it redundant. But the maintenance question is
+real and the reviewer should rule.
+
+**The question as asked:** is the prose map in `packages/Entities/src/ContractTemplateModificationEntity.ts`
+actually accounting for the message issue the other agent is fixing in
+[MJ#3973](https://github.com/MemberJunction/MJ/pull/3973) — in which case we should delete it and pull
+their changes in instead?
+
+**Answer: no. They fix different layers, and both are needed.**
+
+| | What it fixes | Without it, the user sees |
+|---|---|---|
+| **MJ#3973** (+ the `ResolverBase` follow-up) | **HOW** a refusal travels — `CompleteMessage` rendered `ValidationErrorInfo` as a JSON blob, and update/delete never called it at all | `{"Source":"ModificationText","Message":"…","Value":null}` — or, on an update, the literal text `Unknown error` |
+| **The prose map** | **WHAT** the refusal says — replaces MJ's `"<Display Name> cannot be null"` | `Modification Text cannot be null` — correct, field-named, and mute on what to do |
+
+So with #3973 alone the user gets `"Modification Text cannot be null"` rendered cleanly. The map is
+what makes it `"Record what this contract says instead of the standard clause…"`. Verified in this
+order on a live instance: the prose only arrived at all *because* #3973 is applied locally, and it only
+said something useful because of the map. **They compose; neither substitutes for the other.**
+
+**The genuine review question underneath, which is worth ruling on:** is hand-written prose per field
+worth its maintenance? Honest arguments both ways.
+
+- **For keeping it.** These three fields are the app's reason to exist, and two of them are FKs whose
+  flat message is actively unhelpful ("Contract Template Provision cannot be null" does not tell anyone
+  to pick a clause). It also owns the DE-DUPLICATION, which is not cosmetic: `ModificationText`
+  genuinely produces two absence errors (MJ's nullability check plus CodeGen's
+  `ValidateModificationTextNotEmpty`), and something has to collapse them. Deleting the map means
+  either living with the double error or writing a separate collapse.
+- **Against.** It is a second place where a field's meaning is written down, keyed on string field
+  names that a rename would silently orphan (mitigated: `fieldIsAbsent` returns false for a field the
+  entity does not have, so a drifted key stops rewording rather than rewording the wrong thing — but it
+  stops silently). And a per-field prose table does not scale to seven entities; if this pattern is
+  right, it probably belongs in MJ as `EntityField.RequiredFieldMessage` metadata rather than in every
+  app's subclass.
+- **A third option worth considering:** put the prose in `__mj.EntityField.Description` (already
+  displayed as form help text) and ask MJ to fall back to it in the nullability message. That is an MJ
+  feature request, and it would delete this file from every app at once.
+
+**Reviewer:** Marcelo. **Route the ruling to:** the R-6 item in `plans/backend-requirements.md`, and — if
+the third option is chosen — a new entry in `MJ-UPSTREAM.md`.

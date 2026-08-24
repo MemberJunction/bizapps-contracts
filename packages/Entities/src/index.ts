@@ -24,6 +24,24 @@ export * from './generated/entity_subclasses';
  * refuses before the round trip and the server refuses regardless (plan §6.3). */
 export * from './ContractEntity';
 
+/* The modification's three required fields, re-explained. It adds NO rule — the NOT NULL metadata is
+ * the rule — it only replaces MJ's "<field> cannot be null" with a sentence that says what to do. */
+export * from './ContractTemplateModificationEntity';
+
+/* The provision's required fields, re-explained. Same shape and the same shared mechanism as the
+ * modification's — `ProvisionText` became required in V202608200800. */
+export * from './ContractTemplateProvisionEntity';
+
+/* The template's publication lifecycle. Draft is editable and unreferenceable; Published is frozen by
+ * a trigger. The subclass carries the transition rule the trigger cannot see: publishing is one-way. */
+export * from './ContractTemplateEntity';
+export * from './required-field-prose';
+
+/* The two lookup entities, which exist ONLY to validate their value-list columns — a rule MJ does not
+ * yet provide (MJ#3969). Deleted wholesale when it lands; see value-list-validation.ts. */
+export * from './ContractTypeEntity';
+export * from './value-list-validation';
+
 /* The lifecycle rule, stated once and rendered two ways (D-19 / R-19). Exported because the UI needs
  * DeriveContractState to show a state that tracks UNSAVED edits — reading the view's stored column
  * would contradict the form on screen — and because StateSQL() is what the migration's CASE is checked

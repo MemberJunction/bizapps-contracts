@@ -157,31 +157,44 @@
   },
   {
     "_comments": [
-      "Contracts -> Contracts via SupersededByContractID: hidden.",
+      "Contracts -> Contracts via SupersededByContractID: PRIMARY. This grid lists the contracts THIS",
+      "agreement supersedes.",
       "",
-      "Raised twice on review and worth the explicit row. §6.4's lineage panel claims only the",
-      "ParentContractID grid, so WITHOUT this the baked grid for the OTHER self-FK still mounts stock on",
-      "every contract form — a related list headed something like 'Contracts' that means 'contracts naming",
-      "me as their successor'. That is the supersession chain read backwards, which is a real question but",
-      "one nobody asks from this side: the useful direction is 'what replaced this?', which is the FK on",
-      "the record itself and is already on the form.",
+      "REVERSED by Marcelo, 2026-08-21. This row previously set inclusion 'None' and hid the grid, on the",
+      "reasoning quoted here verbatim so the trade is not lost: the section would be 'a related list headed",
+      "something like Contracts that means contracts naming me as their successor... the useful direction is",
+      "what replaced this?, which is the FK on the record itself', and 'None rather than More: a grid whose",
+      "meaning has to be explained is worse than no grid.'",
       "",
-      "None rather than More: a grid whose meaning has to be explained is worse than no grid."
+      "That argument was sound about the LABEL and wrong about the NEED. Seeing everything one agreement",
+      "replaces is a stated requirement (a contract may supersede several), and un-superseding one has to",
+      "happen somewhere. The objection is answered by naming it: DisplayName 'Supersedes' says which",
+      "direction it reads, so nothing has to be explained.",
+      "",
+      "WHAT THIS GRID CAN AND CANNOT DO. It owns SEE and REMOVE - every superseded contract, openable, and",
+      "clearing a row's successor un-supersedes it. It cannot ADD: a related grid's New creates a brand-new",
+      "record, not a pointer to an existing one. That is why the Re-papering field panel still owns the",
+      "picker. Two surfaces, one each for the two halves.",
+      "",
+      "Both flags are set because they are different layers (guide §7d): DisplayInForm is L0 - whether the",
+      "relationship is a candidate at all - and Configuration.UI.inclusion is L1 - whether it is first-class",
+      "on the rail. Primary without DisplayInForm renders nothing."
     ],
     "fields": {
+      "DisplayName": "Supersedes",
+      "DisplayInForm": true,
       "Configuration": {
         "UI": {
-          "inclusion": "None"
+          "inclusion": "Primary"
         }
-      },
-      "DisplayInForm": false
+      }
     },
     "primaryKey": {
       "ID": "@lookup:MJ: Entity Relationships.Entity=MJ_BizApps_Contracts: Contracts&RelatedEntity=MJ_BizApps_Contracts: Contracts&RelatedEntityJoinField=SupersededByContractID"
     },
     "sync": {
-      "lastModified": "2026-08-19T03:18:47.370Z",
-      "checksum": "674bddf1c5019995af265013cccb77fe7538a160c6b821d4dfea5b495129f68b"
+      "lastModified": "2026-08-21T15:20:40.317Z",
+      "checksum": "1d05e57b51e2ce61fe4ed838f319423c6eb01a179e3d5c41a0e43a57ec3030db"
     }
   },
   {

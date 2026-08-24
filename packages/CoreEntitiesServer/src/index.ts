@@ -18,13 +18,29 @@
  * **Zero remote operations.**
  */
 import { LoadContractEntityServer } from './ContractEntityServer.js';
+import { LoadContractTemplateEntityServer } from './ContractTemplateEntityServer.js';
+import { LoadContractTemplateProvisionEntityServer } from './ContractTemplateProvisionEntityServer.js';
+import { LoadContractTypeEntityServers } from './ContractTypeEntityServers.js';
 import { LoadContractTemplateModificationEntityServer } from './ContractTemplateModificationEntityServer.js';
 
-export { ContractEntityServer, LoadContractEntityServer } from './ContractEntityServer.js';
+import { LoadSupersedeOperation } from './SupersedeOperation.js';
+
+export { ContractEntityServer, IsNewlySelected, LoadContractEntityServer } from './ContractEntityServer.js';
 export {
     ContractTemplateModificationEntityServer,
     LoadContractTemplateModificationEntityServer,
 } from './ContractTemplateModificationEntityServer.js';
+export { ContractTemplateEntityServer, LoadContractTemplateEntityServer } from './ContractTemplateEntityServer.js';
+export {
+    ContractTemplateProvisionEntityServer,
+    LoadContractTemplateProvisionEntityServer,
+} from './ContractTemplateProvisionEntityServer.js';
+export {
+    ContractTemplateTypeEntityServer,
+    ContractTypeEntityServer,
+    LoadContractTypeEntityServers,
+} from './ContractTypeEntityServers.js';
+export * from './delete-guard.js';
 
 /**
  * Called by the server bootstrap. The imports above are what fire @RegisterClass; these calls are
@@ -33,5 +49,15 @@ export {
  */
 export function LoadMjBizappsContractsEntitiesServer(): void {
     LoadContractEntityServer();
+    LoadSupersedeOperation();
     LoadContractTemplateModificationEntityServer();
+    // R-8's delete guards. These have NO Validate/Save rules at all, so a dropped registration is
+    // completely silent: deletes keep being refused by the FK, just with a constraint name again.
+    LoadContractTemplateEntityServer();
+    LoadContractTemplateProvisionEntityServer();
+    LoadContractTypeEntityServers();
 }
+
+// Re-papering: the cross-record write the browser must not do itself (see the file header, and MJ#4002).
+export { SupersedeOperation, LoadSupersedeOperation } from './SupersedeOperation.js';
+export type { SupersedeInput, SupersedeOutput } from './SupersedeOperation.js';

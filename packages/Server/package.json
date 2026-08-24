@@ -1,5 +1,5 @@
 {
-  "mjdevManaged": "MJDEV-MANAGED: mjdev owns parts of this file — the \"packages/dev-apps/*\" workspaces glob, any dev-linked open-app dependencies (e.g. \"@mj-biz-apps/*\"), and the Angular \"overrides\" pin set. Do not hand-edit those; the tool wires and reverts them. They are left visible in git status, but the git-tree guard blocks committing them. See .mjdev-docs/MANAGED-FILES.md; revert with `mjdev git:stage-clean <slug> package.json`.",
+  "mjdevManaged": "MJDEV-MANAGED: mjdev owns parts of this file \u2014 the \"packages/dev-apps/*\" workspaces glob, any dev-linked open-app dependencies (e.g. \"@mj-biz-apps/*\"), and the Angular \"overrides\" pin set. Do not hand-edit those; the tool wires and reverts them. They are left visible in git status, but the git-tree guard blocks committing them. See .mjdev-docs/MANAGED-FILES.md; revert with `mjdev git:stage-clean <slug> package.json`.",
   "name": "@mj-biz-apps/contracts-server",
   "version": "0.1.0",
   "type": "module",
@@ -22,12 +22,18 @@
     "class-validator": "^0.14.3"
   },
   "peerDependencies": {
-    "@memberjunction/core": "^6.1.0-edge.2",
-    "@memberjunction/global": "^6.1.0-edge.2",
-    "@memberjunction/server": "^6.1.0-edge.2",
-    "@memberjunction/sqlserver-dataprovider": "^6.1.0-edge.2"
+    "@memberjunction/core": "^6.1.0-edge.3",
+    "@memberjunction/global": "^6.1.0-edge.3",
+    "@memberjunction/server": "^6.1.0-edge.3",
+    "@memberjunction/sqlserver-dataprovider": "^6.1.0-edge.3"
   },
   "devDependencies": {
     "typescript": "^5.9.3"
+  },
+  "files": [
+    "/dist"
+  ],
+  "publishConfig": {
+    "access": "public"
   }
 }

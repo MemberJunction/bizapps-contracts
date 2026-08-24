@@ -55,7 +55,6 @@ import { MJCContractsDashboardPageComponent } from '../pages/contracts-dashboard
 import { MJCAgreementVersionsPageComponent, MJCAllProvisionsPageComponent } from '../pages/templates.page';
 import {
     MJCContractTypesPageComponent,
-    MJCNumberingPageComponent,
     MJCTemplateTypesPageComponent,
 } from '../pages/configuration.page';
 
@@ -398,8 +397,6 @@ export class ContractsConfigurationSectionResource extends MJCSectionBaseCompone
                 return MJCContractTypesPageComponent;
             case 'template-types':
                 return MJCTemplateTypesPageComponent;
-            case 'numbering':
-                return MJCNumberingPageComponent;
             default:
                 return null;
         }

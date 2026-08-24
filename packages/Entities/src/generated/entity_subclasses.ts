@@ -1,4 +1,4 @@
-import { BaseEntity, EntitySaveOptions, EntityDeleteOptions, CompositeKey, ValidationResult, ValidationErrorInfo, ValidationErrorType, Metadata, ProviderType, DatabaseProviderBase } from "@memberjunction/core";
+import { BaseEntity, EntitySaveOptions, EntityDeleteOptions, CompositeKey, ValidationResult, ValidationErrorInfo, ValidationErrorType, Metadata, ProviderType, DatabaseProviderBase, RunView } from "@memberjunction/core";
 import { RegisterClass } from "@memberjunction/global";
 import { z } from "zod";
 
@@ -8,34 +8,6 @@ export const loadModule = () => {
 
      
  
-/**
- * zod schema definition for the entity MJ_BizApps_Contracts: Contract Sequences
- */
-export const mjBizAppsContractsContractSequenceSchema = z.object({
-    ID: z.number().describe(`
-        * * Field Name: ID
-        * * Display Name: ID
-        * * SQL Data Type: int`),
-    NextSequenceNumber: z.number().describe(`
-        * * Field Name: NextSequenceNumber
-        * * Display Name: Next Sequence Number
-        * * SQL Data Type: int
-        * * Default Value: 1
-        * * Description: The next number to hand out. Advanced server-side by ContractEntityServer.Save().`),
-    __mj_CreatedAt: z.date().describe(`
-        * * Field Name: __mj_CreatedAt
-        * * Display Name: Created At
-        * * SQL Data Type: datetimeoffset
-        * * Default Value: getutcdate()`),
-    __mj_UpdatedAt: z.date().describe(`
-        * * Field Name: __mj_UpdatedAt
-        * * Display Name: Updated At
-        * * SQL Data Type: datetimeoffset
-        * * Default Value: getutcdate()`),
-});
-
-export type mjBizAppsContractsContractSequenceEntityType = z.infer<typeof mjBizAppsContractsContractSequenceSchema>;
-
 /**
  * zod schema definition for the entity MJ_BizApps_Contracts: Contract Template Modifications
  */
@@ -56,7 +28,7 @@ export const mjBizAppsContractsContractTemplateModificationSchema = z.object({
         * * SQL Data Type: uniqueidentifier
         * * Related Entity/Foreign Key: MJ_BizApps_Contracts: Contract Template Provisions (vwContractTemplateProvisions.ID)
         * * Description: The provision being modified — the structured identifier, and the only one. A server rule enforces what this replaces: the provision must belong to a template this contract incorporates.`),
-    ModificationText: z.string().nullable().describe(`
+    ModificationText: z.string().describe(`
         * * Field Name: ModificationText
         * * Display Name: Modification Text
         * * SQL Data Type: nvarchar(MAX)
@@ -76,13 +48,13 @@ export const mjBizAppsContractsContractTemplateModificationSchema = z.object({
         * * Display Name: Updated At
         * * SQL Data Type: datetimeoffset
         * * Default Value: getutcdate()`),
-    Contract: z.string().describe(`
+    Contract: z.string().nullable().describe(`
         * * Field Name: Contract
-        * * Display Name: Contract Reference
+        * * Display Name: Contract
         * * SQL Data Type: nvarchar(50)`),
     ContractTemplateProvision: z.string().describe(`
         * * Field Name: ContractTemplateProvision
-        * * Display Name: Provision Reference
+        * * Display Name: Contract Template Provision
         * * SQL Data Type: nvarchar(20)`),
 });
 
@@ -112,7 +84,7 @@ export const mjBizAppsContractsContractTemplateProvisionSchema = z.object({
         * * Display Name: Title
         * * SQL Data Type: nvarchar(200)
         * * Description: The clause heading, e.g. "Limitation of Liability". This plus the number is what a person picks from.`),
-    ProvisionText: z.string().nullable().describe(`
+    ProvisionText: z.string().describe(`
         * * Field Name: ProvisionText
         * * Display Name: Provision Text
         * * SQL Data Type: nvarchar(MAX)
@@ -121,12 +93,11 @@ export const mjBizAppsContractsContractTemplateProvisionSchema = z.object({
         * * Field Name: Description
         * * Display Name: Description
         * * SQL Data Type: nvarchar(MAX)`),
-    Sequence: z.number().describe(`
-        * * Field Name: Sequence
-        * * Display Name: Sequence
-        * * SQL Data Type: int
-        * * Default Value: 0
-        * * Description: Display order. Earns its place because ProvisionNumber does not sort as text ("3.10" lands before "3.5") and a legal document has a canonical order.`),
+    ProvisionSortKey: z.string().nullable().describe(`
+        * * Field Name: ProvisionSortKey
+        * * Display Name: Sort Key
+        * * SQL Data Type: nvarchar(200)
+        * * Description: Collation key derived from ProvisionNumber: every run of digits zero-padded to six places, everything else upper-cased. Makes a plain SQL ORDER BY produce natural order ('1.9' before '1.10'), which ordering by ProvisionNumber cannot. READ-ONLY -- a persisted computed column; nobody should be able to set a sort key. Replaced the hand-maintained Sequence column, which had already collided in the seeded data.`),
     __mj_CreatedAt: z.date().describe(`
         * * Field Name: __mj_CreatedAt
         * * Display Name: Created At
@@ -201,7 +172,7 @@ export const mjBizAppsContractsContractTemplateSchema = z.object({
         * * SQL Data Type: nvarchar(200)`),
     ContractTemplateTypeID: z.string().describe(`
         * * Field Name: ContractTemplateTypeID
-        * * Display Name: Template Type ID
+        * * Display Name: Contract Template Type ID
         * * SQL Data Type: uniqueidentifier
         * * Related Entity/Foreign Key: MJ_BizApps_Contracts: Contract Template Types (vwContractTemplateTypes.ID)`),
     VersionLabel: z.string().nullable().describe(`
@@ -214,15 +185,25 @@ export const mjBizAppsContractsContractTemplateSchema = z.object({
         * * Display Name: Introduced Date
         * * SQL Data Type: date
         * * Description: When this version started being offered. NOT an effective date: a template becomes effective for a customer when THAT customer signs it, never on a calendar date. Naming it EffectiveDate would invite exactly the wrong query.`),
-    SourceURL: z.string().describe(`
+    SourceURL: z.string().nullable().describe(`
         * * Field Name: SourceURL
         * * Display Name: Source URL
         * * SQL Data Type: nvarchar(1000)
-        * * Description: The dated public URL. NOT NULL — every template we have is a published URL and it is what the executed PDF cites; a template nobody can open is not a record of anything.`),
+        * * Description: The dated public URL a customer can open to read the standard terms. NULLABLE: reachability is enforceable by nothing (a well-formed dead link passes any format check), and the real rule is "a URL OR an attached file" — the file half attaching through __mj.FileEntityRecordLink, which cannot reference a record that does not exist yet, so on CREATE it is unsatisfiable in principle. A template with neither is INCOMPLETE rather than invalid; the derived IsUsable column on vwContractTemplates is what says so.`),
     Description: z.string().nullable().describe(`
         * * Field Name: Description
         * * Display Name: Description
         * * SQL Data Type: nvarchar(MAX)`),
+    Status: z.union([z.literal('Draft'), z.literal('Published')]).describe(`
+        * * Field Name: Status
+        * * Display Name: Status
+        * * SQL Data Type: nvarchar(20)
+        * * Default Value: Draft
+    * * Value List Type: List
+    * * Possible Values 
+    *   * Draft
+    *   * Published
+        * * Description: Publication lifecycle. 'Draft' -- freely editable, provisions may be added, changed and removed, and a contract may not NEWLY reference it. 'Published' -- the provisions are frozen against INSERT, UPDATE and DELETE by trg_ContractTemplateProvision_Immutability, and contracts may reference it. Publishing is ONE-WAY (enforced in ContractTemplateEntity): to change published terms, publish a new version -- that is what VersionLabel exists for. Existing references are never invalidated by this column; only new ones are policed, the same way ContractType.Status works.`),
     __mj_CreatedAt: z.date().describe(`
         * * Field Name: __mj_CreatedAt
         * * Display Name: Created At
@@ -235,8 +216,12 @@ export const mjBizAppsContractsContractTemplateSchema = z.object({
         * * Default Value: getutcdate()`),
     ContractTemplateType: z.string().describe(`
         * * Field Name: ContractTemplateType
-        * * Display Name: Template Type
+        * * Display Name: Contract Template Type
         * * SQL Data Type: nvarchar(100)`),
+    IsUsable: z.boolean().nullable().describe(`
+        * * Field Name: IsUsable
+        * * Display Name: Is Usable
+        * * SQL Data Type: bit`),
 });
 
 export type mjBizAppsContractsContractTemplateEntityType = z.infer<typeof mjBizAppsContractsContractTemplateSchema>;
@@ -274,6 +259,24 @@ export const mjBizAppsContractsContractTypeSchema = z.object({
     *   * Active
     *   * Inactive
         * * Description: Active | Inactive.`),
+    MustBeRoot: z.boolean().describe(`
+        * * Field Name: MustBeRoot
+        * * Display Name: Must Be Root
+        * * SQL Data Type: bit
+        * * Default Value: 0
+        * * Description: This type of contract may NOT name a ParentContractID -- it is a root agreement. Enforced in ContractEntityServer.ValidateAsync. Mutually exclusive with MustBeChild (CK_ContractType_RootOrChild); both false means no restriction on where in the tree this type may sit, which is the honest default.`),
+    MustBeChild: z.boolean().describe(`
+        * * Field Name: MustBeChild
+        * * Display Name: Must Be Child
+        * * SQL Data Type: bit
+        * * Default Value: 0
+        * * Description: This type of contract MUST name a ParentContractID -- a Change Order that amends nothing is not a change order, and would never appear in the original agreement's lineage. Enforced in ContractEntityServer.ValidateAsync. Mutually exclusive with MustBeRoot.`),
+    TemplateRequired: z.boolean().describe(`
+        * * Field Name: TemplateRequired
+        * * Display Name: Template Required
+        * * SQL Data Type: bit
+        * * Default Value: 0
+        * * Description: This type of contract must carry its own ContractTemplateID -- the standard terms it incorporates. On the TYPE rather than inferred from the placement flags, because 'where in the tree' and 'does it need its own paper' are different questions and a future type could want any combination.`),
     __mj_CreatedAt: z.date().describe(`
         * * Field Name: __mj_CreatedAt
         * * Display Name: Created At
@@ -284,15 +287,6 @@ export const mjBizAppsContractsContractTypeSchema = z.object({
         * * Display Name: Updated At
         * * SQL Data Type: datetimeoffset
         * * Default Value: getutcdate()`),
-    ParentStatusRequirement: z.union([z.literal('Prohibited'), z.literal('Required')]).nullable().describe(`
-        * * Field Name: ParentStatusRequirement
-        * * Display Name: Parent Status Requirement
-        * * SQL Data Type: nvarchar(20)
-    * * Value List Type: List
-    * * Possible Values 
-    *   * Prohibited
-    *   * Required
-        * * Description: Whether a contract of this type must, must not, or may name a ParentContractID: 'Required' (a Change Order amends something, so it has to say what), 'Prohibited' (a root agreement), or NULL for no restriction. Enforced in ContractEntityServer.ValidateAsync. Replaced a comparison against this row's NAME, which stopped working the moment anyone renamed it.`),
 });
 
 export type mjBizAppsContractsContractTypeEntityType = z.infer<typeof mjBizAppsContractsContractTypeSchema>;
@@ -306,11 +300,11 @@ export const mjBizAppsContractsContractSchema = z.object({
         * * Display Name: ID
         * * SQL Data Type: uniqueidentifier
         * * Default Value: newsequentialid()`),
-    ContractNumber: z.string().describe(`
+    ContractNumber: z.string().nullable().describe(`
         * * Field Name: ContractNumber
         * * Display Name: Contract Number
         * * SQL Data Type: nvarchar(50)
-        * * Description: CTR-{seq} from ContractSequence. Unique.`),
+        * * Description: CTR-000001, minted by spAssignNextContractNumber from the seq_ContractNumber database SEQUENCE. Unique. NULLABLE at the schema level because MJ cannot express 'NOT NULL, assigned by the server on insert' -- ContractEntityServer.Save() is what guarantees every contract has one. Gaps are normal and are not to be 'fixed': a save that fails after taking a number leaves one behind, and UQ_Contract_ContractNumber is what guarantees no two contracts share a number.`),
     ContractTypeID: z.string().describe(`
         * * Field Name: ContractTypeID
         * * Display Name: Contract Type
@@ -318,7 +312,7 @@ export const mjBizAppsContractsContractSchema = z.object({
         * * Related Entity/Foreign Key: MJ_BizApps_Contracts: Contract Types (vwContractTypes.ID)`),
     CompanyID: z.string().describe(`
         * * Field Name: CompanyID
-        * * Display Name: Selling Company
+        * * Display Name: Company
         * * SQL Data Type: uniqueidentifier
         * * Related Entity/Foreign Key: MJ: Companies (vwCompanies.ID)
         * * Description: The SELLING company (__mj.Company) — which of OUR entities holds this agreement. Not the customer. Stored rather than derived because it is not reliably recoverable from the deal.`),
@@ -330,7 +324,7 @@ export const mjBizAppsContractsContractSchema = z.object({
         * * Description: The customer. NOT NULL: contracts are B2B here by definition, and the individual case lives entirely in orders. v1 allowed an organization-or-person XOR; that is gone.`),
     PrimaryContactPersonID: z.string().nullable().describe(`
         * * Field Name: PrimaryContactPersonID
-        * * Display Name: Primary Contact
+        * * Display Name: Primary Contact Person
         * * SQL Data Type: uniqueidentifier
         * * Related Entity/Foreign Key: MJ_BizApps_Common: People (vwPeople.ID)
         * * Description: Their named contact, optional.`),
@@ -348,7 +342,7 @@ export const mjBizAppsContractsContractSchema = z.object({
         * * Description: Polymorphic reference part 1: the MJ Entity of the record that CREATED this contract, in practice Deals. A real foreign key to __mj.Entity — this is the half that is enforced, and the half that lets MJ resolve the pair generically. Same pattern accounting uses for JournalEntry provenance.`),
     CreatingRecordID: z.string().nullable().describe(`
         * * Field Name: CreatingRecordID
-        * * Display Name: Creating Record ID
+        * * Display Name: Creating Record
         * * SQL Data Type: nvarchar(450)
         * * Description: Polymorphic reference part 2: the creating records id. Soft by nature — it points at a record owned by an app this repo has no knowledge of. Set together with CreatingEntityID or not at all.`),
     ParentContractID: z.string().nullable().describe(`
@@ -359,7 +353,7 @@ export const mjBizAppsContractsContractSchema = z.object({
         * * Description: The contract this one amends. How a change order attaches: a change order is signed paper with its own PDF, dates and modifications, so it reuses this entity rather than getting one of its own. The original stays in force.`),
     SupersededByContractID: z.string().nullable().describe(`
         * * Field Name: SupersededByContractID
-        * * Display Name: Superseded By
+        * * Display Name: Superseded By Contract
         * * SQL Data Type: uniqueidentifier
         * * Related Entity/Foreign Key: MJ_BizApps_Contracts: Contracts (vwContracts.ID)
         * * Description: The contract that REPLACED this one, where an agreement was re-papered rather than amended. Also the sole source of the derived Superseded state, which is why the old CHECK tying it to a Status column disappeared with that column.`),
@@ -444,7 +438,7 @@ export const mjBizAppsContractsContractSchema = z.object({
         * * SQL Data Type: nvarchar(50)`),
     CustomerOrganization: z.string().describe(`
         * * Field Name: CustomerOrganization
-        * * Display Name: Customer Organization Name
+        * * Display Name: Customer Name
         * * SQL Data Type: nvarchar(255)`),
     PrimaryContactPerson: z.string().nullable().describe(`
         * * Field Name: PrimaryContactPerson
@@ -464,19 +458,11 @@ export const mjBizAppsContractsContractSchema = z.object({
         * * SQL Data Type: nvarchar(50)`),
     SupersededByContract: z.string().nullable().describe(`
         * * Field Name: SupersededByContract
-        * * Display Name: Superseded By Name
+        * * Display Name: Superseded By Contract Name
         * * SQL Data Type: nvarchar(50)`),
-    RootParentContractID: z.string().nullable().describe(`
-        * * Field Name: RootParentContractID
-        * * Display Name: Root Parent Contract
-        * * SQL Data Type: uniqueidentifier`),
-    RootSupersededByContractID: z.string().nullable().describe(`
-        * * Field Name: RootSupersededByContractID
-        * * Display Name: Root Superseded By
-        * * SQL Data Type: uniqueidentifier`),
     State: z.string().describe(`
         * * Field Name: State
-        * * Display Name: Contract State
+        * * Display Name: State
         * * SQL Data Type: varchar(10)`),
     IsAwaitingDocument: z.boolean().nullable().describe(`
         * * Field Name: IsAwaitingDocument
@@ -499,135 +485,6 @@ export const mjBizAppsContractsContractSchema = z.object({
 export type mjBizAppsContractsContractEntityType = z.infer<typeof mjBizAppsContractsContractSchema>;
  
  
-
-/**
- * MJ_BizApps_Contracts: Contract Sequences - strongly typed entity sub-class
- * * Schema: __mj_BizAppsContracts
- * * Base Table: ContractSequence
- * * Base View: vwContractSequences
- * * @description Singleton counter behind ContractNumber (CTR-{seq}), the same shape orders uses for ORD- and PAY-. Seeded in the baseline because it is a counter rather than vocabulary: it must exist before the first contract is written.
- * * Primary Key: ID
- * @extends {BaseEntity}
- * @class
- * @public
- */
-@RegisterClass(BaseEntity, 'MJ_BizApps_Contracts: Contract Sequences')
-export class mjBizAppsContractsContractSequenceEntity extends BaseEntity<mjBizAppsContractsContractSequenceEntityType> {
-    /**
-    * Loads the MJ_BizApps_Contracts: Contract Sequences record from the database
-    * @param ID: number - primary key value to load the MJ_BizApps_Contracts: Contract Sequences record.
-    * @param EntityRelationshipsToLoad - (optional) the relationships to load
-    * @returns {Promise<boolean>} - true if successful, false otherwise
-    * @public
-    * @async
-    * @memberof mjBizAppsContractsContractSequenceEntity
-    * @method
-    * @override
-    */
-    public async Load(ID: number, EntityRelationshipsToLoad?: string[]) : Promise<boolean> {
-        const compositeKey: CompositeKey = new CompositeKey();
-        compositeKey.KeyValuePairs.push({ FieldName: 'ID', Value: ID });
-        return await super.InnerLoad(compositeKey, EntityRelationshipsToLoad);
-    }
-
-    /**
-    * Validate() method override for MJ_BizApps_Contracts: Contract Sequences entity. This is an auto-generated method that invokes the generated validators for this entity for the following fields:
-    * * ID: The ID of this record must be exactly 1, which restricts the table to a single configuration or system row.
-    * * NextSequenceNumber: The next sequence number must be greater than zero to ensure valid sequencing.
-    * @public
-    * @method
-    * @override
-    */
-    public override Validate(): ValidationResult {
-        const result = super.Validate();
-        this.ValidateIdIsOne(result);
-        this.ValidateNextSequenceNumberGreaterThanZero(result);
-        result.Success = result.Success && (result.Errors.length === 0);
-
-        return result;
-    }
-
-    /**
-    * The ID of this record must be exactly 1, which restricts the table to a single configuration or system row.
-    * @param result - the ValidationResult object to add any errors or warnings to
-    * @public
-    * @method
-    */
-    public ValidateIdIsOne(result: ValidationResult) {
-    	if (this.ID !== 1) {
-    		result.Errors.push(new ValidationErrorInfo(
-    			"ID",
-    			"The ID must be equal to 1.",
-    			this.ID,
-    			ValidationErrorType.Failure
-    		));
-    	}
-    }
-
-    /**
-    * The next sequence number must be greater than zero to ensure valid sequencing.
-    * @param result - the ValidationResult object to add any errors or warnings to
-    * @public
-    * @method
-    */
-    public ValidateNextSequenceNumberGreaterThanZero(result: ValidationResult) {
-    	if (this.NextSequenceNumber != null && this.NextSequenceNumber <= 0) {
-    		result.Errors.push(new ValidationErrorInfo(
-    			"NextSequenceNumber",
-    			"The next sequence number must be greater than zero.",
-    			this.NextSequenceNumber,
-    			ValidationErrorType.Failure
-    		));
-    	}
-    }
-
-    /**
-    * * Field Name: ID
-    * * Display Name: ID
-    * * SQL Data Type: int
-    */
-    get ID(): number {
-        return this.Get('ID');
-    }
-    set ID(value: number) {
-        this.Set('ID', value);
-    }
-
-    /**
-    * * Field Name: NextSequenceNumber
-    * * Display Name: Next Sequence Number
-    * * SQL Data Type: int
-    * * Default Value: 1
-    * * Description: The next number to hand out. Advanced server-side by ContractEntityServer.Save().
-    */
-    get NextSequenceNumber(): number {
-        return this.Get('NextSequenceNumber');
-    }
-    set NextSequenceNumber(value: number) {
-        this.Set('NextSequenceNumber', value);
-    }
-
-    /**
-    * * Field Name: __mj_CreatedAt
-    * * Display Name: Created At
-    * * SQL Data Type: datetimeoffset
-    * * Default Value: getutcdate()
-    */
-    get __mj_CreatedAt(): Date {
-        return this.Get('__mj_CreatedAt');
-    }
-
-    /**
-    * * Field Name: __mj_UpdatedAt
-    * * Display Name: Updated At
-    * * SQL Data Type: datetimeoffset
-    * * Default Value: getutcdate()
-    */
-    get __mj_UpdatedAt(): Date {
-        return this.Get('__mj_UpdatedAt');
-    }
-}
-
 
 /**
  * MJ_BizApps_Contracts: Contract Template Modifications - strongly typed entity sub-class
@@ -657,6 +514,38 @@ export class mjBizAppsContractsContractTemplateModificationEntity extends BaseEn
         const compositeKey: CompositeKey = new CompositeKey();
         compositeKey.KeyValuePairs.push({ FieldName: 'ID', Value: ID });
         return await super.InnerLoad(compositeKey, EntityRelationshipsToLoad);
+    }
+
+    /**
+    * Validate() method override for MJ_BizApps_Contracts: Contract Template Modifications entity. This is an auto-generated method that invokes the generated validators for this entity for the following fields:
+    * * ModificationText: The modification text must contain actual text and cannot be empty or consist only of spaces.
+    * @public
+    * @method
+    * @override
+    */
+    public override Validate(): ValidationResult {
+        const result = super.Validate();
+        this.ValidateModificationTextNotEmpty(result);
+        result.Success = result.Success && (result.Errors.length === 0);
+
+        return result;
+    }
+
+    /**
+    * The modification text must contain actual text and cannot be empty or consist only of spaces.
+    * @param result - the ValidationResult object to add any errors or warnings to
+    * @public
+    * @method
+    */
+    public ValidateModificationTextNotEmpty(result: ValidationResult) {
+    	if (this.ModificationText == null || this.ModificationText.trim().length === 0) {
+    		result.Errors.push(new ValidationErrorInfo(
+    			"ModificationText",
+    			"Modification text cannot be empty or contain only whitespace.",
+    			this.ModificationText,
+    			ValidationErrorType.Failure
+    		));
+    	}
     }
 
     /**
@@ -705,10 +594,10 @@ export class mjBizAppsContractsContractTemplateModificationEntity extends BaseEn
     * * SQL Data Type: nvarchar(MAX)
     * * Description: What this contract says INSTEAD of the standard clause. Read as a pair with ContractTemplateProvision.ProvisionText.
     */
-    get ModificationText(): string | null {
+    get ModificationText(): string {
         return this.Get('ModificationText');
     }
-    set ModificationText(value: string | null) {
+    set ModificationText(value: string) {
         this.Set('ModificationText', value);
     }
 
@@ -747,16 +636,16 @@ export class mjBizAppsContractsContractTemplateModificationEntity extends BaseEn
 
     /**
     * * Field Name: Contract
-    * * Display Name: Contract Reference
+    * * Display Name: Contract
     * * SQL Data Type: nvarchar(50)
     */
-    get Contract(): string {
+    get Contract(): string | null {
         return this.Get('Contract');
     }
 
     /**
     * * Field Name: ContractTemplateProvision
-    * * Display Name: Provision Reference
+    * * Display Name: Contract Template Provision
     * * SQL Data Type: nvarchar(20)
     */
     get ContractTemplateProvision(): string {
@@ -793,6 +682,38 @@ export class mjBizAppsContractsContractTemplateProvisionEntity extends BaseEntit
         const compositeKey: CompositeKey = new CompositeKey();
         compositeKey.KeyValuePairs.push({ FieldName: 'ID', Value: ID });
         return await super.InnerLoad(compositeKey, EntityRelationshipsToLoad);
+    }
+
+    /**
+    * Validate() method override for MJ_BizApps_Contracts: Contract Template Provisions entity. This is an auto-generated method that invokes the generated validators for this entity for the following fields:
+    * * ProvisionText: The provision text cannot be empty or consist only of spaces. It must contain actual text content.
+    * @public
+    * @method
+    * @override
+    */
+    public override Validate(): ValidationResult {
+        const result = super.Validate();
+        this.ValidateProvisionTextNotEmpty(result);
+        result.Success = result.Success && (result.Errors.length === 0);
+
+        return result;
+    }
+
+    /**
+    * The provision text cannot be empty or consist only of spaces. It must contain actual text content.
+    * @param result - the ValidationResult object to add any errors or warnings to
+    * @public
+    * @method
+    */
+    public ValidateProvisionTextNotEmpty(result: ValidationResult) {
+    	if (this.ProvisionText === undefined || this.ProvisionText === null || this.ProvisionText.trim().length === 0) {
+    		result.Errors.push(new ValidationErrorInfo(
+    			"ProvisionText",
+    			"Provision text cannot be empty or consist only of spaces.",
+    			this.ProvisionText,
+    			ValidationErrorType.Failure
+    		));
+    	}
     }
 
     /**
@@ -853,10 +774,10 @@ export class mjBizAppsContractsContractTemplateProvisionEntity extends BaseEntit
     * * SQL Data Type: nvarchar(MAX)
     * * Description: The STANDARD wording of this clause. Read as a pair with ContractTemplateModification.ModificationText, which holds what a given contract says instead — a dispute needs the comparison, not either half.
     */
-    get ProvisionText(): string | null {
+    get ProvisionText(): string {
         return this.Get('ProvisionText');
     }
-    set ProvisionText(value: string | null) {
+    set ProvisionText(value: string) {
         this.Set('ProvisionText', value);
     }
 
@@ -873,17 +794,13 @@ export class mjBizAppsContractsContractTemplateProvisionEntity extends BaseEntit
     }
 
     /**
-    * * Field Name: Sequence
-    * * Display Name: Sequence
-    * * SQL Data Type: int
-    * * Default Value: 0
-    * * Description: Display order. Earns its place because ProvisionNumber does not sort as text ("3.10" lands before "3.5") and a legal document has a canonical order.
+    * * Field Name: ProvisionSortKey
+    * * Display Name: Sort Key
+    * * SQL Data Type: nvarchar(200)
+    * * Description: Collation key derived from ProvisionNumber: every run of digits zero-padded to six places, everything else upper-cased. Makes a plain SQL ORDER BY produce natural order ('1.9' before '1.10'), which ordering by ProvisionNumber cannot. READ-ONLY -- a persisted computed column; nobody should be able to set a sort key. Replaced the hand-maintained Sequence column, which had already collided in the seeded data.
     */
-    get Sequence(): number {
-        return this.Get('Sequence');
-    }
-    set Sequence(value: number) {
-        this.Set('Sequence', value);
+    get ProvisionSortKey(): string | null {
+        return this.Get('ProvisionSortKey');
     }
 
     /**
@@ -1050,11 +967,10 @@ export class mjBizAppsContractsContractTemplateEntity extends BaseEntity<mjBizAp
       Name: 'Provisions',
         RelatedEntity: 'MJ_BizApps_Contracts: Contract Template Provisions',
         RelatedEntityJoinField: 'ContractTemplateID',
-        OrderBy: 'Sequence ASC',
+        OrderBy: 'ProvisionSortKey ASC',
         Load: 'explicit',
         OnRemove: 'delete',
         Source: 'database',
-        Sequence: { Field: 'Sequence', From: 1 },
   });
 
     /**
@@ -1101,7 +1017,7 @@ export class mjBizAppsContractsContractTemplateEntity extends BaseEntity<mjBizAp
 
     /**
     * * Field Name: ContractTemplateTypeID
-    * * Display Name: Template Type ID
+    * * Display Name: Contract Template Type ID
     * * SQL Data Type: uniqueidentifier
     * * Related Entity/Foreign Key: MJ_BizApps_Contracts: Contract Template Types (vwContractTemplateTypes.ID)
     */
@@ -1142,12 +1058,12 @@ export class mjBizAppsContractsContractTemplateEntity extends BaseEntity<mjBizAp
     * * Field Name: SourceURL
     * * Display Name: Source URL
     * * SQL Data Type: nvarchar(1000)
-    * * Description: The dated public URL. NOT NULL — every template we have is a published URL and it is what the executed PDF cites; a template nobody can open is not a record of anything.
+    * * Description: The dated public URL a customer can open to read the standard terms. NULLABLE: reachability is enforceable by nothing (a well-formed dead link passes any format check), and the real rule is "a URL OR an attached file" — the file half attaching through __mj.FileEntityRecordLink, which cannot reference a record that does not exist yet, so on CREATE it is unsatisfiable in principle. A template with neither is INCOMPLETE rather than invalid; the derived IsUsable column on vwContractTemplates is what says so.
     */
-    get SourceURL(): string {
+    get SourceURL(): string | null {
         return this.Get('SourceURL');
     }
-    set SourceURL(value: string) {
+    set SourceURL(value: string | null) {
         this.Set('SourceURL', value);
     }
 
@@ -1161,6 +1077,24 @@ export class mjBizAppsContractsContractTemplateEntity extends BaseEntity<mjBizAp
     }
     set Description(value: string | null) {
         this.Set('Description', value);
+    }
+
+    /**
+    * * Field Name: Status
+    * * Display Name: Status
+    * * SQL Data Type: nvarchar(20)
+    * * Default Value: Draft
+    * * Value List Type: List
+    * * Possible Values 
+    *   * Draft
+    *   * Published
+    * * Description: Publication lifecycle. 'Draft' -- freely editable, provisions may be added, changed and removed, and a contract may not NEWLY reference it. 'Published' -- the provisions are frozen against INSERT, UPDATE and DELETE by trg_ContractTemplateProvision_Immutability, and contracts may reference it. Publishing is ONE-WAY (enforced in ContractTemplateEntity): to change published terms, publish a new version -- that is what VersionLabel exists for. Existing references are never invalidated by this column; only new ones are policed, the same way ContractType.Status works.
+    */
+    get Status(): 'Draft' | 'Published' {
+        return this.Get('Status');
+    }
+    set Status(value: 'Draft' | 'Published') {
+        this.Set('Status', value);
     }
 
     /**
@@ -1185,11 +1119,20 @@ export class mjBizAppsContractsContractTemplateEntity extends BaseEntity<mjBizAp
 
     /**
     * * Field Name: ContractTemplateType
-    * * Display Name: Template Type
+    * * Display Name: Contract Template Type
     * * SQL Data Type: nvarchar(100)
     */
     get ContractTemplateType(): string {
         return this.Get('ContractTemplateType');
+    }
+
+    /**
+    * * Field Name: IsUsable
+    * * Display Name: Is Usable
+    * * SQL Data Type: bit
+    */
+    get IsUsable(): boolean | null {
+        return this.Get('IsUsable');
     }
 }
 
@@ -1222,6 +1165,38 @@ export class mjBizAppsContractsContractTypeEntity extends BaseEntity<mjBizAppsCo
         const compositeKey: CompositeKey = new CompositeKey();
         compositeKey.KeyValuePairs.push({ FieldName: 'ID', Value: ID });
         return await super.InnerLoad(compositeKey, EntityRelationshipsToLoad);
+    }
+
+    /**
+    * Validate() method override for MJ_BizApps_Contracts: Contract Types entity. This is an auto-generated method that invokes the generated validators for this entity for the following fields:
+    * * Table-Level: An entity cannot be designated as both a root and a child at the same time.
+    * @public
+    * @method
+    * @override
+    */
+    public override Validate(): ValidationResult {
+        const result = super.Validate();
+        this.ValidateRootAndChildExclusivity(result);
+        result.Success = result.Success && (result.Errors.length === 0);
+
+        return result;
+    }
+
+    /**
+    * An entity cannot be designated as both a root and a child at the same time.
+    * @param result - the ValidationResult object to add any errors or warnings to
+    * @public
+    * @method
+    */
+    public ValidateRootAndChildExclusivity(result: ValidationResult) {
+    	if (this.MustBeRoot && this.MustBeChild) {
+    		result.Errors.push(new ValidationErrorInfo(
+    			"MustBeRoot",
+    			"An entity cannot be designated as both a root and a child at the same time.",
+    			this.MustBeRoot,
+    			ValidationErrorType.Failure
+    		));
+    	}
     }
 
     /**
@@ -1294,6 +1269,48 @@ export class mjBizAppsContractsContractTypeEntity extends BaseEntity<mjBizAppsCo
     }
 
     /**
+    * * Field Name: MustBeRoot
+    * * Display Name: Must Be Root
+    * * SQL Data Type: bit
+    * * Default Value: 0
+    * * Description: This type of contract may NOT name a ParentContractID -- it is a root agreement. Enforced in ContractEntityServer.ValidateAsync. Mutually exclusive with MustBeChild (CK_ContractType_RootOrChild); both false means no restriction on where in the tree this type may sit, which is the honest default.
+    */
+    get MustBeRoot(): boolean {
+        return this.Get('MustBeRoot');
+    }
+    set MustBeRoot(value: boolean) {
+        this.Set('MustBeRoot', value);
+    }
+
+    /**
+    * * Field Name: MustBeChild
+    * * Display Name: Must Be Child
+    * * SQL Data Type: bit
+    * * Default Value: 0
+    * * Description: This type of contract MUST name a ParentContractID -- a Change Order that amends nothing is not a change order, and would never appear in the original agreement's lineage. Enforced in ContractEntityServer.ValidateAsync. Mutually exclusive with MustBeRoot.
+    */
+    get MustBeChild(): boolean {
+        return this.Get('MustBeChild');
+    }
+    set MustBeChild(value: boolean) {
+        this.Set('MustBeChild', value);
+    }
+
+    /**
+    * * Field Name: TemplateRequired
+    * * Display Name: Template Required
+    * * SQL Data Type: bit
+    * * Default Value: 0
+    * * Description: This type of contract must carry its own ContractTemplateID -- the standard terms it incorporates. On the TYPE rather than inferred from the placement flags, because 'where in the tree' and 'does it need its own paper' are different questions and a future type could want any combination.
+    */
+    get TemplateRequired(): boolean {
+        return this.Get('TemplateRequired');
+    }
+    set TemplateRequired(value: boolean) {
+        this.Set('TemplateRequired', value);
+    }
+
+    /**
     * * Field Name: __mj_CreatedAt
     * * Display Name: Created At
     * * SQL Data Type: datetimeoffset
@@ -1311,23 +1328,6 @@ export class mjBizAppsContractsContractTypeEntity extends BaseEntity<mjBizAppsCo
     */
     get __mj_UpdatedAt(): Date {
         return this.Get('__mj_UpdatedAt');
-    }
-
-    /**
-    * * Field Name: ParentStatusRequirement
-    * * Display Name: Parent Status Requirement
-    * * SQL Data Type: nvarchar(20)
-    * * Value List Type: List
-    * * Possible Values 
-    *   * Prohibited
-    *   * Required
-    * * Description: Whether a contract of this type must, must not, or may name a ParentContractID: 'Required' (a Change Order amends something, so it has to say what), 'Prohibited' (a root agreement), or NULL for no restriction. Enforced in ContractEntityServer.ValidateAsync. Replaced a comparison against this row's NAME, which stopped working the moment anyone renamed it.
-    */
-    get ParentStatusRequirement(): 'Prohibited' | 'Required' | null {
-        return this.Get('ParentStatusRequirement');
-    }
-    set ParentStatusRequirement(value: 'Prohibited' | 'Required' | null) {
-        this.Set('ParentStatusRequirement', value);
     }
 }
 
@@ -1383,38 +1383,38 @@ export class mjBizAppsContractsContractEntity extends BaseEntity<mjBizAppsContra
 
     /**
     * Validate() method override for MJ_BizApps_Contracts: Contracts entity. This is an auto-generated method that invokes the generated validators for this entity for the following fields:
-    * * AnnualIncreasePercent: The annual increase percentage must be greater than or equal to 0% if it is specified.
-    * * CancellationWindowDays: The cancellation window, if specified, must be 0 days or greater.
-    * * RenewalNoticeDays: The renewal notice days must be a non-negative number (0 or greater) if it is specified.
-    * * Table-Level: Both the creating entity and the creating record must be provided together, or both must be left empty. You cannot specify one without the other.
-    * * Table-Level: The contract end date must be on or after the effective date.
-    * * Table-Level: A contract cannot be its own parent contract. This prevents circular references in the contract hierarchy.
-    * * Table-Level: A contract cannot be superseded by itself. If a superseding contract is specified, it must be a different contract.
+    * * AnnualIncreasePercent: The annual increase percentage must be greater than or equal to zero, ensuring that contract rates do not decrease automatically.
+    * * CancellationWindowDays: The cancellation window days must be zero or a positive number, ensuring that we do not record a negative number of days for the contract cancellation period.
+    * * RenewalNoticeDays: Renewal notice days must be 0 or greater, if specified.
+    * * Table-Level: Both Creating Entity ID and Creating Record ID must be provided together, or both must be left empty, to ensure consistent tracking of the source entity and record.
+    * * Table-Level: The contract end date must be on or after the effective date to ensure logical date ordering.
+    * * Table-Level: A contract cannot be its own parent contract to prevent circular references in the contract hierarchy.
+    * * Table-Level: A contract cannot be superseded by itself. The superseding contract must be a different contract record.
     * @public
     * @method
     * @override
     */
     public override Validate(): ValidationResult {
         const result = super.Validate();
-        this.ValidateAnnualIncreasePercentGreaterThanOrEqualToZero(result);
-        this.ValidateCancellationWindowDaysMinimum(result);
+        this.ValidateAnnualIncreasePercentNonNegative(result);
+        this.ValidateCancellationWindowDaysGreaterThanOrEqualToZero(result);
         this.ValidateRenewalNoticeDaysGreaterThanOrEqualToZero(result);
         this.ValidateCreatingEntityAndRecordCoexistence(result);
         this.ValidateEndDateAfterOrEqualToEffectiveDate(result);
         this.ValidateParentContractIDNotEqualToID(result);
-        this.ValidateSupersededByContractIDNotSelf(result);
+        this.ValidateSupersededByContractIDNotEqualToID(result);
         result.Success = result.Success && (result.Errors.length === 0);
 
         return result;
     }
 
     /**
-    * The annual increase percentage must be greater than or equal to 0% if it is specified.
+    * The annual increase percentage must be greater than or equal to zero, ensuring that contract rates do not decrease automatically.
     * @param result - the ValidationResult object to add any errors or warnings to
     * @public
     * @method
     */
-    public ValidateAnnualIncreasePercentGreaterThanOrEqualToZero(result: ValidationResult) {
+    public ValidateAnnualIncreasePercentNonNegative(result: ValidationResult) {
     	if (this.AnnualIncreasePercent != null && this.AnnualIncreasePercent < 0) {
     		result.Errors.push(new ValidationErrorInfo(
     			"AnnualIncreasePercent",
@@ -1426,16 +1426,16 @@ export class mjBizAppsContractsContractEntity extends BaseEntity<mjBizAppsContra
     }
 
     /**
-    * The cancellation window, if specified, must be 0 days or greater.
+    * The cancellation window days must be zero or a positive number, ensuring that we do not record a negative number of days for the contract cancellation period.
     * @param result - the ValidationResult object to add any errors or warnings to
     * @public
     * @method
     */
-    public ValidateCancellationWindowDaysMinimum(result: ValidationResult) {
+    public ValidateCancellationWindowDaysGreaterThanOrEqualToZero(result: ValidationResult) {
     	if (this.CancellationWindowDays != null && this.CancellationWindowDays < 0) {
     		result.Errors.push(new ValidationErrorInfo(
     			"CancellationWindowDays",
-    			"Cancellation window days must be 0 or greater.",
+    			"Cancellation window days must be 0 or a positive number.",
     			this.CancellationWindowDays,
     			ValidationErrorType.Failure
     		));
@@ -1443,7 +1443,7 @@ export class mjBizAppsContractsContractEntity extends BaseEntity<mjBizAppsContra
     }
 
     /**
-    * The renewal notice days must be a non-negative number (0 or greater) if it is specified.
+    * Renewal notice days must be 0 or greater, if specified.
     * @param result - the ValidationResult object to add any errors or warnings to
     * @public
     * @method
@@ -1452,7 +1452,7 @@ export class mjBizAppsContractsContractEntity extends BaseEntity<mjBizAppsContra
     	if (this.RenewalNoticeDays != null && this.RenewalNoticeDays < 0) {
     		result.Errors.push(new ValidationErrorInfo(
     			"RenewalNoticeDays",
-    			"Renewal notice days must be greater than or equal to 0.",
+    			"Renewal notice days must be 0 or greater.",
     			this.RenewalNoticeDays,
     			ValidationErrorType.Failure
     		));
@@ -1460,19 +1460,19 @@ export class mjBizAppsContractsContractEntity extends BaseEntity<mjBizAppsContra
     }
 
     /**
-    * Both the creating entity and the creating record must be provided together, or both must be left empty. You cannot specify one without the other.
+    * Both Creating Entity ID and Creating Record ID must be provided together, or both must be left empty, to ensure consistent tracking of the source entity and record.
     * @param result - the ValidationResult object to add any errors or warnings to
     * @public
     * @method
     */
     public ValidateCreatingEntityAndRecordCoexistence(result: ValidationResult) {
-    	const hasEntity = this.CreatingEntityID != null && this.CreatingEntityID !== "";
+    	const hasEntity = this.CreatingEntityID != null;
     	const hasRecord = this.CreatingRecordID != null && this.CreatingRecordID !== "";
     
     	if (hasEntity !== hasRecord) {
     		result.Errors.push(new ValidationErrorInfo(
     			"CreatingEntityID",
-    			"Both Creating Entity and Creating Record must be provided together, or both must be left empty.",
+    			"Creating Entity ID and Creating Record ID must either both be specified or both be empty.",
     			this.CreatingEntityID,
     			ValidationErrorType.Failure
     		));
@@ -1480,26 +1480,26 @@ export class mjBizAppsContractsContractEntity extends BaseEntity<mjBizAppsContra
     }
 
     /**
-    * The contract end date must be on or after the effective date.
+    * The contract end date must be on or after the effective date to ensure logical date ordering.
     * @param result - the ValidationResult object to add any errors or warnings to
     * @public
     * @method
     */
     public ValidateEndDateAfterOrEqualToEffectiveDate(result: ValidationResult) {
-    	if (this.EndDate != null && this.EffectiveDate != null) {
-    		if (this.EndDate < this.EffectiveDate) {
-    			result.Errors.push(new ValidationErrorInfo(
-    				"EndDate",
-    				"The contract end date must be on or after the effective date.",
-    				this.EndDate,
-    				ValidationErrorType.Failure
-    			));
-    		}
-    	}
+        if (this.EndDate != null && this.EffectiveDate != null) {
+            if (this.EndDate < this.EffectiveDate) {
+                result.Errors.push(new ValidationErrorInfo(
+                    "EndDate",
+                    "The contract End Date must be on or after the Effective Date.",
+                    this.EndDate,
+                    ValidationErrorType.Failure
+                ));
+            }
+        }
     }
 
     /**
-    * A contract cannot be its own parent contract. This prevents circular references in the contract hierarchy.
+    * A contract cannot be its own parent contract to prevent circular references in the contract hierarchy.
     * @param result - the ValidationResult object to add any errors or warnings to
     * @public
     * @method
@@ -1508,7 +1508,7 @@ export class mjBizAppsContractsContractEntity extends BaseEntity<mjBizAppsContra
     	if (this.ParentContractID != null && this.ParentContractID === this.ID) {
     		result.Errors.push(new ValidationErrorInfo(
     			"ParentContractID",
-    			"A contract cannot be set as its own parent contract.",
+    			"A contract cannot be its own parent contract.",
     			this.ParentContractID,
     			ValidationErrorType.Failure
     		));
@@ -1516,20 +1516,20 @@ export class mjBizAppsContractsContractEntity extends BaseEntity<mjBizAppsContra
     }
 
     /**
-    * A contract cannot be superseded by itself. If a superseding contract is specified, it must be a different contract.
+    * A contract cannot be superseded by itself. The superseding contract must be a different contract record.
     * @param result - the ValidationResult object to add any errors or warnings to
     * @public
     * @method
     */
-    public ValidateSupersededByContractIDNotSelf(result: ValidationResult) {
-        if (this.SupersededByContractID != null && this.SupersededByContractID === this.ID) {
-            result.Errors.push(new ValidationErrorInfo(
-                "SupersededByContractID",
-                "A contract cannot be superseded by itself.",
-                this.SupersededByContractID,
-                ValidationErrorType.Failure
-            ));
-        }
+    public ValidateSupersededByContractIDNotEqualToID(result: ValidationResult) {
+    	if (this.SupersededByContractID != null && this.SupersededByContractID === this.ID) {
+    		result.Errors.push(new ValidationErrorInfo(
+    			"SupersededByContractID",
+    			"A contract cannot be superseded by itself. Please select a different contract.",
+    			this.SupersededByContractID,
+    			ValidationErrorType.Failure
+    		));
+    	}
     }
 
     /**
@@ -1549,12 +1549,12 @@ export class mjBizAppsContractsContractEntity extends BaseEntity<mjBizAppsContra
     * * Field Name: ContractNumber
     * * Display Name: Contract Number
     * * SQL Data Type: nvarchar(50)
-    * * Description: CTR-{seq} from ContractSequence. Unique.
+    * * Description: CTR-000001, minted by spAssignNextContractNumber from the seq_ContractNumber database SEQUENCE. Unique. NULLABLE at the schema level because MJ cannot express 'NOT NULL, assigned by the server on insert' -- ContractEntityServer.Save() is what guarantees every contract has one. Gaps are normal and are not to be 'fixed': a save that fails after taking a number leaves one behind, and UQ_Contract_ContractNumber is what guarantees no two contracts share a number.
     */
-    get ContractNumber(): string {
+    get ContractNumber(): string | null {
         return this.Get('ContractNumber');
     }
-    set ContractNumber(value: string) {
+    set ContractNumber(value: string | null) {
         this.Set('ContractNumber', value);
     }
 
@@ -1573,7 +1573,7 @@ export class mjBizAppsContractsContractEntity extends BaseEntity<mjBizAppsContra
 
     /**
     * * Field Name: CompanyID
-    * * Display Name: Selling Company
+    * * Display Name: Company
     * * SQL Data Type: uniqueidentifier
     * * Related Entity/Foreign Key: MJ: Companies (vwCompanies.ID)
     * * Description: The SELLING company (__mj.Company) — which of OUR entities holds this agreement. Not the customer. Stored rather than derived because it is not reliably recoverable from the deal.
@@ -1601,7 +1601,7 @@ export class mjBizAppsContractsContractEntity extends BaseEntity<mjBizAppsContra
 
     /**
     * * Field Name: PrimaryContactPersonID
-    * * Display Name: Primary Contact
+    * * Display Name: Primary Contact Person
     * * SQL Data Type: uniqueidentifier
     * * Related Entity/Foreign Key: MJ_BizApps_Common: People (vwPeople.ID)
     * * Description: Their named contact, optional.
@@ -1643,7 +1643,7 @@ export class mjBizAppsContractsContractEntity extends BaseEntity<mjBizAppsContra
 
     /**
     * * Field Name: CreatingRecordID
-    * * Display Name: Creating Record ID
+    * * Display Name: Creating Record
     * * SQL Data Type: nvarchar(450)
     * * Description: Polymorphic reference part 2: the creating records id. Soft by nature — it points at a record owned by an app this repo has no knowledge of. Set together with CreatingEntityID or not at all.
     */
@@ -1670,7 +1670,7 @@ export class mjBizAppsContractsContractEntity extends BaseEntity<mjBizAppsContra
 
     /**
     * * Field Name: SupersededByContractID
-    * * Display Name: Superseded By
+    * * Display Name: Superseded By Contract
     * * SQL Data Type: uniqueidentifier
     * * Related Entity/Foreign Key: MJ_BizApps_Contracts: Contracts (vwContracts.ID)
     * * Description: The contract that REPLACED this one, where an agreement was re-papered rather than amended. Also the sole source of the derived Superseded state, which is why the old CHECK tying it to a Status column disappeared with that column.
@@ -1879,7 +1879,7 @@ export class mjBizAppsContractsContractEntity extends BaseEntity<mjBizAppsContra
 
     /**
     * * Field Name: CustomerOrganization
-    * * Display Name: Customer Organization Name
+    * * Display Name: Customer Name
     * * SQL Data Type: nvarchar(255)
     */
     get CustomerOrganization(): string {
@@ -1924,7 +1924,7 @@ export class mjBizAppsContractsContractEntity extends BaseEntity<mjBizAppsContra
 
     /**
     * * Field Name: SupersededByContract
-    * * Display Name: Superseded By Name
+    * * Display Name: Superseded By Contract Name
     * * SQL Data Type: nvarchar(50)
     */
     get SupersededByContract(): string | null {
@@ -1932,26 +1932,8 @@ export class mjBizAppsContractsContractEntity extends BaseEntity<mjBizAppsContra
     }
 
     /**
-    * * Field Name: RootParentContractID
-    * * Display Name: Root Parent Contract
-    * * SQL Data Type: uniqueidentifier
-    */
-    get RootParentContractID(): string | null {
-        return this.Get('RootParentContractID');
-    }
-
-    /**
-    * * Field Name: RootSupersededByContractID
-    * * Display Name: Root Superseded By
-    * * SQL Data Type: uniqueidentifier
-    */
-    get RootSupersededByContractID(): string | null {
-        return this.Get('RootSupersededByContractID');
-    }
-
-    /**
     * * Field Name: State
-    * * Display Name: Contract State
+    * * Display Name: State
     * * SQL Data Type: varchar(10)
     */
     get State(): string {

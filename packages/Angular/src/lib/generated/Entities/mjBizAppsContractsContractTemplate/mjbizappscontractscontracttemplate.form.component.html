@@ -14,7 +14,7 @@
     <mj-collapsible-panel
         SectionKey="templateDetails"
         SectionName="Template Details"
-        Icon="fa fa-file-alt"
+        Icon="fa fa-info-circle"
         [Form]="this"
         [FormContext]="formContext">
         <mj-form-field 
@@ -45,6 +45,24 @@
         <mj-form-field 
             [Record]="record"
             [ShowLabel]="true"
+            FieldName="Description"
+            Type="textarea"
+            [EditMode]="EditMode"
+            [FormContext]="formContext"
+        ></mj-form-field>
+
+    </mj-collapsible-panel>
+
+    <!-- Lifecycle and Access Section -->
+    <mj-collapsible-panel
+        SectionKey="lifecycleAndAccess"
+        SectionName="Lifecycle and Access"
+        Icon="fa fa-history"
+        [Form]="this"
+        [FormContext]="formContext">
+        <mj-form-field 
+            [Record]="record"
+            [ShowLabel]="true"
             FieldName="IntroducedDate"
             Type="datepicker"
             [EditMode]="EditMode"
@@ -62,8 +80,16 @@
         <mj-form-field 
             [Record]="record"
             [ShowLabel]="true"
-            FieldName="Description"
-            Type="textarea"
+            FieldName="Status"
+            Type="select"
+            [EditMode]="EditMode"
+            [FormContext]="formContext"
+        ></mj-form-field>
+        <mj-form-field 
+            [Record]="record"
+            [ShowLabel]="true"
+            FieldName="IsUsable"
+            Type="textbox"
             [EditMode]="EditMode"
             [FormContext]="formContext"
         ></mj-form-field>
@@ -102,31 +128,6 @@
          RELATED ENTITY PANELS
          ======================================== -->
 
-    <!-- Contracts Section -->
-    <mj-collapsible-panel
-        SectionKey="mJBizAppsContractsContracts"
-        SectionName="Contracts"
-        Icon="fa fa-file-contract"
-        Variant="related-entity"
-        [Form]="this"
-        [FormContext]="formContext"
-        [BadgeCount]="GetSectionRowCount('mJBizAppsContractsContracts')"
-        [DefaultExpanded]="false">
-        @if (record.IsSaved) {
-        <div>
-            <mj-explorer-entity-data-grid
-                [Params]="BuildRelationshipViewParamsByEntityName('MJ_BizApps_Contracts: Contracts','ContractTemplateID')"
-                [NewRecordValues]="NewRecordValues('MJ_BizApps_Contracts: Contracts','ContractTemplateID')"
-                [AllowLoad]="IsSectionExpanded('mJBizAppsContractsContracts')"
-                [ShowToolbar]="true"
-                (Navigate)="OnFormNavigate($event)"
-                (AfterDataLoad)="SetSectionRowCount('mJBizAppsContractsContracts', $event.totalRowCount)"
-                >
-            </mj-explorer-entity-data-grid>
-        </div>
-        }
-    </mj-collapsible-panel>
-
     <!-- Provisions Section -->
     <mj-collapsible-panel
         SectionKey="mJBizAppsContractsContractTemplateProvisions"
@@ -146,6 +147,31 @@
                 [ShowToolbar]="true"
                 (Navigate)="OnFormNavigate($event)"
                 (AfterDataLoad)="SetSectionRowCount('mJBizAppsContractsContractTemplateProvisions', $event.totalRowCount)"
+                >
+            </mj-explorer-entity-data-grid>
+        </div>
+        }
+    </mj-collapsible-panel>
+
+    <!-- Contracts Section -->
+    <mj-collapsible-panel
+        SectionKey="mJBizAppsContractsContracts"
+        SectionName="Contracts"
+        Icon="fa fa-file-contract"
+        Variant="related-entity"
+        [Form]="this"
+        [FormContext]="formContext"
+        [BadgeCount]="GetSectionRowCount('mJBizAppsContractsContracts')"
+        [DefaultExpanded]="false">
+        @if (record.IsSaved) {
+        <div>
+            <mj-explorer-entity-data-grid
+                [Params]="BuildRelationshipViewParamsByEntityName('MJ_BizApps_Contracts: Contracts','ContractTemplateID')"
+                [NewRecordValues]="NewRecordValues('MJ_BizApps_Contracts: Contracts','ContractTemplateID')"
+                [AllowLoad]="IsSectionExpanded('mJBizAppsContractsContracts')"
+                [ShowToolbar]="true"
+                (Navigate)="OnFormNavigate($event)"
+                (AfterDataLoad)="SetSectionRowCount('mJBizAppsContractsContracts', $event.totalRowCount)"
                 >
             </mj-explorer-entity-data-grid>
         </div>

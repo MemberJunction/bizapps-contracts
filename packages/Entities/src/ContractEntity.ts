@@ -23,6 +23,61 @@ import { BaseEntity, ValidationErrorInfo, ValidationErrorType, ValidationResult 
 import { RegisterClass } from '@memberjunction/global';
 import { mjBizAppsContractsContractEntity } from './generated/entity_subclasses';
 
+/**
+ * Do two contracts sit at the SAME LEVEL of the tree — i.e. may one supersede the other?
+ *
+ * The pure half of the same-level supersession rule (ruled by Marcelo, 2026-08-20). A free function
+ * taking plain values for the same reason `FindDuplicateProvisionIDs` is one: the decision has three
+ * cases and two of them are easy to get backwards, and none of them needs a database to check.
+ *
+ *   · **both NULL → same level.** Two top-level agreements. This is the common case and the one a
+ *     naive `a === b` on nullable values gets right by accident and a SQL `=` gets WRONG — hence the
+ *     caller's `IS NULL` branch when it builds a filter.
+ *   · **one NULL, one set → DIFFERENT levels.** A change order claiming to replace a whole order form.
+ *     This is the case the rule exists to refuse.
+ *   · **both set → compare case-insensitively.** MJ returns UUIDs in either casing depending on how
+ *     the row was loaded, so a case-sensitive compare would call two siblings different levels and
+ *     refuse a legitimate re-papering.
+ *
+ * Note this is deliberately NOT "root only": two siblings under one parent are the same level, which
+ * is what lets a change order supersede another change order under the same agreement.
+ */
+export function IsSameContractLevel(myParentID: string | null | undefined, theirParentID: string | null | undefined): boolean {
+    const a = myParentID ?? null;
+    const b = theirParentID ?? null;
+    if (a === null && b === null) return true;
+    if (a === null || b === null) return false;
+    return a.toLowerCase() === b.toLowerCase();
+}
+
+/**
+ * Which provision IDs appear more than once — the pure half of R-10's staged-rows rule.
+ *
+ * A free function taking plain values so the counting is testable without a provider or a
+ * `RelatedRecordCollection`, the same reason `ValidateValueLists` and `IsNewlySelected` are free
+ * functions. Every subtlety worth getting right is in here rather than in the caller:
+ *
+ *   · **case-insensitive** — MJ returns UUIDs in either casing depending on how the row was loaded, so
+ *     a case-sensitive compare would miss a duplicate while appearing to check for one;
+ *   · **blanks are skipped**, not grouped — several rows with no provision chosen yet are an
+ *     incomplete edit, not "the same provision twice", and reporting them as duplicates would refuse a
+ *     save the user is still composing;
+ *   · **each duplicated ID is reported once**, however many times it appears, so three copies of one
+ *     provision is one problem rather than two.
+ */
+export function FindDuplicateProvisionIDs(provisionIDs: readonly unknown[]): string[] {
+    const counts = new Map<string, number>();
+    const duplicates: string[] = [];
+    for (const raw of provisionIDs) {
+        const id = String(raw ?? '').trim().toLowerCase();
+        if (!id) continue;
+        const next = (counts.get(id) ?? 0) + 1;
+        counts.set(id, next);
+        if (next === 2) duplicates.push(id);
+    }
+    return duplicates;
+}
+
 @RegisterClass(BaseEntity, 'MJ_BizApps_Contracts: Contracts')
 export class ContractEntity extends mjBizAppsContractsContractEntity {
     /**
@@ -41,7 +96,7 @@ export class ContractEntity extends mjBizAppsContractsContractEntity {
      */
     public override Validate(): ValidationResult {
         const result = super.Validate();
-        this.dropSavePopulatedFieldErrors(result);
+        this.refuseReservedContractNumber(result);
 
         if (this.HasModifications === false && this.modificationsKnownToExist()) {
             result.Success = false;
@@ -57,7 +112,43 @@ export class ContractEntity extends mjBizAppsContractsContractEntity {
             );
         }
 
+        this.refuseDuplicateStagedModifications(result);
+
         return result;
+    }
+
+    /**
+     * R-10 — two modifications of the SAME provision, caught among the rows in hand.
+     *
+     * `UQ_ContractTemplateModification_Contract_Provision` is the floor, and it refuses this as a raw
+     * unique-index violation naming no field. This catches the case the browser can see for free: the
+     * collection is staged right here during a graph save, so a duplicate among those rows needs **no
+     * query at all**. The saved-rows half (a staged row colliding with one already in the table) needs
+     * a read and lives on the server subclass.
+     *
+     * WHY THIS IS ON `ContractEntity` AND NOT ON THE MODIFICATION. The item says "rule on the shared
+     * subclass" without saying which; only the CONTRACT holds the sibling rows. A modification cannot
+     * see its siblings, so the same rule written there could only ever be the one-query server version.
+     *
+     * Case-insensitive on the FK because MJ returns UUIDs in either casing, and a case-sensitive
+     * comparison would miss a duplicate while appearing to check for one.
+     */
+    private refuseDuplicateStagedModifications(result: ValidationResult): void {
+        const provisionIDs = this.Modifications.Items.map((mod) => mod.Get('ContractTemplateProvisionID') as unknown);
+        const duplicates = FindDuplicateProvisionIDs(provisionIDs);
+        if (duplicates.length === 0) return;
+
+        result.Success = false;
+        result.Errors.push(
+            new ValidationErrorInfo(
+                'Modifications',
+                `${duplicates.length === 1 ? 'A provision is' : `${duplicates.length} provisions are`} modified more ` +
+                    `than once on this contract. A contract records ONE negotiated wording per standard clause — ` +
+                    `combine the duplicates into a single modification.`,
+                duplicates.length,
+                ValidationErrorType.Failure,
+            ),
+        );
     }
 
     /**
@@ -80,13 +171,58 @@ export class ContractEntity extends mjBizAppsContractsContractEntity {
      * save-populated field, because nothing here prepares child rows the way orders stamps line
      * numbers and prices.
      */
-    private dropSavePopulatedFieldErrors(result: ValidationResult): void {
-        if (this.IsSaved) return;
-        const kept = result.Errors.filter((error) => (error.Source ?? '') !== 'ContractNumber');
-        if (kept.length === result.Errors.length) return;
-        result.Errors = kept;
-        result.Success = kept.every((error) => error.Type !== ValidationErrorType.Failure);
+    /**
+     * A hand-typed contract number may not look like a system-assigned one.
+     *
+     * WHY THIS REPLACED AN ERROR FILTER. This method sits where
+     * `dropSavePopulatedFieldErrors` used to: that one searched the validation result for
+     * `Source === 'ContractNumber'` and deleted it, so a new contract could be saved despite MJ
+     * correctly reporting a NOT NULL field as null. Deleting a real error because we believe
+     * something later will fix it is the same defect as blessing a self-reference because a
+     * generated validator "has it" — it converts an invalid state into a silent success the moment
+     * the belief stops holding. The cause is now removed instead: `V202608211000` gives the column a
+     * DEFAULT, which is how MJ models "NOT NULL but supplied on insert", so the error is never raised.
+     *
+     * WHAT THIS RULE IS. `Save()` honours a number the user typed, which is the right behaviour —
+     * migrated paper has its own references. But `CTR-<digits>` is the shape the sequence mints, so a
+     * hand-typed one can collide with a value the sequence has not reached yet. The collision would
+     * surface months later, on somebody else's save, as a unique-index violation with no explanation.
+     * So the namespaces are kept apart: type your own reference, or leave it blank.
+     *
+     * Note `\d+`, not `\d{6}`: `FORMAT(n,'D6')` pads to a MINIMUM of six digits and keeps growing
+     * past a million, so a seven-digit hand-typed number is just as collidable.
+     *
+     * ONLY ON AN UNSAVED RECORD, and only when the system did not assign it. An existing contract's
+     * stored number obviously matches the pattern and must not be retro-refused; and
+     * `ContractEntityServer.Save()` mints INTO this field before calling `super.Save()`, which
+     * validates — so without `NumberWasSystemAssigned` this rule would refuse the very numbers it is
+     * meant to protect.
+     */
+    private refuseReservedContractNumber(result: ValidationResult): void {
+        if (this.IsSaved || this.NumberWasSystemAssigned) return;
+        const typed = (this.ContractNumber ?? '').trim();
+        if (!typed || !/^CTR-\d+$/i.test(typed)) return;
+
+        result.Success = false;
+        result.Errors.push(
+            new ValidationErrorInfo(
+                'ContractNumber',
+                `The CTR-#### pattern is reserved for contract numbers the system assigns, so "${typed}" cannot be ` +
+                    `entered by hand — a number the sequence has not reached yet would collide with it later, on ` +
+                    `somebody else's save. Leave this blank to have one assigned, or enter your own reference in a ` +
+                    `different format.`,
+                this.ContractNumber,
+                ValidationErrorType.Failure,
+            ),
+        );
     }
+
+    /**
+     * Set by the server subclass when IT minted the number, so `refuseReservedContractNumber` can tell
+     * a system-assigned `CTR-…` from a hand-typed one. Protected rather than public: nothing outside
+     * the entity has any business claiming a number was system-assigned.
+     */
+    protected NumberWasSystemAssigned = false;
 
     /**
      * Whether modification rows are KNOWN to exist — as opposed to merely not known to be absent.

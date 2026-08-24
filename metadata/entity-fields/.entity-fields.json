@@ -1,45 +1,5 @@
 [
   {
-    "_comments": [
-      "Fields hidden from the generated form. Two kinds, both of which showed up as noise on screen.",
-      "",
-      "RootParentContractID / RootSupersededByContractID are OUTER APPLY outputs of the",
-      "fnContract*_GetRootID functions CodeGen adds to the base view for self-referencing FKs. They are",
-      "real and useful in a query; on a form they render as a raw UUID under a label a user cannot",
-      "interpret, which is exactly what was on screen.",
-      "",
-      "The derived lifecycle columns are hidden because our own panels present them WITH their meaning:",
-      "State is the hero's chip, IsAwaitingDocument is a hero warning, RenewalNoticeDeadline is the",
-      "renewal panel's deadline line, DaysToEnd is 'in 4 months' on the hero. Left in the field list they",
-      "appear a second time as bare values — 'DAYS TO END 487' tells a reader less than 'in 16 months'.",
-      "",
-      "IncludeInGeneratedForm is the flag; it does NOT affect the base view, the API or a RunView — the",
-      "columns stay fully available to code and to grids."
-    ],
-    "fields": {
-      "IncludeInGeneratedForm": false
-    },
-    "primaryKey": {
-      "ID": "@lookup:MJ: Entity Fields.Entity=MJ_BizApps_Contracts: Contracts&Name=RootParentContractID"
-    },
-    "sync": {
-      "lastModified": "2026-08-19T15:43:07.073Z",
-      "checksum": "5283c8e4b3a87060e900ad1ff782a3aafd78870958321ed4f943f9a91a8e2f3e"
-    }
-  },
-  {
-    "fields": {
-      "IncludeInGeneratedForm": false
-    },
-    "primaryKey": {
-      "ID": "@lookup:MJ: Entity Fields.Entity=MJ_BizApps_Contracts: Contracts&Name=RootSupersededByContractID"
-    },
-    "sync": {
-      "lastModified": "2026-08-19T15:43:07.100Z",
-      "checksum": "5283c8e4b3a87060e900ad1ff782a3aafd78870958321ed4f943f9a91a8e2f3e"
-    }
-  },
-  {
     "fields": {
       "IncludeInGeneratedForm": false
     },
@@ -97,6 +57,56 @@
     "sync": {
       "lastModified": "2026-08-19T15:43:07.259Z",
       "checksum": "5283c8e4b3a87060e900ad1ff782a3aafd78870958321ed4f943f9a91a8e2f3e"
+    }
+  },
+  {
+    "_comments": [
+      "ContractNumber is SERVER-ASSIGNED, so the API must not treat it as a field the user supplies.",
+      "",
+      "THE PROBLEM. The column is NOT NULL and ContractEntityServer.Save() mints it from",
+      "seq_ContractNumber on insert - but MJ's EntityField.Validate() refuses a NOT NULL field whose value",
+      "is null, and it runs in the BROWSER, before the server ever sees the record. So every create failed",
+      "with 'Contract Number cannot be null' and the number had to be typed by hand.",
+      "",
+      "WHY AllowUpdateAPI = false IS THE LEVER. The validator's guard is",
+      "`if (!ef.ReadOnly && !ef.SkipValidation)`, and both of those are DERIVED:",
+      "  ReadOnly       = !AllowUpdateAPI || IsPrimaryKey || IsSpecialDateField",
+      "  SkipValidation = IsSpecialDateField || IsPrimaryKey || AutoIncrement || IsVirtual || ReadOnly",
+      "So clearing AllowUpdateAPI makes the field ReadOnly, which makes SkipValidation true, which skips",
+      "the null check entirely. It is also semantically honest: the number is minted by the server and was",
+      "never meant to be written through the API.",
+      "",
+      "WHAT IT COSTS. Hand-typed contract numbers are gone from the ordinary form path. That is accepted",
+      "(Marcelo, 2026-08-21). If manual entry is wanted later it should be a deliberate 'override number'",
+      "affordance, not a default form field - and that is where the ^CTR-\\d+$ reserved-pattern guard in",
+      "ContractEntity belongs.",
+      "",
+      "WHAT WE TRIED FIRST, so it is not retried. A DB DEFAULT on the column would also satisfy the",
+      "validator (MJ treats a defaulted NOT NULL column as legal-when-null on a NEW record) - but CodeGen",
+      "string-quotes an EXPRESSION default into the generated create procedure, which then fails to compile",
+      "and leaves spCreateContract DROPPED. Filed as MJ#4000; added and reverted in V202608211000/1100.",
+      "IncludeInGeneratedForm: false was also considered and is purely presentational - it hides the red",
+      "box and does nothing about the save error.",
+      "",
+      "⚠ REVERTED TO TRUE, 2026-08-21. AllowUpdateAPI = false DID silence the validator, and then broke",
+      "creation a different way: a ReadOnly field is OMITTED FROM THE INSERT PAYLOAD, so spCreateContract",
+      "failed with \"expects parameter '@ContractNumber', which was not supplied\". The server mints the",
+      "number inside Save(), but the generated CRUD call never carries it.",
+      "",
+      "So BOTH available workarounds are dead ends, and that is the real finding:",
+      "  · a DB DEFAULT breaks CodeGen (it string-quotes an expression default; MJ#4000)",
+      "  · AllowUpdateAPI = false excludes the column from the insert (this)",
+      "There is currently no supported way to model a server-minted NOT NULL column. MJ#4001."
+    ],
+    "fields": {
+      "AllowUpdateAPI": true
+    },
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entity Fields.Entity=MJ_BizApps_Contracts: Contracts&Name=ContractNumber"
+    },
+    "sync": {
+      "lastModified": "2026-08-21T16:27:43.980Z",
+      "checksum": "b09f4e4622f0b1d7b5ceec30dea80313fdd0cd770d67a6657ebdf1197255cdee"
     }
   }
 ]

@@ -177,78 +177,16 @@ export class MJCTemplateTypesPageComponent extends MJCConfigPageBase {
     }
 }
 
-/**
- * The contract-number sequence.
+/*
+ * THE NUMBERING PAGE IS GONE (Marcelo, 2026-08-20), and this note is why rather than a gap.
  *
- * A single-row table, which makes a grid a slightly odd surface for it — but the number it holds is
- * the one piece of configuration that can visibly go wrong ("why is the next contract CTR-000412?"),
- * and having nowhere to look at it is worse than an odd-looking grid. Read-only in practice: the
- * counter is taken under a lock by the server subclass, so editing it by hand is a way to create
- * duplicate numbers, and the page says so.
+ * It existed to display and edit the contract-number counter. R-7 replaced that counter table with a
+ * SQL SEQUENCE, which removed the entity, the grid and the editable field — leaving a page whose only
+ * content was an explanation that there was nothing to configure. A configuration section that
+ * configures nothing is a nav item people click once.
+ *
+ * The facts it carried are not lost, they moved to where they are actually needed: the numbering
+ * scheme and the "gaps are normal, do not try to close them" warning are on
+ * `Contract.ContractNumber`'s own field description (V202608200200), so they surface as the field's
+ * help text on the form where a contract number is actually looked at.
  */
-@Component({
-    selector: 'mjc-numbering-page',
-    standalone: true,
-    encapsulation: ViewEncapsulation.None,
-    imports: [CommonModule, BaseFormsModule, MJCFkNavigateDirective],
-    template: `
-        <div class="mjc-page mjc-page--grid">
-            <p class="mjc-page__intro">
-                Contract numbers are minted <code>CTR-000001</code> from a single counter, taken under a
-                lock inside the save that uses it. The next value is below.
-            </p>
-            <p class="mjc-page__intro">
-                <strong>Do not edit it to fix a gap.</strong> Gaps are normal — a save that fails after
-                taking a number leaves one behind, and the unique index, not this counter, is what
-                guarantees no two contracts share a number. Winding it backwards is how you get a
-                collision.
-            </p>
-            @if (NextNumber !== null) {
-                <div class="mjc-card">
-                    <h3 class="mjc-card__title">Next contract number</h3>
-                    <p>CTR-{{ PaddedNext }}</p>
-                </div>
-            }
-            <div class="mjc-grid-fill">
-                <mj-explorer-entity-data-grid mjcFkNavigate [Params]="Params" [ShowToolbar]="true" [ToolbarConfig]="GridToolbar" />
-            </div>
-        </div>
-    `,
-})
-export class MJCNumberingPageComponent extends MJCConfigPageBase {
-    public NextNumber: number | null = null;
-
-    protected get entityName(): string {
-        return MJC_ENTITIES.ContractSequence;
-    }
-    protected override get orderBy(): string {
-        return 'ID ASC';
-    }
-
-    /** Rendered the way the server formats it, so what is shown is what the next contract will carry. */
-    public get PaddedNext(): string {
-        return String(this.NextNumber ?? 0).padStart(6, '0');
-    }
-
-    public override ngOnInit(): void {
-        super.ngOnInit();
-        void this.readNext();
-    }
-
-    private async readNext(): Promise<void> {
-        try {
-            const result = await ScopedRunView().RunView({
-                EntityName: MJC_ENTITIES.ContractSequence,
-                ResultType: 'simple',
-                MaxRows: 1,
-            });
-            const row = (result?.Results ?? [])[0] as Record<string, unknown> | undefined;
-            const value = Number(row?.['NextSequenceNumber']);
-            this.NextNumber = Number.isFinite(value) ? value : null;
-        } catch {
-            // The grid below still shows the row; the card is a convenience.
-            this.NextNumber = null;
-        }
-        this.cdr.detectChanges();
-    }
-}
