@@ -19,9 +19,9 @@ development.
 | file | what it is |
 | --- | --- |
 | `B…__Baseline.sql` | schema, `__mj.SchemaInfo`, the sequence, the sort-key function, all seven tables + constraints, the two app-owned programmable objects, then the CodeGen capture |
-| `V…0002__Layered_base_view_flags.sql` | flips two entities to layered base views + the capture that re-points CodeGen to `vw*Generated` |
-| `V…0003__Layered_base_views_and_derived_fields.sql` | the two application-owned wrapper views + explicit registration of the 8 columns they add |
-| `V…0004__Metadata_Sync.sql` | the reference vocabulary `mj sync push` writes from `metadata/` |
+| `V202608240100__…__Layered_base_view_flags.sql` | flips two entities to layered base views + the capture that re-points CodeGen to `vw*Generated` |
+| `V202608240200__…__Layered_base_views_and_derived_fields.sql` | the two application-owned wrapper views + explicit registration of the 8 columns they add |
+| `V202608240300__…__Metadata_Sync.sql` | the reference vocabulary `mj sync push` writes from `metadata/` |
 
 **The count is forced, not stylistic.** Everything that CAN be folded into the baseline
 has been — 22 incremental files collapsed into it on 2026-08-23 (see below). What remains
@@ -64,6 +64,34 @@ were frozen output from an earlier version. Nothing reads them. This takes the
 "delete the metadata rows" branch of the open question in
 `plans/backend-requirements.md` (ruled by Marcelo, 2026-08-23).
 
+### Why the three V files are numbered Aug 24, not Aug 4
+
+They were originally `V202608040002`-`0004`, chosen to sit immediately after the baseline so
+the four files read as one sequence. **CI rejected that, correctly.** `changes.yml` compares
+every newly added migration against the highest timestamp already on the base branch, and
+`next` carried migrations up to `V202608192200` — so a file numbered Aug 4 sorts *behind*
+migrations an existing database has already applied. Flyway applies in filename order, so such
+a file is skipped silently on that database and applied in the wrong order on a fresh one. The
+warning at the top of this file said exactly that and described it as "not enforced by CI";
+it is enforced now, and it caught this on the first run.
+
+The rule is that a migration filename must be monotonic against **everything the target branch
+has ever shipped**, not just against its own train. Grouping numerically with the baseline is
+cosmetic; ordering is not.
+
+### ⚠ An existing database cannot migrate onto this train — it must be rebuilt
+
+Independent of numbering, and the reason the flatten needed to happen before publish rather
+than after. The baseline's contents changed, so its Flyway checksum changed, and any database
+that already applied the old `B202608040001` will refuse to migrate — reporting a checksum
+mismatch on a file it has no way to reconcile. The 22 collapsed V files are also gone from
+disk while their history rows remain.
+
+For a development database the fix is to rebuild from zero, which is routine and is how this
+train is verified. There is no supported upgrade path from the old train, and there does not
+need to be: nothing had shipped. **This is the last point at which that is true** — see
+"Baseline edits are CLOSED" below.
+
 ## The 50-blank-line rule (where hand-written DDL stops and CodeGen output starts)
 
 **In any migration that carries both, exactly 50 empty lines separate the hand-written DDL from the
@@ -78,8 +106,8 @@ dozens of times. Fifty consecutive blank lines appear nowhere else in a SQL file
 the number is absurd.
 
 Verify with a longest-blank-run check over `migrations/*.sql`. The two files carrying a capture —
-the baseline and `V…0002` — must report **50**; `V…0003` (hand-written wrappers, no capture) reports
-**1**. `V…0004` is entirely SQL-logger output and carries no separator. `bizapps-orders` is the
+the baseline and `V…0100` — must report **50**; `V…0200` (hand-written wrappers, no capture) reports
+**1**. `V…0300` is entirely SQL-logger output and carries no separator. `bizapps-orders` is the
 reference implementation — `V202608131541`, `V202608131542`, `V202607061432`.
 
 ## Baseline edits are CLOSED as of the 2026-08-23 flatten
