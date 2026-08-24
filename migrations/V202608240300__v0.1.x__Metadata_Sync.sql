@@ -1,5 +1,5 @@
 -- =============================================================================
--- V202608040004 — the reference vocabulary, as a migration.
+-- V202608240300 — the reference vocabulary, as a migration.
 -- =============================================================================
 -- The seed data `mj sync push` writes from metadata/, captured so a FRESH INSTALL
 -- gets it. This is the file whose absence made the old train produce bare tables:

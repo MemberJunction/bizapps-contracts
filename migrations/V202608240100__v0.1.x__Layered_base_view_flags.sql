@@ -1,5 +1,5 @@
 -- =============================================================================
--- V202608040002 — the two layered base views: hand CodeGen a PRIVATE name.
+-- V202608240100 — the two layered base views: hand CodeGen a PRIVATE name.
 -- =============================================================================
 -- Contracts and Contract Templates use MJ's layered base views (MJ#3419): CodeGen
 -- owns a generated inner view under GeneratedBaseViewName, and the APPLICATION owns
