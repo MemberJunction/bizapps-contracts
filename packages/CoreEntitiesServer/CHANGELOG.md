@@ -1,5 +1,11 @@
 # @mj-biz-apps/contracts-core-entities-server
 
+## 0.1.1
+
+### Patch Changes
+
+- @mj-biz-apps/contracts-entities@0.1.1
+
 ## 0.1.0
 
 ### Patch Changes
