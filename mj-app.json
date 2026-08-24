@@ -1,0 +1,75 @@
+{
+  "$schema": "https://schema.memberjunction.org/mj-app/v1.json",
+  "manifestVersion": 1,
+  "name": "mj-bizapps-contracts",
+  "displayName": "BizApps Contracts",
+  "description": "The record of customer agreements — executed documents, which version of the standard agreement each one incorporates, the provisions negotiated away from it, and the renewal, notice and escalation terms that appear nowhere on an order. A record-keeping and lookup surface: it does not price, bill, recognize revenue, or create orders.",
+  "version": "0.1.0",
+  "license": "BUSL-1.1",
+  "icon": "fa-solid fa-file-signature",
+  "color": "#264FAF",
+  "publisher": {
+    "name": "MemberJunction",
+    "email": "support@memberjunction.com"
+  },
+  "repository": "https://github.com/MemberJunction/bizapps-contracts",
+  "mjVersionRange": ">=6.1.0-edge.3 <7.0.0",
+  "dependencies": {
+    "mj-bizapps-common": {
+      "version": ">=5.0.0 <6.0.0",
+      "repository": "https://github.com/MemberJunction/bizapps-common"
+    }
+  },
+  "schema": {
+    "name": "__mj_BizAppsContracts",
+    "createIfNotExists": true
+  },
+  "migrations": {
+    "directory": "migrations",
+    "engine": "skyway"
+  },
+  "metadata": {
+    "directory": "metadata"
+  },
+  "packages": {
+    "server": [
+      {
+        "name": "@mj-biz-apps/contracts-server",
+        "role": "bootstrap",
+        "startupExport": "LoadMjBizappsContractsServer"
+      }
+    ],
+    "client": [
+      {
+        "name": "@mj-biz-apps/contracts-ng",
+        "role": "bootstrap",
+        "startupExport": "LoadMjBizappsContractsClient"
+      }
+    ],
+    "shared": [
+      {
+        "name": "@mj-biz-apps/contracts-entities",
+        "role": "library"
+      },
+      {
+        "name": "@mj-biz-apps/contracts-actions",
+        "role": "library"
+      }
+    ]
+  },
+  "code": {
+    "visibility": "public",
+    "sourceDirectory": "packages"
+  },
+  "categories": [
+    "Sales",
+    "Finance"
+  ],
+  "tags": [
+    "contracts",
+    "agreements",
+    "documents",
+    "obligations",
+    "renewals"
+  ]
+}

@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>BizApps Contracts — UI mockups</title>
+<link rel="stylesheet" href="mockup.css" />
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+</head>
+<body>
+
+<header class="mj-app-header">
+  <div class="logo"><span class="logo-mark">MJ</span> MemberJunction</div>
+  <div class="breadcrumbs"><span>Explorer</span><span class="sep">/</span><span class="current">Contracts — mockups</span></div>
+  <div class="right"><span>Round 1 · 2026-08-04</span><span class="avatar">MT</span></div>
+</header>
+
+<div class="index-wrap">
+
+  <h1 style="margin:0 0 6px;font-size:24px;letter-spacing:-.02em;">BizApps Contracts — UI direction, round 1</h1>
+  <p class="sec" style="margin:0 0 20px;max-width:80ch;line-height:1.6;">
+    Four screens, built on the MJ design tokens and on <strong>bizapps-accounting's</strong> shell vocabulary
+    (<code>mj-page-body-interior</code>, <code>mj-page-header</code>, <code>mj-workspace-card</code> with its tab strip and identity band,
+    <code>mj-stat-badge</code>). Static HTML — nothing here is wired to anything.
+  </p>
+
+  <div class="note info" style="margin-bottom:16px;">
+    <i class="fa-solid fa-circle-info"></i>
+    <div>
+      <strong>The app's three jobs drive this layout.</strong> (1) Be the data substrate and pipeline automation
+      that turns a filed deal into a contract and the contract into orders; (2) let the relevant people
+      <em>see</em> a contract; (3) let an account director type one in by hand in the rare case it did not come
+      from a deal. Screens 1 and 2 serve job 2, screen 3 serves job 3, and screen 4 is the operational
+      surface of job 1 — the part of automation a human has to watch.
+    </div>
+  </div>
+
+  <div class="note gap" style="margin-bottom:22px;">
+    <i class="fa-solid fa-scale-balanced"></i>
+    <div>
+      <strong>This is its own UI, not orders wearing a hat.</strong> Contracts does not re-expose orders' order
+      form, and it does not reimplement orders either. It is the place you record what was <em>agreed</em> —
+      the customer, the products covered, the term and its clauses, and the subscription types and timelines
+      those products become — and from that the backend creates the orders that flow to journal entries.
+      <br /><br />
+      The division is about <em>authority</em>, not about screens: orders remains the only place anyone is billed
+      and owns pricing, price history and discount mechanics, so nothing here recomputes money. But choosing a
+      product, a subscription type, a coverage window, an escalation cap or a notice period is a
+      <strong>contract</strong> decision, and it gets a first-class contract-native surface. Chrome follows the same
+      restraint: a nav rail because there are five destinations, section tabs because one agreement genuinely
+      has eight faces, and <strong>no</strong> draft-tab workspace on manual entry, because that task runs a few times a year.
+    </div>
+  </div>
+
+  <div class="index-grid">
+
+    <a class="index-card" href="contracts-list.html">
+      <span class="mj-stat-badge brand tag"><i class="fa-solid fa-file-signature"></i> Job 2 · viewing</span>
+      <h3>1 — Contracts list</h3>
+      <p>The roster. Health of the book at the top (active value, renewing this quarter, billing due, failed
+        events), then a filterable grid. The entry point for everyone who is not doing data entry.</p>
+    </a>
+
+    <a class="index-card" href="contract-workspace.html">
+      <span class="mj-stat-badge brand tag"><i class="fa-solid fa-layer-group"></i> Job 2 · viewing</span>
+      <h3>2 — Contract view</h3>
+      <p>One agreement, section-tabbed: Overview · Terms · Coverage · Billing · Commitments · Amendments ·
+        <strong>Documents</strong> · History. Carries the provenance strip and the renewal clauses. The Documents tab
+        is the one component we have to build — see its callout.</p>
+    </a>
+
+    <a class="index-card" href="contract-create.html">
+      <span class="mj-stat-badge info tag"><i class="fa-solid fa-keyboard"></i> Job 3 · manual entry</span>
+      <h3>3 — Contract creation</h3>
+      <p>One card, one form — deliberately <em>not</em> accounting's draft-tab workspace, because this path runs a
+        few times a year. Contract-native selection: customer, products, subscription types and timelines, terms
+        and clauses. The order is a backend consequence, never something typed here.</p>
+    </a>
+
+    <a class="index-card" href="billing-worklist.html">
+      <span class="mj-stat-badge warning tag"><i class="fa-solid fa-conveyor-belt"></i> Job 1 · automation</span>
+      <h3>4 — Billing worklist</h3>
+      <p>What the scheduled job is about to do, and what it could not do. Failed events are never auto-retried,
+        so this screen is the only place a stuck bill becomes visible.</p>
+    </a>
+
+  </div>
+
+  <h2 style="font-size:15px;margin:30px 0 10px;">Settled since round 1</h2>
+  <div class="card" style="margin-bottom:18px;"><div class="card-body">
+    <ul class="sec" style="margin:0;padding-left:20px;line-height:1.85;font-size:13px;">
+      <li><strong>Orders is the only place we bill.</strong> Contracts is the superset that consolidates; no billing
+        groups in orders. So the billing worklist stays in this app.</li>
+      <li><strong>A contract discount overrides</strong> whatever would apply beneath it in the order — it does not stack.</li>
+      <li><strong>Documents use MJ's polymorphic file linking</strong> (<code>__mj.FileEntityRecordLink</code>), on contracts,
+        terms and amendments alike. The <code>DocumentFileID</code> columns are gone.</li>
+      <li><strong>Signatures use MJ's e-signature subsystem</strong> — <code>__mj.SignatureRequest</code> already carries
+        <code>EntityID</code>/<code>RecordID</code>, so contracts and terms link to an envelope with zero columns and zero
+        migration. Provider-agnostic (DocuSign · Dropbox Sign · PandaDoc, all seeded in core).</li>
+      <li><strong>Status transitions are MJ Actions</strong>, not ad-hoc entity writes — the pattern orders already
+        runs in this instance. <code>PendingSignature</code> is driven by the envelope, never set by hand.</li>
+      <li><strong>No soft keys, ever</strong> — a mandate. Every cross-app reference is a real FK; the only non-FK pattern
+        allowed is a genuine polymorphic <code>EntityID</code>/<code>RecordID</code> pair.</li>
+    </ul>
+  </div></div>
+
+  <h2 style="font-size:15px;margin:0 0 10px;">Round 3 — the structural decision I made, and why</h2>
+  <div class="card" style="margin-bottom:18px;"><div class="card-body">
+    <p style="margin:0 0 10px;font-size:13px;line-height:1.7;" class="sec">
+      You had mixed feelings about a combined create/view workspace and asked me to call it. <strong>I split them,
+      but made creation mirror viewing tab-for-tab.</strong>
+    </p>
+    <ul class="sec" style="margin:0;padding-left:20px;line-height:1.8;font-size:13px;">
+      <li><strong>Why split:</strong> the two are optimized for opposite things. Viewing is dense, read-first, and full
+        of things that only exist <em>after</em> the fact — generated orders, billing events, the event log, amendment
+        history. Creation is validation-first and must never show a control that cannot yet mean anything. A combined
+        screen ends up hiding half its tabs on create, which reads as broken rather than as progressive.</li>
+      <li><strong>Why mirror anyway:</strong> the sections are the same concepts in both directions, so Detailed mode
+        uses the same tab set as the viewer. Nobody learns two layouts, and the mental model transfers.</li>
+      <li><strong>Fast vs Detailed</strong> (following Amith's orders pattern): most agreements need one scroll, and
+        forcing six tabs on them is friction. The switch is free and lossless.</li>
+      <li><strong>Persistent record tabs</strong> on the viewer — several contracts open at once, dirty state marked.
+        Contracts are compared side by side constantly (a renewal against its predecessor), which is exactly what
+        record tabs are for.</li>
+    </ul>
+  </div></div>
+
+  <h2 style="font-size:15px;margin:0 0 10px;">Still open — what this round asks</h2>
+  <div class="card"><div class="card-body">
+    <ol class="sec" style="margin:0;padding-left:20px;line-height:1.85;font-size:13px;">
+      <li>✅ <strong>Settled — the contract is the primary entity</strong>, many terms nest under it. Confirmed 2026-08-04.</li>
+      <li><strong>How much does Coverage decide?</strong> It now selects product + subscription type + timeline + price.
+        The open question is where it stops — does the contract also pin things like trial periods and renewal
+        lead days (both live on orders' Subscription), or does it set the type and let the type's own defaults carry them?</li>
+      <li><strong>Which <code>AsOf</code> does the engine pass on renewal</strong> — likely the individual subscription end dates
+        (Andrew's call).</li>
+      <li><strong>Do <code>&lt;mj-record-files&gt;</code> and <code>&lt;mj-record-signature-status&gt;</code> get built here or donated to
+        MJ base?</strong> Both are record-scoped and polymorphic, both are missing from MJ today, and every app that
+        acquires paper or signatures wants them. Building them privately guarantees someone rebuilds them.</li>
+    </ol>
+  </div></div>
+
+  <p class="annot" style="margin-top:22px;">
+    <b>Honest status.</b> Every screen is static HTML with invented data. Nothing is bound, no component exists yet,
+    and the schema underneath is Amith's baseline on <code>an-baseline-schema</code> (PR #1), which is unmerged and has
+    open questions against it. Where a screen shows something the schema cannot currently support, it says so
+    in a grey callout rather than pretending.
+  </p>
+
+</div>
+</body>
+</html>

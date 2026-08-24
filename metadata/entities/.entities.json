@@ -1,0 +1,102 @@
+[
+  {
+    "_comments": [
+      "LAYERED BASE VIEW on Contracts (plan item 12). CodeGen writes its full generated view under",
+      "GeneratedBaseViewName (vwContractsGenerated) and the APP owns BaseView (vwContracts) as a thin",
+      "wrapper adding the derived columns: State (ERD §4.5), IsAwaitingDocument,",
+      "DaysToEnd, RenewalNoticeDeadline, IsInCancellationWindow.",
+      "",
+      "THIS FILE IS THE SOURCE OF RECORD for these two flags. The migration train also sets them, and",
+      "that is not redundancy — metadata is only consolidated into a migration at end-of-version, so in",
+      "the window before that a fresh environment runs migrate → codegen → sync push, and that FIRST",
+      "codegen would see BaseViewGenerated = 1, resolve its target to the PUBLIC name, and DROP/CREATE",
+      "vwContracts as a plain generated view — silently destroying the hand-written wrapper. Orders",
+      "documents the trap in V202608131541__…_layered_inner_view.sql and it cost them real time.",
+      "",
+      "Keyed by entity NAME. Entity IDs are minted by CodeGen on first registration, so a hardcoded UUID",
+      "stops matching the first time this database is rebuilt from zero.",
+      "",
+      "form has enough distinct concerns (identity, dates, renewal terms, modifications, documents,",
+      "",
+      "RelatedRolePolicy 'smart' + PrimaryRelatedBudget 6: the same settings orders carries on every",
+      "entity. 'smart' lets the ranker place related entities we have not explicitly ruled on in",
+      ".form-chrome.json, and the budget caps how many earn a primary slot before the rest go to More.",
+      "",
+      "orders matters more than the marginal call, because a user moving between the two apps should not",
+      "have to learn two form idioms.",
+      "",
+      "",
+      "COLLAPSES EVERY FIELD SECTION INTO ONE 'Details' RAIL ITEM by design (FORMS_ARCHITECTURE_GUIDE 7d:",
+      "Contract Overview, Parties and Context, Dates and Terms, Renewal Terms, Notes and Details — and under",
+      "",
+      "longer 'leftover' and earns its own rail entry — was tried and made it WORSE: the generated section",
+      "disappeared and the replacing panel did not render, so the dates and renewal fields vanished from the",
+      "",
+      "not more replacement panels here.",
+      "",
+      "LAYOUT IS 'left-nav' (D-17), and the rail genuinely works — three coupled mistakes made it look",
+      "otherwise, all mine:",
+      "",
+      "  1. Field panels DO collapse into a single 'Details' rail item by design. Named rail entries come",
+      "     from Primary CONTRIBUTIONS and Primary RELATED grids, never from generated field sections.",
+      "  2. A contribution's `contributionKey` must EQUAL its panel's own `SectionKey`: the container",
+      "     resolves inclusion by contributionKey but builds rail groups from the rendered panels'",
+      "     SectionKey, so a mismatch computes 'Primary' and then attaches it to nothing.",
+      "  3. A panel whose own SectionKey equals its `replacesSectionKey` HIDES ITSELF, because the",
+      "     replacement adds that key to HiddenSectionKeys.",
+      "",
+      "With those fixed the rail carries Overview (Details) + Dates + Renewal terms + Modifications +",
+      "Documents + Lineage + More, which is the mockup. Accordion was briefly set as a workaround and is",
+      "reverted — it was treating the symptom."
+    ],
+    "fields": {
+      "BaseViewGenerated": false,
+      "GeneratedBaseViewName": "vwContractsGenerated",
+      "Configuration": {
+        "UI": {
+          "Form": {
+            "Layout": "left-nav",
+            "RelatedRolePolicy": "smart",
+            "PrimaryRelatedBudget": 6
+          }
+        }
+      }
+    },
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entities.Name=MJ_BizApps_Contracts: Contracts"
+    },
+    "sync": {
+      "lastModified": "2026-08-19T15:53:55.578Z",
+      "checksum": "3ffea54ff56a3ec14d4a08683d625fc7d9bede583fafab9da45c8e1bbdf19c3d"
+    }
+  },
+  {
+    "_comments": [
+      "FORM CHROME on Contract Templates. Same left-nav treatment: a template version is identity plus a",
+      "provision list plus the source document, and the provisions editor (item 7) wants the full body",
+      "width rather than an accordion panel's.",
+      "",
+      "Marcelo ruled a custom form here so provisions are visible as the template's real content rather",
+      "than a related grid below the fields — that is a PANEL claiming the related entity (plan §6.4),",
+      "so the chrome stays stock and only the section content changes."
+    ],
+    "fields": {
+      "Configuration": {
+        "UI": {
+          "Form": {
+            "Layout": "left-nav",
+            "RelatedRolePolicy": "smart",
+            "PrimaryRelatedBudget": 4
+          }
+        }
+      }
+    },
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entities.Name=MJ_BizApps_Contracts: Contract Templates"
+    },
+    "sync": {
+      "lastModified": "2026-08-19T15:53:55.610Z",
+      "checksum": "8d7d4e12e5a3ecc7f548bdb430c2216f9e423cc12cb1a64817fd9ea5d76a6943"
+    }
+  }
+]

@@ -1,0 +1,48 @@
+name: Build All Packages
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [next]
+    paths:
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - 'packages/**'
+  pull_request:
+    branches: [next]
+    paths:
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - 'packages/**'
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      # Must precede setup-node: `cache: 'pnpm'` needs pnpm already on PATH.
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: 'pnpm'
+          cache-dependency-path: 'pnpm-lock.yaml'
+
+      - name: Validate repository.url in packages
+        run: ./.github/scripts/validate-package-repository.sh
+
+      - name: Validate packages restrict what they ship
+        run: ./.github/scripts/validate-package-files.sh
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build all packages
+        run: pnpm run build:packages

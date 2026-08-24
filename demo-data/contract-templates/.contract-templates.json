@@ -1,0 +1,35 @@
+[
+  {
+    "_comments": [
+      "The Master Agreement version dated 2026-02-02 — the standard terms every Order Form and Payment",
+      "Link incorporates by reference.",
+      "",
+      "ONE ROW PER VERSION, EVER. A version is never edited in place: signed contracts reference it, so",
+      "superseding it means a NEW row with a new dated SourceURL, and this one stays. That is the whole",
+      "reason ContractTemplate exists as a table rather than a column on Contract.",
+      "",
+      "SourceURL is NOT NULL by design (ERD): a template version nobody can open is a row claiming to be",
+      "the standard terms with no way to prove it. It is the DATED url, not a 'current' link that changes",
+      "underneath the record.",
+      "",
+      "VersionLabel is the date rather than a semver-ish number, because that is how the business refers",
+      "to it and how the URL is built."
+    ],
+    "fields": {
+      "Name": "Master Agreement — 2026-02-02",
+      "ContractTemplateTypeID": "@lookup:MJ_BizApps_Contracts: Contract Template Types.Name=Master Agreement",
+      "VersionLabel": "2026-02-02",
+      "IntroducedDate": "2026-02-02",
+      "SourceURL": "https://bluecypress.io/masteragreement20260202/",
+      "Description": "Blue Cypress Master Services Agreement, 2026-02-02 edition. 16 sections, 71 numbered provisions. Captured from the dated published URL; each provision carries its verbatim text so a negotiated deviation can be read beside the standard clause.",
+      "Status": "Draft"
+    },
+    "primaryKey": {
+      "ID": "33333333-0000-4000-8000-000000003001"
+    },
+    "sync": {
+      "lastModified": "2026-08-21T15:11:27.492Z",
+      "checksum": "2bac8b1a21927ddc01e2b0baeb467840f2c8a073ce924e1fc243537e38ba2d30"
+    }
+  }
+]

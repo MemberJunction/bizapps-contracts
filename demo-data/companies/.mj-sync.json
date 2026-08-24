@@ -1,0 +1,10 @@
+{
+  "entity": "MJ: Companies",
+  "filePattern": "**/.*.json",
+  "pull": {
+    "createNewFileIfNotFound": false,
+    "updateExistingRecords": true,
+    "ignoreNullFields": true,
+    "ignoreVirtualFields": true
+  }
+}

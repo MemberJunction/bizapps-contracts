@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>New contract — BizApps Contracts</title>
+<link rel="stylesheet" href="mockup.css" />
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+</head>
+<body>
+
+<header class="mj-app-header">
+  <div class="logo"><span class="logo-mark">MJ</span> MemberJunction</div>
+  <div class="breadcrumbs"><a href="contracts-list.html">Contracts</a><span class="sep">/</span><span class="current">New contract</span></div>
+  <div class="right"><i class="fa-regular fa-bell"></i><i class="fa-solid fa-gear"></i><span class="avatar">MT</span></div>
+</header>
+
+<div class="mj-shell">
+
+  <nav class="mj-rail">
+    <div class="group">Contracts</div>
+    <a class="item active" href="contracts-list.html"><i class="fa-solid fa-file-signature"></i> Contracts <span class="count">248</span></a>
+    <a class="item" href="contract-create.html"><i class="fa-solid fa-plus"></i> New contract</a>
+    <a class="item" href="billing-worklist.html"><i class="fa-solid fa-conveyor-belt"></i> Billing worklist <span class="count">31</span></a>
+    <a class="item" href="#"><i class="fa-solid fa-rotate"></i> Renewals</a>
+    <a class="item" href="#"><i class="fa-solid fa-file-pen"></i> Amendments <span class="count">4</span></a>
+    <div class="group">Setup</div>
+    <a class="item" href="#"><i class="fa-solid fa-sliders"></i> Contract types</a>
+  </nav>
+
+  <main class="mj-page-body-interior">
+
+    <div class="mj-page-header">
+      <div>
+        <div class="sec" style="font-size:12px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;margin-bottom:3px;">Creating contract</div>
+        <h1>New contract</h1>
+        <p class="sub">Record what was agreed. The order is produced later by the billing engine — nothing here creates one.</p>
+      </div>
+      <div class="actions">
+        <div class="mode-switch">
+          <button class="active" data-mode="fast"><i class="fa-solid fa-bolt"></i> Fast entry</button>
+          <button data-mode="detailed"><i class="fa-solid fa-list-check"></i> Detailed</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="note info" style="margin-bottom:16px;">
+      <i class="fa-solid fa-circle-info"></i>
+      <div><strong>Two ways in, one shape.</strong> <strong>Fast entry</strong> is the single-screen path for a
+        straightforward agreement — the fields most contracts actually need, in one scroll.
+        <strong>Detailed</strong> opens the same sections as the viewer, tab for tab, so creating and reading a
+        contract never require learning two different layouts. Switch at any time; nothing is lost.
+        <br /><br />
+        <strong>This is the rare path either way.</strong> Contracts normally arrive from a closed deal via
+        <code>Contracts.CreateFromDeal</code>. This screen exists for the account director who has paper that never
+        went through a pipeline — a legacy agreement, a migration from CDP, or a deal closed offline.</div>
+    </div>
+
+    <!-- The mj-workspace-card frame: tab strip + identity band + body + footer.
+         Same component accounting uses for je-workspace / batch-workspace. -->
+    <div class="workspace-card">
+
+      <div class="section-tabs" id="createTabs" hidden>
+        <button class="active">Agreement</button>
+        <button>Term</button>
+        <button>Coverage</button>
+        <button>Billing</button>
+        <button>Commitments</button>
+        <button>Documents</button>
+      </div>
+
+      <div class="ws-identity">
+        <span class="name">New contract</span>
+        <span class="mj-stat-badge">Draft</span>
+        <span class="mj-stat-badge"><i class="fa-solid fa-coins"></i> USD</span>
+        <span class="mj-stat-badge"><i class="fa-solid fa-calendar-day"></i> Priced as of 2026-08-04</span>
+        <span class="session"><i class="fa-solid fa-circle-info"></i>
+          Saved as Draft — it does not bill until a term is activated.</span>
+      </div>
+
+      <div class="ws-body">
+
+        <fieldset class="plain" style="margin-bottom:22px;">
+          <legend class="sub-legend">The agreement</legend>
+          <div class="form-grid">
+            <div class="field">
+              <span>Contract type</span>
+              <select class="mj-input">
+                <option>MSA</option><option>Standard</option><option>SOW</option>
+                <option>Membership</option><option>Evergreen</option><option>Pilot</option>
+              </select>
+              <span class="hint">Sets the default term, cadence, escalation and cancellation window below.</span>
+            </div>
+            <div class="field">
+              <span>Selling company</span>
+              <select class="mj-input"><option>Blue Cypress</option><option>Aptify</option></select>
+            </div>
+            <div class="field">
+              <span>Contract number</span>
+              <output class="muted">CTR-001852 — assigned on create</output>
+            </div>
+
+            <div class="field span2">
+              <span>Customer</span>
+              <select class="mj-input"><option>Northwind Association (Organization)</option></select>
+              <span class="hint">An organization <em>or</em> a person, never both — enforced by the schema.</span>
+            </div>
+            <div class="field">
+              <span>Primary contact</span>
+              <select class="mj-input"><option>Ellen Vasquez</option></select>
+            </div>
+
+            <div class="field">
+              <span>Owner</span>
+              <select class="mj-input"><option>Dana Whitfield</option></select>
+            </div>
+            <div class="field">
+              <span>Parent contract</span>
+              <select class="mj-input"><option>— none —</option><option>CTR-001812 (MSA)</option></select>
+              <span class="hint">For an SOW nested under a master agreement.</span>
+            </div>
+            <div class="field">
+              <span>External reference</span>
+              <input class="mj-input" placeholder="CDP or counterparty ref" />
+            </div>
+            <div class="field span2">
+              <span>Priced as of <span class="mj-stat-badge warning" style="margin-left:6px;">locks the prices below</span></span>
+              <input class="mj-input" type="date" value="2026-08-04" />
+              <span class="hint">Prices are resolved from the catalog <em>as of this date</em> and written into the
+                contract on save — they will not move afterwards. Backdate it when entering an agreement that was
+                actually signed earlier.</span>
+            </div>
+          </div>
+        </fieldset>
+
+        <fieldset class="plain" style="margin-bottom:22px;">
+          <legend class="sub-legend">The first term</legend>
+          <div class="form-grid">
+            <div class="field"><span>Start date</span><input class="mj-input" type="date" value="2027-01-01" /></div>
+            <div class="field"><span>End date</span><input class="mj-input" type="date" value="2027-12-31" /></div>
+            <div class="field"><span>Committed amount</span><input class="mj-input" value="505,440.00" /></div>
+
+            <div class="field"><span>Billing frequency</span>
+              <select class="mj-input"><option>Quarterly</option><option>Monthly</option><option>SemiAnnual</option><option>Annual</option><option>Milestone</option><option>Custom</option></select>
+            </div>
+            <div class="field"><span>Billing anchor</span>
+              <div style="display:flex;gap:8px;">
+                <select class="mj-input" style="flex:1"><option>January</option></select>
+                <select class="mj-input" style="width:78px"><option>1</option></select>
+              </div>
+            </div>
+            <div class="field"><span>Payment terms</span>
+              <select class="mj-input"><option>Net 30</option><option>Net 45</option><option>Due on receipt</option></select>
+              <span class="hint">Owned by orders — this list comes from there.</span>
+            </div>
+
+            <div class="field"><span>Escalation</span>
+              <div style="display:flex;gap:8px;">
+                <input class="mj-input" style="width:88px" value="4.0" />
+                <select class="mj-input" style="flex:1"><option>on prior term</option><option>to list price</option><option>by index</option></select>
+              </div>
+            </div>
+            <div class="field"><span>Auto-renew</span>
+              <select class="mj-input"><option>Yes — renews without a deal</option><option>No — renewal is a deal</option></select>
+            </div>
+            <div class="field"><span>Escalation cap</span>
+              <div style="display:flex;gap:8px;align-items:center;">
+                <input class="mj-input" style="width:88px" value="5.0" /><span class="sec" style="font-size:12.5px;">% max</span>
+              </div>
+              <span class="hint">Ceiling on any renewal increase.</span>
+            </div>
+            <div class="field"><span>Renewal notice</span>
+              <div style="display:flex;gap:8px;align-items:center;">
+                <input class="mj-input" style="width:88px" value="60" /><span class="sec" style="font-size:12.5px;">days</span>
+              </div>
+              <span class="hint">Written notice before a price change.</span>
+            </div>
+            <div class="field"><span>Cancellation window</span>
+              <div style="display:flex;gap:8px;align-items:center;">
+                <input class="mj-input" style="width:88px" value="90" /><span class="sec" style="font-size:12.5px;">days</span>
+              </div>
+              <span class="hint">A different clause — often, not always, the same number.</span>
+            </div>
+
+            <div class="field"><span>Currency</span>
+              <select class="mj-input"><option>USD</option><option>CAD</option><option>EUR</option></select>
+              <span class="hint">Recorded only — nothing converts.</span>
+            </div>
+            <div class="field"><span>Renewal probability</span>
+              <div style="display:flex;gap:8px;align-items:center;">
+                <input class="mj-input" style="width:88px" value="85" /><span class="sec" style="font-size:12.5px;">%</span>
+              </div>
+              <span class="hint">Read by the renewal forecast in sales.</span>
+            </div>
+            <div class="field"><span>Early termination date</span>
+              <input class="mj-input" type="date" />
+            </div>
+          </div>
+        </fieldset>
+
+        <fieldset class="plain" style="margin-bottom:22px;">
+          <legend class="sub-legend">What is covered</legend>
+          <div class="card">
+            <div class="card-body flush">
+              <table class="grid">
+                <thead><tr>
+                  <th style="width:24%">Product</th><th>Covered as</th><th>Subscription type</th>
+                  <th>Coverage window</th><th class="num">Qty</th><th class="num">Contracted price</th><th class="num">Discount</th><th></th>
+                </tr></thead>
+                <tbody>
+                  <tr>
+                    <td><select class="mj-input"><option>Association Platform — Enterprise</option></select></td>
+                    <td><select class="mj-input"><option>Subscription</option><option>One-time fee</option><option>Milestone</option><option>Minimum commitment</option><option>Usage</option></select></td>
+                    <td><select class="mj-input"><option>Enterprise annual</option><option>Org membership</option><option>Seat-based</option><option>Term licence</option></select></td>
+                    <td><select class="mj-input"><option>Full term</option><option>Custom dates…</option></select></td>
+                    <td class="num"><input class="mj-input" style="width:60px;text-align:right" value="1" /></td>
+                    <td class="num"><input class="mj-input" style="width:108px;text-align:right" value="29,120.00" /></td>
+                    <td class="num"><input class="mj-input" style="width:70px;text-align:right" placeholder="—" /></td>
+                    <td><button class="mj-btn subtle sm"><i class="fa-solid fa-xmark"></i></button></td>
+                  </tr>
+                  <tr>
+                    <td><select class="mj-input"><option>Member Portal add-on</option></select></td>
+                    <td><select class="mj-input"><option>Subscription</option></select></td>
+                    <td><select class="mj-input"><option>Enterprise annual</option></select></td>
+                    <td><select class="mj-input"><option>Full term</option></select></td>
+                    <td class="num"><input class="mj-input" style="width:60px;text-align:right" value="1" /></td>
+                    <td class="num"><input class="mj-input" style="width:108px;text-align:right" placeholder="catalog" /></td>
+                    <td class="num"><input class="mj-input" style="width:70px;text-align:right" value="10%" /></td>
+                    <td><button class="mj-btn subtle sm"><i class="fa-solid fa-xmark"></i></button></td>
+                  </tr>
+                  <tr>
+                    <td><select class="mj-input"><option>Onboarding setup fee</option></select></td>
+                    <td><select class="mj-input"><option>One-time fee</option></select></td>
+                    <td><output class="muted" style="font-size:12.5px">—</output></td>
+                    <td><select class="mj-input"><option>Month 1</option></select></td>
+                    <td class="num"><input class="mj-input" style="width:60px;text-align:right" value="1" /></td>
+                    <td class="num"><input class="mj-input" style="width:108px;text-align:right" value="8,000.00" /></td>
+                    <td class="num"><input class="mj-input" style="width:70px;text-align:right" placeholder="—" /></td>
+                    <td><button class="mj-btn subtle sm"><i class="fa-solid fa-xmark"></i></button></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="card-body" style="padding-top:12px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
+              <button class="mj-btn sm"><i class="fa-solid fa-plus"></i> Add line</button>
+              <span class="sec" style="font-size:12.5px;">
+                Leave the price blank to bill at the catalog price — the agreement still governs what is covered.
+              </span>
+            </div>
+          </div>
+
+          <div class="note info" style="margin-top:14px;">
+            <i class="fa-solid fa-circle-info"></i>
+            <div><strong>This is a contract sheet, not an order form.</strong> You are stating what the customer is
+              entitled to and on what terms — product, how it is covered, which subscription type it becomes, over
+              what window, at what negotiated price. <strong>No order is created here.</strong> When a term activates and
+              its billing schedule comes due, the engine assembles the draft, prices it through orders, and
+              materializes the order there. Nothing on this screen computes money.</div>
+          </div>
+        </fieldset>
+
+        <fieldset class="plain">
+          <legend class="sub-legend">Execution</legend>
+          <div class="form-grid">
+            <div class="field"><span>Effective date</span><input class="mj-input" type="date" value="2027-01-01" /></div>
+            <div class="field"><span>Executed date</span><input class="mj-input" type="date" /></div>
+            <div class="field"><span>Executed document</span>
+              <button class="mj-btn" style="justify-content:center;"><i class="fa-solid fa-upload"></i> Attach files…</button>
+              <span class="hint">Signed PDF plus any exhibits — attach as many as the agreement has.</span>
+            </div>
+            <div class="field span3"><span>Termination policy</span>
+              <textarea class="mj-input" rows="2" placeholder="Free text — the clause as written"></textarea>
+            </div>
+          </div>
+        </fieldset>
+
+      </div>
+
+      <div class="ws-footer">
+        <span class="note-icon"></span>
+        <span class="note">
+          Created <strong>Draft</strong>; it bills nothing until a term is activated and a schedule exists.
+          <strong>Create &amp; send</strong> raises a signature request via <code>Contracts.SendForSignature</code> and moves it to
+          <code>PendingSignature</code> — the status is then driven by the envelope, not by hand.
+        </span>
+        <span class="spacer"></span>
+        <button class="mj-btn subtle">Cancel</button>
+        <button class="mj-btn"><i class="fa-solid fa-floppy-disk"></i> Save as draft</button>
+        <button class="mj-btn primary"><i class="fa-solid fa-check"></i> Create &amp; send for signature</button>
+      </div>
+
+    </div>
+
+    <p class="annot" style="margin-top:16px;">
+      <b>Deliberately NOT the tabbed draft workspace, and not a wizard.</b> Accounting's <code>mj-workspace-card</code>
+      draft-tab strip earns its keep because journal entries are entered constantly and in parallel. Manual contract
+      entry is explicitly the rare path — a handful a year — so multi-draft tabs would be chrome nobody uses, and a
+      wizard would force a sequence the paper does not have. One card, one form, sections in the order a contract is
+      actually read. The full workspace pattern stays where the volume is.
+      <br /><br />
+      <b>What this form is not.</b> It is not an order form and it is not orders' form embedded. Every field here is
+      a contract provision — including the subscription type, which is a negotiated choice
+      (<code>ContractLine.SubscriptionTypeID</code>) rather than something the engine guesses when it materializes the
+      subscription. What contracts deliberately does NOT do is compute: no totals, no tax, no proration, no
+      resolved prices. Those belong to orders and stay there.
+    </p>
+
+  </main>
+</div>
+<script>
+  var tabs = document.getElementById('createTabs');
+  document.querySelectorAll('.mode-switch button').forEach(function (b) {
+    b.addEventListener('click', function () {
+      document.querySelectorAll('.mode-switch button').forEach(function (x) { x.classList.remove('active'); });
+      b.classList.add('active');
+      tabs.hidden = b.getAttribute('data-mode') !== 'detailed';
+    });
+  });
+  document.querySelectorAll('#createTabs button').forEach(function (b) {
+    b.addEventListener('click', function () {
+      document.querySelectorAll('#createTabs button').forEach(function (x) { x.classList.remove('active'); });
+      b.classList.add('active');
+    });
+  });
+</script>
+</body>
+</html>

@@ -1,0 +1,80 @@
+[
+  {
+    "_comments": [
+      "The BizApps Contracts Application — what makes this app appear in MJ Explorer at all.",
+      "",
+      "WITHOUT THIS FILE the app is invisible. CodeGen auto-creates a schema-named application",
+      "(__mj_BizAppsContracts) that carries the entities, but that is a container for admin access, not a",
+      "destination: no nav items, no icon, so nobody finds the app by looking. This row is the",
+      "user-facing app.",
+      "",
+      "DefaultNavItems IS the top nav bar. Each item is ResourceType 'Custom' pointing at a DriverClass",
+      "registered via @RegisterClass(BaseResourceComponent, '<DriverClass>') in @mj-biz-apps/contracts-ng.",
+      "BOTH HALVES ARE REQUIRED: metadata without a registered class renders a dead tab, and a registered",
+      "class without metadata never appears.",
+      "",
+      "THREE SECTIONS, ruled 2026-08-18. Each owns a LEFT RAIL over its own sub-pages — MJ's rule is top",
+      "nav ACROSS sections, left nav WITHIN one:",
+      "",
+      "  Contracts     — Dashboard · All Contracts · Renewals & Expiry · Awaiting Documents · Modifications",
+      "  Templates     — Agreement Versions · All Provisions",
+      "  Configuration — Contract Types · Template Types · Reference Data",
+      "",
+      "WHY THIS SHAPE AND NOT V1'S. v1's three were Contracts / Billing / Setup, and Billing was a peer",
+      "because 'what failed to bill and why' is a different job done by different people. The rebuild",
+      "deleted billing entirely, so that section had nothing behind it. Templates earns the vacated slot",
+      "for the same reason Billing did: registering the next Master Agreement version and curating its",
+      "clause list is finance-adjacent legal work, done rarely, by someone who is not filing contracts",
+      "that day. Filing it under Contracts would bury the one surface that has to be findable before a",
+      "modification can be recorded at all (item 4 is a prerequisite, not a nicety).",
+      "",
+      "Modifications is a RAIL TAB under Contracts, not a section: 'every deviation we have ever agreed",
+      "to' is a way of reading contracts, not a separate job. Awaiting Documents is a rail tab for the",
+      "same reason — it is the IsAwaitingDocument filter over the same list, which is exactly why that",
+      "column is derived in the base view rather than being a stored worklist flag.",
+      "",
+      "DefaultForNewUser is true so the app lands for new users without a per-persona grant. When it is",
+      "false you must run `mjdev apps enable <slug> <app>` or the app stays hidden even though everything",
+      "is installed correctly — a confusing failure that looks like a build problem.",
+      "",
+      "The fixed UUID means a re-push against a rebuilt database UPDATES this row rather than creating a",
+      "second Application with the same name. Unchanged from v1 deliberately: it is the same app."
+    ],
+    "fields": {
+      "Name": "Contracts",
+      "Description": "The record of what we agreed: every agreement, the standard terms it incorporates, the provisions negotiated away from those terms, and the executed paper. Contracts tracks obligations and documents; orders bills, and sales sells.",
+      "Icon": "fa-solid fa-file-signature",
+      "DefaultForNewUser": true,
+      "DefaultNavItems": [
+        {
+          "Label": "Contracts",
+          "Icon": "fa-solid fa-file-signature",
+          "ResourceType": "Custom",
+          "DriverClass": "ContractsSectionResource",
+          "isDefault": true
+        },
+        {
+          "Label": "Templates",
+          "Icon": "fa-solid fa-file-lines",
+          "ResourceType": "Custom",
+          "DriverClass": "ContractsTemplatesSectionResource",
+          "isDefault": false
+        },
+        {
+          "Label": "Configuration",
+          "Icon": "fa-solid fa-sliders",
+          "ResourceType": "Custom",
+          "DriverClass": "ContractsConfigurationSectionResource",
+          "isDefault": false
+        }
+      ]
+    },
+    "primaryKey": {
+      "ID": "7C1D2E3F-4A5B-4C6D-8E9F-0A1B2C3D4E5F"
+    },
+    "sync": {
+      "lastModified": "2026-08-19T02:44:49.817Z",
+      "checksum": "ec1b91b663a6f3427c80c990b8417d8a429dc0446a1e4ff0a98fd882ec9f3773"
+    }
+  }
+]

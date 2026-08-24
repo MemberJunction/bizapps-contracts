@@ -1,0 +1,66 @@
+[
+  {
+    "_comments": [
+      "Four demo customers. Names are invented and deliberately not real organisations."
+    ],
+    "fields": {
+      "Name": "Northwind Association",
+      "Status": "Active"
+    },
+    "primaryKey": {
+      "ID": "B0000000-0000-4000-8000-000000000001"
+    },
+    "sync": {
+      "lastModified": "2026-08-19T04:24:58.484Z",
+      "checksum": "5435d6e4fc082cf65c45745f73e03291c4bce6ea775f1ca50be0e1083787bf44"
+    }
+  },
+  {
+    "_comments": [
+      "Four demo customers. Names are invented and deliberately not real organisations."
+    ],
+    "fields": {
+      "Name": "Cascadia Health Society",
+      "Status": "Active"
+    },
+    "primaryKey": {
+      "ID": "B0000000-0000-4000-8000-000000000002"
+    },
+    "sync": {
+      "lastModified": "2026-08-19T04:24:58.500Z",
+      "checksum": "51de075fed1bb99fe4ffc44904b1e1c3eb659164c211f0948fbe192ae904ff97"
+    }
+  },
+  {
+    "_comments": [
+      "Four demo customers. Names are invented and deliberately not real organisations."
+    ],
+    "fields": {
+      "Name": "Meridian Credit Union",
+      "Status": "Active"
+    },
+    "primaryKey": {
+      "ID": "B0000000-0000-4000-8000-000000000003"
+    },
+    "sync": {
+      "lastModified": "2026-08-19T04:24:58.516Z",
+      "checksum": "54b92660dce67b1716b83306ac60c563c4b97a0ffc54f707100c29563ebc0bef"
+    }
+  },
+  {
+    "_comments": [
+      "Four demo customers. Names are invented and deliberately not real organisations."
+    ],
+    "fields": {
+      "Name": "Harbor Point Institute",
+      "Status": "Active"
+    },
+    "primaryKey": {
+      "ID": "B0000000-0000-4000-8000-000000000004"
+    },
+    "sync": {
+      "lastModified": "2026-08-19T04:24:58.531Z",
+      "checksum": "5febd3c5df3a52acdf1444ae17612b35fb954def221517dac1927d815c669c8b"
+    }
+  }
+]

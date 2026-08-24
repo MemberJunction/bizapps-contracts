@@ -1,0 +1,8 @@
+{
+  "Name": "Provisions",
+  "Source": "database",
+  "Load": "explicit",
+  "OnRemove": "delete",
+  "OrderBy": "ProvisionSortKey ASC",
+  "ClearAfterSave": false
+}
