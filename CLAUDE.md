@@ -71,7 +71,17 @@ in [`docs/database-migrations.md`](docs/database-migrations.md).
 Write migrations idempotently (`IF NOT EXISTS`, `IF COL_LENGTH(...) IS NULL`) and assume the database
 already has data. A migration that reads `__mj.Entity` must skip cleanly when the row is absent —
 CodeGen runs *after* migrations — and if the change is really about metadata (field categories,
-form layout), its home is `metadata/` and `mj sync push`, not a migration.
+form layout), its home is `metadata/` and `mj sync push` **while you are developing**.
+
+**But a push does not ship.** `mj sync push` seeds *your* database; MJ treats `mj-app.json`'s
+`metadata.directory` as a dev-time pointer and `mj app install` applies migrations and nothing else.
+`metadata/` reaches a host exactly one way — inside `V…__Metadata_Sync.sql`, regenerated at release
+— which is what `docs/database-migrations.md` means by calling `metadata/` the **install seed**.
+Read [§ What `metadata/` may contain](docs/database-migrations.md) before adding anything there.
+
+The consequence, because it fails quietly: a `metadata/` edit that a host needs is not "done" when
+it merges. Nothing in CI detects a pending metadata change with no migration behind it — the app
+installs cleanly either way — so it is done only when a release carries it.
 
 The review test: *if a colleague pulls this branch onto a database that already has last week's
 schema and runs `pnpm run mj:migrate`, do they get exactly the schema this branch describes?*
