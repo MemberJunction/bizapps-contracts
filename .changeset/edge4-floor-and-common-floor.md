@@ -7,5 +7,5 @@
 ---
 
 Raise the platform floor to MJ 6.1.0-edge.4 and the bizapps-common dependency
-floor to 5.35.1 — the versions actually exercised together. All
+floor to 5.36.0 — the versions actually exercised together. All
 @memberjunction/* dependencies pin ^6.1.0-edge.4 (caret, never exact).
