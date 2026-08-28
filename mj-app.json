@@ -13,7 +13,7 @@
     "email": "support@memberjunction.com"
   },
   "repository": "https://github.com/MemberJunction/bizapps-contracts",
-  "mjVersionRange": ">=6.1.0-edge.3 <7.0.0",
+  "mjVersionRange": ">=6.1.0-edge.4 <7.0.0",
   "dependencies": {
     "mj-bizapps-common": {
       "version": ">=5.36.0 <6.0.0",
