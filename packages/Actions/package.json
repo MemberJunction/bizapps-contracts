@@ -18,11 +18,11 @@
     "zod": "^3.25.76"
   },
   "peerDependencies": {
-    "@memberjunction/actions": "^6.1.0-edge.3",
-    "@memberjunction/actions-base": "^6.1.0-edge.3",
-    "@memberjunction/core": "^6.1.0-edge.3",
-    "@memberjunction/core-entities": "^6.1.0-edge.3",
-    "@memberjunction/global": "^6.1.0-edge.3"
+    "@memberjunction/actions": "^6.1.0-edge.4",
+    "@memberjunction/actions-base": "^6.1.0-edge.4",
+    "@memberjunction/core": "^6.1.0-edge.4",
+    "@memberjunction/core-entities": "^6.1.0-edge.4",
+    "@memberjunction/global": "^6.1.0-edge.4"
   },
   "devDependencies": {
     "typescript": "^5.9.3"
