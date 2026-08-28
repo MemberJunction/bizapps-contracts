@@ -1,7 +1,7 @@
 {
   "mjdevManaged": "MJDEV-MANAGED: mjdev owns parts of this file — the \"packages/dev-apps/*\" workspaces glob, any dev-linked open-app dependencies (e.g. \"@mj-biz-apps/*\"), and the Angular \"overrides\" pin set. Do not hand-edit those; the tool wires and reverts them. They are left visible in git status, but the git-tree guard blocks committing them. See .mjdev-docs/MANAGED-FILES.md; revert with `mjdev git:stage-clean <slug> package.json`.",
   "name": "@mj-biz-apps/contracts-ng",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "type": "module",
   "description": "Client bootstrap package - Angular components loaded by MJExplorer via the generated open-app bootstrap import. TODO(template): rename.",
   "main": "dist/public-api.js",
@@ -17,7 +17,7 @@
   },
   "license": "BUSL-1.1",
   "dependencies": {
-    "@mj-biz-apps/contracts-entities": "^0.1.1"
+    "@mj-biz-apps/contracts-entities": "^0.2.0"
   },
   "peerDependencies": {
     "@angular/common": ">=21.0.0 <22.0.0",

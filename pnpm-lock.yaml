@@ -147,7 +147,7 @@ importers:
   packages/Angular:
     dependencies:
       '@mj-biz-apps/contracts-entities':
-        specifier: ^0.1.1
+        specifier: ^0.2.0
         version: link:../Entities
     devDependencies:
       '@angular/compiler':
@@ -166,7 +166,7 @@ importers:
   packages/CoreEntitiesServer:
     dependencies:
       '@mj-biz-apps/contracts-entities':
-        specifier: ^0.1.1
+        specifier: ^0.2.0
         version: link:../Entities
     devDependencies:
       typescript:
@@ -186,10 +186,10 @@ importers:
   packages/IntegrationTests:
     dependencies:
       '@mj-biz-apps/contracts-core-entities-server':
-        specifier: 0.1.1
+        specifier: 0.2.0
         version: link:../CoreEntitiesServer
       '@mj-biz-apps/contracts-entities':
-        specifier: 0.1.1
+        specifier: 0.2.0
         version: link:../Entities
     devDependencies:
       '@types/node':
@@ -205,13 +205,13 @@ importers:
   packages/Server:
     dependencies:
       '@mj-biz-apps/contracts-actions':
-        specifier: ^0.1.1
+        specifier: ^0.2.0
         version: link:../Actions
       '@mj-biz-apps/contracts-core-entities-server':
-        specifier: ^0.1.1
+        specifier: ^0.2.0
         version: link:../CoreEntitiesServer
       '@mj-biz-apps/contracts-entities':
-        specifier: ^0.1.1
+        specifier: ^0.2.0
         version: link:../Entities
       class-validator:
         specifier: ^0.14.3
