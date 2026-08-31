@@ -30,13 +30,30 @@ const E = 'MJ_BizApps_Contracts: Contracts';
 const why = (e) => String(e.LatestResult?.Message ?? '') + ' ' +
     (e.LatestResult?.Errors ?? []).map((x) => `${x.Source}: ${x.Message}`).join(' | ');
 
-// two root contracts, neither already superseded
+// Two root contracts, neither already superseded, FOR THE SAME CUSTOMER.
+//
+// The same-customer clause is not incidental to the fixture — `refuseCrossCustomerSupersession`
+// (issue #28 item 4) refuses a re-papering across customers, so a `TOP 2 ... ORDER BY
+// ContractNumber` pick reads whichever two contracts sort first and is refused on a rule this
+// harness is not testing. The harness exercises `Supersede()` reaching the server subclass and
+// persisting; it needs a pair the eligibility rules actually permit.
 const rows = (await pool.request().query(`
-    SELECT TOP 2 CAST(ID AS VARCHAR(50)) AS ID, ContractNumber
-      FROM __mj_BizAppsContracts.Contract
-     WHERE ParentContractID IS NULL AND SupersededByContractID IS NULL
-     ORDER BY ContractNumber`)).recordset;
-if (rows.length < 2) { console.error('need two eligible root contracts'); process.exit(2); }
+    SELECT TOP 2 CAST(c.ID AS VARCHAR(50)) AS ID, c.ContractNumber
+      FROM __mj_BizAppsContracts.Contract c
+      JOIN (
+            SELECT TOP 1 CustomerOrganizationID
+              FROM __mj_BizAppsContracts.Contract
+             WHERE ParentContractID IS NULL AND SupersededByContractID IS NULL
+             GROUP BY CustomerOrganizationID
+            HAVING COUNT(*) >= 2
+             ORDER BY CustomerOrganizationID
+           ) pick ON pick.CustomerOrganizationID = c.CustomerOrganizationID
+     WHERE c.ParentContractID IS NULL AND c.SupersededByContractID IS NULL
+     ORDER BY c.ContractNumber`)).recordset;
+if (rows.length < 2) {
+    console.error('need two eligible root contracts for the SAME customer');
+    process.exit(2);
+}
 const [predRow, succRow] = rows;
 console.log(`predecessor ${predRow.ContractNumber}  ->  successor ${succRow.ContractNumber}\n`);
 
