@@ -403,7 +403,8 @@ function daysUntil(d: Date | string | null | undefined): number | null {
                 @for (f of Fields; track f.name) {
                     <div class="mjc-fg" [class.mjc-fg--span]="f.span">
                         <mj-form-field [Record]="Record" [ShowLabel]="true" [FieldName]="f.name" [Type]="f.type"
-                            [EditMode]="EditMode" [FormContext]="FormContext" [LinkType]="f.link ?? 'None'"></mj-form-field>
+                            [EditMode]="EditMode" [FormContext]="FormContext" [LinkType]="f.link ?? 'None'"
+                            (Navigate)="FormComponent.OnFormNavigate($event)"></mj-form-field>
                     </div>
                 }
             </div>
@@ -442,7 +443,8 @@ export class MJCContractAgreementPanel extends BaseFormPanel<ContractEntity> {
                 @for (f of Fields; track f.name) {
                     <div class="mjc-fg" [class.mjc-fg--span]="f.span">
                         <mj-form-field [Record]="Record" [ShowLabel]="true" [FieldName]="f.name" [Type]="f.type"
-                            [EditMode]="EditMode" [FormContext]="FormContext" [LinkType]="f.link ?? 'None'"></mj-form-field>
+                            [EditMode]="EditMode" [FormContext]="FormContext" [LinkType]="f.link ?? 'None'"
+                            (Navigate)="FormComponent.OnFormNavigate($event)"></mj-form-field>
                     </div>
                 }
             </div>
@@ -450,6 +452,12 @@ export class MJCContractAgreementPanel extends BaseFormPanel<ContractEntity> {
     `,
 })
 export class MJCContractPartiesPanel extends BaseFormPanel<ContractEntity> {
+    /**
+     * Record links on these fields emit `Navigate` from `mj-form-field`. That output must be
+     * forwarded to `FormComponent.OnFormNavigate`, which Explorer maps onto
+     * `NavigationService.OpenEntityRecord`. Without the binding the cells look like links and
+     * do nothing — Overview's customer/contact buttons already go through this path.
+     */
     public readonly Fields: ContractFieldSpec[] = [
         { name: 'CustomerOrganizationID', type: 'textbox', link: 'Record' },
         { name: 'PrimaryContactPersonID', type: 'textbox', link: 'Record' },
@@ -478,7 +486,8 @@ export class MJCContractPartiesPanel extends BaseFormPanel<ContractEntity> {
                 @for (f of Fields; track f.name) {
                     <div class="mjc-fg" [class.mjc-fg--span]="f.span">
                         <mj-form-field [Record]="Record" [ShowLabel]="true" [FieldName]="f.name" [Type]="f.type"
-                            [EditMode]="EditMode" [FormContext]="FormContext" [LinkType]="f.link ?? 'None'"></mj-form-field>
+                            [EditMode]="EditMode" [FormContext]="FormContext" [LinkType]="f.link ?? 'None'"
+                            (Navigate)="FormComponent.OnFormNavigate($event)"></mj-form-field>
                     </div>
                 }
             </div>
@@ -512,7 +521,8 @@ export class MJCContractNotesPanel extends BaseFormPanel<ContractEntity> {
                 @for (f of Fields; track f.name) {
                     <div class="mjc-fg" [class.mjc-fg--span]="f.span">
                         <mj-form-field [Record]="Record" [ShowLabel]="true" [FieldName]="f.name" [Type]="f.type"
-                            [EditMode]="EditMode" [FormContext]="FormContext" [LinkType]="f.link ?? 'None'"></mj-form-field>
+                            [EditMode]="EditMode" [FormContext]="FormContext" [LinkType]="f.link ?? 'None'"
+                            (Navigate)="FormComponent.OnFormNavigate($event)"></mj-form-field>
                     </div>
                 }
             </div>
@@ -547,7 +557,8 @@ export class MJCContractProvenanceFieldsPanel extends BaseFormPanel<ContractEnti
                 @for (f of Fields; track f.name) {
                     <div class="mjc-fg" [class.mjc-fg--span]="f.span">
                         <mj-form-field [Record]="Record" [ShowLabel]="true" [FieldName]="f.name" [Type]="f.type"
-                            [EditMode]="EditMode" [FormContext]="FormContext" [LinkType]="f.link ?? 'None'"></mj-form-field>
+                            [EditMode]="EditMode" [FormContext]="FormContext" [LinkType]="f.link ?? 'None'"
+                            (Navigate)="FormComponent.OnFormNavigate($event)"></mj-form-field>
                     </div>
                 }
             </div>
