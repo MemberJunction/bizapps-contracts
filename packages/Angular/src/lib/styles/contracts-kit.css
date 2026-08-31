@@ -211,6 +211,13 @@
 .mjc-field .mjc-val--ro { background: var(--mj-bg-surface-sunken); color: var(--mj-text-secondary); }
 .mjc-hint { color: var(--mj-text-muted); font-size: var(--mj-text-xs); margin-top: 3px; }
 
+/* A row of buttons under a field's control. A .mjc-field stacks its children, which is right for
+   label/value but leaves buttons one per line — this is the one place a field needs a row. */
+.mjc-field__actions {
+  display: flex; flex-wrap: wrap; align-items: center;
+  gap: var(--mj-space-2); margin-top: var(--mj-space-2);
+}
+
 /* ── Tables ────────────────────────────────────────────────────────────────
    The mockup renders modifications, documents and lineage as TABLES, not stacked cards. With three
    or more rows a table is scannable and a stack is a wall. */
