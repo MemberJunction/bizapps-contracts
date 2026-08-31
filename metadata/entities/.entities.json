@@ -45,9 +45,14 @@
       "  3. A panel whose own SectionKey equals its `replacesSectionKey` HIDES ITSELF, because the",
       "     replacement adds that key to HiddenSectionKeys.",
       "",
-      "With those fixed the rail carries Overview (Details) + Dates + Renewal terms + Modifications +",
-      "Documents + Lineage + More, which is the mockup. Accordion was briefly set as a workaround and is",
-      "reverted — it was treating the symptom."
+      "Ruled 2026-08-31: Overview is a Primary contribution (exec briefing), not leftover Details.",
+      "It replaces generated `contractDetails`. Remaining field dumps (stakeholders, provenance,",
+      "lifecycle, notes) are replaced by named rail sections. Hero kit CSS loads from the hero panel",
+      "so it actually applies on the entity form (the section shell is a different surface).",
+      "",
+      "With those fixed the rail carries Overview + Agreement + Parties + Dates + Renewal terms +",
+      "Notes + Modifications + Documents + Lineage + More. Accordion was briefly set as a workaround",
+      "and is reverted — it was treating the symptom."
     ],
     "fields": {
       "BaseViewGenerated": false,

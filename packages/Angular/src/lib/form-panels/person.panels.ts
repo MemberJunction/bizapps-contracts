@@ -1,9 +1,8 @@
 /**
- * @fileoverview Agreements on Common's Organization form.
+ * @fileoverview Agreements on Common's Person form.
  *
- * Orders' pattern: `BaseFormPanel` on `MJ_BizApps_Common: Organizations`, `relatedEntity` so a baked
- * grid does not also mount, `mj-collapsible-panel` + `mj-explorer-entity-data-grid`, navigate via
- * the HOST form. Common is not modified. Contracts owns the FK (`CustomerOrganizationID`).
+ * `Contract.PrimaryContactPersonID` points at Common's People. Same registration pattern as
+ * `organization.panels.ts` / orders' `person-orders.panel.ts`. Common is not modified.
  *
  * @module @mj-biz-apps/contracts-ng
  */
@@ -18,20 +17,20 @@ import { MJC_ENTITIES, MJC_FOREIGN_ENTITIES } from '../data/entity-names';
 const SECTION_KEY = 'agreements';
 
 @RegisterClassEx(BaseFormPanel, {
-    key: 'form-panel:Organizations:related:Contracts',
+    key: 'form-panel:People:related:Contracts',
     priority: 10,
     metadata: {
-        entity: MJC_FOREIGN_ENTITIES.Organization,
+        entity: MJC_FOREIGN_ENTITIES.Person,
         slot: 'after-related',
         sortKey: 68,
         relatedEntity: MJC_ENTITIES.Contract,
-        relatedJoinField: 'CustomerOrganizationID',
+        relatedJoinField: 'PrimaryContactPersonID',
         contributionKey: SECTION_KEY,
         inclusion: 'Primary',
     },
 })
 @Component({
-    selector: 'mjc-organization-agreements-panel',
+    selector: 'mjc-person-agreements-panel',
     standalone: true,
     imports: [CommonModule, BaseFormsModule],
     template: `
@@ -56,7 +55,7 @@ const SECTION_KEY = 'agreements';
         </mj-collapsible-panel>
     `,
 })
-export class MJCOrganizationAgreementsPanel extends BaseFormPanel<BaseEntity> {
+export class MJCPersonAgreementsPanel extends BaseFormPanel<BaseEntity> {
     public readonly ContractEntity = MJC_ENTITIES.Contract;
     public readonly SectionKey = SECTION_KEY;
     public get Params(): RunViewParams | null {
@@ -64,13 +63,12 @@ export class MJCOrganizationAgreementsPanel extends BaseFormPanel<BaseEntity> {
         if (!id) return null;
         return {
             EntityName: MJC_ENTITIES.Contract,
-            ExtraFilter: `CustomerOrganizationID = '${String(id).replace(/'/g, "''")}'`,
-            OrderBy: `CASE WHEN State IN ('Active','Executed') THEN 0 ELSE 1 END, EffectiveDate DESC`,
+            ExtraFilter: `PrimaryContactPersonID = '${String(id).replace(/'/g, "''")}'`,
         };
     }
     public get NewValues(): Record<string, unknown> {
         const id = this.Record?.Get?.('ID');
-        return id ? { CustomerOrganizationID: String(id) } : {};
+        return id ? { PrimaryContactPersonID: String(id) } : {};
     }
     public OnDataLoad(event: AfterDataLoadEventArgs): void {
         this.FormComponent.SetSectionRowCount(SECTION_KEY, event.totalRowCount);
