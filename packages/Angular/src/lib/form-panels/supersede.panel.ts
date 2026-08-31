@@ -28,12 +28,20 @@ import { BaseFormPanel, BaseFormsModule } from '@memberjunction/ng-base-forms';
 import { MJComboboxComponent, MJButtonDirective, MJAlertComponent } from '@memberjunction/ng-ui-components';
 import type { IRemoteOperationProvider } from '@memberjunction/core';
 import { ContractEntity } from '@mj-biz-apps/contracts-entities';
+import { ContractOptionLabel, SameCustomerClause } from '@mj-biz-apps/contracts-entities';
 import { MJC_ENTITIES } from '../data/entity-names';
 
 /** The server-side operation key. One place, because RouteOperation is stringly typed. */
 const SUPERSEDE_OP = 'Contracts.Supersede';
 
-interface Candidate { ID: string; ContractNumber: string; ContractType: string; Label: string }
+interface Candidate {
+    ID: string;
+    ContractNumber: string;
+    ContractType: string;
+    /** Free text on the agreement. Preferred over the type in the label — see `labelFor`. */
+    Description: string | null;
+    Label: string;
+}
 
 @RegisterClassEx(BaseFormPanel, {
     key: 'contracts:supersede',
@@ -286,16 +294,39 @@ export class MJCContractSupersedePanel extends BaseFormPanel<ContractEntity> {
         try {
             const parentID = this.Record?.ParentContractID ?? null;
             const sameLevel = parentID === null ? 'ParentContractID IS NULL' : `ParentContractID = '${parentID}'`;
-            const r = await rv.RunView<{ ID: string; ContractNumber: string; ContractType: string }>({
+
+            /**
+             * SAME CUSTOMER, and this is the rule the picker was missing (#28 item 4).
+             *
+             * Re-papering replaces one customer's agreement with another agreement for THAT customer.
+             * Offering another customer's contract is not merely untidy: linking it would point one
+             * organisation's lineage at another's, and the successor's terms would read as governing a
+             * party that never signed them.
+             *
+             * `CustomerOrganizationID` is NOT NULL on this table, so there is no "customer unknown" case
+             * to widen for — an absent value here means the record could not be read, and offering the
+             * whole book because of that is exactly the failure this rule exists to stop. So a missing
+             * value yields NO candidates rather than all of them.
+             */
+            const sameCustomer = SameCustomerClause(this.Record?.CustomerOrganizationID);
+
+            const r = await rv.RunView<{
+                ID: string;
+                ContractNumber: string;
+                ContractType: string;
+                Description: string | null;
+            }>({
                 EntityName: MJC_ENTITIES.Contract,
-                Fields: ['ID', 'ContractNumber', 'ContractType'],
-                ExtraFilter: `${sameLevel} AND SupersededByContractID IS NULL AND ID <> '${me}'`,
+                Fields: ['ID', 'ContractNumber', 'ContractType', 'Description'],
+                ExtraFilter:
+                    `${sameCustomer} AND ${sameLevel} ` +
+                    `AND SupersededByContractID IS NULL AND ID <> '${me}'`,
                 OrderBy: 'ContractNumber ASC',
                 ResultType: 'simple',
             });
             this._candidates = (r?.Success ? r.Results : []).map((c) => ({
                 ...c,
-                Label: `${c.ContractNumber} — ${c.ContractType ?? 'Contract'}`,
+                Label: ContractOptionLabel(c),
             }));
         } catch (e) {
             // Do NOT swallow this. An empty list and a failed read look identical in the UI, and the
