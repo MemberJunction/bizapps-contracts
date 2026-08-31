@@ -46,6 +46,8 @@ interface Candidate { ID: string; ContractNumber: string; ContractType: string; 
         slot: 'after-fields',
         sortKey: 40,
         contributionKey: 'supersede',
+        relatedEntity: MJC_ENTITIES.Contract,
+        relatedJoinField: 'SupersededByContractID',
     },
 })
 @Component({
@@ -55,7 +57,7 @@ interface Candidate { ID: string; ContractNumber: string; ContractType: string; 
     imports: [CommonModule, FormsModule, BaseFormsModule, MJComboboxComponent, MJButtonDirective, MJAlertComponent],
     template: `
         <mj-collapsible-panel
-            SectionKey="contractSupersede"
+            SectionKey="supersede"
             SectionName="Re-papering"
             Icon="fa-solid fa-arrow-right-arrow-left"
             [Form]="FormComponent"

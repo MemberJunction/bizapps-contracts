@@ -1,0 +1,230 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Contracts — Option A · Obligation command</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
+  <link rel="stylesheet" href="tokens.css" />
+  <link rel="stylesheet" href="chrome.css" />
+</head>
+<body>
+<div class="app">
+  <div class="thesis">
+    <b>Thesis:</b> Contracts is not a revenue chart (plan §1). The dashboard is a 90-day obligation calendar plus the four questions the worklists already answer
+    (paper, notice, ending, modified) — counted from the <i>same derived columns</i>, so tiles and lists cannot disagree.
+    A row is <code>NavigationService.OpenEntityRecord</code>. Best for legal/ops.
+    <b>Tradeoff:</b> no ARR — by design.
+  </div>
+  <header class="topnav">
+    <div class="brand"><span class="mark">MJ</span> Contracts <span class="app-label">Open App</span></div>
+    <div class="tabs" id="tabs">
+      <button class="tab is-on" type="button" data-tab="app" onclick="showApp()"><i class="fa-solid fa-file-contract"></i> Contracts</button>
+    </div>
+    <div class="top-right"><span class="chip">as of 31 Aug 2026</span><span class="avatar">AK</span></div>
+  </header>
+  <div class="shell">
+    <nav class="rail" id="rail">
+      <div class="rail-g">Contracts</div>
+      <button class="nav is-on" type="button"><i class="fa-solid fa-gauge-high"></i> Dashboard</button>
+      <button class="nav" type="button"><i class="fa-solid fa-table-list"></i> All contracts</button>
+      <div class="rail-g">Work</div>
+      <button class="nav" type="button"><i class="fa-solid fa-hourglass-half"></i> Renewals &amp; expiry<span class="badge">6</span></button>
+      <button class="nav" type="button"><i class="fa-solid fa-file-circle-question"></i> Awaiting documents<span class="badge">3</span></button>
+      <button class="nav" type="button"><i class="fa-solid fa-pen-ruler"></i> Modifications</button>
+      <p class="hint">Rails were already right. No workspace. The miss is this page: five pills and a manifesto.</p>
+    </nav>
+    <div class="main">
+      <div id="dash">
+        <div class="page-h">
+          <div>
+            <h1>What needs a person</h1>
+            <div class="sub">Same derived columns as the worklists — IsAwaitingDocument, RenewalNoticeDeadline, DaysToEnd, HasModifications, State.</div>
+          </div>
+          <div class="actions">
+            <button class="btn primary" type="button" onclick="openNew()"><i class="fa-solid fa-plus"></i> New contract</button>
+          </div>
+        </div>
+        <div class="content">
+          <div class="kpis">
+            <button class="kpi bad" type="button" onclick="setFilter('paper')">
+              <div class="l">In force, no paper</div>
+              <div class="v">3</div>
+              <div class="f">Active AND IsAwaitingDocument — we are performing with nothing to produce</div>
+            </button>
+            <button class="kpi warn" type="button" onclick="setFilter('notice')">
+              <div class="l">Notice window 60d</div>
+              <div class="v">6</div>
+              <div class="f">RenewalNoticeDeadline still in the future, inside 60 days</div>
+            </button>
+            <button class="kpi" type="button" onclick="setFilter('ending')">
+              <div class="l">Ends in 120d</div>
+              <div class="v">9</div>
+              <div class="f">DaysToEnd 0–120 — renew, re-paper, or let expire</div>
+            </button>
+            <button class="kpi" type="button" onclick="setFilter('mod')">
+              <div class="l">Modified</div>
+              <div class="v">14</div>
+              <div class="f">HasModifications — at least one recorded deviation</div>
+            </button>
+          </div>
+
+          <div class="grid2">
+            <div class="card">
+              <div class="ch">September · notice and end dates <span>notice = amber · end = blue · missing paper = red</span></div>
+              <div class="pad">
+                <div class="cal" id="cal"></div>
+              </div>
+            </div>
+            <div class="card">
+              <div class="ch">October · same legend</div>
+              <div class="pad">
+                <div class="cal" id="cal2"></div>
+                <p class="tiny" style="margin:10px 0 0">November only has the Leadership Summit rider going in force (15 Nov) — Executed, nothing to do until the date.</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="ch">
+              Hot list
+              <span id="insp-label">click a row → Explorer contract tab · filter from the tiles</span>
+            </div>
+            <table class="grid">
+              <thead><tr><th>Contract</th><th>Counterparty</th><th>State</th><th>Why it’s here</th><th>Deadline</th></tr></thead>
+              <tbody id="insp"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      <div id="record" hidden>
+        <div class="page-h">
+          <div>
+            <h1 id="rec-title">Contract</h1>
+            <div class="sub">Explorer record tab · generated contract form</div>
+          </div>
+          <div class="actions">
+            <button class="btn" type="button" onclick="showApp()">Back to Contracts</button>
+            <button class="btn primary" type="button">Save</button>
+          </div>
+        </div>
+        <div class="content">
+          <div class="call" id="rec-call"></div>
+          <div class="form-grid" id="rec-fields"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+<script>
+const ROWS = [
+  {id:'091', name:'ASAE exhibitor 2026', party:'ASAE', state:'Active · no paper', why:'IsAwaitingDocument', when:'4 Oct end', tags:['paper','ending']},
+  {id:'090', name:'HH catering addendum', party:'Harbor House', state:'Active · no paper', why:'IsAwaitingDocument', when:'—', tags:['paper']},
+  {id:'107', name:'Plant 2 SOW exhibit', party:'Blue Cypress', state:'Active · no paper', why:'IsAwaitingDocument', when:'12 Oct notice', tags:['paper','notice','mod']},
+  {id:'104', name:'HH Venue MSA', party:'Harbor House', state:'Active', why:'Notice 28 Sep · auto-renew if silent', when:'28 Sep', tags:['notice','ending']},
+  {id:'112', name:'Plant 2 SOW', party:'Blue Cypress', state:'Active · modified', why:'HasModifications + notice 12 Oct', when:'12 Oct', tags:['notice','mod','ending']},
+  {id:'118', name:'Leadership Summit rider', party:'Harbor House', state:'Executed', why:'Signed, not in force until 15 Nov', when:'15 Nov start', tags:['wait']},
+  {id:'122', name:'CESSE booth 2026', party:'CESSE', state:'Active', why:'Notice 19 Sep', when:'19 Sep', tags:['notice']},
+  {id:'130', name:'Annual software MSA', party:'Blue Cypress', state:'Active · modified', why:'HasModifications', when:'—', tags:['mod']},
+];
+
+let filter = 'all';
+function setFilter(k) { filter = k; render(); }
+
+function render() {
+  const rows = ROWS.filter(r => filter === 'all' ? r.tags[0] !== 'wait' || true : r.tags.includes(filter));
+  const labels = {all:'all work', paper:'IsAwaitingDocument', notice:'notice window', ending:'DaysToEnd ≤ 120', mod:'HasModifications', wait:'Executed, future effective'};
+  document.getElementById('insp-label').textContent = (labels[filter] || filter) + ' · click → Explorer';
+  document.getElementById('insp').innerHTML = rows.map(r => `
+    <tr onclick="openRec('${r.id}')">
+      <td><b>${r.name}</b><div class="tiny">CTR-${r.id}</div></td>
+      <td class="muted">${r.party}</td>
+      <td><span class="pill ${r.state.includes('no paper') ? 'past' : r.state.includes('modified') ? 'commit' : r.state === 'Executed' ? 'ok' : 'best'}">${r.state}</span></td>
+      <td class="muted">${r.why}</td>
+      <td>${r.when}</td>
+    </tr>`).join('');
+}
+
+function dow() { return ['Mon','Tue','Wed','Thu','Fri','Sat','Sun']; }
+
+function drawCal(el, year, month, events) {
+  /* month is 0-based. Sep 2026 starts Tuesday; Oct 2026 starts Thursday. */
+  const first = new Date(Date.UTC(year, month, 1));
+  const startDow = (first.getUTCDay() + 6) % 7; /* 0 = Mon */
+  const days = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
+  let html = dow().map(d => `<div class="dow">${d}</div>`).join('');
+  for (let i = 0; i < startDow; i++) html += `<div class="day out"></div>`;
+  for (let d = 1; d <= days; d++) {
+    const key = `${month+1}-${d}`;
+    const ev = events[key] || [];
+    html += `<div class="day"><div class="n">${d}</div>${ev.map(e =>
+      `<span class="evn ${e.k}" onclick="openRec('${e.id}')">${e.t}</span>`).join('')}</div>`;
+  }
+  el.innerHTML = html;
+}
+
+drawCal(document.getElementById('cal'), 2026, 8, {
+  '9-19': [{k:'notice', t:'CESSE notice', id:'122'}],
+  '9-28': [{k:'notice', t:'HH MSA notice', id:'104'}],
+});
+drawCal(document.getElementById('cal2'), 2026, 9, {
+  '10-4': [{k:'end', t:'ASAE ends', id:'091'}, {k:'paper', t:'no paper', id:'091'}],
+  '10-12': [{k:'notice', t:'Plant 2 notice', id:'112'}],
+});
+
+function toast(m) {
+  const t = document.getElementById('toast');
+  t.textContent = m; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2800);
+}
+function showApp() {
+  [...document.querySelectorAll('#tabs .tab')].forEach(x => x.classList.toggle('is-on', x.dataset.tab === 'app'));
+  document.getElementById('rail').style.display = '';
+  document.getElementById('dash').hidden = false;
+  document.getElementById('record').hidden = true;
+}
+function addTab(id, label) {
+  const tabs = document.getElementById('tabs');
+  [...tabs.querySelectorAll('.tab')].forEach(x => x.classList.remove('is-on'));
+  let el = tabs.querySelector(`[data-tab="${id}"]`);
+  if (!el) {
+    el = document.createElement('button');
+    el.className = 'tab';
+    el.dataset.tab = id;
+    el.innerHTML = `<i class="fa-solid fa-file-lines"></i> ${label} <span class="x">×</span>`;
+    el.onclick = (e) => { if (e.target.classList.contains('x')) { el.remove(); showApp(); return; } openRec(id); };
+    tabs.appendChild(el);
+  }
+  el.classList.add('is-on');
+}
+function openNew() {
+  addTab('new', 'New contract');
+  document.getElementById('rail').style.display = 'none';
+  document.getElementById('dash').hidden = true;
+  document.getElementById('record').hidden = false;
+  document.getElementById('rec-title').textContent = 'New contract';
+  document.getElementById('rec-call').innerHTML = `<b>OpenNewEntityRecord("MJ_BizApps_Contracts: Contracts")</b>`;
+  document.getElementById('rec-fields').innerHTML = '<div class="fld"><label>Name</label><div class="val muted">empty</div></div>';
+  toast('OpenNewEntityRecord("MJ_BizApps_Contracts: Contracts")');
+}
+function openRec(id) {
+  if (id === 'new') return openNew();
+  const r = ROWS.find(x => x.id === id);
+  if (!r) return;
+  addTab(id, r.name);
+  document.getElementById('rail').style.display = 'none';
+  document.getElementById('dash').hidden = true;
+  document.getElementById('record').hidden = false;
+  document.getElementById('rec-title').textContent = r.name;
+  document.getElementById('rec-call').innerHTML =
+    `<b>NavigationService.OpenEntityRecord("MJ_BizApps_Contracts: Contracts", CTR-${r.id})</b><br>Explorer owns the tab. No in-rail workspace — Marcelo did not repeat that mistake.`;
+  document.getElementById('rec-fields').innerHTML = [
+    ['Counterparty', r.party], ['State', r.state], ['Why', r.why], ['Deadline', r.when]
+  ].map(([l,v]) => `<div class="fld"><label>${l}</label><div class="val">${v}</div></div>`).join('');
+  toast(`OpenEntityRecord("MJ_BizApps_Contracts: Contracts", CTR-${id})`);
+}
+render();
+</script>
+</body>
+</html>

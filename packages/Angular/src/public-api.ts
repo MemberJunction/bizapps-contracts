@@ -69,7 +69,18 @@ import {
     MJCContractRenewalPanel,
 } from './lib/form-panels/contract.panels';
 import { MJCContractSupersedePanel } from './lib/form-panels/supersede.panel';
+import { ContractFormPolicy } from './lib/form-panels/contract-form.policy';
+import {
+    MJCContractAgreementPanel,
+    MJCContractLifecyclePanel,
+    MJCContractModificationsPanel,
+    MJCContractNotesPanel,
+    MJCContractOverviewPanel,
+    MJCContractPartiesPanel,
+    MJCContractProvenanceFieldsPanel,
+} from './lib/form-panels/contract-form.panels';
 import { MJCOrganizationAgreementsPanel } from './lib/form-panels/organization.panels';
+import { MJCPersonAgreementsPanel } from './lib/form-panels/person.panels';
 
 export { RecordFilesPanelBase, ContractFilesPanel, ContractTemplateFilesPanel } from './lib/form-panels/record-files.panel';
 export {
@@ -79,7 +90,18 @@ export {
     MJCContractLineagePanel,
 } from './lib/form-panels/contract.panels';
 export { MJCContractSupersedePanel } from './lib/form-panels/supersede.panel';
+export { ContractFormPolicy } from './lib/form-panels/contract-form.policy';
+export {
+    MJCContractOverviewPanel,
+    MJCContractAgreementPanel,
+    MJCContractPartiesPanel,
+    MJCContractNotesPanel,
+    MJCContractProvenanceFieldsPanel,
+    MJCContractLifecyclePanel,
+    MJCContractModificationsPanel,
+} from './lib/form-panels/contract-form.panels';
 export { MJCOrganizationAgreementsPanel } from './lib/form-panels/organization.panels';
+export { MJCPersonAgreementsPanel } from './lib/form-panels/person.panels';
 
 /* ============================================================================
  * THE ONE SHARED CUSTOM COMPONENT (D-22) — the modification editor, rendered inline by the contract's
@@ -127,9 +149,18 @@ export function LoadMjBizappsContractsClient(): void {
     void ContractFilesPanel;
     void ContractTemplateFilesPanel;
     void MJCContractHeroPanel;
+    void ContractFormPolicy;
+    void MJCContractOverviewPanel;
+    void MJCContractAgreementPanel;
+    void MJCContractPartiesPanel;
+    void MJCContractNotesPanel;
+    void MJCContractProvenanceFieldsPanel;
+    void MJCContractLifecyclePanel;
+    void MJCContractModificationsPanel;
     void MJCContractDatesPanel;
     void MJCContractRenewalPanel;
     void MJCContractLineagePanel;
     void MJCContractSupersedePanel;
     void MJCOrganizationAgreementsPanel;
+    void MJCPersonAgreementsPanel;
 }
