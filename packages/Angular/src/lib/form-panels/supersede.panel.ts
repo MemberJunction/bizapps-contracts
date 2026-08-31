@@ -173,15 +173,33 @@ export class MJCContractSupersedePanel extends BaseFormPanel<ContractEntity> {
      * longer maintains its own cached idea of what the contract supersedes.
      */
     public async LinkSupersedes(): Promise<void> {
-        await this.invoke(this.PickedPredecessorID || null, 'Linked — that contract is now superseded by this agreement.');
+        if (!this.PickedPredecessorID) return;
+        await this.invoke(
+            { PredecessorID: this.PickedPredecessorID },
+            'Linked — that contract is now superseded by this agreement.',
+        );
     }
 
-    /** Release one predecessor. `null` predecessor = release everything. */
-    public async UnlinkSupersedes(_predecessorID: string): Promise<void> {
-        await this.invoke(null, 'Unlinked — that agreement is no longer superseded by this one.');
+    /**
+     * Release the ONE predecessor whose button was clicked.
+     *
+     * The argument used to be discarded and the operation called with `PredecessorID: null`, which the
+     * server read as "release every predecessor" — so unlinking one of three unlinked all three
+     * (issue #28 item 9). The ID now reaches the server as `ReleasePredecessorID`, which names a
+     * single record and refuses anything this agreement does not actually supersede.
+     */
+    public async UnlinkSupersedes(predecessorID: string): Promise<void> {
+        if (!predecessorID) return;
+        await this.invoke(
+            { ReleasePredecessorID: predecessorID },
+            'Unlinked — that agreement is no longer superseded by this one.',
+        );
     }
 
-    private async invoke(predecessorID: string | null, okMessage: string): Promise<void> {
+    private async invoke(
+        target: { PredecessorID?: string; ReleasePredecessorID?: string },
+        okMessage: string,
+    ): Promise<void> {
         if (!this.Record?.ID) return;
         this.Busy = true;
         this.LinkError = '';
@@ -195,9 +213,9 @@ export class MJCContractSupersedePanel extends BaseFormPanel<ContractEntity> {
                 throw new Error('This provider cannot route remote operations, so re-papering is unavailable here.');
             }
             const result = await provider.RouteOperation<
-                { SuccessorID: string; PredecessorID: string | null },
+                { SuccessorID: string; PredecessorID?: string; ReleasePredecessorID?: string },
                 { Supersedes: Array<{ ID: string; ContractNumber: string }>; Released: string[]; Refused?: string }
-            >(SUPERSEDE_OP, { SuccessorID: this.Record.ID, PredecessorID: predecessorID });
+            >(SUPERSEDE_OP, { SuccessorID: this.Record.ID, ...target });
 
             if (!result?.Success) {
                 throw new Error(result?.ErrorMessage || 'The server did not complete the request.');
@@ -208,7 +226,7 @@ export class MJCContractSupersedePanel extends BaseFormPanel<ContractEntity> {
             if (out?.Refused) {
                 this.LinkError = out.Refused;
             } else {
-                this.LinkOk = okMessage + (out?.Released?.length ? ` Released ${out.Released.join(', ')}.` : '');
+                this.LinkOk = okMessage;
                 this.PickedPredecessorID = '';
             }
             await this.loadCandidates();
