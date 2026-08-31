@@ -108,5 +108,21 @@
       "lastModified": "2026-08-21T16:27:43.980Z",
       "checksum": "b09f4e4622f0b1d7b5ceec30dea80313fdd0cd770d67a6657ebdf1197255cdee"
     }
+  },
+  {
+    "fields": {
+      "DisplayName": "Renewal Notice (Days)"
+    },
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entity Fields.Entity=MJ_BizApps_Contracts: Contracts&Name=RenewalNoticeDays"
+    }
+  },
+  {
+    "fields": {
+      "DisplayName": "Company"
+    },
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entity Fields.Entity=MJ_BizApps_Contracts: Contracts&Name=CompanyID"
+    }
   }
 ]
