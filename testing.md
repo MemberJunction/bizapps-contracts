@@ -35,8 +35,9 @@ pnpm run test:unit                 # vitest run, root config, packages/*/src/**/
 # instance invoke the binary the Angular package already has:
 ./packages/Angular/node_modules/.bin/vitest run --config vitest.config.ts
 
-# Integration — MJ's testing framework. NO BUNDLES YET (item 13).
-node test-harnesses/integration.mjs            # will report zero known bundles until item 13
+# Integration — MJ's testing framework. contracts-world COMMITS visible rows; the rest roll back.
+node test-harnesses/integration.mjs            # all five bundles
+node test-harnesses/integration.mjs contracts-world
 ```
 
 ---
@@ -55,7 +56,7 @@ node test-harnesses/integration.mjs            # will report zero known bundles 
 | Same-level supersession — `IsSameContractLevel` (C-US9) | ✅ 7 | ✗ | the pure predicate: both-null is the SAME level, one-null is not, UUID casing ignored, two children of different parents refused. The three cases a plain nullable compare gets wrong are each pinned. |
 | Same-level supersession — the server guard `refuseCrossLevelSupersession` | — | ✗ | **a real gap.** Needs an entity instance against the DB (one read of the successor's `ParentContractID`). The predicate above is covered; the *wiring* — that `ValidateAsync` calls it, gates on `isNewlySelected`, and returns the prose — is not. |
 | Re-papering write path — `Supersede()` + save-then-link (C-US9) | — | ✗ | **a real gap, and the important one.** Compile-proven only (`ngc` + `tsc` clean). Nothing has exercised either write at runtime: that the successor saves first, that the predecessor's field is then set, that the level guard's prose reaches the panel, or that a missing successor is refused. Blocked behind the same unproven write path as item 13 — see BUILD-STATE §2. |
-| `HasModifications` monotonic guard | ✗ | ✗ | needs an entity instance (provider); the collection-count logic is the part worth covering — item 13 |
+| `HasModifications` monotonic guard | ✗ | ✅ GS3–GS5 | graph-save: staged rows refuse a false flag; clearing after save is refused; standalone modification save forces the parent flag |
 | `ModificationText` required (R-6) — NOT NULL + not-blank | ✅ 14 | ✅ manual | the free function is covered by unit tests (incl. the collapse of the two absence errors); the CREATE path was driven through live GraphQL and refuses null, `''` and whitespace with the app's own prose |
 | Required-field prose on the UPDATE path (R-6) | ✅ 14 | ⚠ **refused but unreadable** | the update IS correctly refused, but MJ returns `"Unknown error"` — `ResolverBase.ts:1335` reads `LatestResult.Message` where create reads `CompleteMessage`. Logged in `MJ-UPSTREAM.md`; **not an app bug and not fixable from here** |
 | Retired type/template not newly selected (R-5) | ✅ 9 | ✅ manual | the `IsNewlySelected` predicate is unit-covered incl. the create case and UUID casing; 5 live GraphQL probes covered both FKs and both directions (refuse a new selection, still allow an existing one) |
@@ -71,12 +72,12 @@ node test-harnesses/integration.mjs            # will report zero known bundles 
 | `ProvisionText` required (R-6 extended to provisions) | ✅ 5 | ✅ manual | 5 live probes: omitted / `''` / whitespace all refused with the app's prose; real text accepted; blanking an existing provision refused. Note the backfill needed R-1's trigger held off — the one NULL row was on a template 7 contracts reference |
 | Template publication lifecycle + the INSERT guard | ✅ (registration) | ✅ manual | 9 live probes: add-to-draft allowed; publish-without-URL refused; contract→draft refused; publish-with-URL allowed; add/edit/delete on a published version all refused **with the app's own sentences**; un-publish refused; contract→published allowed. Plus 4 direct-SQL trigger branches, and a raw INSERT confirmed blocked with **no row written** |
 | Migration re-runnability (V202608192340) | ✅ manual | — | history row deleted and the migration re-applied twice from scratch; the CodeGen capture's `DROP`/`CREATE PROCEDURE` observed executing (sproc `modify_date` moved to the migration's own timestamp, not CodeGen's) |
-| `ContractNumber` minting under concurrency | ✗ | ✗ | `contracts-numbering` bundle, item 13. Lock behaviour is only observable against a real DB |
-| Graph save: header + modifications atomicity | ✗ | ✗ | `contracts-graph-save`, item 13 — the acceptance test for D-15 itself |
-| Provision/template consistency (server rule) | ✗ | ✗ | `contracts-graph-save`, item 13 |
-| Change-order-needs-parent (server rule) | ✗ | ✗ | item 13 |
-| Provision seed completeness incl. text | ✗ | ✗ | `contracts-provisions`, item 13 — gated on item 4 |
-| Derived columns on the base view | ⚠ half | ✗ | `State` is covered above; `IsAwaitingDocument`, `IsChangeOrder`, `DaysToEnd`, `RenewalNoticeDeadline`, `IsInCancellationWindow` are **verified present and typed** but their VALUES are untested — `contracts-watchlist`, item 13 |
+| `ContractNumber` minting under concurrency | ✗ | ✅ N1–N5 | minted `CTR-<digits>`, sequential and concurrent uniqueness, custom numbers kept, reserved `CTR-` refused |
+| Graph save: header + modifications atomicity | ✗ | ✅ GS1–GS2 | one Save writes header+two mods; a blank modification refuses and writes no header |
+| Provision/template consistency (server rule) | ✗ | ✅ GS11 | a modification citing a provision of another template is refused |
+| Change-order-needs-parent (server rule) | ✗ | ✅ GS7–GS8 | MustBeChild without parent refused; MustBeRoot with parent refused |
+| Provision seed completeness incl. text | ✗ | ✅ P1–P5 | IT template text + `1.9` before `1.10`; MSA 2026-02-02 asserted when that demo template is present |
+| Derived columns on the base view | ⚠ half | ✅ W1–W8 | values on CTR-WORLD: awaiting document, payment-link never awaiting, DaysToEnd, notice deadline, cancellation window, all six States. `IsChangeOrder` is gone; W8 asserts `ParentContractID` |
 | Migration installs from zero | ✅ manual | — | measured on a wiped DB: 8 views, 21 sprocs, 7 entities, 77 fields, 6 derived columns, flags set. **Not yet automated** |
 | Metadata push | ✅ manual | — | `errorCount: 0`, 7 created / 9 updated, twice from zero. Not automated |
 | Screens render at all | ✅ manual | — | driven in system Chrome: 3 sections, 5 rail items, dashboard tiles, 0 console errors. **Not automated** |
@@ -84,10 +85,9 @@ node test-harnesses/integration.mjs            # will report zero known bundles 
 | Documents: register / open / gating | ✗ | ✗ | item 9 code lands unexercised — needs a configured storage account, which needs an Azure AD app registration (an IT task) |
 | Modification editor (the D-15 acceptance test) | ✗ | ✗ | `contracts-graph-save`, item 13. Compiles and renders; the one-transaction claim is **unproven at runtime** |
 
-**Honest reading of that table:** the cheap tier is real, the expensive tiers are empty, and the UI has
-been proven to RENDER but not to WORK. Everything in the `✗` rows needs either an entity instance or a
-live database, which is `mj test`'s job, and no bundle exists yet. Do not read "64 passing" as the app
-being tested.
+**Honest reading of that table:** the cheap tier is real, and the live-provider bundles now exist
+(`contracts-world` plus the four item-13 bundles). Screen behaviour (click through create → filter →
+open → edit → save) is still unautomated. Do not read unit-test counts as the app being tested.
 
 **The one thing a reader should take from this file:** the schema, the metadata, the entity rules and
 the seeded data are verified from zero, repeatedly. The screens are verified to compile and to appear.
@@ -110,10 +110,9 @@ is **Q-4** (Andrew's migration data), which gates item 13's demo/migration cover
   yet asserts that `RenewalNoticeDeadline` is actually `EndDate - RenewalNoticeDays`, or that
   `IsAwaitingDocument` goes false the moment a file is linked. Presence is the cheaper claim and it is
   the only one made.
-- **`integration.mjs` names four bundles that do not exist yet** (`contracts-graph-save`,
-  `contracts-numbering`, `contracts-provisions`, `contracts-watchlist`). It will report zero known
-  bundles until item 13. That is intentional — the names are the plan, in the runner, where the next
-  person looks.
+- **`integration.mjs` runs five bundles** (`contracts-world`, `contracts-graph-save`,
+  `contracts-numbering`, `contracts-provisions`, `contracts-watchlist`). World is the only one that
+  leaves rows; run it when Explorer should show a portfolio.
 - **Migration-from-zero is verified but manual.** It is the single most valuable thing to automate
   next, because it is the check that caught the missing CodeGen capture, and it caught it on review
   rather than in CI.

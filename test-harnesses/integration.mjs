@@ -23,11 +23,16 @@ import { loadEnvFrom } from './load-env.mjs';
 loadEnvFrom(import.meta.url);
 
 /** Every bundle, in presentational order — each owns its own fixture. */
-// The v2 bundles (plan item 13). v1's contracts-composition / -save-contract / -billing /
-// -amendment tested the draft payload, the billing engine and term amendment — all deleted by the
-// rebuild, so the bundles went with them rather than being edited to pass against a schema they no
-// longer describe. Empty until item 13 lands: the runner then discovers them from the registry.
-const ALL_BUNDLES = ['contracts-graph-save', 'contracts-numbering', 'contracts-provisions', 'contracts-watchlist'];
+// The v2 bundles (plan item 13), plus contracts-world which COMMITS a portfolio so Explorer
+// has rows. v1's contracts-composition / -save-contract / -billing / -amendment tested the draft
+// payload, the billing engine and term amendment — all deleted by the rebuild.
+const ALL_BUNDLES = [
+    'contracts-world',
+    'contracts-graph-save',
+    'contracts-numbering',
+    'contracts-provisions',
+    'contracts-watchlist',
+];
 
 const args = process.argv.slice(2);
 const only = args.filter((a) => !a.startsWith('-'));
