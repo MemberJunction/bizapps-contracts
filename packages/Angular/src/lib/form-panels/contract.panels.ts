@@ -140,10 +140,7 @@ function chipClassFor(state: ContractState): string {
             </div>
 
             @if (!Record.ContractNumber) {
-                <div class="mjc-flag">
-                    The contract number is minted on first save, from a counter taken under a lock — so it
-                    cannot collide with another contract created at the same moment.
-                </div>
+                <div class="mjc-flag">Contract number is assigned on save.</div>
             }
         </div>
     `,
@@ -364,9 +361,6 @@ export class MJCContractHeroPanel extends BaseFormPanel<ContractEntity> {
                         } @else {
                             <div class="mjc-val">{{ Record.AutoRenew ? 'Yes' : 'No' }}</div>
                         }
-                        @if (!Record.AutoRenew) {
-                            <div class="mjc-hint">someone must act for this to continue</div>
-                        }
                     </div>
                     <div class="mjc-field">
                         <label>Renewal notice (days)</label>
@@ -374,7 +368,7 @@ export class MJCContractHeroPanel extends BaseFormPanel<ContractEntity> {
                             <input type="number" min="0" [ngModel]="Record.RenewalNoticeDays"
                                    (ngModelChange)="Set('RenewalNoticeDays', $event)" aria-label="Renewal notice days" />
                         } @else {
-                            <div class="mjc-val">{{ Record.RenewalNoticeDays ? Record.RenewalNoticeDays + ' days' : '—' }}</div>
+                            <div class="mjc-val">{{ Days(Record.RenewalNoticeDays) }}</div>
                         }
                         <!-- WHICH WAY THE NOTICE RUNS is the whole content of this field, and the label
                              cannot carry it. "Renewal notice we owe (days)" tried, and produced a label
@@ -391,7 +385,7 @@ export class MJCContractHeroPanel extends BaseFormPanel<ContractEntity> {
                             <input type="number" min="0" [ngModel]="Record.CancellationWindowDays"
                                    (ngModelChange)="Set('CancellationWindowDays', $event)" aria-label="Cancellation window days" />
                         } @else {
-                            <div class="mjc-val">{{ Record.CancellationWindowDays ? Record.CancellationWindowDays + ' days' : '—' }}</div>
+                            <div class="mjc-val">{{ Days(Record.CancellationWindowDays) }}</div>
                         }
                         <!-- The MIRROR of the field above, and the pair is the point: one is notice we
                              owe, one is notice we are owed. The column description says they are not
@@ -406,21 +400,14 @@ export class MJCContractHeroPanel extends BaseFormPanel<ContractEntity> {
                             <input type="number" min="0" step="0.01" [ngModel]="Record.AnnualIncreasePercent"
                                    (ngModelChange)="Set('AnnualIncreasePercent', $event)" aria-label="Annual increase percent" />
                         } @else {
-                            <div class="mjc-val">{{ Record.AnnualIncreasePercent !== null ? Record.AnnualIncreasePercent + '%' : '—' }}</div>
+                            <div class="mjc-val">{{ Percent(Record.AnnualIncreasePercent) }}</div>
                         }
                     </div>
                 </div>
 
-                <p class="mjc-note">
-                    These record what the signed paper says. The subscription in orders holds the operational
-                    setting and may legitimately differ — a mismatch is a finding, not a bug.
-                </p>
 
-                @if (!Record.RenewalNoticeDays && !Record.CancellationWindowDays && Record.AnnualIncreasePercent === null) {
-                    <div class="mjc-empty">
-                        No renewal terms recorded. If the agreement states any, recording them is what puts this
-                        contract on the renewals watchlist.
-                    </div>
+                @if (NoTermsRecorded) {
+                    <div class="mjc-empty">No renewal terms recorded.</div>
                 }
             </div>
         </mj-collapsible-panel>
@@ -434,6 +421,38 @@ export class MJCContractRenewalPanel extends BaseFormPanel<ContractEntity> {
      */
     public Set(field: 'AutoRenew' | 'RenewalNoticeDays' | 'CancellationWindowDays' | 'AnnualIncreasePercent', value: unknown): void {
         (this.Record as unknown as Record<string, unknown>)[field] = value;
+    }
+
+    /**
+     * A day count, where ZERO IS A VALUE (issue #28 item 21).
+     *
+     * The template used `Record.X ? … : '—'`, so a recorded `0` rendered as the same em dash as a
+     * blank — the panel reported "we hold no figure" about a figure that says "no notice is required".
+     * Those are different facts and the second is the one somebody negotiated. `== null` is the whole
+     * fix, and it is deliberately `==` rather than `===` so it catches `undefined` too.
+     */
+    public Days(v: number | null | undefined): string {
+        return v == null ? '—' : `${v} days`;
+    }
+
+    /** Same rule for the percentage: `0%` is a negotiated cap, not a missing value. */
+    public Percent(v: number | null | undefined): string {
+        return v == null ? '—' : `${v}%`;
+    }
+
+    /**
+     * Whether this agreement genuinely states no renewal terms.
+     *
+     * AUTO-RENEWS IS ONE OF THE TERMS, and leaving it out is why the empty state used to contradict
+     * the screen: `AutoRenew = Yes` with blank day counts showed "No renewal terms recorded" directly
+     * beneath a field reading Yes. Auto-renewal is the most consequential renewal term there is, so
+     * the panel is only empty when it is No AND all three numbers are absent.
+     */
+    public get NoTermsRecorded(): boolean {
+        return !this.Record?.AutoRenew &&
+            this.Record?.RenewalNoticeDays == null &&
+            this.Record?.CancellationWindowDays == null &&
+            this.Record?.AnnualIncreasePercent == null;
     }
 
     /** The authoritative view column — unlike State, nobody wants this tracking a half-typed edit. */
@@ -507,7 +526,6 @@ export class MJCContractRenewalPanel extends BaseFormPanel<ContractEntity> {
                         } @else {
                             <div class="mjc-val">{{ (Record.ExecutedDate | date: 'd MMM y') || '—' }}</div>
                         }
-                        <div class="mjc-hint">may precede the effective date — that is normal, not an anomaly</div>
                     </div>
                     <div class="mjc-field">
                         <label>Effective date</label>
@@ -536,16 +554,10 @@ export class MJCContractRenewalPanel extends BaseFormPanel<ContractEntity> {
                         } @else {
                             <div class="mjc-val" [class.mjc-val--ro]="!Record.TerminatedDate">{{ (Record.TerminatedDate | date: 'd MMM y') || '—' }}</div>
                         }
-                        <div class="mjc-hint">
-                            a fact about what happened — set it and the contract reads Terminated regardless of its term
-                        </div>
+                        <div class="mjc-hint">Setting this marks the contract Terminated from this date.</div>
                     </div>
                 </div>
 
-                <p class="mjc-note">
-                    The lifecycle is <strong>derived</strong> from these four dates and the two lineage links, not
-                    stored — so a state can never disagree with the dates it came from.
-                </p>
             </div>
         </mj-collapsible-panel>
     `,
@@ -673,7 +685,7 @@ export class MJCContractDatesPanel extends BaseFormPanel<ContractEntity> {
 
                 @if (!ParentName && !HasChildren) {
                     <div class="mjc-empty">
-                        A standalone agreement — nothing above it, no change orders, and nothing has replaced it.
+                        No parent contract, change orders, or superseding contracts.
                     </div>
                 }
             </div>
@@ -781,6 +793,3 @@ export class MJCContractLineagePanel extends BaseFormPanel<ContractEntity> {
     }
 }
 
-/* ────────────────────────────────────────────────────────────────────────────
- * 5 · Policy — moves Details to the top of the left-nav rail
- * ──────────────────────────────────────────────────────────────────────────── */

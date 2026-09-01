@@ -95,7 +95,7 @@ interface Candidate {
                                     —
                                 }
                                 <span class="mjc-chip mjc-chip--muted">
-                                    {{ Record?.IsSaved ? 'finish editing to change this' : 'save this contract first' }}
+                                    {{ Record?.IsSaved ? 'Finish editing to change' : 'Save this contract first' }}
                                 </span>
                             </div>
                         } @else {
@@ -107,7 +107,8 @@ interface Candidate {
                                 [Filterable]="true"
                                 [Disabled]="Busy"
                                 [Placeholder]="PickerPlaceholder"
-                                [(ngModel)]="PickedPredecessorID" />
+                                [ngModel]="PickedPredecessorID"
+                                (ngModelChange)="PickPredecessor($event)" />
 
                             <div class="mjc-field__actions">
                                 <button mjButton variant="primary" size="sm" type="button"
@@ -149,7 +150,15 @@ export class MJCContractSupersedePanel extends BaseFormPanel<ContractEntity> {
     public Supersedes: Array<{ ID: string; ContractNumber: string }> = [];
 
     private _candidates: Candidate[] = [];
-    private loaded = false;
+    /**
+     * WHICH contract the candidate list was loaded for, not merely whether it was (issue #28 item 23).
+     *
+     * A boolean belongs to the panel, and the panel outlives the record: the form reuses the same
+     * component instance when it navigates to another contract, so the flag stayed true and the picker
+     * went on offering the PREVIOUS contract's candidates — filtered to the previous customer and the
+     * previous level, which is a wrong list rather than a stale one.
+     */
+    private loadedFor: string | null = null;
 
     /**
      * What the combobox says when it is not showing options.
@@ -166,7 +175,8 @@ export class MJCContractSupersedePanel extends BaseFormPanel<ContractEntity> {
 
     /** Eligible predecessors. Loaded on first read; no EditMode gate, because the panel is always shown. */
     public get Candidates(): Candidate[] {
-        if (!this.loaded && this.Record?.ID) { this.loaded = true; void this.load(); }
+        const id = this.Record?.ID;
+        if (id && this.loadedFor !== id) { this.loadedFor = id; void this.load(); }
         return this._candidates;
     }
 
@@ -187,6 +197,21 @@ export class MJCContractSupersedePanel extends BaseFormPanel<ContractEntity> {
      * The operation RETURNS the live list, which is what fixes the stale Unlink button: this panel no
      * longer maintains its own cached idea of what the contract supersedes.
      */
+    /**
+     * Take a new selection, and drop the outcome of the last one.
+     *
+     * A `[(ngModel)]` two-way binding was enough to hold the value and is not enough here: the
+     * success and error banners sat until the next click, so "Linked — that contract is now superseded
+     * by this agreement." stayed on screen while the user picked a DIFFERENT contract, appearing to
+     * describe the new selection. A stale success is worse than no message; it reports an action
+     * nobody took.
+     */
+    public PickPredecessor(id: string): void {
+        this.PickedPredecessorID = id ?? '';
+        this.LinkOk = '';
+        this.LinkError = '';
+    }
+
     public async LinkSupersedes(): Promise<void> {
         if (!this.PickedPredecessorID) return;
         await this.invoke(
@@ -339,7 +364,7 @@ export class MJCContractSupersedePanel extends BaseFormPanel<ContractEntity> {
             // simply sat greyed out with nothing to explain it.
             this._candidates = [];
             this.LoadError = `Could not read eligible contracts: ${e instanceof Error ? e.message : String(e)}`;
-            this.loaded = false; // let the next read retry
+            this.loadedFor = null; // let the next read retry
         } finally {
             this.CandidatesLoading = false;
             this.cdr.detectChanges();

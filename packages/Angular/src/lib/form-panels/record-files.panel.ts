@@ -130,9 +130,7 @@ const PANEL_TEMPLATE = `
                 </div>
 
                 <p class="mjc-note" *ngIf="!DefaultAccountID">
-                    No storage account is configured on this MJ instance, so there is nowhere to register a
-                    document to. Configure a <code>MJ: File Storage Account</code> first — for SharePoint that
-                    also needs an Azure AD app registration, which is an IT task.
+                    No document storage is configured. Contact your administrator.
                 </p>
 
                 <p class="mjc-note" *ngIf="DefaultAccountID">
@@ -149,15 +147,12 @@ const PANEL_TEMPLATE = `
 
             <p class="mjc-note" *ngIf="SigningProviderURL">
                 <a [href]="SigningProviderURL" target="_blank" rel="noopener noreferrer">
-                    Open in the signing provider
+                    Open in signing provider
                 </a>
-                — the always-works fallback. It needs no storage configuration at all, so it is the link that
-                still resolves when SharePoint is misconfigured or the document was never filed.
             </p>
 
             <p class="mjc-note" *ngIf="!CanDownload && Files.length">
-                {{ Files.length }} document(s) are attached to this record. Opening them — and seeing their
-                names — needs document permission, which is granted to finance, legal and sales leadership.
+                {{ Files.length }} document(s) attached. You don't have permission to open them.
             </p>
 
             <p class="mjc-note">
