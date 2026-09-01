@@ -22,6 +22,7 @@ import { describe, expect, it } from 'vitest';
 
 const root = (p: string) => fileURLToPath(new URL('../../../../' + p, import.meta.url));
 const PANELS_RAW = readFileSync(root('packages/Angular/src/lib/form-panels/contract.panels.ts'), 'utf8');
+const KIT = readFileSync(root('packages/Angular/src/lib/styles/contracts-kit.css'), 'utf8');
 
 /* Commentary removed for absence checks: the panel quotes copy it replaced, so a whole-file search
  * reports the explanation as the defect. Presence checks are unaffected. */
@@ -80,5 +81,71 @@ describe('item 19 — the replacements that still have a home', () => {
 
     it('keeps the "as stated in the agreement" chip the issue says to leave', () => {
         expect(PANELS).toContain('as stated in the agreement');
+    });
+});
+
+describe('item 1 — the source record, as a link', () => {
+    it('the stat is absent entirely when nothing created this contract', () => {
+        expect(PANELS).toContain('@if (HasSource)');
+        expect(PANELS).not.toContain('Entered directly');
+        expect(PANELS_RAW).not.toContain('get CreatingEntityName()');
+    });
+
+    it('the label comes from the resolved entity, never a hardcoded "Deal"', () => {
+        // Matching on ASSIGNMENTS rather than searching for the word: the doc comments legitimately
+        // name Deals while explaining why the code must not.
+        const assigned = [...PANELS_RAW.matchAll(/this\.SourceLabel = ([^;]+);/g)].map((m) => m[1]);
+        expect(assigned).toEqual(['`Source ${entity.BaseTableDisplayName}`']);
+    });
+
+    it('the entity is looked up by CreatingEntityID rather than assumed', () => {
+        const fn = PANELS_RAW.slice(PANELS_RAW.indexOf('private sourceEntity()'));
+        expect(fn.slice(0, fn.indexOf('\n    }'))).toContain('e.ID === id');
+    });
+
+    it("navigation reuses this panel's own link helper, as Customer and Contact do", () => {
+        // next added `open()` for the other two links: it handles ctrl/cmd-click for a new tab and
+        // routes through OnFormNavigate. Matching it matters more than rolling a second mechanism.
+        const fn = PANELS_RAW.slice(PANELS_RAW.indexOf('public OpenSource('));
+        const body = fn.slice(0, fn.indexOf('\n    }'));
+        expect(body).toContain('this.open(event, entity.Name');
+        expect(PANELS).not.toContain('NavigationService');
+    });
+
+    it('a slow read for a previous record cannot overwrite the current one', () => {
+        const fn = PANELS_RAW.slice(PANELS_RAW.indexOf('private async loadSource('));
+        expect(fn.slice(0, fn.indexOf('\n    }\n'))).toContain('if (this.sourceFor !== key) return;');
+    });
+});
+
+describe('item 21 — zero is a value, and auto-renew is a term', () => {
+    it('day counts and percentages render 0 rather than an em dash', () => {
+        for (const fnName of ['public Days(', 'public Percent(']) {
+            const fn = PANELS_RAW.slice(PANELS_RAW.indexOf(fnName));
+            expect(fn.slice(0, fn.indexOf('\n    }'))).toContain('v == null');
+        }
+        expect(PANELS).not.toContain('Record.RenewalNoticeDays ? Record.RenewalNoticeDays');
+        expect(PANELS).not.toContain('Record.CancellationWindowDays ? Record.CancellationWindowDays');
+    });
+
+    it('the empty state includes AutoRenew, so it cannot contradict the screen', () => {
+        const g = PANELS_RAW.slice(PANELS_RAW.indexOf('public get NoTermsRecorded()'));
+        const body = g.slice(0, g.indexOf('\n    }'));
+        for (const f of ['AutoRenew', 'RenewalNoticeDays == null', 'CancellationWindowDays == null',
+                         'AnnualIncreasePercent == null']) {
+            expect(body).toContain(f);
+        }
+    });
+});
+
+describe('item 5 — the panel half, now that the kit rule carries the width', () => {
+    it('no inline width remains in the panels', () => {
+        expect(PANELS_RAW).not.toContain('style="width:100%"');
+    });
+
+    it('because the kit rule provides it', () => {
+        const start = KIT.indexOf('.mjc-field input,');
+        expect(start).toBeGreaterThan(-1);
+        expect(KIT.slice(start, KIT.indexOf('}', start))).toContain('width: 100%');
     });
 });
