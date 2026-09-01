@@ -134,6 +134,10 @@ function chipClassFor(state: ContractState): string {
                         <span class="mjc-hero__stat-val">{{ CompanyName || '—' }}</span>
                     </div>
                     <div class="mjc-hero__stat">
+                        <span class="mjc-hero__stat-label">Company</span>
+                        <span class="mjc-hero__stat-val">{{ CompanyName || '—' }}</span>
+                    </div>
+                    <div class="mjc-hero__stat">
                         <span class="mjc-hero__stat-label">Customer</span>
                         @if (Record.CustomerOrganizationID && CustomerName) {
                             <button type="button" class="mjc-hero__stat-val is-link" (click)="OpenCustomer($event)">{{ CustomerName }}</button>
@@ -185,10 +189,7 @@ function chipClassFor(state: ContractState): string {
                     </div>
                 }
                 @if (!Record.ContractNumber) {
-                    <div class="mjc-flag">
-                        The contract number is minted on first save, from a counter taken under a lock — so it
-                        cannot collide with another contract created at the same moment.
-                    </div>
+                    <div class="mjc-flag">Contract number is assigned on save.</div>
                 }
             }
         </div>
@@ -460,9 +461,6 @@ export class MJCContractHeroPanel extends BaseFormPanel<ContractEntity> {
                         } @else {
                             <div class="mjc-val">{{ Record.AutoRenew ? 'Yes' : 'No' }}</div>
                         }
-                        @if (!Record.AutoRenew) {
-                            <div class="mjc-hint">someone must act for this to continue</div>
-                        }
                     </div>
                     <div class="mjc-field">
                         <label>Renewal notice (days)</label>
@@ -507,16 +505,9 @@ export class MJCContractHeroPanel extends BaseFormPanel<ContractEntity> {
                     </div>
                 </div>
 
-                <p class="mjc-note">
-                    These record what the signed paper says. The subscription in orders holds the operational
-                    setting and may legitimately differ — a mismatch is a finding, not a bug.
-                </p>
 
                 @if (!Record.RenewalNoticeDays && !Record.CancellationWindowDays && Record.AnnualIncreasePercent === null) {
-                    <div class="mjc-empty">
-                        No renewal terms recorded. If the agreement states any, recording them is what puts this
-                        contract on the renewals watchlist.
-                    </div>
+                    <div class="mjc-empty">No renewal terms recorded.</div>
                 }
             </div>
         </mj-collapsible-panel>
@@ -603,7 +594,6 @@ export class MJCContractRenewalPanel extends BaseFormPanel<ContractEntity> {
                         } @else {
                             <div class="mjc-val">{{ (Record.ExecutedDate | date: 'd MMM y') || '—' }}</div>
                         }
-                        <div class="mjc-hint">may precede the effective date — that is normal, not an anomaly</div>
                     </div>
                     <div class="mjc-field">
                         <label>Effective date</label>
@@ -632,16 +622,10 @@ export class MJCContractRenewalPanel extends BaseFormPanel<ContractEntity> {
                         } @else {
                             <div class="mjc-val" [class.mjc-val--ro]="!Record.TerminatedDate">{{ (Record.TerminatedDate | date: 'd MMM y') || '—' }}</div>
                         }
-                        <div class="mjc-hint">
-                            a fact about what happened — set it and the contract reads Terminated regardless of its term
-                        </div>
+                        <div class="mjc-hint">Setting this marks the contract Terminated from this date.</div>
                     </div>
                 </div>
 
-                <p class="mjc-note">
-                    The lifecycle is <strong>derived</strong> from these four dates and the two lineage links, not
-                    stored — so a state can never disagree with the dates it came from.
-                </p>
             </div>
         </mj-collapsible-panel>
     `,
@@ -769,7 +753,7 @@ export class MJCContractDatesPanel extends BaseFormPanel<ContractEntity> {
 
                 @if (!ParentName && !HasChildren) {
                     <div class="mjc-empty">
-                        A standalone agreement — nothing above it, no change orders, and nothing has replaced it.
+                        No parent contract, change orders, or superseding contracts.
                     </div>
                 }
             </div>
