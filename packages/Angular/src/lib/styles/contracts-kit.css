@@ -211,6 +211,16 @@
 .mjc-field .mjc-val--ro { background: var(--mj-bg-surface-sunken); color: var(--mj-text-secondary); }
 .mjc-hint { color: var(--mj-text-muted); font-size: var(--mj-text-xs); margin-top: 3px; }
 
+/* A record link rendered as text. A <button> rather than an <a>, because it navigates in-app rather
+   than to an href — so it is keyboard-reachable and screen-reader-correct without a fake link target.
+   The rule exists to undo the button chrome the element brings with it. */
+.mjc-link {
+  appearance: none; background: none; border: 0; padding: 0;
+  font: inherit; color: var(--mj-brand-primary);
+  cursor: pointer; text-align: left; overflow-wrap: anywhere;
+}
+.mjc-link:hover { text-decoration: underline; }
+
 /* A row of buttons under a field's control. A .mjc-field stacks its children, which is right for
    label/value but leaves buttons one per line — this is the one place a field needs a row. */
 .mjc-field__actions {

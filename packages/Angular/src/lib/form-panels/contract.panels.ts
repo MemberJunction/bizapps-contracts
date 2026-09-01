@@ -39,6 +39,7 @@ import { FormsModule } from '@angular/forms';
 import { RegisterClassEx } from '@memberjunction/global';
 import { BaseFormPanel, BaseFormsModule } from '@memberjunction/ng-base-forms';
 import { HierarchyTreeComponent, type HierarchyTreeConfig, type HierarchyNodeEvent } from '@memberjunction/ng-hierarchy-tree';
+import { CompositeKey, Metadata } from '@memberjunction/core';
 import { NavigationService } from '@memberjunction/ng-shared';
 import { ContractEntity, type ContractState } from '@mj-biz-apps/contracts-entities';
 import { MJC_ENTITIES } from '../data/entity-names';
@@ -98,8 +99,8 @@ function chipClassFor(state: ContractState): string {
                     </div>
                     <div class="mjc-hero__meta">
                         <span class="mjc-mono">{{ Record.ContractNumber || 'Unnumbered' }}</span>
+                        <span>Company: <strong>{{ CompanyName || '—' }}</strong></span>
                         <span>Customer: <strong>{{ CustomerName || '—' }}</strong></span>
-                        <span>Selling: <strong>{{ CompanyName || '—' }}</strong></span>
                         @if (ContactName) { <span>Contact: <strong>{{ ContactName }}</strong></span> }
                     </div>
                 </div>
@@ -125,11 +126,17 @@ function chipClassFor(state: ContractState): string {
                     <span class="mjc-stat__value">{{ TemplateName || '—' }}</span>
                     @if (!TemplateName) { <span class="mjc-stat__sub">no standard terms referenced</span> }
                 </div>
-                <div class="mjc-stat">
-                    <span class="mjc-stat__label">Created by</span>
-                    <span class="mjc-stat__value">{{ CreatingEntityName || '—' }}</span>
-                    @if (!CreatingEntityName) { <span class="mjc-stat__sub">entered directly</span> }
-                </div>
+                @if (HasSource) {
+                    <div class="mjc-stat">
+                        <span class="mjc-stat__label">{{ SourceLabel }}</span>
+                        <span class="mjc-stat__value">
+                            <button type="button" class="mjc-link" (click)="OpenSource()"
+                                    [attr.aria-label]="'Open ' + (SourceName || 'the source record')">
+                                {{ SourceName || 'Open' }}
+                            </button>
+                        </span>
+                    </div>
+                }
             </div>
 
             @if (!Record.ContractNumber) {
@@ -142,6 +149,8 @@ function chipClassFor(state: ContractState): string {
     `,
 })
 export class MJCContractHeroPanel extends BaseFormPanel<ContractEntity> {
+    private readonly cdr = inject(ChangeDetectorRef);
+
     /**
      * The human name for this agreement: its description, falling back to the number.
      *
@@ -180,7 +189,99 @@ export class MJCContractHeroPanel extends BaseFormPanel<ContractEntity> {
     public get CompanyName(): string { return this.Record?.Company ?? ''; }
     public get ContactName(): string { return this.Record?.PrimaryContactPerson ?? ''; }
     public get TemplateName(): string { return this.Record?.ContractTemplate ?? ''; }
-    public get CreatingEntityName(): string { return this.Record?.CreatingEntity ?? ''; }
+    /* ── Source record — the thing that created this contract (issue #28 item 1) ──────────────
+     *
+     * WHAT THIS STAT USED TO CLAIM. It was labelled "Created by" and rendered `CreatingEntity` — the
+     * name of an ENTITY, not a person — so a contract raised from a Close-Won deal read "Deals", and
+     * one typed in by hand read "—" over the words "entered directly". The label promised a person,
+     * the value delivered a table name, and neither told the reader which deal.
+     *
+     * `CreatingEntityID` / `CreatingRecordID` is a polymorphic pair, so nothing here may assume Deals.
+     * Today `bizapps-sales` is the only writer (`LiveContractsSeam.ts`, on Close-Won) and always sets
+     * Deals, but the column does not say so — the entity is resolved from the id, the label takes that
+     * entity's own singular name, and an Order would render "Source Order" with no edit here.
+     *
+     * WHEN THERE IS NO SOURCE THE STAT IS ABSENT, not empty. A hero stat reading "—" over "entered
+     * directly" spends the most-read row on the absence of a fact, and "entered directly" is not even
+     * a fact about the contract — it is the panel narrating its own null.
+     */
+    private readonly navigation = inject(NavigationService);
+
+    /** Resolved once per record, lazily, on the first template read. */
+    private sourceFor: string | null = null;
+    public SourceLabel = 'Source record';
+    public SourceName = '';
+
+    /**
+     * Whether this contract records what created it.
+     *
+     * Doubles as the load trigger — `BaseFormPanel` has no lifecycle hook and the slot host sets
+     * `Record` before view init, so the first template read is the earliest reliable moment. Keyed on
+     * the record id rather than a bare boolean so navigating the form to a different contract reloads
+     * instead of showing the previous one's deal.
+     */
+    public get HasSource(): boolean {
+        const id = this.Record?.CreatingEntityID;
+        if (!id || !this.Record?.CreatingRecordID) return false;
+        const key = `${this.Record.ID}:${id}:${this.Record.CreatingRecordID}`;
+        if (this.sourceFor !== key) { this.sourceFor = key; void this.loadSource(key); }
+        return true;
+    }
+
+    /** The entity named by `CreatingEntityID`, or null when the id names nothing this user can see. */
+    private sourceEntity() {
+        const provider = this.FormComponent?.ProviderToUse ?? Metadata.Provider;
+        const id = this.Record?.CreatingEntityID;
+        return (id ? provider?.Entities?.find((e) => e.ID === id) : undefined) ?? null;
+    }
+
+    /**
+     * Label from the entity, name from the record.
+     *
+     * `BaseTableDisplayName` rather than `DisplayName`: the entity is plural ("Deals") and the stat
+     * labels one record, so the singular base table is the honest word — and it is what produces
+     * "Source Deal" and "Source Order" without a de-pluralising guess.
+     */
+    private async loadSource(key: string): Promise<void> {
+        const entity = this.sourceEntity();
+        if (!entity) return;
+        this.SourceLabel = `Source ${entity.BaseTableDisplayName}`;
+
+        const nameField = entity.NameField?.Name;
+        const pkField = entity.PrimaryKeys?.[0]?.Name ?? 'ID';
+        const recordID = String(this.Record?.CreatingRecordID ?? '');
+        if (!nameField || !recordID) { this.cdr.detectChanges(); return; }
+
+        try {
+            const { ScopedRunView } = await import('../data/provider');
+            const rv = ScopedRunView(this.FormComponent?.ProviderToUse);
+            const r = await rv.RunView<Record<string, unknown>>({
+                EntityName: entity.Name,
+                Fields: [nameField],
+                ExtraFilter: `${pkField} = '${recordID.replace(/'/g, "''")}'`,
+                ResultType: 'simple',
+            });
+            // Guard against a slower read for a PREVIOUS record landing after the form moved on.
+            if (this.sourceFor !== key) return;
+            const row = r?.Success ? r.Results?.[0] : undefined;
+            this.SourceName = row ? String(row[nameField] ?? '') : '';
+        } catch {
+            // The link still works without a name — the stat falls back to "Open" rather than
+            // vanishing, because the source record exists whether or not we could read its title.
+            this.SourceName = '';
+        } finally {
+            this.cdr.detectChanges();
+        }
+    }
+
+    /** Open the record that created this contract. */
+    public OpenSource(): void {
+        const entity = this.sourceEntity();
+        const recordID = this.Record?.CreatingRecordID;
+        if (!entity || !recordID) return;
+        const pkField = entity.PrimaryKeys?.[0]?.Name ?? 'ID';
+        this.navigation.OpenEntityRecord(entity.Name, CompositeKey.FromKeyValuePair(pkField, String(recordID)));
+    }
     public get IsAwaitingDocument(): boolean { return this.Record?.IsAwaitingDocument === true; }
     public get DaysToEnd(): number | null { return this.Record?.DaysToEnd ?? null; }
 
