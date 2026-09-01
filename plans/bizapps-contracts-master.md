@@ -298,7 +298,6 @@ module whose import fires the decorators, loaded after the generated forms modul
 | Contract hero | `slot: 'before-fields'`, `sortKey: 100`, `contributionKey: 'header'`, `replacesSectionKey: 'details'` | `ContractNumber` + status chip + type + customer org + the date strip. Replaces the generic Details section (orders' Scenario B) |
 | Renewal terms | `slot: 'after-fields'`, own `contributionKey` | The `AutoRenew` / notice / increase block, **labelled "as stated in the agreement"** (ERD §4.3) so nobody mistakes it for the subscription's operational setting |
 | Modifications editor | `slot: 'after-related'`, `relatedEntity: 'MJ_BizApps_Contracts: Contract Template Modifications'` | **The D-15 centrepiece** — binds to `Record.Modifications` (see below); claiming `relatedEntity` hides the baked grid |
-| Documents | `slot: 'after-fields'`, `sortKey: 60` | `RecordFilesPanelBase` carried forward from v1 (§6.5) |
 | Lineage | `slot: 'after-related'`, `relatedEntity: 'MJ_BizApps_Contracts: Contracts'`, `relatedJoinField: 'ParentContractID'` | Change orders + supersession chain, read-only; claiming the self-FK is orders' product-category-hierarchy precedent |
 
 **The modifications editor is the order-lines-editor pattern**
@@ -352,26 +351,22 @@ stock overlays — `<mj-form-dialog>` / `MJFormPresenterService.Open({ Presentat
 never a bespoke dialog. List/watchlist pages are `BaseResourceComponent` surfaces registered by
 DriverClass in `metadata/applications/`, as v1's nav already did.
 
-### 6.5 Documents — assembly, not construction
+### 6.5 Attachments — MJ's, not ours
 
-MJ already ships file upload, a file grid with download, an **in-app PDF viewer** (PDF.js), viewers
-for docx/xlsx/images/video, seven storage drivers including SharePoint, and a **PandaDoc** eSignature
-driver. Verified against MJ `next` on 2026-08-18: the one missing piece is still a **record-scoped
-"documents on this record" panel** — nothing in MJ's Angular tree queries `FileEntityRecordLink` at
-runtime (`mj-files-grid` and `mj-files-file-upload` are category-scoped only).
+MJ's generated record form now ships **standard attachments** on every entity:
+`<mj-record-attachments>` on the form toolbar, unless
+`Entity.Configuration.Attachments.Enabled` is `false`. Contracts does not turn that off. Files
+write `__mj.File` + `__mj.FileEntityRecordLink`; `IsAwaitingDocument` is still the derived
+`RequiresExecutedDocument AND NOT EXISTS (link)`. `SigningProviderURL` remains the PandaDoc
+fallback. There is no contracts-owned documents panel.
 
-**v1 already built the read half**: `packages/Angular/src/lib/panels/record-files.panel.ts` —
-`RecordFilesPanelBase`, deliberately entity-agnostic ("donation-shaped": reads
-`Record.EntityInfo.ID` + `Record.PrimaryKey`, knows nothing about contracts). It **survives the
-rebuild**: re-register its thin subclasses for `Contracts` and `Contract Templates`, then finish it —
-upload through MJ storage (`CreateFile` → pre-auth URL → link row), **register-an-existing-SharePoint-
-object** (create the `File` row with `ProviderID` + `ProviderKey`, no bytes moved — the PandaDoc →
-HubSpot → SharePoint reality), pre-auth download links gated by D-9, and `SigningProviderURL` as the
-always-works fallback. Then offer it upstream to MJ.
+The v1 `RecordFilesPanelBase` existed because, at the time, MJ's file UI was category-scoped
+only. That gap is closed. The custom panel is deleted rather than kept as a second way to
+attach the same `FileEntityRecordLink` rows.
 
 Reading PDFs straight out of SharePoint needs an Azure app registration from IT. **That is deliberately
-off the critical path** — finance can attach documents through platform storage meanwhile, and switching
-to SharePoint later is configuration, not redesign. Details and the honest caveats:
+off the critical path** — finance can attach files through platform storage meanwhile, and switching
+to SharePoint later is configuration, not redesign. Details:
 [`mj-storage-and-esignature-notes.md`](./mj-storage-and-esignature-notes.md).
 
 ---
@@ -421,7 +416,7 @@ from zero** — no stacked fix-ups until first publish. The rebuild deletes, in 
 | `packages/Entities` | v1 generated classes (regenerated), `contract-draft.ts` |
 | `packages/CoreEntitiesServer` | All 9 v1 `*EntityServer`s, `ContractsEngine`, `BillingDraft`, `ChildCollection`, all 7 operations — the billing engine wholesale |
 | `packages/Server` | v1 generated resolvers (regenerated) |
-| `packages/Angular` | v1 generated forms (regenerated), the v1 custom forms, billing worklist, workspace tabs. **Keep** `record-files.panel.ts` (re-registered) and the test conventions |
+| `packages/Angular` | v1 generated forms (regenerated), the v1 custom forms, billing worklist, workspace tabs. Files use MJ stock attachments, not a custom documents panel. |
 | `packages/IntegrationTests` | v1 bundles CC/SC/BE/AM (replaced — item 13) |
 | `metadata/` | v1 contract-type seeds (new vocabulary in item 2), all 5 remote operations + category + their 10 type files (v2 has none — §6.3), the Billing nav item |
 | `.changeset/` | The six v1-work changesets are rewritten to describe the rebuild (the mj6-pnpm and hide-schema-app ones stand) |
@@ -519,12 +514,12 @@ rejected in the browser before the round trip and by the server regardless.
 
 ### 9 · Document handling
 
-Finish `RecordFilesPanelBase` per §6.5: upload, register-existing-SharePoint-object, pre-auth
-download, D-9 gating, `SigningProviderURL` fallback. Wire the in-app PDF viewer for the executed
-document. Offer the panel upstream to MJ once it settles.
+MJ standard attachments on the record form. No contracts-owned documents panel. `IsAwaitingDocument`
+still derives from `FileEntityRecordLink`; `SigningProviderURL` is the fallback when storage is
+not configured. File permissions are MJ's.
 
-**Done when:** finance attaches (or registers) the executed PDF and opens it in one click; a
-non-privileged user sees the record but no download.
+**Done when:** finance attaches the executed PDF from the form's attachments control and opens it;
+`IsAwaitingDocument` goes false the moment a file is linked.
 
 ### 10 · Deal → Contract automation, with the finance task
 

@@ -1,0 +1,26 @@
+[
+  {
+    "_comments": [
+      "Working columns for the Contracts dashboard and lists. CodeGen already defaulted",
+      "ContractNumber, State, type, customer, and the two dates. These are the rest an exec scans."
+    ],
+    "fields": { "DefaultInView": true },
+    "primaryKey": { "ID": "@lookup:MJ: Entity Fields.Entity=MJ_BizApps_Contracts: Contracts&Name=Company" }
+  },
+  {
+    "fields": { "DefaultInView": true },
+    "primaryKey": { "ID": "@lookup:MJ: Entity Fields.Entity=MJ_BizApps_Contracts: Contracts&Name=DaysToEnd" }
+  },
+  {
+    "fields": { "DefaultInView": true },
+    "primaryKey": { "ID": "@lookup:MJ: Entity Fields.Entity=MJ_BizApps_Contracts: Contracts&Name=AutoRenew" }
+  },
+  {
+    "fields": { "DefaultInView": true },
+    "primaryKey": { "ID": "@lookup:MJ: Entity Fields.Entity=MJ_BizApps_Contracts: Contracts&Name=IsAwaitingDocument" }
+  },
+  {
+    "fields": { "DefaultInView": true },
+    "primaryKey": { "ID": "@lookup:MJ: Entity Fields.Entity=MJ_BizApps_Contracts: Contracts&Name=PrimaryContactPerson" }
+  }
+]

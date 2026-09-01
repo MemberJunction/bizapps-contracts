@@ -8,7 +8,7 @@
  *
  *  1. **The panels were not `<mj-collapsible-panel>`s.** They were hand-rolled `<div class="card">`s, so
  *     they had none of MJ's panel chrome — hence text with no card behind it, cards touching each other,
- *     and content overflowing. The one panel that looked right (Documents) was the one panel built on
+ *     and content overflowing. The panels that looked right were the ones built on
  *     the real component.
  *  2a. **`contributionKey` MUST EQUAL the panel's own `SectionKey`, and must DIFFER from
  *      `replacesSectionKey`.** This is the rule that took longest to find, because breaking it fails
@@ -36,13 +36,15 @@
 import { ChangeDetectorRef, Component, ViewEncapsulation, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { CompositeKey } from '@memberjunction/core';
+import { UserInfoEngine } from '@memberjunction/core-entities';
 import { RegisterClassEx } from '@memberjunction/global';
 import { BaseFormPanel, BaseFormsModule } from '@memberjunction/ng-base-forms';
 import { HierarchyTreeComponent, type HierarchyTreeConfig, type HierarchyNodeEvent } from '@memberjunction/ng-hierarchy-tree';
-import { CompositeKey, Metadata } from '@memberjunction/core';
-import { NavigationService } from '@memberjunction/ng-shared';
 import { ContractEntity, type ContractState } from '@mj-biz-apps/contracts-entities';
-import { MJC_ENTITIES } from '../data/entity-names';
+import { MJC_ENTITIES, MJC_FOREIGN_ENTITIES } from '../data/entity-names';
+
+const COLLAPSE_SETTING = 'mj.identityHeader.collapsed.contract';
 
 /** Chip variant per lifecycle state — colour carries meaning, so each state gets a considered one. */
 function chipClassFor(state: ContractState): string {
@@ -75,13 +77,25 @@ function chipClassFor(state: ContractState): string {
     standalone: true,
     encapsulation: ViewEncapsulation.None,
     imports: [CommonModule, BaseFormsModule],
+    styleUrls: ['../styles/contracts-kit.css'],
     template: `
-        <div class="mjc-hero">
+        <div class="mjc-hero" [class.mjc-hero--collapsed]="Collapsed">
             <div class="mjc-hero__identity">
-                <div class="mjc-hero__avatar"><i class="fa-solid fa-file-signature" aria-hidden="true"></i></div>
+                <div class="mjc-hero__avatar" aria-hidden="true">
+                    <i class="fa-solid fa-file-signature"></i>
+                    @if (!EditMode) {
+                        <span class="mjc-hero__presence" [attr.data-tone]="StatusTone" [title]="State"></span>
+                    }
+                </div>
                 <div class="mjc-hero__copy">
                     <div class="mjc-hero__title-row">
                         <h1 class="mjc-hero__title">{{ Title }}</h1>
+                    </div>
+                    @if (Record.ContractNumber && !Collapsed) {
+                        <div class="mjc-hero__aka">{{ Record.ContractNumber }}</div>
+                    }
+                    <div class="mjc-hero__badges">
+                        <span class="mjc-hero__entity-chip"><i class="fa-solid fa-file-signature"></i> Contract</span>
                         <span class="mjc-chip" [class]="'mjc-chip ' + StateChipClass">{{ State }}</span>
                         @if (TypeName) { <span class="mjc-chip mjc-chip--info">{{ TypeName }}</span> }
                         @if (Record.HasModifications) {
@@ -97,56 +111,199 @@ function chipClassFor(state: ContractState): string {
                             </span>
                         }
                     </div>
-                    <div class="mjc-hero__meta">
-                        <span class="mjc-mono">{{ Record.ContractNumber || 'Unnumbered' }}</span>
-                        <span>Company: <strong>{{ CompanyName || '—' }}</strong></span>
-                        <span>Customer: <strong>{{ CustomerName || '—' }}</strong></span>
-                        @if (ContactName) { <span>Contact: <strong>{{ ContactName }}</strong></span> }
+                </div>
+                <button type="button" class="mjc-hero__toggle"
+                    [title]="Collapsed ? 'Expand header' : 'Collapse header'"
+                    [attr.aria-label]="Collapsed ? 'Expand header' : 'Collapse header'"
+                    (click)="ToggleCollapsed()">
+                    <i [class]="Collapsed ? 'fa-solid fa-chevron-down' : 'fa-solid fa-chevron-up'"></i>
+                </button>
+            </div>
+            @if (!Collapsed) {
+                <div class="mjc-hero__summary">
+                    <div class="mjc-hero__stat">
+                        <span class="mjc-hero__stat-label">Customer</span>
+                        @if (Record.CustomerOrganizationID && CustomerName) {
+                            <button type="button" class="mjc-hero__stat-val is-link" (click)="OpenCustomer($event)">{{ CustomerName }}</button>
+                        } @else {
+                            <span class="mjc-hero__stat-val">{{ CustomerName || '—' }}</span>
+                        }
+                    </div>
+                    <div class="mjc-hero__stat">
+                        <span class="mjc-hero__stat-label">Contact</span>
+                        @if (Record.PrimaryContactPersonID && ContactName) {
+                            <button type="button" class="mjc-hero__stat-val is-link" (click)="OpenContact($event)">{{ ContactName }}</button>
+                        } @else {
+                            <span class="mjc-hero__stat-val">{{ ContactName || '—' }}</span>
+                        }
+                    </div>
+                    <div class="mjc-hero__stat">
+                        <span class="mjc-hero__stat-label">Selling</span>
+                        <span class="mjc-hero__stat-val">{{ CompanyName || '—' }}</span>
+                    </div>
+                    <div class="mjc-hero__stat">
+                        <span class="mjc-hero__stat-label">Executed</span>
+                        <span class="mjc-hero__stat-val">{{ (Record.ExecutedDate | date: 'd MMM y') || '—' }}</span>
+                    </div>
+                    <div class="mjc-hero__stat">
+                        <span class="mjc-hero__stat-label">Effective</span>
+                        <span class="mjc-hero__stat-val">{{ (Record.EffectiveDate | date: 'd MMM y') || '—' }}</span>
+                    </div>
+                    <div class="mjc-hero__stat">
+                        <span class="mjc-hero__stat-label">Term ends</span>
+                        <span class="mjc-hero__stat-val">{{ (Record.EndDate | date: 'd MMM y') || '—' }}</span>
+                    </div>
+                    <div class="mjc-hero__stat">
+                        <span class="mjc-hero__stat-label">Agreement</span>
+                        <span class="mjc-hero__stat-val">{{ TemplateName || '—' }}</span>
+                    </div>
+                    <div class="mjc-hero__stat">
+                        <span class="mjc-hero__stat-label">Created from</span>
+                        <span class="mjc-hero__stat-val">{{ CreatingEntityName || 'Entered directly' }}</span>
                     </div>
                 </div>
-            </div>
-
-            <div class="mjc-hero__stats">
-                <div class="mjc-stat">
-                    <span class="mjc-stat__label">Executed</span>
-                    <span class="mjc-stat__value">{{ (Record.ExecutedDate | date: 'd MMM y') || '—' }}</span>
-                    @if (!Record.ExecutedDate) { <span class="mjc-stat__sub">not signed yet</span> }
-                </div>
-                <div class="mjc-stat">
-                    <span class="mjc-stat__label">Effective</span>
-                    <span class="mjc-stat__value">{{ (Record.EffectiveDate | date: 'd MMM y') || '—' }}</span>
-                </div>
-                <div class="mjc-stat">
-                    <span class="mjc-stat__label">Term ends</span>
-                    <span class="mjc-stat__value">{{ (Record.EndDate | date: 'd MMM y') || '—' }}</span>
-                    @if (DaysToEnd !== null) { <span class="mjc-stat__sub">{{ EndsInText }}</span> }
-                </div>
-                <div class="mjc-stat">
-                    <span class="mjc-stat__label">Agreement</span>
-                    <span class="mjc-stat__value">{{ TemplateName || '—' }}</span>
-                    @if (!TemplateName) { <span class="mjc-stat__sub">no standard terms referenced</span> }
-                </div>
-                @if (HasSource) {
-                    <div class="mjc-stat">
-                        <span class="mjc-stat__label">{{ SourceLabel }}</span>
-                        <span class="mjc-stat__value">
-                            <button type="button" class="mjc-link" (click)="OpenSource()"
-                                    [attr.aria-label]="'Open ' + (SourceName || 'the source record')">
-                                {{ SourceName || 'Open' }}
-                            </button>
-                        </span>
+                @if (DaysToEnd !== null) {
+                    <div class="mjc-hero__next">
+                        <span class="mjc-hero__stat-label">Term</span>
+                        <span class="mjc-hero__next-val">{{ EndsInText }}</span>
                     </div>
                 }
-            </div>
-
-            @if (!Record.ContractNumber) {
-                <div class="mjc-flag">Contract number is assigned on save.</div>
+                @if (EditMode) {
+                    <div class="mjc-hero__edit">
+                        <div class="mjc-hero__field">
+                            <mj-form-field [Record]="Record" [ShowLabel]="true" FieldName="Description"
+                                Type="textarea" [EditMode]="EditMode" [FormContext]="FormContext"></mj-form-field>
+                        </div>
+                    </div>
+                }
+                @if (!Record.ContractNumber) {
+                    <div class="mjc-flag">
+                        The contract number is minted on first save, from a counter taken under a lock — so it
+                        cannot collide with another contract created at the same moment.
+                    </div>
+                }
             }
         </div>
     `,
+    styles: [`
+        .mjc-hero {
+            display: flex; flex-direction: column; gap: var(--mj-space-4);
+            padding: 20px 24px; margin-bottom: var(--mj-space-4);
+            background: var(--mj-bg-surface-card);
+            border: 1px solid var(--mj-border-default);
+            border-radius: var(--mj-radius-xl, 16px);
+            box-shadow: var(--mj-shadow-md, 0 4px 16px rgba(0, 0, 0, .08));
+            position: relative; overflow: hidden;
+        }
+        .mjc-hero::before {
+            content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3.5px;
+            background: linear-gradient(90deg, #38bdf8 0%, #6366f1 50%, #10b981 100%);
+        }
+        .mjc-hero__identity { display: flex; align-items: center; gap: var(--mj-space-4); min-width: 0; }
+        .mjc-hero__avatar {
+            flex: none; width: 60px; height: 60px; border-radius: var(--mj-radius-lg, 14px);
+            position: relative; display: flex; align-items: center; justify-content: center;
+            background: linear-gradient(135deg, color-mix(in srgb, var(--mj-brand-primary) 30%, var(--mj-bg-surface)) 0%, color-mix(in srgb, var(--mj-brand-accent, #6366f1) 25%, var(--mj-bg-surface)) 100%);
+            color: var(--mj-brand-primary); font-size: 1.35rem;
+            box-shadow: 0 4px 14px color-mix(in srgb, var(--mj-brand-primary) 25%, transparent);
+            border: 2px solid color-mix(in srgb, var(--mj-brand-primary) 35%, transparent);
+        }
+        .mjc-hero__presence {
+            position: absolute; bottom: -2px; right: -2px; width: 13px; height: 13px;
+            border-radius: 50%; border: 2.5px solid var(--mj-bg-surface-card);
+            background: var(--mj-text-muted, #94a3b8);
+        }
+        .mjc-hero__presence[data-tone='success'] { background: var(--mj-status-success, #10b981); }
+        .mjc-hero__presence[data-tone='warning'] { background: var(--mj-status-warning, #f59e0b); }
+        .mjc-hero__copy { min-width: 0; flex: 1; }
+        .mjc-hero__title {
+            margin: 0; font-size: var(--mj-text-lg, 18px); font-weight: 800;
+            letter-spacing: -.02em; line-height: 1.25; color: var(--mj-text-primary);
+            overflow-wrap: anywhere;
+        }
+        .mjc-hero__aka { margin-top: 2px; font-size: var(--mj-text-xs); color: var(--mj-text-muted); }
+        .mjc-hero__badges {
+            display: flex; align-items: center; flex-wrap: wrap;
+            gap: var(--mj-space-2); margin-top: var(--mj-space-2);
+        }
+        .mjc-hero__entity-chip {
+            display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px;
+            border-radius: var(--mj-radius-sm);
+            background: var(--mj-status-info-bg); color: var(--mj-brand-primary);
+            font-size: var(--mj-text-xs); font-weight: 650;
+        }
+        .mjc-hero__toggle {
+            display: inline-flex; align-items: center; justify-content: center;
+            flex: none; width: 32px; height: 32px; margin-left: auto; padding: 0;
+            border: 1px solid var(--mj-border-default); border-radius: var(--mj-radius-md, 8px);
+            background: var(--mj-bg-surface-sunken, rgba(255,255,255,.04));
+            color: var(--mj-text-secondary); cursor: pointer; font-size: 12px;
+        }
+        .mjc-hero__toggle:hover {
+            background: var(--mj-bg-surface-hover, rgba(255,255,255,.08));
+            color: var(--mj-text-primary); border-color: var(--mj-brand-primary);
+        }
+        .mjc-hero__summary {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: var(--mj-space-3); padding-top: var(--mj-space-4);
+            border-top: 1px solid var(--mj-border-default);
+        }
+        .mjc-hero__stat { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+        .mjc-hero__stat-label {
+            font-size: var(--mj-text-xs); font-weight: 700; letter-spacing: .04em;
+            text-transform: uppercase; color: var(--mj-text-muted);
+        }
+        .mjc-hero__stat-val {
+            font-size: 15px; font-weight: 650; color: var(--mj-text-primary);
+            overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+        }
+        button.mjc-hero__stat-val, .mjc-hero__stat-val.is-link {
+            border: 0; padding: 0; background: transparent; color: var(--mj-text-link);
+            cursor: pointer; font: inherit; font-weight: 650; text-align: left;
+        }
+        button.mjc-hero__stat-val:hover { text-decoration: underline; }
+        .mjc-hero__next {
+            display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 14px;
+            padding: var(--mj-space-3) var(--mj-space-4);
+            background: var(--mj-bg-page); border: 1px solid var(--mj-border-default);
+            border-radius: var(--mj-radius-md);
+        }
+        .mjc-hero__next-val { font-weight: 700; font-size: 15px; }
+        .mjc-hero__edit {
+            display: flex; flex-direction: column; gap: var(--mj-space-3);
+            padding-top: var(--mj-space-3); border-top: 1px solid var(--mj-border-subtle, var(--mj-border-default));
+        }
+        .mjc-hero__field { min-width: 0; }
+        .mjc-hero__field .mj-forms-field {
+            display: flex; flex-direction: column; align-items: stretch; gap: 4px; padding: 0;
+        }
+        .mjc-hero__field .mj-forms-field-label {
+            font-size: var(--mj-text-xs); font-weight: 700; letter-spacing: .06em;
+            text-transform: uppercase; color: var(--mj-text-muted);
+        }
+        .mjc-hero--collapsed { padding: 12px 20px; gap: 0; margin-bottom: var(--mj-space-3); }
+        .mjc-hero--collapsed .mjc-hero__avatar { width: 42px; height: 42px; border-radius: var(--mj-radius-md, 10px); font-size: 1.05rem; }
+        .mjc-hero--collapsed .mjc-hero__title { font-size: 1.15rem; }
+        @media (max-width: 720px) {
+            .mjc-hero__identity { align-items: flex-start; }
+            .mjc-hero__summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        }
+    `],
 })
 export class MJCContractHeroPanel extends BaseFormPanel<ContractEntity> {
-    private readonly cdr = inject(ChangeDetectorRef);
+    public Collapsed = false;
+
+    public ngOnInit(): void {
+        const raw = UserInfoEngine.Instance.GetSetting(COLLAPSE_SETTING);
+        if (raw) {
+            try { this.Collapsed = JSON.parse(raw) === true; } catch { this.Collapsed = false; }
+        }
+    }
+
+    public ToggleCollapsed(): void {
+        this.Collapsed = !this.Collapsed;
+        UserInfoEngine.Instance.SetSettingDebounced(COLLAPSE_SETTING, JSON.stringify(this.Collapsed));
+    }
 
     /**
      * The human name for this agreement: its description, falling back to the number.
@@ -186,101 +343,18 @@ export class MJCContractHeroPanel extends BaseFormPanel<ContractEntity> {
     public get CompanyName(): string { return this.Record?.Company ?? ''; }
     public get ContactName(): string { return this.Record?.PrimaryContactPerson ?? ''; }
     public get TemplateName(): string { return this.Record?.ContractTemplate ?? ''; }
-    /* ── Source record — the thing that created this contract (issue #28 item 1) ──────────────
-     *
-     * WHAT THIS STAT USED TO CLAIM. It was labelled "Created by" and rendered `CreatingEntity` — the
-     * name of an ENTITY, not a person — so a contract raised from a Close-Won deal read "Deals", and
-     * one typed in by hand read "—" over the words "entered directly". The label promised a person,
-     * the value delivered a table name, and neither told the reader which deal.
-     *
-     * `CreatingEntityID` / `CreatingRecordID` is a polymorphic pair, so nothing here may assume Deals.
-     * Today `bizapps-sales` is the only writer (`LiveContractsSeam.ts`, on Close-Won) and always sets
-     * Deals, but the column does not say so — the entity is resolved from the id, the label takes that
-     * entity's own singular name, and an Order would render "Source Order" with no edit here.
-     *
-     * WHEN THERE IS NO SOURCE THE STAT IS ABSENT, not empty. A hero stat reading "—" over "entered
-     * directly" spends the most-read row on the absence of a fact, and "entered directly" is not even
-     * a fact about the contract — it is the panel narrating its own null.
-     */
-    private readonly navigation = inject(NavigationService);
-
-    /** Resolved once per record, lazily, on the first template read. */
-    private sourceFor: string | null = null;
-    public SourceLabel = 'Source record';
-    public SourceName = '';
-
-    /**
-     * Whether this contract records what created it.
-     *
-     * Doubles as the load trigger — `BaseFormPanel` has no lifecycle hook and the slot host sets
-     * `Record` before view init, so the first template read is the earliest reliable moment. Keyed on
-     * the record id rather than a bare boolean so navigating the form to a different contract reloads
-     * instead of showing the previous one's deal.
-     */
-    public get HasSource(): boolean {
-        const id = this.Record?.CreatingEntityID;
-        if (!id || !this.Record?.CreatingRecordID) return false;
-        const key = `${this.Record.ID}:${id}:${this.Record.CreatingRecordID}`;
-        if (this.sourceFor !== key) { this.sourceFor = key; void this.loadSource(key); }
-        return true;
-    }
-
-    /** The entity named by `CreatingEntityID`, or null when the id names nothing this user can see. */
-    private sourceEntity() {
-        const provider = this.FormComponent?.ProviderToUse ?? Metadata.Provider;
-        const id = this.Record?.CreatingEntityID;
-        return (id ? provider?.Entities?.find((e) => e.ID === id) : undefined) ?? null;
-    }
-
-    /**
-     * Label from the entity, name from the record.
-     *
-     * `BaseTableDisplayName` rather than `DisplayName`: the entity is plural ("Deals") and the stat
-     * labels one record, so the singular base table is the honest word — and it is what produces
-     * "Source Deal" and "Source Order" without a de-pluralising guess.
-     */
-    private async loadSource(key: string): Promise<void> {
-        const entity = this.sourceEntity();
-        if (!entity) return;
-        this.SourceLabel = `Source ${entity.BaseTableDisplayName}`;
-
-        const nameField = entity.NameField?.Name;
-        const pkField = entity.PrimaryKeys?.[0]?.Name ?? 'ID';
-        const recordID = String(this.Record?.CreatingRecordID ?? '');
-        if (!nameField || !recordID) { this.cdr.detectChanges(); return; }
-
-        try {
-            const { ScopedRunView } = await import('../data/provider');
-            const rv = ScopedRunView(this.FormComponent?.ProviderToUse);
-            const r = await rv.RunView<Record<string, unknown>>({
-                EntityName: entity.Name,
-                Fields: [nameField],
-                ExtraFilter: `${pkField} = '${recordID.replace(/'/g, "''")}'`,
-                ResultType: 'simple',
-            });
-            // Guard against a slower read for a PREVIOUS record landing after the form moved on.
-            if (this.sourceFor !== key) return;
-            const row = r?.Success ? r.Results?.[0] : undefined;
-            this.SourceName = row ? String(row[nameField] ?? '') : '';
-        } catch {
-            // The link still works without a name — the stat falls back to "Open" rather than
-            // vanishing, because the source record exists whether or not we could read its title.
-            this.SourceName = '';
-        } finally {
-            this.cdr.detectChanges();
-        }
-    }
-
-    /** Open the record that created this contract. */
-    public OpenSource(): void {
-        const entity = this.sourceEntity();
-        const recordID = this.Record?.CreatingRecordID;
-        if (!entity || !recordID) return;
-        const pkField = entity.PrimaryKeys?.[0]?.Name ?? 'ID';
-        this.navigation.OpenEntityRecord(entity.Name, CompositeKey.FromKeyValuePair(pkField, String(recordID)));
-    }
+    public get CreatingEntityName(): string { return this.Record?.CreatingEntity ?? ''; }
     public get IsAwaitingDocument(): boolean { return this.Record?.IsAwaitingDocument === true; }
     public get DaysToEnd(): number | null { return this.Record?.DaysToEnd ?? null; }
+
+    public get StatusTone(): 'success' | 'warning' | 'muted' {
+        switch (this.State) {
+            case 'Active':
+            case 'Executed': return 'success';
+            case 'Terminated': return 'warning';
+            default: return 'muted';
+        }
+    }
 
     /** "in 16 months" reads better than "in 487 days" past a couple of months — the mockup's phrasing. */
     public get EndsInText(): string {
@@ -291,6 +365,23 @@ export class MJCContractHeroPanel extends BaseFormPanel<ContractEntity> {
         if (d < 60) return `in ${d} days`;
         const months = Math.round(d / 30);
         return `in ${months} month${months === 1 ? '' : 's'}`;
+    }
+
+    public OpenCustomer(event: MouseEvent): void {
+        this.open(event, MJC_FOREIGN_ENTITIES.Organization, this.Record?.CustomerOrganizationID);
+    }
+    public OpenContact(event: MouseEvent): void {
+        this.open(event, MJC_FOREIGN_ENTITIES.Person, this.Record?.PrimaryContactPersonID);
+    }
+    private open(event: MouseEvent, entity: string, id: string | null | undefined): void {
+        if (!id) return;
+        event.preventDefault();
+        this.FormComponent.OnFormNavigate({
+            Kind: 'record',
+            EntityName: entity,
+            PrimaryKey: CompositeKey.FromID(id),
+            OpenInNewTab: event.ctrlKey || event.metaKey,
+        });
     }
 }
 
@@ -361,20 +452,18 @@ export class MJCContractHeroPanel extends BaseFormPanel<ContractEntity> {
                         } @else {
                             <div class="mjc-val">{{ Record.AutoRenew ? 'Yes' : 'No' }}</div>
                         }
+                        @if (!Record.AutoRenew) {
+                            <div class="mjc-hint">someone must act for this to continue</div>
+                        }
                     </div>
                     <div class="mjc-field">
-                        <label>Renewal notice (days)</label>
+                        <label>Renewal notice we owe (days)</label>
                         @if (EditMode) {
-                            <input type="number" min="0" [ngModel]="Record.RenewalNoticeDays"
+                            <input type="number" min="0" style="width:100%" [ngModel]="Record.RenewalNoticeDays"
                                    (ngModelChange)="Set('RenewalNoticeDays', $event)" aria-label="Renewal notice days" />
                         } @else {
-                            <div class="mjc-val">{{ Days(Record.RenewalNoticeDays) }}</div>
+                            <div class="mjc-val">{{ Record.RenewalNoticeDays ? Record.RenewalNoticeDays + ' days' : '—' }}</div>
                         }
-                        <!-- WHICH WAY THE NOTICE RUNS is the whole content of this field, and the label
-                             cannot carry it. "Renewal notice we owe (days)" tried, and produced a label
-                             no other field in the app resembles while still leaving a reader to guess
-                             what the notice is ABOUT. The direction goes in the hint instead. -->
-                        <div class="mjc-hint">Written notice we must give the customer before a renewal price change.</div>
                         @if (NoticeDeadline) {
                             <div class="mjc-hint">deadline: {{ NoticeDeadline | date: 'd MMM y' }}</div>
                         }
@@ -382,32 +471,34 @@ export class MJCContractHeroPanel extends BaseFormPanel<ContractEntity> {
                     <div class="mjc-field">
                         <label>Notice to cancel (days)</label>
                         @if (EditMode) {
-                            <input type="number" min="0" [ngModel]="Record.CancellationWindowDays"
+                            <input type="number" min="0" style="width:100%" [ngModel]="Record.CancellationWindowDays"
                                    (ngModelChange)="Set('CancellationWindowDays', $event)" aria-label="Cancellation window days" />
                         } @else {
-                            <div class="mjc-val">{{ Days(Record.CancellationWindowDays) }}</div>
+                            <div class="mjc-val">{{ Record.CancellationWindowDays ? Record.CancellationWindowDays + ' days' : '—' }}</div>
                         }
-                        <!-- The MIRROR of the field above, and the pair is the point: one is notice we
-                             owe, one is notice we are owed. The column description says they are not
-                             the same field; two adjacent day-counts with no stated direction is exactly
-                             how they get confused. -->
-                        <div class="mjc-hint">Notice the customer must give us to cancel.</div>
                         @if (InCancellationWindow) { <div class="mjc-hint">the window is open now</div> }
                     </div>
                     <div class="mjc-field">
                         <label>Annual increase (%)</label>
                         @if (EditMode) {
-                            <input type="number" min="0" step="0.01" [ngModel]="Record.AnnualIncreasePercent"
+                            <input type="number" min="0" step="0.01" style="width:100%" [ngModel]="Record.AnnualIncreasePercent"
                                    (ngModelChange)="Set('AnnualIncreasePercent', $event)" aria-label="Annual increase percent" />
                         } @else {
-                            <div class="mjc-val">{{ Percent(Record.AnnualIncreasePercent) }}</div>
+                            <div class="mjc-val">{{ Record.AnnualIncreasePercent !== null ? Record.AnnualIncreasePercent + '%' : '—' }}</div>
                         }
                     </div>
                 </div>
 
+                <p class="mjc-note">
+                    These record what the signed paper says. The subscription in orders holds the operational
+                    setting and may legitimately differ — a mismatch is a finding, not a bug.
+                </p>
 
-                @if (NoTermsRecorded) {
-                    <div class="mjc-empty">No renewal terms recorded.</div>
+                @if (!Record.RenewalNoticeDays && !Record.CancellationWindowDays && Record.AnnualIncreasePercent === null) {
+                    <div class="mjc-empty">
+                        No renewal terms recorded. If the agreement states any, recording them is what puts this
+                        contract on the renewals watchlist.
+                    </div>
                 }
             </div>
         </mj-collapsible-panel>
@@ -421,38 +512,6 @@ export class MJCContractRenewalPanel extends BaseFormPanel<ContractEntity> {
      */
     public Set(field: 'AutoRenew' | 'RenewalNoticeDays' | 'CancellationWindowDays' | 'AnnualIncreasePercent', value: unknown): void {
         (this.Record as unknown as Record<string, unknown>)[field] = value;
-    }
-
-    /**
-     * A day count, where ZERO IS A VALUE (issue #28 item 21).
-     *
-     * The template used `Record.X ? … : '—'`, so a recorded `0` rendered as the same em dash as a
-     * blank — the panel reported "we hold no figure" about a figure that says "no notice is required".
-     * Those are different facts and the second is the one somebody negotiated. `== null` is the whole
-     * fix, and it is deliberately `==` rather than `===` so it catches `undefined` too.
-     */
-    public Days(v: number | null | undefined): string {
-        return v == null ? '—' : `${v} days`;
-    }
-
-    /** Same rule for the percentage: `0%` is a negotiated cap, not a missing value. */
-    public Percent(v: number | null | undefined): string {
-        return v == null ? '—' : `${v}%`;
-    }
-
-    /**
-     * Whether this agreement genuinely states no renewal terms.
-     *
-     * AUTO-RENEWS IS ONE OF THE TERMS, and leaving it out is why the empty state used to contradict
-     * the screen: `AutoRenew = Yes` with blank day counts showed "No renewal terms recorded" directly
-     * beneath a field reading Yes. Auto-renewal is the most consequential renewal term there is, so
-     * the panel is only empty when it is No AND all three numbers are absent.
-     */
-    public get NoTermsRecorded(): boolean {
-        return !this.Record?.AutoRenew &&
-            this.Record?.RenewalNoticeDays == null &&
-            this.Record?.CancellationWindowDays == null &&
-            this.Record?.AnnualIncreasePercent == null;
     }
 
     /** The authoritative view column — unlike State, nobody wants this tracking a half-typed edit. */
@@ -521,16 +580,17 @@ export class MJCContractRenewalPanel extends BaseFormPanel<ContractEntity> {
                     <div class="mjc-field">
                         <label>Executed date</label>
                         @if (EditMode) {
-                            <input type="date" [ngModel]="AsInput(Record.ExecutedDate)"
+                            <input type="date" style="width:100%" [ngModel]="AsInput(Record.ExecutedDate)"
                                    (ngModelChange)="SetDate('ExecutedDate', $event)" aria-label="Executed date" />
                         } @else {
                             <div class="mjc-val">{{ (Record.ExecutedDate | date: 'd MMM y') || '—' }}</div>
                         }
+                        <div class="mjc-hint">may precede the effective date — that is normal, not an anomaly</div>
                     </div>
                     <div class="mjc-field">
                         <label>Effective date</label>
                         @if (EditMode) {
-                            <input type="date" [ngModel]="AsInput(Record.EffectiveDate)"
+                            <input type="date" style="width:100%" [ngModel]="AsInput(Record.EffectiveDate)"
                                    (ngModelChange)="SetDate('EffectiveDate', $event)" aria-label="Effective date" />
                         } @else {
                             <div class="mjc-val">{{ (Record.EffectiveDate | date: 'd MMM y') || '—' }}</div>
@@ -539,7 +599,7 @@ export class MJCContractRenewalPanel extends BaseFormPanel<ContractEntity> {
                     <div class="mjc-field">
                         <label>End date</label>
                         @if (EditMode) {
-                            <input type="date" [ngModel]="AsInput(Record.EndDate)"
+                            <input type="date" style="width:100%" [ngModel]="AsInput(Record.EndDate)"
                                    (ngModelChange)="SetDate('EndDate', $event)" aria-label="End date" />
                         } @else {
                             <div class="mjc-val">{{ (Record.EndDate | date: 'd MMM y') || '—' }}</div>
@@ -549,15 +609,21 @@ export class MJCContractRenewalPanel extends BaseFormPanel<ContractEntity> {
                     <div class="mjc-field">
                         <label>Terminated date</label>
                         @if (EditMode) {
-                            <input type="date" [ngModel]="AsInput(Record.TerminatedDate)"
+                            <input type="date" style="width:100%" [ngModel]="AsInput(Record.TerminatedDate)"
                                    (ngModelChange)="SetDate('TerminatedDate', $event)" aria-label="Terminated date" />
                         } @else {
                             <div class="mjc-val" [class.mjc-val--ro]="!Record.TerminatedDate">{{ (Record.TerminatedDate | date: 'd MMM y') || '—' }}</div>
                         }
-                        <div class="mjc-hint">Setting this marks the contract Terminated from this date.</div>
+                        <div class="mjc-hint">
+                            a fact about what happened — set it and the contract reads Terminated regardless of its term
+                        </div>
                     </div>
                 </div>
 
+                <p class="mjc-note">
+                    The lifecycle is <strong>derived</strong> from these four dates and the two lineage links, not
+                    stored — so a state can never disagree with the dates it came from.
+                </p>
             </div>
         </mj-collapsible-panel>
     `,
@@ -655,7 +721,7 @@ export class MJCContractDatesPanel extends BaseFormPanel<ContractEntity> {
     imports: [CommonModule, FormsModule, BaseFormsModule, HierarchyTreeComponent],
     template: `
         <mj-collapsible-panel
-            SectionKey="contractLineage"
+            SectionKey="lineage"
             SectionName="Lineage"
             Icon="fa-solid fa-sitemap"
             Variant="related-entity"
@@ -685,7 +751,7 @@ export class MJCContractDatesPanel extends BaseFormPanel<ContractEntity> {
 
                 @if (!ParentName && !HasChildren) {
                     <div class="mjc-empty">
-                        No parent contract, change orders, or superseding contracts.
+                        A standalone agreement — nothing above it, no change orders, and nothing has replaced it.
                     </div>
                 }
             </div>
@@ -695,7 +761,7 @@ export class MJCContractDatesPanel extends BaseFormPanel<ContractEntity> {
 export class MJCContractLineagePanel extends BaseFormPanel<ContractEntity> {
     private readonly cdr = inject(ChangeDetectorRef);
 
-    private readonly navigation = inject(NavigationService);
+
 
     /**
      * The whole tree, declared rather than fetched.
@@ -737,7 +803,7 @@ export class MJCContractLineagePanel extends BaseFormPanel<ContractEntity> {
     public OpenNode(e: HierarchyNodeEvent): void {
         const key = e?.Node?.PrimaryKey;
         if (!key) return;
-        this.navigation.OpenEntityRecord(MJC_ENTITIES.Contract, key);
+        this.FormComponent.OnFormNavigate({ Kind: 'record', EntityName: MJC_ENTITIES.Contract, PrimaryKey: key });
     }
 
     public get ParentName(): string { return this.Record?.ParentContract ?? ''; }
@@ -792,4 +858,5 @@ export class MJCContractLineagePanel extends BaseFormPanel<ContractEntity> {
         return ScopedRunView(this.FormComponent?.ProviderToUse);
     }
 }
+
 
