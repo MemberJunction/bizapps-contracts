@@ -8,7 +8,7 @@
  *
  *  1. **The panels were not `<mj-collapsible-panel>`s.** They were hand-rolled `<div class="card">`s, so
  *     they had none of MJ's panel chrome — hence text with no card behind it, cards touching each other,
- *     and content overflowing. The one panel that looked right (Documents) was the one panel built on
+ *     and content overflowing. The panels that looked right were the ones built on
  *     the real component.
  *  2a. **`contributionKey` MUST EQUAL the panel's own `SectionKey`, and must DIFFER from
  *      `replacesSectionKey`.** This is the rule that took longest to find, because breaking it fails

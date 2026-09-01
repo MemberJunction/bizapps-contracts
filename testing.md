@@ -82,7 +82,7 @@ node test-harnesses/integration.mjs contracts-world
 | Metadata push | ✅ manual | — | `errorCount: 0`, 7 created / 9 updated, twice from zero. Not automated |
 | Screens render at all | ✅ manual | — | driven in system Chrome: 3 sections, 5 rail items, dashboard tiles, 0 console errors. **Not automated** |
 | Screen BEHAVIOUR (filter, open, edit, save) | ✗ | ✗ | nothing clicks through a create → filter → open → edit → save cycle yet. This is the biggest single gap |
-| Documents: register / open / gating | ✗ | ✗ | item 9 code lands unexercised — needs a configured storage account, which needs an Azure AD app registration (an IT task) |
+| Attachments (MJ stock) | — | — | form toolbar `mj-record-attachments`; `IsAwaitingDocument` is the derived flag. Needs a configured storage account to exercise upload. |
 | Modification editor (the D-15 acceptance test) | ✗ | ✗ | `contracts-graph-save`, item 13. Compiles and renders; the one-transaction claim is **unproven at runtime** |
 
 **Honest reading of that table:** the cheap tier is real, and the live-provider bundles now exist

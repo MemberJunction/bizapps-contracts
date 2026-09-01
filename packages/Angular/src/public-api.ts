@@ -61,7 +61,6 @@ export * from './lib/data/entity-names';
  * them. Every one of these mounts itself: the slot host discovers registrations, so nothing here is
  * referenced by a template. That is exactly why the anchors at the bottom are load-bearing.
  * ========================================================================== */
-import { ContractFilesPanel, ContractTemplateFilesPanel } from './lib/form-panels/record-files.panel';
 import {
     MJCContractDatesPanel,
     MJCContractHeroPanel,
@@ -82,7 +81,6 @@ import {
 import { MJCOrganizationAgreementsPanel } from './lib/form-panels/organization.panels';
 import { MJCPersonAgreementsPanel } from './lib/form-panels/person.panels';
 
-export { RecordFilesPanelBase, ContractFilesPanel, ContractTemplateFilesPanel } from './lib/form-panels/record-files.panel';
 export {
     MJCContractHeroPanel,
     MJCContractDatesPanel,
@@ -146,8 +144,6 @@ export function LoadMjBizappsContractsClient(): void {
     void ContractsConfigurationSectionResource;
 
     // Panels — none of these is referenced by any template, so they exist only because of this.
-    void ContractFilesPanel;
-    void ContractTemplateFilesPanel;
     void MJCContractHeroPanel;
     void ContractFormPolicy;
     void MJCContractOverviewPanel;
