@@ -157,10 +157,15 @@ function chipClassFor(state: ContractState): string {
                         <span class="mjc-hero__stat-label">Agreement</span>
                         <span class="mjc-hero__stat-val">{{ TemplateName || '—' }}</span>
                     </div>
-                    <div class="mjc-hero__stat">
-                        <span class="mjc-hero__stat-label">Created from</span>
-                        <span class="mjc-hero__stat-val">{{ CreatingEntityName || 'Entered directly' }}</span>
-                    </div>
+                    @if (HasSource) {
+                        <div class="mjc-hero__stat">
+                            <span class="mjc-hero__stat-label">{{ SourceLabel }}</span>
+                            <button type="button" class="mjc-hero__stat-val is-link" (click)="OpenSource($event)"
+                                    [attr.aria-label]="'Open ' + (SourceName || 'the source record')">
+                                {{ SourceName || 'Open' }}
+                            </button>
+                        </div>
+                    }
                 </div>
                 @if (DaysToEnd !== null) {
                     <div class="mjc-hero__next">
@@ -288,6 +293,8 @@ function chipClassFor(state: ContractState): string {
     `],
 })
 export class MJCContractHeroPanel extends BaseFormPanel<ContractEntity> {
+    private readonly cdr = inject(ChangeDetectorRef);
+
     public Collapsed = false;
 
     public ngOnInit(): void {
@@ -340,7 +347,97 @@ export class MJCContractHeroPanel extends BaseFormPanel<ContractEntity> {
     public get CompanyName(): string { return this.Record?.Company ?? ''; }
     public get ContactName(): string { return this.Record?.PrimaryContactPerson ?? ''; }
     public get TemplateName(): string { return this.Record?.ContractTemplate ?? ''; }
-    public get CreatingEntityName(): string { return this.Record?.CreatingEntity ?? ''; }
+    /* ── Source record — the thing that created this contract (issue #28 item 1) ──────────────
+     *
+     * WHAT THE STAT USED TO CLAIM. Labelled "Created from", it rendered `CreatingEntity` — the name of
+     * an ENTITY, not a record — so a contract raised from a Close-Won deal read "Deals" and one
+     * entered by hand read "Entered directly". Neither told the reader WHICH deal, and the second
+     * spends a stat on the absence of a fact.
+     *
+     * `CreatingEntityID` / `CreatingRecordID` is a POLYMORPHIC pair, so nothing here may assume Deals.
+     * Today `bizapps-sales` is the only writer (`LiveContractsSeam`, on Close-Won) and always stores
+     * Deals, but the column does not say so: the entity is resolved from the id, the label takes that
+     * entity's own singular name, and an Order would read "Source Order" with no edit here.
+     *
+     * NAVIGATION GOES THROUGH THIS PANEL'S OWN `open()`, the helper next added for Customer and
+     * Contact. It handles ctrl/cmd-click for a new tab and routes through `OnFormNavigate` rather
+     * than `NavigationService`, and matching it matters more than the primary-key lookup an earlier
+     * version of this did — `CompositeKey.FromID` is the convention every link in this file uses.
+     */
+
+    /** Resolved once per record, lazily, on the first template read. */
+    private sourceFor: string | null = null;
+    public SourceLabel = 'Source record';
+    public SourceName = '';
+
+    /**
+     * Whether this contract records what created it.
+     *
+     * Doubles as the load trigger — `BaseFormPanel` has no lifecycle hook and the slot host sets
+     * `Record` before view init, so the first template read is the earliest reliable moment. Keyed on
+     * the record so navigating the form to another contract reloads instead of showing the previous
+     * one's deal.
+     */
+    public get HasSource(): boolean {
+        const entityID = this.Record?.CreatingEntityID;
+        const recordID = this.Record?.CreatingRecordID;
+        if (!entityID || !recordID) return false;
+        const key = `${this.Record?.ID}:${entityID}:${recordID}`;
+        if (this.sourceFor !== key) { this.sourceFor = key; void this.loadSource(key); }
+        return true;
+    }
+
+    /** The entity named by `CreatingEntityID`, or null when the id names nothing this user can see. */
+    private sourceEntity() {
+        const id = this.Record?.CreatingEntityID;
+        return (id ? this.FormComponent?.ProviderToUse?.Entities?.find((e) => e.ID === id) : undefined) ?? null;
+    }
+
+    /**
+     * Label from the entity, name from the record.
+     *
+     * `BaseTableDisplayName` rather than `DisplayName`: the entity is plural ("Deals") and the stat
+     * labels one record, so the singular base table is the honest word — and it is what produces
+     * "Source Deal" and "Source Order" with no de-pluralising guess.
+     */
+    private async loadSource(key: string): Promise<void> {
+        const entity = this.sourceEntity();
+        if (!entity) return;
+        this.SourceLabel = `Source ${entity.BaseTableDisplayName}`;
+
+        const nameField = entity.NameField?.Name;
+        const recordID = String(this.Record?.CreatingRecordID ?? '');
+        if (!nameField || !recordID) { this.cdr.detectChanges(); return; }
+
+        try {
+            const { ScopedRunView } = await import('../data/provider');
+            const rv = ScopedRunView(this.FormComponent?.ProviderToUse);
+            const pkField = entity.PrimaryKeys?.[0]?.Name ?? 'ID';
+            const r = await rv.RunView<Record<string, unknown>>({
+                EntityName: entity.Name,
+                Fields: [nameField],
+                ExtraFilter: `${pkField} = '${recordID.replace(/'/g, "''")}'`,
+                ResultType: 'simple',
+            });
+            // Guard against a slower read for a PREVIOUS record landing after the form moved on.
+            if (this.sourceFor !== key) return;
+            const row = r?.Success ? r.Results?.[0] : undefined;
+            this.SourceName = row ? String(row[nameField] ?? '') : '';
+        } catch {
+            // The link still works without a name — the stat falls back to "Open" rather than
+            // vanishing, because the source record exists whether or not we could read its title.
+            this.SourceName = '';
+        } finally {
+            this.cdr.detectChanges();
+        }
+    }
+
+    /** Open the record that created this contract, through the same helper as the other links. */
+    public OpenSource(event: MouseEvent): void {
+        const entity = this.sourceEntity();
+        if (!entity) return;
+        this.open(event, entity.Name, this.Record?.CreatingRecordID);
+    }
     public get IsAwaitingDocument(): boolean { return this.Record?.IsAwaitingDocument === true; }
     public get DaysToEnd(): number | null { return this.Record?.DaysToEnd ?? null; }
 
@@ -453,10 +550,10 @@ export class MJCContractHeroPanel extends BaseFormPanel<ContractEntity> {
                     <div class="mjc-field">
                         <label>Renewal notice we owe (days)</label>
                         @if (EditMode) {
-                            <input type="number" min="0" style="width:100%" [ngModel]="Record.RenewalNoticeDays"
+                            <input type="number" min="0" [ngModel]="Record.RenewalNoticeDays"
                                    (ngModelChange)="Set('RenewalNoticeDays', $event)" aria-label="Renewal notice days" />
                         } @else {
-                            <div class="mjc-val">{{ Record.RenewalNoticeDays ? Record.RenewalNoticeDays + ' days' : '—' }}</div>
+                            <div class="mjc-val">{{ Days(Record.RenewalNoticeDays) }}</div>
                         }
                         @if (NoticeDeadline) {
                             <div class="mjc-hint">deadline: {{ NoticeDeadline | date: 'd MMM y' }}</div>
@@ -465,26 +562,26 @@ export class MJCContractHeroPanel extends BaseFormPanel<ContractEntity> {
                     <div class="mjc-field">
                         <label>Notice to cancel (days)</label>
                         @if (EditMode) {
-                            <input type="number" min="0" style="width:100%" [ngModel]="Record.CancellationWindowDays"
+                            <input type="number" min="0" [ngModel]="Record.CancellationWindowDays"
                                    (ngModelChange)="Set('CancellationWindowDays', $event)" aria-label="Cancellation window days" />
                         } @else {
-                            <div class="mjc-val">{{ Record.CancellationWindowDays ? Record.CancellationWindowDays + ' days' : '—' }}</div>
+                            <div class="mjc-val">{{ Days(Record.CancellationWindowDays) }}</div>
                         }
                         @if (InCancellationWindow) { <div class="mjc-hint">the window is open now</div> }
                     </div>
                     <div class="mjc-field">
                         <label>Annual increase (%)</label>
                         @if (EditMode) {
-                            <input type="number" min="0" step="0.01" style="width:100%" [ngModel]="Record.AnnualIncreasePercent"
+                            <input type="number" min="0" step="0.01" [ngModel]="Record.AnnualIncreasePercent"
                                    (ngModelChange)="Set('AnnualIncreasePercent', $event)" aria-label="Annual increase percent" />
                         } @else {
-                            <div class="mjc-val">{{ Record.AnnualIncreasePercent !== null ? Record.AnnualIncreasePercent + '%' : '—' }}</div>
+                            <div class="mjc-val">{{ Percent(Record.AnnualIncreasePercent) }}</div>
                         }
                     </div>
                 </div>
 
 
-                @if (!Record.RenewalNoticeDays && !Record.CancellationWindowDays && Record.AnnualIncreasePercent === null) {
+                @if (NoTermsRecorded) {
                     <div class="mjc-empty">No renewal terms recorded.</div>
                 }
             </div>
@@ -492,6 +589,38 @@ export class MJCContractHeroPanel extends BaseFormPanel<ContractEntity> {
     `,
 })
 export class MJCContractRenewalPanel extends BaseFormPanel<ContractEntity> {
+    /**
+     * A day count, where ZERO IS A VALUE (issue #28 item 21).
+     *
+     * `Record.X ? … : '—'` conflates ZERO with ABSENT: a recorded `0` rendered as the same em dash as
+     * a blank, so the panel reported holding no figure about a figure that says "no notice is
+     * required" — which somebody negotiated. `== null` is the whole fix, and it is deliberately `==`
+     * rather than `===` so `undefined` is caught too.
+     */
+    public Days(v: number | null | undefined): string {
+        return v == null ? '—' : `${v} days`;
+    }
+
+    /** Same rule for the percentage: `0%` is a negotiated cap, not a missing value. */
+    public Percent(v: number | null | undefined): string {
+        return v == null ? '—' : `${v}%`;
+    }
+
+    /**
+     * Whether this agreement genuinely states no renewal terms.
+     *
+     * AUTO-RENEWS IS ONE OF THE TERMS, and leaving it out of the condition is why the empty state
+     * used to contradict the screen: `AutoRenew = Yes` with blank day counts showed "No renewal terms
+     * recorded" directly beneath a field reading Yes. Auto-renewal is the most consequential renewal
+     * term there is, so the panel is only empty when it is No AND all three numbers are absent.
+     */
+    public get NoTermsRecorded(): boolean {
+        return !this.Record?.AutoRenew &&
+            this.Record?.RenewalNoticeDays == null &&
+            this.Record?.CancellationWindowDays == null &&
+            this.Record?.AnnualIncreasePercent == null;
+    }
+
     /**
      * Write a field through the typed entity. Named `Set` rather than bound with two-way `[(ngModel)]`
      * so the write goes through one place — a two-way binding on `Record.X` works but gives no hook for
@@ -567,7 +696,7 @@ export class MJCContractRenewalPanel extends BaseFormPanel<ContractEntity> {
                     <div class="mjc-field">
                         <label>Executed date</label>
                         @if (EditMode) {
-                            <input type="date" style="width:100%" [ngModel]="AsInput(Record.ExecutedDate)"
+                            <input type="date" [ngModel]="AsInput(Record.ExecutedDate)"
                                    (ngModelChange)="SetDate('ExecutedDate', $event)" aria-label="Executed date" />
                         } @else {
                             <div class="mjc-val">{{ (Record.ExecutedDate | date: 'd MMM y') || '—' }}</div>
@@ -576,7 +705,7 @@ export class MJCContractRenewalPanel extends BaseFormPanel<ContractEntity> {
                     <div class="mjc-field">
                         <label>Effective date</label>
                         @if (EditMode) {
-                            <input type="date" style="width:100%" [ngModel]="AsInput(Record.EffectiveDate)"
+                            <input type="date" [ngModel]="AsInput(Record.EffectiveDate)"
                                    (ngModelChange)="SetDate('EffectiveDate', $event)" aria-label="Effective date" />
                         } @else {
                             <div class="mjc-val">{{ (Record.EffectiveDate | date: 'd MMM y') || '—' }}</div>
@@ -585,7 +714,7 @@ export class MJCContractRenewalPanel extends BaseFormPanel<ContractEntity> {
                     <div class="mjc-field">
                         <label>End date</label>
                         @if (EditMode) {
-                            <input type="date" style="width:100%" [ngModel]="AsInput(Record.EndDate)"
+                            <input type="date" [ngModel]="AsInput(Record.EndDate)"
                                    (ngModelChange)="SetDate('EndDate', $event)" aria-label="End date" />
                         } @else {
                             <div class="mjc-val">{{ (Record.EndDate | date: 'd MMM y') || '—' }}</div>
@@ -595,7 +724,7 @@ export class MJCContractRenewalPanel extends BaseFormPanel<ContractEntity> {
                     <div class="mjc-field">
                         <label>Terminated date</label>
                         @if (EditMode) {
-                            <input type="date" style="width:100%" [ngModel]="AsInput(Record.TerminatedDate)"
+                            <input type="date" [ngModel]="AsInput(Record.TerminatedDate)"
                                    (ngModelChange)="SetDate('TerminatedDate', $event)" aria-label="Terminated date" />
                         } @else {
                             <div class="mjc-val" [class.mjc-val--ro]="!Record.TerminatedDate">{{ (Record.TerminatedDate | date: 'd MMM y') || '—' }}</div>
