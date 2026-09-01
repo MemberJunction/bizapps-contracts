@@ -108,5 +108,21 @@
       "lastModified": "2026-08-21T16:27:43.980Z",
       "checksum": "b09f4e4622f0b1d7b5ceec30dea80313fdd0cd770d67a6657ebdf1197255cdee"
     }
+  },
+  {
+    "_comment": [
+      "DisplayName 'Renewal Notice (Days)' (issue #28 item 6). UNLIKE the CompanyID case, this is a",
+      "real change: CodeGen derives 'Renewal Notice Days' -- it strips a trailing 'ID' from an FK but",
+      "does not bracket a unit -- and the parenthesised form is what the form's own label uses. The",
+      "field is one of a confusable pair with CancellationWindowDays ('notice we owe' vs 'notice we",
+      "are owed'), so a grid heading that reads differently from the form is a real cost.",
+      "Verified against the database before adding: the column held 'Renewal Notice Days'."
+    ],
+    "fields": {
+      "DisplayName": "Renewal Notice (Days)"
+    },
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entity Fields.Entity=MJ_BizApps_Contracts: Contracts&Name=RenewalNoticeDays"
+    }
   }
 ]

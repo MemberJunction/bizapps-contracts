@@ -369,13 +369,18 @@ export class MJCContractHeroPanel extends BaseFormPanel<ContractEntity> {
                         }
                     </div>
                     <div class="mjc-field">
-                        <label>Renewal notice we owe (days)</label>
+                        <label>Renewal notice (days)</label>
                         @if (EditMode) {
-                            <input type="number" min="0" style="width:100%" [ngModel]="Record.RenewalNoticeDays"
+                            <input type="number" min="0" [ngModel]="Record.RenewalNoticeDays"
                                    (ngModelChange)="Set('RenewalNoticeDays', $event)" aria-label="Renewal notice days" />
                         } @else {
                             <div class="mjc-val">{{ Record.RenewalNoticeDays ? Record.RenewalNoticeDays + ' days' : '—' }}</div>
                         }
+                        <!-- WHICH WAY THE NOTICE RUNS is the whole content of this field, and the label
+                             cannot carry it. "Renewal notice we owe (days)" tried, and produced a label
+                             no other field in the app resembles while still leaving a reader to guess
+                             what the notice is ABOUT. The direction goes in the hint instead. -->
+                        <div class="mjc-hint">Written notice we must give the customer before a renewal price change.</div>
                         @if (NoticeDeadline) {
                             <div class="mjc-hint">deadline: {{ NoticeDeadline | date: 'd MMM y' }}</div>
                         }
@@ -383,17 +388,22 @@ export class MJCContractHeroPanel extends BaseFormPanel<ContractEntity> {
                     <div class="mjc-field">
                         <label>Notice to cancel (days)</label>
                         @if (EditMode) {
-                            <input type="number" min="0" style="width:100%" [ngModel]="Record.CancellationWindowDays"
+                            <input type="number" min="0" [ngModel]="Record.CancellationWindowDays"
                                    (ngModelChange)="Set('CancellationWindowDays', $event)" aria-label="Cancellation window days" />
                         } @else {
                             <div class="mjc-val">{{ Record.CancellationWindowDays ? Record.CancellationWindowDays + ' days' : '—' }}</div>
                         }
+                        <!-- The MIRROR of the field above, and the pair is the point: one is notice we
+                             owe, one is notice we are owed. The column description says they are not
+                             the same field; two adjacent day-counts with no stated direction is exactly
+                             how they get confused. -->
+                        <div class="mjc-hint">Notice the customer must give us to cancel.</div>
                         @if (InCancellationWindow) { <div class="mjc-hint">the window is open now</div> }
                     </div>
                     <div class="mjc-field">
                         <label>Annual increase (%)</label>
                         @if (EditMode) {
-                            <input type="number" min="0" step="0.01" style="width:100%" [ngModel]="Record.AnnualIncreasePercent"
+                            <input type="number" min="0" step="0.01" [ngModel]="Record.AnnualIncreasePercent"
                                    (ngModelChange)="Set('AnnualIncreasePercent', $event)" aria-label="Annual increase percent" />
                         } @else {
                             <div class="mjc-val">{{ Record.AnnualIncreasePercent !== null ? Record.AnnualIncreasePercent + '%' : '—' }}</div>
@@ -492,7 +502,7 @@ export class MJCContractRenewalPanel extends BaseFormPanel<ContractEntity> {
                     <div class="mjc-field">
                         <label>Executed date</label>
                         @if (EditMode) {
-                            <input type="date" style="width:100%" [ngModel]="AsInput(Record.ExecutedDate)"
+                            <input type="date" [ngModel]="AsInput(Record.ExecutedDate)"
                                    (ngModelChange)="SetDate('ExecutedDate', $event)" aria-label="Executed date" />
                         } @else {
                             <div class="mjc-val">{{ (Record.ExecutedDate | date: 'd MMM y') || '—' }}</div>
@@ -502,7 +512,7 @@ export class MJCContractRenewalPanel extends BaseFormPanel<ContractEntity> {
                     <div class="mjc-field">
                         <label>Effective date</label>
                         @if (EditMode) {
-                            <input type="date" style="width:100%" [ngModel]="AsInput(Record.EffectiveDate)"
+                            <input type="date" [ngModel]="AsInput(Record.EffectiveDate)"
                                    (ngModelChange)="SetDate('EffectiveDate', $event)" aria-label="Effective date" />
                         } @else {
                             <div class="mjc-val">{{ (Record.EffectiveDate | date: 'd MMM y') || '—' }}</div>
@@ -511,7 +521,7 @@ export class MJCContractRenewalPanel extends BaseFormPanel<ContractEntity> {
                     <div class="mjc-field">
                         <label>End date</label>
                         @if (EditMode) {
-                            <input type="date" style="width:100%" [ngModel]="AsInput(Record.EndDate)"
+                            <input type="date" [ngModel]="AsInput(Record.EndDate)"
                                    (ngModelChange)="SetDate('EndDate', $event)" aria-label="End date" />
                         } @else {
                             <div class="mjc-val">{{ (Record.EndDate | date: 'd MMM y') || '—' }}</div>
@@ -521,7 +531,7 @@ export class MJCContractRenewalPanel extends BaseFormPanel<ContractEntity> {
                     <div class="mjc-field">
                         <label>Terminated date</label>
                         @if (EditMode) {
-                            <input type="date" style="width:100%" [ngModel]="AsInput(Record.TerminatedDate)"
+                            <input type="date" [ngModel]="AsInput(Record.TerminatedDate)"
                                    (ngModelChange)="SetDate('TerminatedDate', $event)" aria-label="Terminated date" />
                         } @else {
                             <div class="mjc-val" [class.mjc-val--ro]="!Record.TerminatedDate">{{ (Record.TerminatedDate | date: 'd MMM y') || '—' }}</div>
