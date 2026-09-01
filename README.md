@@ -119,8 +119,11 @@ as names. Every worklist filter compares a *derived column* rather than re-deriv
 TypeScript — which is why the dashboard, the rail badges and the worklists cannot disagree.
 
 The contract form is the **generated** form plus contributed panels — a hero, the renewal block, the
-modifications editor, lineage, and documents. Nothing replaces a generated form except the
-modification's own, so CodeGen can regenerate freely.
+modifications editor, and lineage. Files on a contract (or a template version) are MJ's **standard
+attachments**: the form toolbar opens `mj-record-attachments` for every entity unless
+`Configuration.Attachments.Enabled` is `false`. Contracts does not turn that off, and does not ship
+a second documents panel. Nothing replaces a generated form except the modification's own, so
+CodeGen can regenerate freely.
 
 ### Recording a modification
 
@@ -132,18 +135,17 @@ It is **one component with two hosts** — inline on the contract form, and as t
 modification's own form — because MJ cannot embed a child entity's form inside a parent's, and two
 implementations of the same editor would drift.
 
-### Documents
+### Attachments
 
-Assembly, not construction. MJ already ships seven storage drivers including SharePoint, an in-app
-PDF viewer, and a PandaDoc eSignature driver. The one missing piece is a **record-scoped** documents
-panel — nothing in MJ queries `FileEntityRecordLink` at runtime — so that panel is the only
-file-handling code here, written entity-agnostic to be offered upstream.
+MJ's standard attachments, not a contracts-owned documents feature. A paperclip on the record form
+opens the stock attachments panel; files land in `__mj.File` and link through
+`__mj.FileEntityRecordLink` (`EntityID` + `RecordID`). The same link table is what
+`IsAwaitingDocument` reads: the contract *type* expects executed paper **and** no file is linked.
 
-Executed PDFs arrive in SharePoint by a route MJ knows nothing about (PandaDoc → HubSpot →
-SharePoint), so the flow **registers an existing object** rather than uploading one: it verifies the
-path exists, creates the `File` row with its `ProviderKey`, and links it. Opening mints a
-time-limited pre-authenticated URL, so bytes never proxy through MJAPI. The signing provider's own
-URL is the always-works fallback.
+`SigningProviderURL` stays as the always-works fallback to the document in the signing provider
+(PandaDoc) when storage is not configured yet, or when a sync has broken.
+
+The **Awaiting documents** worklist is a filter on that derived flag. It is not a second file UI.
 
 ---
 

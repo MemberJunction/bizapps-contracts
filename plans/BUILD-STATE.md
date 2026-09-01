@@ -35,7 +35,7 @@ Both plan docs are already merged to `next` (PR #6), so `build/contracts-v2` bui
 | 6 Entity CRUD | **DONE**, proven | configuration pages render |
 | 7 Version registry | **DONE**, proven | versions + provisions pages render |
 | 8 Modification capture | **DONE (code)** | editor + 2 hosts; **panel not yet seen rendering** |
-| 9 Documents | **DONE (code)** | register/open/D-9 gate; **unexercised — needs a storage account** |
+| 9 Attachments | **DONE** | MJ stock attachments on the form; custom `RecordFilesPanelBase` removed. Upload still needs a storage account. |
 | 11 Customer view | **DONE (code)** | Organization panel; **not yet seen rendering** |
 | 12 Watchlist | **DONE**, proven | renewals page + all 6 derived columns verified against data |
 | 14 README | **DONE** | 658 v1 lines → 227 describing what shipped |

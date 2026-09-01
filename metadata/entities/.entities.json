@@ -51,7 +51,8 @@
       "so it actually applies on the entity form (the section shell is a different surface).",
       "",
       "With those fixed the rail carries Overview + Agreement + Parties + Dates + Renewal terms +",
-      "Notes + Modifications + Documents + Lineage + More. Accordion was briefly set as a workaround",
+      "Notes + Modifications + Lineage + More. Files attach through MJ's stock attachments on the",
+      "form toolbar (Entity.Configuration.Attachments, default on). Accordion was briefly set as a workaround",
       "and is reverted — it was treating the symptom."
     ],
     "fields": {

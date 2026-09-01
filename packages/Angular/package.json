@@ -29,7 +29,6 @@
     "@memberjunction/graphql-dataprovider": "^6.1.0-edge.4",
     "@memberjunction/ng-base-forms": "^6.1.0-edge.4",
     "@memberjunction/ng-entity-viewer": "^6.1.0-edge.4",
-    "@memberjunction/ng-file-storage": "^6.1.0-edge.4",
     "@memberjunction/ng-hierarchy-tree": "^6.1.0-edge.4",
     "@memberjunction/ng-link-directives": "^6.1.0-edge.4",
     "@memberjunction/ng-shared": "^6.1.0-edge.4",

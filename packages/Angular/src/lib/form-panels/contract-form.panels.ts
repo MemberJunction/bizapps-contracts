@@ -4,9 +4,10 @@
  * Replaces leftover generated field dumps (Contract Details, Stakeholders, Provenance,
  * Lifecycle, Notes) with:
  *   Overview (exec briefing) · Agreement · Parties · Dates · Renewal · Notes
- *   Modifications · Documents · Lineage · Re-papering · Provenance
+ *   Modifications · Lineage · Re-papering · Provenance
  *
- * Dates / Renewal / Documents / Lineage / Re-papering already live in sibling files.
+ * Dates / Renewal / Lineage / Re-papering already live in sibling files.
+ * Files on a contract are MJ's stock attachments (form toolbar), not a custom Documents section.
  * `contributionKey` equals each panel's `SectionKey`. Overview is the only
  * `inclusion: 'Primary'` so it leads; the rest sort into the related band by sortKey.
  *
