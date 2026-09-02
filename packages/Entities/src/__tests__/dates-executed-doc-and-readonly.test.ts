@@ -6,10 +6,12 @@
  * here against a constructed entity rather than being asserted from source. The others are structural
  * — a view's SQL, a field flag, a deleted template line — and none needs a database to be true.
  *
- * WHAT IS ABSENT AND WHY: item 13 (`Terminated` inclusive of its date) is NOT implemented and has no
- * test. The current `<` boundary is a documented, reasoned decision — a period ending on a date runs
- * through the end of that date — and `state-derivation.mjs` asserts it in three fixtures. Item 13
- * reverses it, and whether that is intended needs a person's ruling, not a quiet edit.
+ * ON ITEM 13, WHICH THIS FILE ONCE SAID WAS UNRESOLVED: it shipped one commit later, in
+ * `V202609010200`, after the ruling that item 13 had already made the call explicitly — `<=` on
+ * Terminated, `<` on Expired. Its own tests live in `contract-state.test.ts` and
+ * `state-derivation.mjs`. What remains here is narrower and still worth having: item 16's migration
+ * must not carry the boundary change, because item 13's migration owns it and two files editing the
+ * same predicate is how one silently wins.
  */
 import { readFileSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -23,9 +25,10 @@ const ENTITY = readFileSync(root('packages/Entities/src/ContractEntity.ts'), 'ut
 const PANELS = strip(readFileSync(root('packages/Angular/src/lib/form-panels/contract.panels.ts'), 'utf8'));
 const FORM_FIELDS_RAW = readFileSync(root('packages/Angular/src/lib/form-panels/contract-form.panels.ts'), 'utf8');
 
-/** SQL with `--` line comments removed. The migration's header discusses item 13 at length in order
- *  to explain why it is NOT implemented, so an absence check against the raw file reports the
- *  explanation as the defect. */
+/** SQL with `--` line comments removed. Item 16's migration header discusses item 13 at length — it
+ *  was written before item 13 shipped and records why that boundary was excluded from THIS file — so
+ *  an absence check against the raw text reports the explanation as the defect. The header itself
+ *  stays as written: an applied migration is immutable. */
 const sqlCode = (t: string) => t.replace(/^\s*--.*$/gm, '');
 
 /**
@@ -95,6 +98,13 @@ describe('item 12 — a term cannot end before it starts', () => {
 });
 
 describe('item 16 — only the executed agreement clears the flag', () => {
+    it('exactly one migration seeds the category, so the target is unambiguous', () => {
+        // If this fails the helper above picked nothing or picked between two, and every assertion
+        // in this block is then reading a file nobody chose. Fail here, loudly, rather than there.
+        expect(migrationFiles()).toHaveLength(1);
+        expect(migrationFiles()[0]).toContain('IsAwaitingDocument_executed_agreement');
+    });
+
     it('the view requires the file to carry the category', () => {
         const m = migration();
         expect(m).not.toBe('');
@@ -122,12 +132,18 @@ describe('item 16 — only the executed agreement clears the flag', () => {
         expect(migration()).toContain('ct.RequiresExecutedDocument = 1');
     });
 
-    it('does NOT smuggle in item 13', () => {
-        // The Terminated boundary is a separate, contested decision. If someone implements item 13
-        // they must do it deliberately, not inherit it from this migration. Checked against the SQL
-        // rather than the file: the header explains at length why item 13 is absent.
+    it('leaves the Terminated boundary to item 13, which owns it', () => {
+        /*
+         * Item 13 SHIPPED, in V202609010200 — this is no longer "13 is undecided". The guarantee is
+         * that item 16's migration does not also edit that predicate: both files carry the whole view
+         * because CREATE OR ALTER requires it, so if each set the boundary independently the newest
+         * would silently win and the older file would read as authority for something it no longer
+         * decides. One predicate, one owner.
+         *
+         * Checked against the SQL rather than the file text: this migration's header discusses the
+         * boundary at length in order to explain the split.
+         */
         expect(sqlCode(migration())).not.toContain('TerminatedDate <=');
-        // And the executable SQL must still carry the ORIGINAL boundary unchanged.
         expect(sqlCode(migration())).toContain('g.TerminatedDate < CAST(GETUTCDATE() AS date)');
     });
 });
