@@ -548,13 +548,18 @@ export class MJCContractHeroPanel extends BaseFormPanel<ContractEntity> {
                         }
                     </div>
                     <div class="mjc-field">
-                        <label>Renewal notice we owe (days)</label>
+                        <label>Renewal notice (days)</label>
                         @if (EditMode) {
                             <input type="number" min="0" [ngModel]="Record.RenewalNoticeDays"
                                    (ngModelChange)="Set('RenewalNoticeDays', $event)" aria-label="Renewal notice days" />
                         } @else {
                             <div class="mjc-val">{{ Days(Record.RenewalNoticeDays) }}</div>
                         }
+                        <!-- WHICH WAY THE NOTICE RUNS is the whole content of this field, and the label
+                             cannot carry it. "Renewal notice we owe (days)" tried, and produced a label
+                             no other field in the app resembles while still leaving a reader to guess
+                             what the notice is ABOUT. The direction goes in the hint instead. -->
+                        <div class="mjc-hint">Written notice we must give the customer before a renewal price change.</div>
                         @if (NoticeDeadline) {
                             <div class="mjc-hint">deadline: {{ NoticeDeadline | date: 'd MMM y' }}</div>
                         }
@@ -567,6 +572,11 @@ export class MJCContractHeroPanel extends BaseFormPanel<ContractEntity> {
                         } @else {
                             <div class="mjc-val">{{ Days(Record.CancellationWindowDays) }}</div>
                         }
+                        <!-- The MIRROR of the field above, and the pair is the point: one is notice we
+                             owe, one is notice we are owed. The column description says they are not
+                             the same field; two adjacent day-counts with no stated direction is exactly
+                             how they get confused. -->
+                        <div class="mjc-hint">Notice the customer must give us to cancel.</div>
                         @if (InCancellationWindow) { <div class="mjc-hint">the window is open now</div> }
                     </div>
                     <div class="mjc-field">
