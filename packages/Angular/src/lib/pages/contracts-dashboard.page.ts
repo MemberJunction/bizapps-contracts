@@ -215,20 +215,20 @@ export class MJCContractsDashboardPageComponent extends BaseDashboard {
         },
         {
             /**
-             * ⚠ INTENTIONALLY NOT CLICKABLE, pending a decision — and the template must SAY SO via
-             * `[Clickable]="!!tile.GoTo"`. Relying on the shared tile to infer it from "is anything
-             * listening to Clicked" does not work and shipped as a bug: a template binding subscribes
-             * at bind time whatever its handler expression resolves to, so `(Clicked)="tile.GoTo ?
-             * Open(tile) : null"` made this tile focusable, announced as a button and pointer-cursored
-             * while doing nothing at all.
+             * LANDS ON ALL CONTRACTS, NOT ON MODIFICATIONS, and that is a deliberate departure from
+             * the issue's wording.
              *
              * The issue asks this to open the Modifications worklist "sorted by customer, add a
-             * customer column if absent". The modification entity exposes no customer and has no
-             * wrapper view over it (only Contracts and Contract Templates are layered), so that ask
-             * requires a new view plus virtual field registrations — a migration, which the same
-             * issue rules out under "Schema / migration impact: None". Landing on All Contracts with
-             * a modifications pill would need no migration and arguably reads better, since the tile
-             * counts CLIENTS. Left inert rather than silently choosing.
+             * customer name column if absent" — while also declaring "Schema / migration impact:
+             * None". Those cannot both hold: the modification entity exposes no customer, and unlike
+             * Contracts and Contract Templates it has no wrapper view to add one to, so the column
+             * costs a new view plus virtual field registrations. Ordering by a column the view lacks
+             * simply fails.
+             *
+             * So it lands on All Contracts under a pill filtered to exactly what this tile counts,
+             * ordered BY CUSTOMER — which honours the intent ("show me these clients' special
+             * terms") at no schema cost, and arguably reads better: the tile counts CLIENTS, and this
+             * groups each client's agreements together.
              */
             Id: 'special-terms',
             Label: 'Clients with special terms',
@@ -236,7 +236,7 @@ export class MJCContractsDashboardPageComponent extends BaseDashboard {
             Count: null,
             Detail: null,
             Tone: 'none',
-            GoTo: null,
+            GoTo: { PageId: 'list', Preset: 'special-terms' },
         },
     ];
 
