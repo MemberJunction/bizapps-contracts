@@ -29,6 +29,7 @@ import type { RunViewParams } from '@memberjunction/core';
 import { BaseFormsModule } from '@memberjunction/ng-base-forms';
 import { MJC_ENTITIES } from '../data/entity-names';
 import { ScopedRunView } from '../data/provider';
+import { BuildOpenTaskFilters } from '../data/task-filters';
 import { MJCFkNavigateDirective } from '../directives/fk-navigate.directive';
 
 /** One filter pill: a label, the SQL it contributes, and a live count. */
@@ -163,6 +164,39 @@ export abstract class MJCContractGridPageBase implements OnInit {
         this.rebuild();
     }
 
+    /**
+     * A preset requested by the HOST rather than clicked by the user — how a dashboard tile lands on
+     * the list it just counted.
+     *
+     * SETS rather than toggles, which is the whole reason this is not `SelectPill`. Arriving from a
+     * tile whose pill happens to be active already must leave it active; toggling would clear the
+     * filter and show the user everything, which is precisely the opposite of what they asked for.
+     *
+     * ⚠ MUST WORK ON A CACHED PAGE. The section detaches rather than destroys sub-pages, so the
+     * second visit reuses an instance whose `ngOnInit` has long since run — a preset read at init
+     * would be ignored on every visit after the first. `rebuild()` ends in `detectChanges()`, which
+     * is what makes the re-inserted view actually repaint.
+     */
+    public ApplyPreset(pillId: string | null): void {
+        if (pillId && !this.Pills.some((p) => p.Id === pillId)) {
+            // The pill exists but has not been built yet — a page whose pills depend on an async read
+            // can be navigated to before that read lands. Hold it; `applyPendingPreset` finishes the job.
+            this.pendingPresetId = pillId;
+            return;
+        }
+        this.pendingPresetId = null;
+        this.ActivePillId = pillId;
+        this.rebuild();
+    }
+
+    /** Set when a preset arrived before its pill existed. */
+    protected pendingPresetId: string | null = null;
+
+    /** Subclasses that add pills asynchronously call this once the pills are in place. */
+    protected applyPendingPreset(): void {
+        if (this.pendingPresetId) this.ApplyPreset(this.pendingPresetId);
+    }
+
     public ApplySearch(text: string): void {
         this.SearchText = text ?? '';
         this.rebuild();
@@ -273,6 +307,48 @@ const GRID_TEMPLATE = `
 })
 export class MJCAllContractsPageComponent extends MJCContractGridPageBase {
     public Intro = 'Every agreement on record. Double-click a row to open it.';
+
+    /**
+     * The "Has open task" pill is added AFTER init, not declared with the others, because its filter
+     * has to be built from live metadata — the Tasks entity ids and the CONTRACT_PROCESSING type id
+     * are database values, not constants (see `data/task-filters.ts`).
+     *
+     * When bizapps-tasks is absent the pill is NOT ADDED AT ALL. A pill whose filter matches nothing
+     * would render "Has open task 0" and read as "there is no work", which is a claim this page has
+     * no business making on a host where tasks do not exist. Absent beats wrong.
+     */
+    public override ngOnInit(): void {
+        super.ngOnInit();
+        void this.addOpenTaskPill();
+    }
+
+    private async addOpenTaskPill(): Promise<void> {
+        const filters = await BuildOpenTaskFilters();
+        if (!filters) return;
+
+        this.Pills = [
+            ...this.Pills,
+            {
+                Id: 'has-open-task',
+                Label: 'Has open task',
+                Filter: filters.HasOpenTask,
+                Hint: 'Finance has an open Contract Processing task on this contract',
+            },
+        ];
+        // A tile may have navigated here before this pill existed.
+        this.applyPendingPreset();
+        void this.refreshCounts();
+    }
+
+    /**
+     * Task-first ordering when the task pill is active: the oldest untouched contract is the one to
+     * chase. Otherwise identity order, as before.
+     */
+    protected override get orderBy(): string {
+        return this.ActivePillId === 'has-open-task'
+            ? 'CASE WHEN EffectiveDate IS NULL THEN 1 ELSE 0 END, EffectiveDate ASC'
+            : super.orderBy;
+    }
 
     protected get pills(): MJCFilterPill[] {
         return [
