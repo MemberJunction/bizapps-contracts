@@ -1,0 +1,24 @@
+[
+  {
+    "fields": {
+      "Name": "Contracts Special Terms",
+      "CategoryID": "@lookup:MJ: Query Categories.Name=Contracts",
+      "UserQuestion": "How many clients have contracts that deviate from our standard terms, and across how many contracts?",
+      "Description": "One row: the number of DISTINCT customers holding at least one Active or Executed contract with recorded modifications, and the number of such contracts. Drives the Contracts dashboard's \"Clients with special terms\" tile and its \"across N contracts\" footnote — one read so the two figures cannot disagree.",
+      "SQL": "@file:SQL/contracts-special-terms.sql",
+      "TechnicalDescription": "Nunjucks-parameterized on CompanyIDs (optional array of Company UUIDs from the dashboard's company chips, passed through the sqlIn filter; omitted entirely when empty, since sqlIn renders (NULL) for an empty array and would match nothing). Aggregates __mj_BizAppsContracts.vwContracts where HasModifications = 1 and State IN ('Active','Executed'). Always returns exactly one row, with zeros when nothing matches.",
+      "Status": "Approved",
+      "QualityRank": 8,
+      "ExecutionCostRank": 1,
+      "UsesTemplate": true
+    },
+    "relatedEntities": {},
+    "primaryKey": {
+      "ID": "A93597C0-100E-4059-ABC5-E08DD708E520"
+    },
+    "sync": {
+      "lastModified": "2026-09-02T04:48:01.057Z",
+      "checksum": "66fa90529cb3d1e9563d63164ba21a9ecfb2382bfb6604d2be7b5e99efc9bd7a"
+    }
+  }
+]

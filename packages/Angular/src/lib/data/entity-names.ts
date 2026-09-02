@@ -41,3 +41,18 @@ export const MJC_FOREIGN_ENTITIES = {
     TaskLink: 'MJ_BizApps_Tasks: Task Links',
     TaskType: 'MJ_BizApps_Tasks: Task Types',
 } as const;
+
+/**
+ * Stored queries this app owns, addressed by name the way entities are.
+ *
+ * `RunQuery` resolves by NAME plus category path, so these strings carry the same typo hazard the
+ * entity names do — wrong by one character and the tile renders an em dash at runtime with nothing
+ * failing to compile. The rows live in `metadata/queries/`; the category in `metadata/query-categories/`.
+ */
+export const MJC_QUERIES = {
+    /** Distinct customers with an in-force modified agreement, and how many contracts that spans. */
+    SpecialTerms: 'Contracts Special Terms',
+} as const;
+
+/** The category every query above hangs under — `RunQuery`'s `CategoryPath`. */
+export const MJC_QUERY_CATEGORY = 'Contracts';

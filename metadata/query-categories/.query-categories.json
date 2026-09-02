@@ -1,0 +1,17 @@
+[
+  {
+    "fields": {
+      "Name": "Contracts",
+      "ParentID": null,
+      "Description": "BizApps Contracts stored queries — read-only aggregates the client cannot express as a RunView, such as distinct-customer counts.",
+      "UserID": "@lookup:MJ: Users.Name=System"
+    },
+    "primaryKey": {
+      "ID": "403FF34D-48C7-44BD-9870-9413FC121789"
+    },
+    "sync": {
+      "lastModified": "2026-09-02T04:47:42.292Z",
+      "checksum": "4d81b91b59f5231b8c07ebf0e6bd39e6297f5817e7e6b33ebe1710f823637dbf"
+    }
+  }
+]
