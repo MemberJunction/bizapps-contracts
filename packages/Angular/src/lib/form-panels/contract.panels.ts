@@ -369,6 +369,8 @@ export class MJCContractHeroPanel extends BaseFormPanel<ContractEntity> {
     private sourceFor: string | null = null;
     public SourceLabel = 'Source record';
     public SourceName = '';
+    /** Set when the provenance names a record that does not exist — the stat hides rather than link. */
+    public SourceMissing = false;
 
     /**
      * Whether this contract records what created it.
@@ -383,8 +385,8 @@ export class MJCContractHeroPanel extends BaseFormPanel<ContractEntity> {
         const recordID = this.Record?.CreatingRecordID;
         if (!entityID || !recordID) return false;
         const key = `${this.Record?.ID}:${entityID}:${recordID}`;
-        if (this.sourceFor !== key) { this.sourceFor = key; void this.loadSource(key); }
-        return true;
+        if (this.sourceFor !== key) { this.sourceFor = key; this.SourceMissing = false; void this.loadSource(key); }
+        return !this.SourceMissing;
     }
 
     /** The entity named by `CreatingEntityID`, or null when the id names nothing this user can see. */
@@ -422,10 +424,24 @@ export class MJCContractHeroPanel extends BaseFormPanel<ContractEntity> {
             // Guard against a slower read for a PREVIOUS record landing after the form moved on.
             if (this.sourceFor !== key) return;
             const row = r?.Success ? r.Results?.[0] : undefined;
+            if (r?.Success && !row) {
+                // READ SUCCEEDED AND MATCHED NOTHING: the provenance names a row that is not there,
+                // so there is nothing to open and the stat hides itself. This is the case the
+                // fallback below used to swallow — CTR-000026 carries a hand-typed pair whose record
+                // id is not even a UUID, and the stat rendered an "Open" button that navigated
+                // nowhere. A link that cannot work is worse than an absent stat: it invites a click
+                // and spends the reader's trust.
+                this.SourceMissing = true;
+                this.SourceName = '';
+                return;
+            }
+            this.SourceMissing = false;
             this.SourceName = row ? String(row[nameField] ?? '') : '';
         } catch {
-            // The link still works without a name — the stat falls back to "Open" rather than
-            // vanishing, because the source record exists whether or not we could read its title.
+            // A THROWN read is the different case, and the fallback is still right for it: the record
+            // may well exist and simply be unreadable by this user, so the link stays and the stat
+            // says "Open". Conflating the two is what made the dead button look deliberate.
+            this.SourceMissing = false;
             this.SourceName = '';
         } finally {
             this.cdr.detectChanges();
