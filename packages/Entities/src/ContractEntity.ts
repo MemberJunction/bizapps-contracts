@@ -113,8 +113,52 @@ export class ContractEntity extends mjBizAppsContractsContractEntity {
         }
 
         this.refuseDuplicateStagedModifications(result);
+        this.refuseEndBeforeEffective(result);
 
         return result;
+    }
+
+    /**
+     * R-19 — a term cannot end before it starts (issue #28 item 12).
+     *
+     * WHY THIS IS HERE AND NOT LEFT TO THE DATABASE. `CK_Contract_Dates` already refuses it, and that
+     * is the floor rather than the answer: a CHECK reports a constraint name and no field, so the user
+     * saw a raw SQL error naming `CK_Contract_Dates` after pressing Save and had to work out for
+     * themselves which of four date fields was wrong. This says which field and what the rule is,
+     * BEFORE a save is attempted.
+     *
+     * ON THE SHARED SUBCLASS, so it runs in both tiers. `Validate()` is called client-side by the form
+     * and server-side inside `ValidateAsync()`, so a browser gets the message inline and an import or
+     * another app gets the same refusal — one rule, not a UI courtesy with a different backstop.
+     *
+     * INCLUSIVE, deliberately: a term that starts and ends on the same day is a single-day agreement,
+     * which is unusual but not wrong, and the constraint permits it. Only END BEFORE EFFECTIVE is
+     * refused. Both dates absent, or either one absent, is not this rule's business — a contract may
+     * legitimately be drafted before its dates are known.
+     */
+    private refuseEndBeforeEffective(result: ValidationResult): void {
+        const effective = this.EffectiveDate;
+        const end = this.EndDate;
+        if (!effective || !end) return;
+
+        // Compared as calendar DAYS, not instants. These are `date` columns, but the entity hands back
+        // a JS Date whose time component is whatever the transport produced — comparing raw values
+        // would refuse a same-day term whose two values differ by hours.
+        const day = (d: Date | string): number => {
+            const v = d instanceof Date ? d : new Date(String(d));
+            return Date.UTC(v.getUTCFullYear(), v.getUTCMonth(), v.getUTCDate());
+        };
+        if (day(end) >= day(effective)) return;
+
+        result.Success = false;
+        result.Errors.push(
+            new ValidationErrorInfo(
+                'EndDate',
+                'End Date must be on or after the Effective Date.',
+                this.EndDate,
+                ValidationErrorType.Failure,
+            ),
+        );
     }
 
     /**

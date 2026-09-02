@@ -719,7 +719,6 @@ export class MJCContractRenewalPanel extends BaseFormPanel<ContractEntity> {
                         } @else {
                             <div class="mjc-val">{{ (Record.EndDate | date: 'd MMM y') || '—' }}</div>
                         }
-                        @if (Record.DaysToEnd !== null) { <div class="mjc-hint">{{ EndsInText }}</div> }
                     </div>
                     <div class="mjc-field">
                         <label>Terminated date</label>
@@ -749,13 +748,8 @@ export class MJCContractDatesPanel extends BaseFormPanel<ContractEntity> {
         (this.Record as unknown as Record<string, unknown>)[field] = value ? new Date(value + 'T00:00:00Z') : null;
     }
 
-    public get EndsInText(): string {
-        const d = this.Record?.DaysToEnd ?? null;
-        if (d === null) return '';
-        if (d < 0) return `ended ${Math.abs(d)} days ago`;
-        if (d === 0) return 'ends today';
-        return d < 60 ? `in ${d} days` : `in ${Math.round(d / 30)} months`;
-    }
+    /* EndsInText removed with the hint it fed (issue #28 item 20): the countdown is stated once, in
+     * the header, where it is visible without opening a tab. The hero keeps its own copy. */
 }
 
 /* ────────────────────────────────────────────────────────────────────────────
