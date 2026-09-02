@@ -37,7 +37,7 @@
  */
 import { ChangeDetectorRef, Component, EventEmitter, Output, ViewEncapsulation, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { CompositeKey, type RunViewParams } from '@memberjunction/core';
+import { CompositeKey, RunQuery, type RunViewParams } from '@memberjunction/core';
 import { BaseDashboard, NavigationService } from '@memberjunction/ng-shared';
 import type { ResourceData } from '@memberjunction/core-entities';
 import { EntityViewerModule, type AfterRowClickEventArgs, type GridColumnConfig } from '@memberjunction/ng-entity-viewer';
@@ -48,7 +48,7 @@ import {
     type FilterFieldConfig,
 } from '@memberjunction/ng-ui-components';
 import { StatRowComponent, StatTileComponent, type StatTileTone } from '@mj-biz-apps/common-ng';
-import { MJC_ENTITIES, MJC_FOREIGN_ENTITIES } from '../data/entity-names';
+import { MJC_ENTITIES, MJC_FOREIGN_ENTITIES, MJC_QUERIES, MJC_QUERY_CATEGORY } from '../data/entity-names';
 import { ScopedRunView } from '../data/provider';
 import { BuildOpenTaskFilters } from '../data/task-filters';
 
@@ -145,7 +145,8 @@ const GRID_ORDER = 'EffectiveDate DESC, ContractNumber DESC';
                         [Value]="tile.Count"
                         [Detail]="tile.Detail"
                         [Tone]="tile.Tone"
-                        (Clicked)="tile.GoTo ? Open(tile) : null" />
+                        [Clickable]="!!tile.GoTo"
+                        (Clicked)="Open(tile)" />
                 }
             </bizapps-stat-row>
 
@@ -214,9 +215,12 @@ export class MJCContractsDashboardPageComponent extends BaseDashboard {
         },
         {
             /**
-             * ⚠ INTENTIONALLY NOT CLICKABLE, pending a decision — and the tile handles that by
-             * itself: with no `GoTo` nothing subscribes usefully, and the shared tile is only
-             * focusable and announced as a button when a click does something.
+             * ⚠ INTENTIONALLY NOT CLICKABLE, pending a decision — and the template must SAY SO via
+             * `[Clickable]="!!tile.GoTo"`. Relying on the shared tile to infer it from "is anything
+             * listening to Clicked" does not work and shipped as a bug: a template binding subscribes
+             * at bind time whatever its handler expression resolves to, so `(Clicked)="tile.GoTo ?
+             * Open(tile) : null"` made this tile focusable, announced as a button and pointer-cursored
+             * while doing nothing at all.
              *
              * The issue asks this to open the Modifications worklist "sorted by customer, add a
              * customer column if absent". The modification entity exposes no customer and has no
@@ -371,7 +375,7 @@ export class MJCContractsDashboardPageComponent extends BaseDashboard {
             this.countToProcess(count, failures),
             this.countAwaiting(count),
             this.countNoticeDeadlines(count),
-            this.countSpecialTerms(rv, failures),
+            this.countSpecialTerms(failures),
         ]);
 
         this.CountError = failures.length
@@ -448,30 +452,28 @@ export class MJCContractsDashboardPageComponent extends BaseDashboard {
     /**
      * Distinct customers carrying at least one modified agreement.
      *
-     * ONE READ, NOT A STORED QUERY. The issue calls for a query file because `RunView` "has no shape
-     * for COUNT(DISTINCT …)" — it does: `Aggregates` run as a parallel query over the same WHERE
-     * (filters and RLS included), unaffected by paging, and are plumbed client-to-server. That
-     * replaces a query category, a sync manifest, a query JSON and a `.sql` file with six lines, and
-     * keeps the company filter working without parameterising SQL by hand.
+     * A STORED QUERY, not a `RunView`. The tile counts CUSTOMERS while every other tile counts
+     * contracts, and a distinct count is not a shape `RunView` returns — doing it client-side would
+     * mean paging every modified contract into the browser purely to de-duplicate an id.
+     *
+     * The value and its "across N contracts" footnote come back in ONE ROW of one query. Read as two
+     * queries they could disagree by whatever write landed between them, and a footnote that
+     * contradicts the number above it is worse than no footnote.
+     *
+     * The company chips travel as a parameter rather than as SQL text: `CompanyIDs` is quoted and
+     * escaped by the template's `sqlIn` filter (see `metadata/queries/SQL/contracts-special-terms.sql`).
      */
-    private async countSpecialTerms(
-        rv: ReturnType<typeof ScopedRunView>,
-        failures: string[],
-    ): Promise<void> {
+    private async countSpecialTerms(failures: string[]): Promise<void> {
         const tile = this.tile('special-terms');
         try {
-            const result = await rv.RunView({
-                EntityName: MJC_ENTITIES.Contract,
-                ExtraFilter: this.scoped(`HasModifications = 1 AND State IN ('Active','Executed')`),
-                MaxRows: 1,
-                Aggregates: [
-                    { expression: 'COUNT(DISTINCT CustomerOrganizationID)', alias: 'CustomerCount' },
-                    { expression: 'COUNT(*)', alias: 'ContractCount' },
-                ],
+            const result = await new RunQuery(this.RunQueryToUse).RunQuery({
+                QueryName: MJC_QUERIES.SpecialTerms,
+                CategoryPath: MJC_QUERY_CATEGORY,
+                Parameters: { CompanyIDs: this.SelectedCompanyIDs },
             });
-            const agg = (result?.AggregateResults ?? []) as { alias?: string; value?: unknown }[];
-            const customers = numberFrom(agg, 'CustomerCount');
-            const contracts = numberFrom(agg, 'ContractCount');
+            const row = result?.Success ? (result.Results?.[0] as Record<string, unknown> | undefined) : undefined;
+            const customers = numberFrom(row, 'CustomerCount');
+            const contracts = numberFrom(row, 'ContractCount');
             if (customers === null) {
                 failures.push('Clients with special terms');
                 tile.Count = null;
@@ -479,7 +481,8 @@ export class MJCContractsDashboardPageComponent extends BaseDashboard {
                 return;
             }
             tile.Count = customers;
-            tile.Detail = contracts === null ? null : `across ${contracts} contracts`;
+            tile.Detail =
+                contracts === null ? null : `across ${contracts} contract${contracts === 1 ? '' : 's'}`;
         } catch {
             failures.push('Clients with special terms');
             tile.Count = null;
@@ -505,11 +508,16 @@ export class MJCContractsDashboardPageComponent extends BaseDashboard {
 }
 
 /**
- * Aggregate results come back as an ordered list of `{ alias, value }`, and the value's runtime type
- * depends on the driver — read it by alias and coerce once, here, rather than trusting a position.
+ * One numeric column out of a query row.
+ *
+ * Case-insensitive by fallback because column casing is the DRIVER's to decide, not the query
+ * author's — the same statement can come back `CustomerCount`, `customercount` or `CUSTOMERCOUNT`
+ * depending on platform, and a tile that renders "—" because of letter case is the most annoying
+ * possible bug to find.
  */
-function numberFrom(results: { alias?: string; value?: unknown }[], alias: string): number | null {
-    const raw = results.find((r) => r.alias === alias)?.value;
+function numberFrom(row: Record<string, unknown> | undefined, column: string): number | null {
+    if (!row) return null;
+    const raw = row[column] ?? row[column.toLowerCase()] ?? row[column.toUpperCase()];
     const n = Number(raw);
     return Number.isFinite(n) ? n : null;
 }
