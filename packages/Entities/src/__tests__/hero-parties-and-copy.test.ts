@@ -112,6 +112,30 @@ describe('item 1 — the source record, as a link', () => {
         expect(PANELS).not.toContain('NavigationService');
     });
 
+    it('hides the stat when the provenance names a record that does not exist', () => {
+        /*
+         * A read that SUCCEEDS and matches nothing means the pair points at a row that is not there
+         * — CTR-000026 carries a hand-typed pair whose record id is not even a UUID — and the stat
+         * used to render an "Open" button that navigated nowhere. A link that cannot work is worse
+         * than an absent stat: it invites a click and spends the reader's trust.
+         */
+        const fn = PANELS_RAW.slice(PANELS_RAW.indexOf('private async loadSource('));
+        const body = fn.slice(0, fn.indexOf('\n    }\n'));
+        expect(body).toContain('if (r?.Success && !row)');
+        expect(body).toContain('this.SourceMissing = true;');
+        expect(PANELS_RAW).toContain('return !this.SourceMissing;');
+    });
+
+    it('but KEEPS the link when the read merely threw — a different case', () => {
+        // The record may exist and simply be unreadable by this user; the fallback to "Open" is
+        // right there. Conflating the two is what made the dead button look deliberate.
+        const fn = PANELS_RAW.slice(PANELS_RAW.indexOf('private async loadSource('));
+        const body = fn.slice(0, fn.indexOf('\n    }\n'));
+        const catchAt = body.indexOf('} catch {');
+        expect(catchAt).toBeGreaterThan(-1);
+        expect(body.slice(catchAt)).toContain('this.SourceMissing = false;');
+    });
+
     it('a slow read for a previous record cannot overwrite the current one', () => {
         const fn = PANELS_RAW.slice(PANELS_RAW.indexOf('private async loadSource('));
         expect(fn.slice(0, fn.indexOf('\n    }\n'))).toContain('if (this.sourceFor !== key) return;');
