@@ -28,14 +28,33 @@ const FORM_FIELDS_RAW = readFileSync(root('packages/Angular/src/lib/form-panels/
  *  explanation as the defect. */
 const sqlCode = (t: string) => t.replace(/^\s*--.*$/gm, '');
 
-/** The item-16 migration, found by content so a rename does not silently skip the test. */
+/**
+ * The item-16 migration, identified by the one thing only IT contains.
+ *
+ * ⚠ THIS USED TO FLAKE, and the failure mode is worth stating because the obvious fix does not fix
+ * it. The helper matched `fc.Name = 'Executed Agreement'` and returned the FIRST hit from an
+ * unsorted `readdirSync` — but item 13's migration carries the whole view, category gate included,
+ * so BOTH files match. Directory order is not guaranteed (a plain `grep -l` on this repo already
+ * lists them 0200-first), so on CI the helper could read item 13's file and fail the two
+ * Terminated-boundary assertions below. Caught in review of PR #36.
+ *
+ * SORTING WOULD NOT HAVE FIXED IT EITHER, only hidden it: `.sort().pop()` would silently re-target
+ * the moment a third migration touched the view, which is exactly what happened to
+ * `contract-state.test.ts`. So the match is on the category SEED — the `INSERT INTO … FileCategory`
+ * that creates the row — which item 16 owns and item 13's view rewrite does not carry. Exactly one
+ * file can match, and the count is asserted rather than assumed.
+ */
+const MIGRATION_MARKER = 'INSERT INTO [${mjSchema}].[FileCategory]';
+const migrationFiles = (): string[] => {
+    const dir = root('migrations');
+    return readdirSync(dir)
+        .filter((x) => x.endsWith('.sql'))
+        .filter((f) => readFileSync(dir + '/' + f, 'utf8').includes(MIGRATION_MARKER));
+};
 const migration = (): string => {
     const dir = root('migrations');
-    for (const f of readdirSync(dir).filter((x) => x.endsWith('.sql'))) {
-        const t = readFileSync(dir + '/' + f, 'utf8');
-        if (t.includes("fc.Name = 'Executed Agreement'")) return t;
-    }
-    return '';
+    const found = migrationFiles();
+    return found.length === 1 ? readFileSync(dir + '/' + found[0], 'utf8') : '';
 };
 
 describe('item 12 — a term cannot end before it starts', () => {
