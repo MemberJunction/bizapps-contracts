@@ -52,6 +52,8 @@ export interface SupersedeInput {
     /**
      * A contract to ADD to what this agreement supersedes. Existing predecessors are left alone —
      * a successor may replace many earlier agreements. Null/absent links nothing.
+     *
+     * Mutually exclusive with `ReleasePredecessorID`: one verb per call, and both set is refused.
      */
     PredecessorID?: string | null;
     /**
@@ -81,6 +83,21 @@ export class SupersedeOperation extends BaseRemotableOperation<SupersedeInput, S
         _context: RemoteOpServerContext,
     ): Promise<SupersedeOutput> {
         if (!input?.SuccessorID) throw new Error('SuccessorID is required.');
+
+        // ONE VERB PER CALL. Both inputs set is refused rather than ordered, because there is no
+        // ordering that makes it mean something. The two branches below share a single pre-release
+        // snapshot of the predecessor list — release checks its target is in it, link checks its
+        // target is NOT — so `PredecessorID === ReleasePredecessorID` releases the contract and then
+        // skips the link, having found it in a list taken before the release. The caller asked for a
+        // link and got none, silently. Reading the list twice would make that particular pair work
+        // and would still leave the call ambiguous: releasing X while linking Y is two decisions in
+        // one request, and the panel sends one verb at a time. Say so instead of picking for them.
+        if (input.PredecessorID && input.ReleasePredecessorID) {
+            throw new Error(
+                'Supersede takes one action at a time: PredecessorID to add a predecessor, or ' +
+                    'ReleasePredecessorID to release one — not both in the same call.',
+            );
+        }
 
         const successor = await provider.GetEntityObject<ContractEntity>(E_CONTRACT, user);
         if (!(await successor.Load(input.SuccessorID))) {

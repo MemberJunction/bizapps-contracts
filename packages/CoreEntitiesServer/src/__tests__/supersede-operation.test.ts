@@ -77,6 +77,26 @@ describe('item 9 — release names exactly one record', () => {
     });
 });
 
+describe('one verb per call', () => {
+    it('refuses both inputs in the same request', () => {
+        const body = executeBody();
+        expect(body).toContain('if (input.PredecessorID && input.ReleasePredecessorID)');
+        expect(body).toMatch(/PredecessorID && input\.ReleasePredecessorID\)[\s\S]{0,400}throw new Error/);
+    });
+
+    it('refuses BEFORE reading anything, so a rejected call writes nothing', () => {
+        const body = executeBody();
+        const guard = body.indexOf('input.PredecessorID && input.ReleasePredecessorID');
+        const read = body.indexOf('const current = await this.readSupersedes');
+        expect(guard).toBeGreaterThan(-1);
+        expect(guard).toBeLessThan(read);
+    });
+
+    it('the input contract says they are mutually exclusive', () => {
+        expect(OP).toContain('Mutually exclusive with `ReleasePredecessorID`');
+    });
+});
+
 describe('item 10 — link adds, and leaves existing predecessors alone', () => {
     it('the release-every-other-predecessor loop is gone', () => {
         const body = executeBody();
