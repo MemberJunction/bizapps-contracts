@@ -341,13 +341,22 @@ export class MJCAllContractsPageComponent extends MJCContractGridPageBase {
     }
 
     /**
-     * Task-first ordering when the task pill is active: the oldest untouched contract is the one to
-     * chase. Otherwise identity order, as before.
+     * The active pill decides the ordering, because each of these pills asks a different question and
+     * a question implies its own "most important first".
+     *
+     * Task-first: the oldest untouched contract is the one to chase. Special terms: BY CUSTOMER, which
+     * is what the dashboard tile counts — it counts clients, so its landing list groups a client's
+     * agreements together rather than scattering them through a number-ordered list.
      */
     protected override get orderBy(): string {
-        return this.ActivePillId === 'has-open-task'
-            ? 'CASE WHEN EffectiveDate IS NULL THEN 1 ELSE 0 END, EffectiveDate ASC'
-            : super.orderBy;
+        switch (this.ActivePillId) {
+            case 'has-open-task':
+                return 'CASE WHEN EffectiveDate IS NULL THEN 1 ELSE 0 END, EffectiveDate ASC';
+            case 'special-terms':
+                return 'CustomerOrganization ASC, EffectiveDate DESC';
+            default:
+                return super.orderBy;
+        }
     }
 
     protected get pills(): MJCFilterPill[] {
@@ -356,6 +365,33 @@ export class MJCAllContractsPageComponent extends MJCContractGridPageBase {
             { Id: 'active', Label: 'In force', Filter: `State = 'Active'`, Hint: 'Started and not yet ended' },
             { Id: 'executed', Label: 'Signed, not started', Filter: `State = 'Executed'`, Hint: 'Executed with a future effective date' },
             { Id: 'modified', Label: 'Modified', Filter: 'HasModifications = 1', Hint: 'Deviates from the standard agreement' },
+            {
+                /**
+                 * WHERE THE DASHBOARD'S "Clients with special terms" TILE LANDS.
+                 *
+                 * ⚠ THIS PREDICATE IS ALSO WRITTEN IN SQL, in
+                 * `metadata/queries/SQL/contracts-special-terms.sql`, which is what produces the tile's
+                 * count. The two cannot be collapsed — one runs server-side as a stored query because
+                 * it counts DISTINCT customers, the other is a client filter over the same view — so
+                 * they are paired by comment at both ends and each names the other.
+                 *
+                 * There is deliberately NO test asserting the two strings match. This repo already
+                 * tried mirroring a rule across TypeScript and SQL with a text-comparing guard
+                 * (`contract-state.ts`), and it failed exactly where a text guard is blind: the two
+                 * renderings diverged SEMANTICALLY while still looking similar. A guard that has to be
+                 * right about two implementations is a third thing to get wrong. If these drift, the
+                 * tile's footnote and this list's row count disagree — which is visible on screen, and
+                 * is a better detector than a green test.
+                 *
+                 * Narrower than 'modified' above on purpose: that pill is every modified agreement
+                 * including expired ones, which is a real question; this one is agreements IN FORCE
+                 * that deviate, which is what the tile counts.
+                 */
+                Id: 'special-terms',
+                Label: 'Special terms',
+                Filter: `HasModifications = 1 AND State IN ('Active','Executed')`,
+                Hint: 'In force and deviating from the standard agreement — the dashboard tile lands here',
+            },
             { Id: 'all', Label: 'All', Filter: '', Hint: 'Including expired, terminated and superseded' },
         ];
     }

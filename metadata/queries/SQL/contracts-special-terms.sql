@@ -10,8 +10,18 @@
 --
 -- Scope matches the tile's own wording exactly — agreements IN FORCE that deviate from standard
 -- terms. An expired contract that once carried modifications is history, not a live negotiation, so
--- 'Active' and 'Executed' are the only states that count. Change this and the dashboard's grid stops
--- agreeing with the tile above it.
+-- 'Active' and 'Executed' are the only states that count.
+--
+-- ⚠ THE SAME PREDICATE IS WRITTEN ONCE MORE IN TYPESCRIPT, as the 'special-terms' pill in
+-- packages/Angular/src/lib/pages/contract-grid.page.ts — the list this tile CLICKS THROUGH TO. The
+-- two cannot be collapsed: this one has to run server-side because it counts DISTINCT customers,
+-- and that one is a client filter over the same view. Change either and change both, or the tile's
+-- "across N contracts" footnote stops matching the row count of the list it opens.
+--
+-- There is deliberately no test comparing the two strings. This repo mirrored a rule across
+-- TypeScript and SQL once before, guarded it with a text comparison, and the renderings still
+-- diverged semantically while looking alike (see packages/Entities/src/contract-state.ts). The
+-- on-screen disagreement between footnote and row count is the better detector.
 --
 -- CompanyIDs is optional and arrives from the dashboard's company chips. `sqlIn` quotes and escapes
 -- every element, so no id reaches SQL text unescaped; an empty array is guarded by the `if` rather
