@@ -122,9 +122,27 @@ describe('item 18 — the server owns these three fields', () => {
     it.each([
         ['ContractNumber', "{ name: 'ContractNumber', type: 'textbox', readOnly: true }"],
         ['HasModifications', "{ name: 'HasModifications', type: 'checkbox', readOnly: true }"],
-        ['SupersededByContractID', "readOnly: true }"],
+        ['SupersededByContractID', "{ name: 'SupersededByContractID', type: 'textbox', link: 'Record', readOnly: true }"],
+        ['CreatingEntityID', "{ name: 'CreatingEntityID', type: 'textbox', link: 'Record', readOnly: true }"],
+        ['CreatingRecordID', "{ name: 'CreatingRecordID', type: 'textbox', readOnly: true }"],
     ])('%s is read-only', (_n, decl) => {
         expect(FORM_FIELDS_RAW).toContain(decl);
+    });
+
+    it('the Provenance SECTION is kept, contrary to item 18 — deliberately', () => {
+        /*
+         * Item 18 says hide it, because item 1's Source Deal link replaces it. That premise is false
+         * on this database: item 1 renders only when both provenance columns are set, and one contract
+         * of eleven has them — with a hand-typed pair naming `MJ: Explorer Navigation Items` and a
+         * record id that is not a valid UUID. Hiding the section would remove the only visible
+         * provenance in exchange for a stat that does not appear.
+         *
+         * This test exists so the departure is a decision somebody can find, not a gap. Delete it
+         * together with the panel once a contract created by a real Close-Won deal exists to verify
+         * item 1 against.
+         */
+        expect(FORM_FIELDS_RAW).toContain("replacesSectionKey: 'provenance'");
+        expect(FORM_FIELDS_RAW).toContain('MJCContractProvenanceFieldsPanel');
     });
 
     it('ParentContractID stays editable — item 11 is explicit about it', () => {

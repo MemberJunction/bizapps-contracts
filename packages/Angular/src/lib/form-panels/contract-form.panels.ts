@@ -545,9 +545,32 @@ export class MJCContractNotesPanel extends BaseFormPanel<ContractEntity> {
     `,
 })
 export class MJCContractProvenanceFieldsPanel extends BaseFormPanel<ContractEntity> {
+    /**
+     * READ-ONLY, and the section KEPT — a deliberate departure from issue #28 item 18.
+     *
+     * Item 18 says to hide this section entirely, on the stated grounds that the hero's Source Deal
+     * link (item 1) replaces it. That premise does not hold yet. Item 1 renders the stat ONLY when
+     * `CreatingEntityID` and `CreatingRecordID` are both set, and on this database exactly one contract
+     * of eleven has them — `CTR-000026`, whose pair was typed in by hand: the entity is
+     * `MJ: Explorer Navigation Items` rather than Deals and the record id is not a valid UUID. So on
+     * every contract a person can currently open, the replacement is invisible. Hiding this section
+     * today would remove the only visible provenance for a stat that does not appear.
+     *
+     * WHAT ITEM 18 IS ACTUALLY ABOUT, and this half is not in doubt: these two fields rendered as
+     * ordinary inputs a person could type into, which is how that junk pair got there.
+     * `CreatingEntityID` is a real FK to `__mj.Entity` and `CreatingRecordID` is the row it names, and
+     * `CK_Contract_CreatingPairBothOrNeither` requires both or neither — so editing one field alone
+     * produces a save the constraint refuses, and editing both silently re-points a contract's
+     * provenance at an unrelated record, which is then what the hero's link displays. The server sets
+     * this pair (`LiveContractsSeam.setProvenance`, on Close-Won) and nothing else should.
+     *
+     * Read-only closes that defect and keeps the ids visible beneath the hero's human-readable name —
+     * complements rather than duplicates. Revisit hiding the section once a contract created by a real
+     * Close-Won deal exists to verify item 1 against.
+     */
     public readonly Fields: ContractFieldSpec[] = [
-        { name: 'CreatingEntityID', type: 'textbox', link: 'Record' },
-        { name: 'CreatingRecordID', type: 'textbox' },
+        { name: 'CreatingEntityID', type: 'textbox', link: 'Record', readOnly: true },
+        { name: 'CreatingRecordID', type: 'textbox', readOnly: true },
     ];
 }
 
