@@ -7,7 +7,7 @@
   "types": "dist/index.d.ts",
   "scripts": {
     "build": "tsc && tsc-alias -f",
-    "test": "echo \"No tests configured yet\""
+    "test": "vitest run --passWithNoTests"
   },
   "repository": {
     "type": "git",
@@ -22,7 +22,8 @@
     "@memberjunction/global": "^6.1.0-edge.4"
   },
   "devDependencies": {
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.18"
   },
   "files": [
     "/dist"
