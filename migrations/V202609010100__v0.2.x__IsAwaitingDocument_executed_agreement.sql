@@ -45,7 +45,7 @@ IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[FileCategory] WHERE [Name] = N'Execu
 BEGIN
     INSERT INTO [${mjSchema}].[FileCategory] ([ID], [Name], [Description])
     VALUES (NEWID(), N'Executed Agreement',
-            N'The signed contract itself, as opposed to an exhibit, a draft or a countersigned amendment. Contracts' IsAwaitingDocument reports a contract as awaiting paper until a file in this category is linked to it.');
+            N'The signed contract itself, as opposed to an exhibit, a draft or a countersigned amendment. Contracts'' IsAwaitingDocument reports a contract as awaiting paper until a file in this category is linked to it.');
 END
 GO
 
