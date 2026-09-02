@@ -62,7 +62,7 @@ const pool = await new sql.ConnectionPool({
  */
 const FIXTURES = [
     { label: 'terminated yesterday — the termination has taken effect', terminated: -1, effective: -200, end: 200, superseded: false, expect: 'Terminated' },
-    { label: 'terminated TODAY — in force through the end of the day',  terminated: 0,  effective: -200, end: 200, superseded: false, expect: 'Active' },
+    { label: 'terminated TODAY — termination takes effect on its date',  terminated: 0,  effective: -200, end: 200, superseded: false, expect: 'Terminated' },
     { label: 'terminated TOMORROW — notice served, not yet effective',  terminated: 1,  effective: -200, end: 200, superseded: false, expect: 'Active' },
     { label: 'superseded — the successor FK is the state',              terminated: null, effective: -200, end: 200, superseded: true,  expect: 'Superseded' },
     { label: 'expired — the term ended yesterday',                      terminated: null, effective: -200, end: -1,  superseded: false, expect: 'Expired' },

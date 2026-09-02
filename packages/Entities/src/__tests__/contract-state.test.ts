@@ -15,15 +15,30 @@
  * down against the deployed view.
  */
 import { describe, expect, it } from 'vitest';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { CONTRACT_STATES, type ContractState } from '../contract-state.js';
 
 // The wrapper view moved here in the 2026-08-23 flatten (was
 // V202608182001__v0.1.x__Contracts_derived_columns_outer_view.sql). The assertions below
 // are unchanged — they are what proves the CASE survived the move intact.
-const MIGRATION = 'V202608240200__v0.1.x__Layered_base_views_and_derived_fields.sql';
-const sql = readFileSync(fileURLToPath(new URL(`../../../../migrations/${MIGRATION}`, import.meta.url)), 'utf8');
+/**
+ * The LAST migration that defines `vwContracts` — resolved, not hardcoded.
+ *
+ * This used to name `V202608240200` outright, and that quietly stopped being the authority the first
+ * time a later migration rewrote the view: item 16 changed `IsAwaitingDocument` in V202609010100 and
+ * these tests went on checking the superseded file, green and meaningless. `CREATE OR ALTER` means the
+ * newest definition wins, so the newest is what has to be read. Migration names sort chronologically
+ * by construction (`changes.yml` enforces it), so lexical order is deployment order.
+ */
+const migrationsDir = fileURLToPath(new URL('../../../../migrations/', import.meta.url));
+const MIGRATION = readdirSync(migrationsDir)
+    .filter((f) => f.endsWith('.sql'))
+    .sort()
+    .filter((f) => readFileSync(migrationsDir + f, 'utf8')
+        .includes('CREATE OR ALTER VIEW [${flyway:defaultSchema}].[vwContracts]'))
+    .pop() ?? '';
+const sql = MIGRATION ? readFileSync(migrationsDir + MIGRATION, 'utf8') : '';
 const squash = (s: string) => s.replace(/\s+/g, ' ').trim();
 const flat = squash(sql);
 
@@ -32,17 +47,22 @@ const flat = squash(sql);
  * which fact decides the state, and the predicate that fact has to satisfy.
  *
  * The predicates are matched against the migration text with whitespace normalised, so a reformat of
- * the view does not fail this — but a changed comparison operator does, which is the point. The
- * termination and expiry boundaries are `<` (not `<=`) because a period ending on a date runs through
- * the END of that date: an agreement "terminating on 31 December" is in force all of 31 December. The
- * effective boundary is `<=` for the mirror-image reason — a contract effective today is in force
- * today.
+ * the view does not fail this — but a changed comparison operator does, which is the point.
+ *
+ * THE THREE BOUNDARIES ARE NOT THE SAME, and an earlier version of this comment claimed two of them
+ * were (issue #28 item 13). `EndDate` is `<`: it is the last day OF the term, and a period ending on
+ * a date runs through the END of that date — an agreement "terminating on 31 December" is in force all
+ * of 31 December. `EffectiveDate` is `<=` for the mirror-image reason: a contract effective today is
+ * in force today. `TerminatedDate` is `<=` for a DIFFERENT reason, not by symmetry with EndDate: it
+ * records the date the agreement WAS ENDED — an event, not the natural close of a period. "Terminated
+ * on 15 March" means dead on the 15th. A future TerminatedDate still reads Active, which is what makes
+ * `<=` safe here.
  */
 const RULE: ReadonlyArray<{ state: ContractState; because: string; predicate: string }> = [
     {
         state: 'Terminated',
-        because: 'somebody ended the agreement, and the termination has taken effect',
-        predicate: "g.TerminatedDate IS NOT NULL AND g.TerminatedDate < CAST(GETUTCDATE() AS date) THEN 'Terminated'",
+        because: 'somebody ended the agreement, and the termination takes effect on its own date',
+        predicate: "g.TerminatedDate IS NOT NULL AND g.TerminatedDate <= CAST(GETUTCDATE() AS date) THEN 'Terminated'",
     },
     {
         state: 'Superseded',
