@@ -58,6 +58,27 @@ import {
     MJCTemplateTypesPageComponent,
 } from '../pages/configuration.page';
 
+/**
+ * What a section can ask of a hosted page — every member optional, because the section hosts pages
+ * of three different kinds.
+ *
+ * STRUCTURAL, NOT NOMINAL, and deliberately so. The pages are otherwise independent of the section:
+ * a grid page has pills and no dashboard lifecycle, a dashboard has `Error` and no pills, and a
+ * configuration page has neither. A nominal interface every page had to implement would drag the
+ * shell's world into files that only wanted to emit a string. This type is the duck-typing the
+ * section already did, written down so the casts are checked rather than assumed.
+ */
+interface MJCHostedPage {
+    /** Emitted by a page asking the section to move the rail. A bare id is the legacy shape. */
+    NavigateToPage?: { subscribe: (fn: (target: string | { PageId: string; Preset?: string }) => void) => void };
+    /** Implemented by pages with filter pills — see `MJCContractGridPageBase.ApplyPreset`. */
+    ApplyPreset?: (pillId: string) => void;
+    /** `BaseDashboard` pages only: a load failure that the shell should render. */
+    Error?: { subscribe: (fn: (err: Error) => void) => void };
+    /** `BaseResourceComponent` hook the error guard uses to tell the initial load from a refresh. */
+    LoadCompleteEvent?: (() => void) | null;
+}
+
 /** Shared skeleton for all three sections. */
 @Component({ template: '' })
 export abstract class MJCSectionBaseComponent extends BaseResourceComponent implements OnInit {
@@ -117,12 +138,18 @@ export abstract class MJCSectionBaseComponent extends BaseResourceComponent impl
         });
     }
 
-    /** Rail click handler. */
-    public async OnPageSelected(pageId: string): Promise<void> {
+    /**
+     * Rail click handler, and the arrival point for a dashboard tile.
+     *
+     * `preset` names a filter pill to select on the destination page. A tile that lands on an
+     * unfiltered list has not answered the question it was just asked, so the preset travels with
+     * the navigation rather than being something the destination page guesses.
+     */
+    public async OnPageSelected(pageId: string, preset?: string): Promise<void> {
         this.ActivePageId = pageId;
         this.persistPageId(pageId);
         this.LoadError = null;
-        await this.showPage(pageId);
+        await this.showPage(pageId, preset);
         this.cdr.detectChanges();
     }
 
@@ -132,7 +159,7 @@ export abstract class MJCSectionBaseComponent extends BaseResourceComponent impl
      * Cached views are DETACHED rather than destroyed, which is what preserves state across a trip to
      * another rail item.
      */
-    protected async showPage(pageId: string): Promise<void> {
+    protected async showPage(pageId: string, preset?: string): Promise<void> {
         const host = this.pageHost;
         if (!host) return;
 
@@ -141,6 +168,10 @@ export abstract class MJCSectionBaseComponent extends BaseResourceComponent impl
         const cached = this.mounted.get(pageId);
         if (cached) {
             host.insert(cached.hostView);
+            // A CACHED page has already run ngOnInit, so a preset it read at init would be ignored on
+            // every visit after the first. Apply it here, then force the re-inserted view to repaint.
+            this.applyPreset(cached, preset);
+            cached.changeDetectorRef.detectChanges();
             return;
         }
 
@@ -155,10 +186,51 @@ export abstract class MJCSectionBaseComponent extends BaseResourceComponent impl
         // A page that wants to move the rail asks; it does not route itself. Wired by DUCK TYPING
         // rather than a shared interface because the pages are otherwise independent of the section,
         // and an interface would make every page import the shell's world just to emit a string.
-        const instance = ref.instance as { NavigateToPage?: { subscribe: (fn: (id: string) => void) => void } };
-        instance.NavigateToPage?.subscribe((id: string) => void this.OnPageSelected(id));
+        const instance = ref.instance as MJCHostedPage;
+        instance.NavigateToPage?.subscribe((target) =>
+            void this.OnPageSelected(
+                typeof target === 'string' ? target : target.PageId,
+                typeof target === 'string' ? undefined : target.Preset,
+            ),
+        );
+        this.subscribeToPageError(instance);
+        this.applyPreset(ref, preset);
         this.mounted.set(pageId, ref);
         ref.changeDetectorRef.detectChanges();
+    }
+
+    /** Hand a preset to a page that accepts one. Pages without pills simply do not implement it. */
+    private applyPreset(ref: ComponentRef<unknown>, preset: string | undefined): void {
+        if (!preset) return;
+        (ref.instance as MJCHostedPage).ApplyPreset?.(preset);
+    }
+
+    /**
+     * Surface a `BaseDashboard` sub-page's load failure in the shell's error line.
+     *
+     * A `BaseDashboard` catches a failing `loadData()`, emits `Error` and STILL signals load-complete
+     * — so without this subscription a failed dashboard renders as a blank pane and a console
+     * message, which reads as an empty app rather than a broken query.
+     *
+     * ⚠ SCOPED TO THE INITIAL LOAD, and that guard is load-bearing rather than defensive. Pages are
+     * cached and kept alive across rail switches, and `LoadError` is only cleared by the next
+     * `OnPageSelected` — so a failure from a later `Refresh()` (the dashboard refreshes itself
+     * whenever its company filter changes) would pin a stale banner, potentially over a completely
+     * different page. MJ's own Admin container guards it the same way, for the same reason.
+     */
+    private subscribeToPageError(instance: MJCHostedPage): void {
+        if (!instance.Error?.subscribe) return;
+        let settled = false;
+        const priorComplete = instance.LoadCompleteEvent;
+        instance.LoadCompleteEvent = () => {
+            settled = true;
+            priorComplete?.();
+        };
+        instance.Error.subscribe((err: Error) => {
+            if (settled) return;
+            this.LoadError = err.message;
+            this.cdr.detectChanges();
+        });
     }
 
     /**
