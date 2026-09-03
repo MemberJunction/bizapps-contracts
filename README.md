@@ -226,4 +226,4 @@ app ships **zero** of them.
 
 ---
 
-<p align="center"><sub>Part of the MemberJunction BizApps family · <a href="LICENSE">ISC</a></sub></p>
+<p align="center"><sub>Part of the MemberJunction BizApps family · <a href="LICENSE">BUSL-1.1</a></sub></p>
