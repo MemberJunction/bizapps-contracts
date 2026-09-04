@@ -17,6 +17,7 @@
   },
   "license": "BUSL-1.1",
   "dependencies": {
+    "@mj-biz-apps/common-ng": "^5.36.0",
     "@mj-biz-apps/contracts-entities": "^0.2.0"
   },
   "peerDependencies": {

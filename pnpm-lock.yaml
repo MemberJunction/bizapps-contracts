@@ -146,6 +146,9 @@ importers:
 
   packages/Angular:
     dependencies:
+      '@mj-biz-apps/common-ng':
+        specifier: ^5.36.0
+        version: 5.37.0(0aa5cbed652a381e6ca71a23b69335fb)
       '@mj-biz-apps/contracts-entities':
         specifier: ^0.2.0
         version: link:../Entities
@@ -1308,6 +1311,9 @@ packages:
   '@memberjunction/actions-apollo@6.1.0-edge.4':
     resolution: {integrity: sha512-Zx+2NaOEmXke5uJfBieaazRjS5kJMPB2MbC8YG0tJFQpC913t0YTO+PjiMSB/ldZruTfwj/H9mpj4bjheV5QuQ==}
 
+  '@memberjunction/actions-base@6.1.0-edge.3':
+    resolution: {integrity: sha512-TMlVcdcpV1CDlAxzvI8/L9J3v5Th/hfoYbwK424bSVsIoFJvu8cv6o7qmIMeA76d0+faJwnkUf/F7/gs7K+7Dw==}
+
   '@memberjunction/actions-base@6.1.0-edge.4':
     resolution: {integrity: sha512-LRS4SK4fqAsU9pL0IIm5oMNMQZSaslc3j7SzQvEAsRD1O9P9MYlzfKehsaOA/R9GWfzjwmTtgquZHivmDLGHSA==}
 
@@ -1395,11 +1401,17 @@ packages:
   '@memberjunction/ai-cohere@6.1.0-edge.4':
     resolution: {integrity: sha512-Q2WxT+P3VU0NrAHea7OtLJ0Fyr4Oi/m2zzqiS3CrMPPFwE7IasWPpMj3u+RJ5/X+OFsnDWWZ57roNCjj8JkJwQ==}
 
+  '@memberjunction/ai-core-plus@6.1.0-edge.3':
+    resolution: {integrity: sha512-lsipYoMbCZeIvmVFM7KBy6z2JgKsV4mQHI0723OiFK3YFwkRsAQjPUsyMz4n5iEfJZviqU1RXo00+mtnSdOVEQ==}
+
   '@memberjunction/ai-core-plus@6.1.0-edge.4':
     resolution: {integrity: sha512-wtfCiB4x+qU6Hjv282LalJ7xJo0zKA4U9iockC14MUBEyhsVTHTmnJFry1kWputqm7xNQR3X76uW/YTWPyI/LQ==}
 
   '@memberjunction/ai-elevenlabs@6.1.0-edge.4':
     resolution: {integrity: sha512-VKHUUYVHwDBGB24rQzPxY4HyUckV4guBmzqJAHIleXuM2iwD4Mpsx6Z1nCYRkDg0KlS+iJipEbeVCgr0uM1IIA==}
+
+  '@memberjunction/ai-engine-base@6.1.0-edge.3':
+    resolution: {integrity: sha512-tnmAu6dTzyP7RQs8wMlC1+rmGuxro2LFEzzNePYlfrJj4i0NtIYadIpoBdI4gdjo6mpiCz0bjJY1WwEp4ktRWg==}
 
   '@memberjunction/ai-engine-base@6.1.0-edge.4':
     resolution: {integrity: sha512-3poKpy/keZo8H97wn1ANr+Ae/vd89/BTDe8YB+iwEzs+rBiDjah9m6HwsyRWxkpJ3kIPgzU0LCzdNa6ZSYlglA==}
@@ -1476,8 +1488,14 @@ packages:
   '@memberjunction/ai-vector-sync@6.1.0-edge.4':
     resolution: {integrity: sha512-JJk5aZrpX6rPozt7P/615r/P8+t5H6gl5RSI+pDDXQ5lqYpAhXcn+q5TDZ/PJA81x7JVUJFaMuqyMPJ3esCMAA==}
 
+  '@memberjunction/ai-vectordb@6.1.0-edge.3':
+    resolution: {integrity: sha512-F8HuFJadEn31JJsnCG8Lvr9+NsTST419Im5df9eLtv+uIb2FTA8RacFU6vesrRnLjf2TvEOttLEbnibBLVRttQ==}
+
   '@memberjunction/ai-vectordb@6.1.0-edge.4':
     resolution: {integrity: sha512-D1xrRmd97QbqC18MPBY+TvWeX/lBMGBFj0XnzIgNBPXPW7jIO2wEPZzGJ77T0LRVEADzjTKrXGAHWWuqGO9edQ==}
+
+  '@memberjunction/ai-vectors-memory@6.1.0-edge.3':
+    resolution: {integrity: sha512-5+RhflsDSBAdoRX3d6aAB1T4qVzbEzW/WTG0PoctuR8XtsHtgpOeFimqRlYIuvSXKI59yI+4XCGSD/7BHvqasw==}
 
   '@memberjunction/ai-vectors-memory@6.1.0-edge.4':
     resolution: {integrity: sha512-ZnPnN+MzRxr9PluWi35MJPSP0NgNDNqdQ+4cWvknzyzVfMicdsM+Fb7JsNcd54Lo/VGWbGn4zw0V8qeY9iL8sA==}
@@ -1506,6 +1524,9 @@ packages:
   '@memberjunction/ai-zhipu@6.1.0-edge.4':
     resolution: {integrity: sha512-RfoLOHZtgx29nIAPgP1OtfvGd08+9kl4wHZzXOr0H4Hrauve4DvvZpFFvfGs7+4OfpoZKfPNQTL+xJJqhiXfBA==}
 
+  '@memberjunction/ai@6.1.0-edge.3':
+    resolution: {integrity: sha512-btLcqO9QkPt8UrgaDUNGBELEGMKI+QaB5X9gjZpBHyKyXNZismjauV+/C7z0HFJtFmpgRbbyJFuyyRKxtj9/aw==}
+
   '@memberjunction/ai@6.1.0-edge.4':
     resolution: {integrity: sha512-ZleNPbKHbM1MJ/btVJ74xpjN/pw/C4NdK1O6otuLZDmLykRyq4kYgyMLQSQJ5CanN9N9HrP8YzrusF7GBT+AnQ==}
 
@@ -1533,6 +1554,9 @@ packages:
   '@memberjunction/clustering-engine@6.1.0-edge.4':
     resolution: {integrity: sha512-WjsZKReq0qM7xatlZkm/BIGPExYU12yw7LCDg5SJrKVoMbTgnWWckLgxya6ViQodeaS9CLgwkvTbzudbQI/mLA==}
 
+  '@memberjunction/code-execution@6.1.0-edge.3':
+    resolution: {integrity: sha512-BA13MYYbZ0Y0f8kM1GyHA+q6chcVkEKl43n96oQ57tXA78dnjob8Cn2etGIQK/8qNRLNhMdu0z37r+nDWvTt/A==}
+
   '@memberjunction/code-execution@6.1.0-edge.4':
     resolution: {integrity: sha512-qZrFJ0Ko3zHZVGVYKn8KDNoUO0cv+JYACOg/Py8jMdLIJKcEISQ8qncLy4yBdWM53yNF/YZBiX8XwIiS30mrHA==}
 
@@ -1547,6 +1571,9 @@ packages:
 
   '@memberjunction/communication-sendgrid@6.1.0-edge.4':
     resolution: {integrity: sha512-K4SWL/MCgyxo583ATyrEM4vCI6dMYdosdXyR5IUIdi/4Kj6syjCId25VO3TToeOa1eD5vgRx10e+gt1gP/32EQ==}
+
+  '@memberjunction/communication-types@6.1.0-edge.3':
+    resolution: {integrity: sha512-gALHggFb9oXXeYbR7Ylgfn+q5L0jLsGBhyzFvTwRIpAb13u8upQpof85B/UC+7Qde5DC1j4+QqHRdZTGOwvgsw==}
 
   '@memberjunction/communication-types@6.1.0-edge.4':
     resolution: {integrity: sha512-7ZIstXzCANxA/lllHDwo8UAqrmEUKwi3kt7idkdVtxxFduqg/vvvgl0CmZKiZmajvXjLkvdnhT3pnPdAe+rF/A==}
@@ -1585,6 +1612,9 @@ packages:
   '@memberjunction/core-entities-server@6.1.0-edge.4':
     resolution: {integrity: sha512-DTWYU5/oHir3WpRQvGRE3Tz3EFpWnqb7CrN6ug48CGopVRGZk4Zu0FTHx4DSy4mimQQikcopnlQjqiiswpDM2A==}
 
+  '@memberjunction/core-entities@6.1.0-edge.3':
+    resolution: {integrity: sha512-ZRkE7zUjii65OjDiDGT/Cjl7M8yaWAYw01vIbtom9APv7SjYqxFmCXsPq0e/ljzfheyAP/MZHdegb1zh06pzwA==}
+
   '@memberjunction/core-entities@6.1.0-edge.4':
     resolution: {integrity: sha512-/2ZN89P0OEtE294tLGJMf6ak9K/UOnncM8KeF/FLium5xeJJGIXGaJYgT0qOXlsgtuqjqNNtJYRWo2Nul3m2Jg==}
 
@@ -1611,6 +1641,9 @@ packages:
     resolution: {integrity: sha512-iKE8yMdW7/eLWQDWYrcdT8mUE03W12NL+NOcILmkJMKgmr/KRmYJnnsfjmJkKFo44mDBLhVpClx7DOH8lQsKRA==}
     engines: {node: '>=18.0.0'}
 
+  '@memberjunction/entity-communications-base@6.1.0-edge.3':
+    resolution: {integrity: sha512-cd2Qtik/qniodZkEL7mv1X+Ql2tEg0tgQDpKiUrAxN6Br9F4X/caTkawIPFwlXOw9GyvzWEtDLXU0xGtc5kpWQ==}
+
   '@memberjunction/entity-communications-base@6.1.0-edge.4':
     resolution: {integrity: sha512-UcjX+gN2cVsnCpHtmYtkHNjFFyv3z1gRXYuHIuDmRu067bhhFT9CvzZ8MfBfV9EqcX9At4zXwbW5X77GEUlyWQ==}
 
@@ -1619,6 +1652,9 @@ packages:
 
   '@memberjunction/esignature@6.1.0-edge.4':
     resolution: {integrity: sha512-tc1Ei+vfI+odb5BaGpoP7rBI+TX7IOsZ8t3dwodIbHyeEc/aCZGaXH+b2fXLqSoO0RHx+J9CqbLgvyPzkqqSQQ==}
+
+  '@memberjunction/export-engine@6.1.0-edge.3':
+    resolution: {integrity: sha512-BCyHTj0+YWS8uu4vOB3iOb5NtbMw/sSaSbo5uju4/06UjFmqK9ZzM7yr8ED5ck6irVioo8Tu5VP+aZe6c2P2BQ==}
 
   '@memberjunction/export-engine@6.1.0-edge.4':
     resolution: {integrity: sha512-W/8m4YejGs00+sMrrCNAudRIvVtIF5oXgeHUyOj0KNsRORU+obUdO7ggpJ+9O/Vbkyras3eStlb5rjzv9h/gZQ==}
@@ -1669,11 +1705,17 @@ packages:
   '@memberjunction/geo-core@6.1.0-edge.4':
     resolution: {integrity: sha512-3V3BDSNZeNP+iB3g+1qY8A5rTlTmbTs/wCWXI8CE36Bq0ro2vQ1x4pj5xpvrRcoXhUWJi00YocImRNzkpiI24g==}
 
+  '@memberjunction/geo-maps@6.1.0-edge.3':
+    resolution: {integrity: sha512-esexhc4NFMjTNlCJ5pyR3rxVp8mn/ZmKvLAb+ULbMJDX4uFOmTuidy3y0eBDfWv7AT210aCo5eTg+fHXWTy9rw==}
+
   '@memberjunction/geo-maps@6.1.0-edge.4':
     resolution: {integrity: sha512-leLXUGF2wZOgnfsz3BJaW+yvPVP43S4AFgjdPYJnFPFv5sVV5ocg5IRTUwvQwNyl9CgxmkfSPevy2yYdesKTCA==}
 
   '@memberjunction/global@6.1.0-edge.4':
     resolution: {integrity: sha512-wi15R0f+1b6ic+rvAaP2NaeMFHKb8254mclLeAiSg9wGiGbd855EjcU88/spvZvX1r53aNLjYJc+CM1stM/RWw==}
+
+  '@memberjunction/graphql-dataprovider@6.1.0-edge.3':
+    resolution: {integrity: sha512-5UCUsW6fOr5WTAAA7FqXyqW6B7Wq8uKjDGK0lz/Nkyh8ik6an01ifkLm1kf47Cjj7at9ZaUxTaNCgYLUbhTPgQ==}
 
   '@memberjunction/graphql-dataprovider@6.1.0-edge.4':
     resolution: {integrity: sha512-bSIIDkz9Ow4avfTyYQs7co9UdOnldfZaZHXkh61d/Ngq9rsbUGNITY9J+9kv4TRy36AxetF2hITbzEQGJIBArA==}
@@ -1696,8 +1738,14 @@ packages:
   '@memberjunction/integration-schema-builder@6.1.0-edge.4':
     resolution: {integrity: sha512-ll2e0w7pTwGmMWXlLY6NY31csUG4fLs9guinZobVy+yV4w/GwNVUp095RYwLwlU5xHbGMQ4oVMuaOvfipGRilw==}
 
+  '@memberjunction/interactive-component-types@6.1.0-edge.3':
+    resolution: {integrity: sha512-ym/yqDHZ/y4OPCDSAbZhaZDA56yImGRVbWyL0Fv0r5JXNi1xwNaN8ZBPfx1WxQ/Rr3yL1b6gbJeqjcopOseo9w==}
+
   '@memberjunction/interactive-component-types@6.1.0-edge.4':
     resolution: {integrity: sha512-zi/2DTDea/zusrnI7xwJL+VbG1FDqOn/XfqoSdG2/of8aecRTWIaURABoworY5L7nJcrJwdg+ggMcOg7vkOKPw==}
+
+  '@memberjunction/lists-base@6.1.0-edge.3':
+    resolution: {integrity: sha512-XRKd7DhihbfON0m/LBVLjwquHSUCO1Z5A3kZ0BMW7DoK+2wZACNOCDmhjRJke6cksa3g/RKBYYBvsbXBjD1Wwg==}
 
   '@memberjunction/lists-base@6.1.0-edge.4':
     resolution: {integrity: sha512-y5r3Mj83T0FI4Yjhtu2cF6OvM1bkO52CJ1dBzJhL49Q8bokvMMvK6ZGWN6gMHVlzetl77DBfzaNuEK58pHuCsg==}
@@ -1707,6 +1755,9 @@ packages:
 
   '@memberjunction/livekit-room-server@6.1.0-edge.4':
     resolution: {integrity: sha512-e4cLtBjfg62Ia/nolqOWfSjEngzR3Fb521NTZy6Kx/SigMZkIwrDaZbj4uAsGprif9znJoXM0vD25whBHdRlNQ==}
+
+  '@memberjunction/markdown-core@6.1.0-edge.3':
+    resolution: {integrity: sha512-lEM1kgX6Oo9D1ucUKBPh5KCPAzf3db1GZZzZc3Jfsq7X5f+0R6qS/pvYlZazylEy3ZvuzYB0Fh15Fu6a+WzOqw==}
 
   '@memberjunction/markdown-core@6.1.0-edge.4':
     resolution: {integrity: sha512-/tg5JJPKW5m+XE8mi0e/niul53FWThKKjg7mbhvY4AuidH4Ql01gMN0EPrtFc/mjCeLrI2R8QBYT0KdzYoRXlw==}
@@ -1722,11 +1773,26 @@ packages:
     resolution: {integrity: sha512-gs9S3U4IoZxHoTqoZzdOX0qStTNBQPkH5i+173RTStqPdeBz+06OWu9dCzOAbP3dQeG2QjEEJZx474pwnsfs9g==}
     engines: {node: '>=18.0.0'}
 
+  '@memberjunction/ng-base-application@6.1.0-edge.3':
+    resolution: {integrity: sha512-i+Vc2+vzlnPraRHm6AJGy9HYm+zUip/s6urwC8J0A4/cvFtC4HwsgLpKN0a1xahu2IPof3syoEBBtEEqGZ4G3g==}
+    peerDependencies:
+      '@angular/common': 21.1.3
+      '@angular/core': 21.1.3
+
   '@memberjunction/ng-base-application@6.1.0-edge.4':
     resolution: {integrity: sha512-M6A85dvIjpvhGc9oJNyaAmEXJslttKUGp2jQAipaouERJXaXaLCt/vL9vvRQtWLjGNid4Zc9QmIgotENGGZKeg==}
     peerDependencies:
       '@angular/common': 21.1.3
       '@angular/core': 21.1.3
+
+  '@memberjunction/ng-base-forms@6.1.0-edge.3':
+    resolution: {integrity: sha512-O5uhYTas8H8bgpFqdsMDP/ggIVO0D0aFzmuRmRdemxnqMfU6PxJM3G4EkQUSQIuRj071M2SmejrwsMBmPwk0Zw==}
+    peerDependencies:
+      '@angular/animations': 21.1.3
+      '@angular/common': 21.1.3
+      '@angular/core': 21.1.3
+      '@angular/forms': 21.1.3
+      primeng: 21.1.1
 
   '@memberjunction/ng-base-forms@6.1.0-edge.4':
     resolution: {integrity: sha512-hroSUQL8/AT7pjvCB5eQ/hh3/APLlhJDvN9vGYL+kJ7rJ5nXfLmN0KLCN1aCJ0TAx+5KpN81aBXOkKQ+7eneCw==}
@@ -1737,8 +1803,20 @@ packages:
       '@angular/forms': 21.1.3
       primeng: 21.1.1
 
+  '@memberjunction/ng-base-types@6.1.0-edge.3':
+    resolution: {integrity: sha512-PZNo5YszuX5IQq49VwEP64HcHun0+YySYd4ymNzFvRTy3BcfaqPODp2ZDV/PJg4N1lGagyxOw5dAq0t4aXTbPQ==}
+    peerDependencies:
+      '@angular/common': 21.1.3
+      '@angular/core': 21.1.3
+
   '@memberjunction/ng-base-types@6.1.0-edge.4':
     resolution: {integrity: sha512-IiDqDBLqJingSFV1NW6rT2UVRKcF/OmY6A5pb9OjbbXRG5nZtK+nB7NT3jJFPuwMbC+zNxCIzIvConkVsNR5Jw==}
+    peerDependencies:
+      '@angular/common': 21.1.3
+      '@angular/core': 21.1.3
+
+  '@memberjunction/ng-code-editor@6.1.0-edge.3':
+    resolution: {integrity: sha512-uTv6LnDRBevpARPy8ZcAfHkoXacrxsr7h+EXRGzTl1NmduH2ynwR4yADixA+92EjoorXJMlZYIa8EwP2qgIpYQ==}
     peerDependencies:
       '@angular/common': 21.1.3
       '@angular/core': 21.1.3
@@ -1749,11 +1827,24 @@ packages:
       '@angular/common': 21.1.3
       '@angular/core': 21.1.3
 
+  '@memberjunction/ng-container-directives@6.1.0-edge.3':
+    resolution: {integrity: sha512-U3RsW3gNHVPGDlaXIhAgg5aaZ0eiaZFRVy0t/5Jq31uaDeYXi5sOiaxdcmIwlnv9DDMmfTgaI3OP1cjuTGSVzw==}
+    peerDependencies:
+      '@angular/common': 21.1.3
+      '@angular/core': 21.1.3
+
   '@memberjunction/ng-container-directives@6.1.0-edge.4':
     resolution: {integrity: sha512-HH5bw6rCu5S3YOzbpIHlsS6kYWXfSExU8ZYiz/er+n34sg2pwQGtVAqx+VZt8mrKlXi3V3jaRKlZe4UH61fF5Q==}
     peerDependencies:
       '@angular/common': 21.1.3
       '@angular/core': 21.1.3
+
+  '@memberjunction/ng-credentials@6.1.0-edge.3':
+    resolution: {integrity: sha512-uLA8a/52/cd9PAgA3b3Xv+5t7bj0fxD66osIcMVSC74Iti2AvEujME+CbmY/fUzt5q9U00Yq0EjaH//C3HuNhQ==}
+    peerDependencies:
+      '@angular/common': 21.1.3
+      '@angular/core': 21.1.3
+      '@angular/forms': 21.1.3
 
   '@memberjunction/ng-credentials@6.1.0-edge.4':
     resolution: {integrity: sha512-UKVHm+GQiWlyu7q2c2Tu/kpHZRyLNDwS939FyK8MdV17PO7g6QYc0iqOAK7JgHKEbJwx5MHUrBWoSiiyQe4AcQ==}
@@ -1762,6 +1853,14 @@ packages:
       '@angular/core': 21.1.3
       '@angular/forms': 21.1.3
 
+  '@memberjunction/ng-entity-action-ux@6.1.0-edge.3':
+    resolution: {integrity: sha512-9RlUCBuZbMu0l6OnGfwEUVE/r0D73Ra0EAP0+GMFgMPF+9kaVLfYZCtcmjAXJZ96B+ri8tJnYNer5FsaiomLMA==}
+    peerDependencies:
+      '@angular/common': 21.1.3
+      '@angular/core': 21.1.3
+      '@angular/forms': 21.1.3
+      rxjs: ^7.8.2
+
   '@memberjunction/ng-entity-action-ux@6.1.0-edge.4':
     resolution: {integrity: sha512-tYmerUPa52wQTrsgH/w7f/LXh5JGF/THxUFtHV0wsCPGiLKS47BJ/No+GlzMQ5ZkwxHjoy5jWR/s3j6DieIFPg==}
     peerDependencies:
@@ -1769,6 +1868,16 @@ packages:
       '@angular/core': 21.1.3
       '@angular/forms': 21.1.3
       rxjs: ^7.8.2
+
+  '@memberjunction/ng-entity-viewer@6.1.0-edge.3':
+    resolution: {integrity: sha512-cVv+kUIp5/6Pls+RKuFbjpZsoVtSSMdJ8MCoOT894D4CHUFIRasV0KwRqRa3U2I57LZnJw2y332WBKhX5tD7bQ==}
+    peerDependencies:
+      '@angular/animations': 21.1.3
+      '@angular/common': 21.1.3
+      '@angular/core': 21.1.3
+      '@angular/forms': 21.1.3
+      ag-grid-angular: ^35.0.1
+      ag-grid-community: ^35.0.1
 
   '@memberjunction/ng-entity-viewer@6.1.0-edge.4':
     resolution: {integrity: sha512-tmieb2QwCNQZvyXPE2WMDPG8+KaLv4lAIyvbGDH4X73UmKJNhrHZMDPAvj/d4Z7RjyodpmRKG27FvUlCW1SC/A==}
@@ -1780,10 +1889,25 @@ packages:
       ag-grid-angular: ^35.0.1
       ag-grid-community: ^35.0.1
 
+  '@memberjunction/ng-export-service@6.1.0-edge.3':
+    resolution: {integrity: sha512-8LXjzoh3tIVjVGynzIZEpax2itncK/NemoqfcKpljqgrruHul5PvH2E9wuRoYUQP8S/CmDPnTampRi3enryRKQ==}
+    peerDependencies:
+      '@angular/cdk': ^21.1.3
+      '@angular/common': 21.1.3
+      '@angular/core': 21.1.3
+      '@angular/forms': 21.1.3
+
   '@memberjunction/ng-export-service@6.1.0-edge.4':
     resolution: {integrity: sha512-pXWsXFUJ2Atg4TmF+yIPTn2EcfAJeDJBo7niCDfD4kWmryR2WgksUC/xNs6IXFwm/yahvQic//zu+mas0rXZMA==}
     peerDependencies:
       '@angular/cdk': ^21.1.3
+      '@angular/common': 21.1.3
+      '@angular/core': 21.1.3
+      '@angular/forms': 21.1.3
+
+  '@memberjunction/ng-file-storage@6.1.0-edge.3':
+    resolution: {integrity: sha512-QpTvekxQigNp+d0aQvo8VJZoI1xhZV4qCjBSzxYWfg6wMC1w3d01dEozoq5tAUNiMmB6KAVg1yvYAeAEVLarBw==}
+    peerDependencies:
       '@angular/common': 21.1.3
       '@angular/core': 21.1.3
       '@angular/forms': 21.1.3
@@ -1795,6 +1919,14 @@ packages:
       '@angular/core': 21.1.3
       '@angular/forms': 21.1.3
 
+  '@memberjunction/ng-filter-builder@6.1.0-edge.3':
+    resolution: {integrity: sha512-xufjE00zA4JORbiIohcPkPeKanAN68wcc1zk6E0w77G+tLaQqYZoFKzIHCl5kfU0biTHlOHGqOa7A2xFTxRsqw==}
+    peerDependencies:
+      '@angular/common': 21.1.3
+      '@angular/core': 21.1.3
+      '@angular/forms': 21.1.3
+      rxjs: ^7.8.2
+
   '@memberjunction/ng-filter-builder@6.1.0-edge.4':
     resolution: {integrity: sha512-YpkL0UB6mhrrRGv+NE02tpZZD7ml8HSsE91E+PI0ejBkpW9A1/5gHi1zsxhM9w/H5CLgRtaw1Fdhr8QmN6jhlQ==}
     peerDependencies:
@@ -1802,6 +1934,20 @@ packages:
       '@angular/core': 21.1.3
       '@angular/forms': 21.1.3
       rxjs: ^7.8.2
+
+  '@memberjunction/ng-graph-view@6.1.0-edge.3':
+    resolution: {integrity: sha512-rXjG3ykn9hz7mrX1Zpd9OLudaJ5gEWHZesRRxxJl7yGgCREbunux4SvJEVqNWCdCPTBX6XBFqr++z6wreK1JwQ==}
+    peerDependencies:
+      '@angular/common': 21.1.3
+      '@angular/core': 21.1.3
+      '@angular/forms': 21.1.3
+
+  '@memberjunction/ng-hierarchy-tree@6.1.0-edge.3':
+    resolution: {integrity: sha512-JQSgmhJRbLmT47IL8F0JzwoudLTeZUgf3daW9a6dz3AnotONTfhkhqWwrLeHkf8MSUI4WhGS+rcC4jaMzgtMyQ==}
+    peerDependencies:
+      '@angular/common': 21.1.3
+      '@angular/core': 21.1.3
+      '@angular/forms': 21.1.3
 
   '@memberjunction/ng-hierarchy-tree@6.1.0-edge.4':
     resolution: {integrity: sha512-kCVKh7ATt06ZClromeQ6uAjuscZcjare2rrRQUmyAifk25c0y+cCuJi92j+xG2HTef7Ry8WTNGs6N3v1KZ6Iyg==}
@@ -1816,6 +1962,14 @@ packages:
       '@angular/common': 21.1.3
       '@angular/core': 21.1.3
 
+  '@memberjunction/ng-list-management@6.1.0-edge.3':
+    resolution: {integrity: sha512-nzqPnm9ArlOwNzPfam9fgrIJiNLz3klkL4IHNoH+SJSzL3JvsfjnTqHpAjE+ddz/Y4VBbK/LEsZ8JOoAfJzJzA==}
+    peerDependencies:
+      '@angular/common': 21.1.3
+      '@angular/core': 21.1.3
+      '@angular/forms': 21.1.3
+      rxjs: ^7.8.2
+
   '@memberjunction/ng-list-management@6.1.0-edge.4':
     resolution: {integrity: sha512-Y35oBKp/TX+vSGHAgf6f4O+B/6WtmmOwBN6uMTnzzCfJWYTCuovjV7i6c4Ad8YPJ6wtfhycZEZRph0iUHPwxKQ==}
     peerDependencies:
@@ -1824,11 +1978,24 @@ packages:
       '@angular/forms': 21.1.3
       rxjs: ^7.8.2
 
+  '@memberjunction/ng-map-view@6.1.0-edge.3':
+    resolution: {integrity: sha512-lovjgJt15Po37goH6s/BvCRHVc5y2CcpEIbBGEjY1JkrTvUjsw4xPbrndchun9cWqEC8v/p9u7ayfpxcj1Ib5w==}
+    peerDependencies:
+      '@angular/common': 21.1.3
+      '@angular/core': 21.1.3
+
   '@memberjunction/ng-map-view@6.1.0-edge.4':
     resolution: {integrity: sha512-T+IcP3ESMhm/tV7KAnvWszRZX5g9IhfVEGJ2GTIfcmEFR43kK659ElERmVbh0HEctg3jieuijaTP3Dnd8589NQ==}
     peerDependencies:
       '@angular/common': 21.1.3
       '@angular/core': 21.1.3
+
+  '@memberjunction/ng-markdown@6.1.0-edge.3':
+    resolution: {integrity: sha512-rDpH8YUJg5lY6jmXAyPUk4ld5fhfb/xjQmnvZauWLUfL+XDek+H1yLOZ17FYapGoXjhhTh0wayFueGqnJnIjPQ==}
+    peerDependencies:
+      '@angular/common': 21.1.3
+      '@angular/core': 21.1.3
+      '@angular/platform-browser': 21.1.3
 
   '@memberjunction/ng-markdown@6.1.0-edge.4':
     resolution: {integrity: sha512-IQ2vbQHTqJBt8p1xMKR96ZroLlXqCgoJ0Hz9sPhkLwWioykS6KLNtimZwoz+VCpCQU0SBsy5UGQno+HRMhwa/g==}
@@ -1837,8 +2004,20 @@ packages:
       '@angular/core': 21.1.3
       '@angular/platform-browser': 21.1.3
 
+  '@memberjunction/ng-notifications@6.1.0-edge.3':
+    resolution: {integrity: sha512-6YyotxYWmv5si/sKBzbUayD2MvLq4ZSf+4gy8AtHVWW4N1K3/5cGzssfUODGQoatxhL3084bLrLpSxcawvG5PA==}
+    peerDependencies:
+      '@angular/common': 21.1.3
+      '@angular/core': 21.1.3
+
   '@memberjunction/ng-notifications@6.1.0-edge.4':
     resolution: {integrity: sha512-piej6gsj4Cy5STzSLpFkqkOPhPy4LhNkoO+7f6Kl4u/APzF3ONljS0U9mxG5p+UhrYfeL2KVYHgsBp9aK6Kohg==}
+    peerDependencies:
+      '@angular/common': 21.1.3
+      '@angular/core': 21.1.3
+
+  '@memberjunction/ng-pagination@6.1.0-edge.3':
+    resolution: {integrity: sha512-AC1Uuv26OusHdG2Q6GUBe18tmNO/0VO2qn5+z+MHc+XC+CIEVyNhl/sGsf/n0Jul5x1BMlAIt+U+WCCAvYwlCw==}
     peerDependencies:
       '@angular/common': 21.1.3
       '@angular/core': 21.1.3
@@ -1849,8 +2028,18 @@ packages:
       '@angular/common': 21.1.3
       '@angular/core': 21.1.3
 
+  '@memberjunction/ng-react@6.1.0-edge.3':
+    resolution: {integrity: sha512-jaW0iT3g1AQ7RWQ1S2MAM2AT7aihe2SImEOPvxeAljCWIcTJEVAAY45Mh/wdN8dp8dd82mXUBDMdIy96ydforg==}
+
   '@memberjunction/ng-react@6.1.0-edge.4':
     resolution: {integrity: sha512-QfF0aW6iT6BjsP0Xoio5gNhmsHuzXj0Xzk4ZHW0qQxYx9JE7vr/LMCdm5eyOwBXt8JZg/VM17ycq1SHAIrdXPA==}
+
+  '@memberjunction/ng-record-changes@6.1.0-edge.3':
+    resolution: {integrity: sha512-mW/IUo42b0luteNOybpskiCpcGwEKU8cCzC57F5piOucPVfmMfzcRPFRY4Cg3HOGsBPyR5HPd5uWuHLLAeBVGA==}
+    peerDependencies:
+      '@angular/common': 21.1.3
+      '@angular/core': 21.1.3
+      '@angular/forms': 21.1.3
 
   '@memberjunction/ng-record-changes@6.1.0-edge.4':
     resolution: {integrity: sha512-O7kqssA4f9eMuEqC7NLLucEmtHOuIAd4qykRu0GWGjTR2owh7B644QCGz2c3N3yPrh6Fk41wwhZGdc+eePkvHA==}
@@ -1859,11 +2048,25 @@ packages:
       '@angular/core': 21.1.3
       '@angular/forms': 21.1.3
 
+  '@memberjunction/ng-record-tags@6.1.0-edge.3':
+    resolution: {integrity: sha512-M7bS1kEa7zYWE6MUXqK/d9tYvOHAe+noNfGFFMDQq5SZkX/4nRuOnyJ76sSrSKvn3WGlx1wOLD0MvbbRMML3fA==}
+    peerDependencies:
+      '@angular/common': 21.1.3
+      '@angular/core': 21.1.3
+
   '@memberjunction/ng-record-tags@6.1.0-edge.4':
     resolution: {integrity: sha512-OqqCkp9gsnStElXn3P3OQ1Cu9jBQBfaD4TjffbtwCfPHMEr7cP1Nt0OHO6d4947XQm/dksefXtxhFyKztTxr+Q==}
     peerDependencies:
       '@angular/common': 21.1.3
       '@angular/core': 21.1.3
+
+  '@memberjunction/ng-shared-generic@6.1.0-edge.3':
+    resolution: {integrity: sha512-jJFoxMW89dVnJyGjcxRukTyTHF7MFcXRG9PCcasblp0gwSGTnwTKZXs+kPi4Pi0no0RHfxtLI/LEHhQQ8EeM5w==}
+    peerDependencies:
+      '@angular/common': 21.1.3
+      '@angular/core': 21.1.3
+      '@angular/platform-browser': 21.1.3
+      rxjs: ^7.8.2
 
   '@memberjunction/ng-shared-generic@6.1.0-edge.4':
     resolution: {integrity: sha512-RywteGBDM0zqNdT0BYsM6gPY9xrheVBuWH906LneT7bexOz/17+YG+PYGv3+N7XO7dB7u5aoLrJGx9OqP8f2dg==}
@@ -1871,6 +2074,14 @@ packages:
       '@angular/common': 21.1.3
       '@angular/core': 21.1.3
       '@angular/platform-browser': 21.1.3
+      rxjs: ^7.8.2
+
+  '@memberjunction/ng-shared@6.1.0-edge.3':
+    resolution: {integrity: sha512-Lkr5Tc29qI0YKmCfiN+3BfTOWs/F8WsUYkKr+2DW7GBcRfo63lOr6FbEr5njgkMEswfPWc6MJpFChYJc3IOW6g==}
+    peerDependencies:
+      '@angular/common': 21.1.3
+      '@angular/core': 21.1.3
+      '@angular/router': 21.1.3
       rxjs: ^7.8.2
 
   '@memberjunction/ng-shared@6.1.0-edge.4':
@@ -1881,11 +2092,24 @@ packages:
       '@angular/router': 21.1.3
       rxjs: ^7.8.2
 
+  '@memberjunction/ng-timeline@6.1.0-edge.3':
+    resolution: {integrity: sha512-v2vieGGMxPmAsRx9lPBNz6q6dPPfnPjzCX+aqIfGc2RxckCVU3av5lLjWzeqlHPo9DNCPM3waVNqfClFSVwIvA==}
+    peerDependencies:
+      '@angular/common': 21.1.3
+      '@angular/core': 21.1.3
+
   '@memberjunction/ng-timeline@6.1.0-edge.4':
     resolution: {integrity: sha512-l/zAWiB1zSWz4Pp7pYmW/Bhv4pRFBATMVYbVr5iw7qV9q6mTdbN/Min63J0p1f5F8VQKYTZuALaniaW61TIzsw==}
     peerDependencies:
       '@angular/common': 21.1.3
       '@angular/core': 21.1.3
+
+  '@memberjunction/ng-ui-components@6.1.0-edge.3':
+    resolution: {integrity: sha512-h6ecFUZUe8S1UYu11o6YZpaBTlWLYI/3QGSkOhwQFc+Lr9NFhqptvbxkLUbMTRxH7WZK1jKXihbjQPUd+X1xQw==}
+    peerDependencies:
+      '@angular/common': 21.1.3
+      '@angular/core': 21.1.3
+      rxjs: ^7.8.2
 
   '@memberjunction/ng-ui-components@6.1.0-edge.4':
     resolution: {integrity: sha512-MHROVVv6N+u/o67nCYT/N7z05KmbkGLcSekprCn+wE4t9mGe3rKf16SsYeBpxrgBt5bTTjdbjiu7ugN6SwpwyQ==}
@@ -1894,12 +2118,25 @@ packages:
       '@angular/core': 21.1.3
       rxjs: ^7.8.2
 
+  '@memberjunction/ng-versions@6.1.0-edge.3':
+    resolution: {integrity: sha512-5xhsGF/Fw8kyLN4mlISnGg1EeupbUYem7m5FfS2TxazwrRvv8fb72wzWnQXPgkbL4tCBp+LYvxyWRyFExsI1MQ==}
+    peerDependencies:
+      '@angular/common': 21.1.3
+      '@angular/core': 21.1.3
+      '@angular/forms': 21.1.3
+
   '@memberjunction/ng-versions@6.1.0-edge.4':
     resolution: {integrity: sha512-5GzoILJK8qK+rhCEKaLexTmBMGhAH3vM0qwmCwW1JtgOA1SyqiIK8bh54Ls2QGCaH7o3w3I9YDXivdjNbVe09Q==}
     peerDependencies:
       '@angular/common': 21.1.3
       '@angular/core': 21.1.3
       '@angular/forms': 21.1.3
+
+  '@memberjunction/ng-word-cloud@6.1.0-edge.3':
+    resolution: {integrity: sha512-uP8nBBtF8iszFEK2OeBXdbIWcmO+/nX2hQZHF4TiM7OI1v2RiPk3nxA6TivnLHhmT4GiSOcJSwU9yRxpX66FkA==}
+    peerDependencies:
+      '@angular/common': 21.1.3
+      '@angular/core': 21.1.3
 
   '@memberjunction/ng-word-cloud@6.1.0-edge.4':
     resolution: {integrity: sha512-+oaCElmwNpBp+H+1OGTyN6Y0sszeod7O3pdIxBnZ8IDEpLRp0kq+zs9NWj8ZAx64DpVc2Tez28frhwJtUdYTZg==}
@@ -1938,11 +2175,17 @@ packages:
   '@memberjunction/react-linter@6.1.0-edge.4':
     resolution: {integrity: sha512-6nYcZtHELhruXF74+n0ffDqrS9C6xFcCdwTFV4zULQTNS1mVDslWd6SxkF/MSuzTRQE9xzVpniwCDY5U4Z6SAw==}
 
+  '@memberjunction/react-runtime@6.1.0-edge.3':
+    resolution: {integrity: sha512-j3Y0edZwIs5QTWKJZqF4h/rpN3wH7tP8OiBycJA6yQ5uE8lqYcEXjV+Ynyswcj5m09EYyFZ3XEC5ElZYhZVhcg==}
+
   '@memberjunction/react-runtime@6.1.0-edge.4':
     resolution: {integrity: sha512-fe0VDKZwQK8/DcCl/PVHB+sJOQWikdQxpQSNJopNENMv8isLDekT4cQ4QFEln7suymoa1zaXrL/4HwVknE/H9w==}
 
   '@memberjunction/record-comparison@6.1.0-edge.4':
     resolution: {integrity: sha512-m+Q9+NiDTh5SDy2nls2/bT5prY/Lyo4MMOSqNuIsLptGSJlYxrlIs7gpHYirrua1ZcgWOBCBsk9g47ezTVtb2g==}
+
+  '@memberjunction/record-set-processor-base@6.1.0-edge.3':
+    resolution: {integrity: sha512-25FdOX6liwnErVkMDOAlIF7S4EL1OLL4CPxgnqUSxbUE8ZI6KLRFeD3PHcnvlyuXtVOjDL/YmYT+CfwhzQ/Q9A==}
 
   '@memberjunction/record-set-processor-base@6.1.0-edge.4':
     resolution: {integrity: sha512-Gx2JQsA+RNS8tj/eMXmt+XGPVZ++fZZtWpFhh+1EQjXgU5k90DuEFQitbl/ZEMTWfyZAEG7wPdkN22JATA0/PA==}
@@ -2012,6 +2255,9 @@ packages:
   '@memberjunction/sql-converter@6.1.0-edge.4':
     resolution: {integrity: sha512-FaAjPm0a437XoiYCZ6fJVzDEwkm6hv3mimkUppVlS09zfoWPoABXdr6FaM1NVZmD0jzMYTIyD6cleaQoi/v3mw==}
 
+  '@memberjunction/sql-dialect@6.1.0-edge.3':
+    resolution: {integrity: sha512-LO5oakZJXVyKPLPDnh5KJmj4q2AMLPSWDVihshi06n/UjStEjzF1xNMiRYV7pOE8mURYarMiZtX5AoyM1HyNew==}
+
   '@memberjunction/sql-dialect@6.1.0-edge.4':
     resolution: {integrity: sha512-i7tly6A8JsfvN/RCT7poTMbRnS/kRKJNITZxj7ihy+D02RcD8nQHmI3jJzkaVEZtrH0tUfM+zD3TGNOQqRfvuA==}
 
@@ -2040,6 +2286,9 @@ packages:
   '@memberjunction/task-graph@6.1.0-edge.4':
     resolution: {integrity: sha512-5nldshlEdxMGF6pmb9AAhSJFuQN7S+Xt3XJAwhq6bA8sl3hu+mCOW2zfa23rTsyUDW2QiwlQPfKXGyl8bOLcDg==}
 
+  '@memberjunction/templates-base-types@6.1.0-edge.3':
+    resolution: {integrity: sha512-f3RGDmdPNx8N1m1H9R2khyDAbtPNErZOq/VNENA0Khbi2pgPQFHVJlsY4CWjcjBaxG2/YI2vm3pkE6Ma/ePXRA==}
+
   '@memberjunction/templates-base-types@6.1.0-edge.4':
     resolution: {integrity: sha512-9hCAs9xNMhJ8RfciTNaVkvZsQOtV1VPKZQQb4qkmcHQPKlhyEML+cOdLjYma/y9pAI4KmmN/+/OQAdE+JtHLJA==}
 
@@ -2057,6 +2306,9 @@ packages:
 
   '@memberjunction/testing-integration@6.1.0-edge.4':
     resolution: {integrity: sha512-3metfCoLEwzWgk/+shGiPLNeaDNo75iSdz/egNkbYCrCpjN/4bEp4pNlRclp0JEvPdRE2U1QwhBdwoXLzvgaKw==}
+
+  '@memberjunction/theme-engine@6.1.0-edge.3':
+    resolution: {integrity: sha512-+4Z90C9kfqgvr0F/x0ceNy35MPLnD8o0pDB2LzO8rHAsaRHQRmsjtZi5JBApWi9+ritS03HQ51Nd65r8O4+uDw==}
 
   '@memberjunction/theme-engine@6.1.0-edge.4':
     resolution: {integrity: sha512-mH2GOpDVlP74rxhK3qHNoIXcWGBOjpSUOvvAhj78kyExtKPsEAomHrHBZSww0Zz2jdG4GQpXEPtqTJqH9AIOWQ==}
@@ -2120,6 +2372,30 @@ packages:
 
   '@mixmark-io/domino@2.2.0':
     resolution: {integrity: sha512-Y28PR25bHXUg88kCV7nivXrP2Nj2RueZ3/l/jdx6J9f8J4nsEGcgX0Qe6lt7Pa+J79+kPiJU3LguR6O/6zrLOw==}
+
+  '@mj-biz-apps/common-entities@5.37.0':
+    resolution: {integrity: sha512-BlwCC1qhihLg/IiERe+4U2HfoD6bneaP6AkpYceSzMIPHTJpBdgVrQUfOQM73OoCZRGG6sRAvww4Tph/f4wNmA==}
+    peerDependencies:
+      '@memberjunction/core': ^6.1.0-edge.4
+      '@memberjunction/global': ^6.1.0-edge.4
+
+  '@mj-biz-apps/common-ng@5.37.0':
+    resolution: {integrity: sha512-zC276k/Y0TBp3wFRHUh1TFaV4+GHdtOIoe59HyYYV86QIWmgq/O1vCylCQl+L3133KouA7rCJcVIxJwRjUzB/w==}
+    peerDependencies:
+      '@angular/animations': 21.1.3
+      '@angular/common': 21.1.3
+      '@angular/core': 21.1.3
+      '@angular/forms': 21.1.3
+      '@memberjunction/actions-base': ^6.1.0-edge.3
+      '@memberjunction/core': ^6.1.0-edge.4
+      '@memberjunction/core-entities': ^6.1.0-edge.3
+      '@memberjunction/global': ^6.1.0-edge.4
+      '@memberjunction/graphql-dataprovider': ^6.1.0-edge.3
+      '@memberjunction/ng-base-forms': ^6.1.0-edge.3
+      '@memberjunction/ng-entity-viewer': ^6.1.0-edge.3
+      '@memberjunction/ng-link-directives': ^6.1.0-edge.3
+      '@memberjunction/ng-shared': ^6.1.0-edge.3
+      '@memberjunction/ng-ui-components': ^6.1.0-edge.3
 
   '@modelcontextprotocol/sdk@1.30.0':
     resolution: {integrity: sha512-xKd8OIzlqNzcqcNumGAa6g+PW2kjD5vrpcKOnfldAUPP3j7lnqMPwlTXQm8gF+UwH72z0lqaRbjr9hqGz0eITA==}
@@ -8916,6 +9192,16 @@ snapshots:
       - supports-color
       - utf-8-validate
 
+  '@memberjunction/actions-base@6.1.0-edge.3':
+    dependencies:
+      '@memberjunction/code-execution': 6.1.0-edge.3
+      '@memberjunction/core': 6.1.0-edge.4
+      '@memberjunction/core-entities': 6.1.0-edge.3
+      '@memberjunction/global': 6.1.0-edge.4
+      zod: 3.25.76
+    transitivePeerDependencies:
+      - supports-color
+
   '@memberjunction/actions-base@6.1.0-edge.4':
     dependencies:
       '@memberjunction/code-execution': 6.1.0-edge.4
@@ -9488,6 +9774,21 @@ snapshots:
       '@memberjunction/global': 6.1.0-edge.4
       cohere-ai: 7.21.0
 
+  '@memberjunction/ai-core-plus@6.1.0-edge.3':
+    dependencies:
+      '@memberjunction/actions-base': 6.1.0-edge.3
+      '@memberjunction/ai': 6.1.0-edge.3
+      '@memberjunction/core': 6.1.0-edge.4
+      '@memberjunction/core-entities': 6.1.0-edge.3
+      '@memberjunction/global': 6.1.0-edge.4
+      '@memberjunction/templates-base-types': 6.1.0-edge.3
+      date-fns: 4.4.0
+      date-fns-tz: 3.2.0(date-fns@4.4.0)
+      dotenv: 17.4.2
+      rxjs: 7.8.2
+    transitivePeerDependencies:
+      - supports-color
+
   '@memberjunction/ai-core-plus@6.1.0-edge.4':
     dependencies:
       '@memberjunction/actions-base': 6.1.0-edge.4
@@ -9512,6 +9813,19 @@ snapshots:
       - bufferutil
       - encoding
       - utf-8-validate
+
+  '@memberjunction/ai-engine-base@6.1.0-edge.3':
+    dependencies:
+      '@memberjunction/ai': 6.1.0-edge.3
+      '@memberjunction/ai-core-plus': 6.1.0-edge.3
+      '@memberjunction/core': 6.1.0-edge.4
+      '@memberjunction/core-entities': 6.1.0-edge.3
+      '@memberjunction/global': 6.1.0-edge.4
+      '@memberjunction/templates-base-types': 6.1.0-edge.3
+      dotenv: 17.4.2
+      rxjs: 7.8.2
+    transitivePeerDependencies:
+      - supports-color
 
   '@memberjunction/ai-engine-base@6.1.0-edge.4':
     dependencies:
@@ -10160,12 +10474,29 @@ snapshots:
       - ws
       - zod
 
+  '@memberjunction/ai-vectordb@6.1.0-edge.3':
+    dependencies:
+      '@memberjunction/core': 6.1.0-edge.4
+      '@memberjunction/global': 6.1.0-edge.4
+      '@memberjunction/sql-dialect': 6.1.0-edge.3
+      dotenv: 17.4.2
+    transitivePeerDependencies:
+      - supports-color
+
   '@memberjunction/ai-vectordb@6.1.0-edge.4':
     dependencies:
       '@memberjunction/core': 6.1.0-edge.4
       '@memberjunction/global': 6.1.0-edge.4
       '@memberjunction/sql-dialect': 6.1.0-edge.4
       dotenv: 17.4.2
+    transitivePeerDependencies:
+      - supports-color
+
+  '@memberjunction/ai-vectors-memory@6.1.0-edge.3':
+    dependencies:
+      '@memberjunction/ai-vectordb': 6.1.0-edge.3
+      '@memberjunction/core': 6.1.0-edge.4
+      '@memberjunction/global': 6.1.0-edge.4
     transitivePeerDependencies:
       - supports-color
 
@@ -10286,6 +10617,12 @@ snapshots:
     transitivePeerDependencies:
       - ws
       - zod
+
+  '@memberjunction/ai@6.1.0-edge.3':
+    dependencies:
+      '@memberjunction/global': 6.1.0-edge.4
+      dotenv: 17.4.2
+      rxjs: 7.8.2
 
   '@memberjunction/ai@6.1.0-edge.4':
     dependencies:
@@ -10492,6 +10829,20 @@ snapshots:
       - utf-8-validate
       - ws
       - zod
+
+  '@memberjunction/code-execution@6.1.0-edge.3':
+    dependencies:
+      '@memberjunction/core': 6.1.0-edge.4
+      '@memberjunction/global': 6.1.0-edge.4
+      date-fns: 3.6.0
+      isolated-vm: 6.2.0
+      lodash: 4.18.1
+      mathjs: 15.2.0
+      papaparse: 5.6.0
+      uuid: 13.0.2
+      validator: 13.15.35
+    transitivePeerDependencies:
+      - supports-color
 
   '@memberjunction/code-execution@6.1.0-edge.4':
     dependencies:
@@ -10772,6 +11123,16 @@ snapshots:
       dotenv: 17.4.2
     transitivePeerDependencies:
       - debug
+      - supports-color
+
+  '@memberjunction/communication-types@6.1.0-edge.3':
+    dependencies:
+      '@memberjunction/core': 6.1.0-edge.4
+      '@memberjunction/core-entities': 6.1.0-edge.3
+      '@memberjunction/global': 6.1.0-edge.4
+      '@memberjunction/templates-base-types': 6.1.0-edge.3
+      rxjs: 7.8.2
+    transitivePeerDependencies:
       - supports-color
 
   '@memberjunction/communication-types@6.1.0-edge.4':
@@ -11304,6 +11665,17 @@ snapshots:
       - utf-8-validate
       - ws
 
+  '@memberjunction/core-entities@6.1.0-edge.3':
+    dependencies:
+      '@memberjunction/ai': 6.1.0-edge.3
+      '@memberjunction/core': 6.1.0-edge.4
+      '@memberjunction/global': 6.1.0-edge.4
+      '@memberjunction/interactive-component-types': 6.1.0-edge.3
+      rxjs: 7.8.2
+      zod: 3.25.76
+    transitivePeerDependencies:
+      - supports-color
+
   '@memberjunction/core-entities@6.1.0-edge.4':
     dependencies:
       '@memberjunction/ai': 6.1.0-edge.4
@@ -11453,6 +11825,15 @@ snapshots:
       - supports-color
       - typescript
 
+  '@memberjunction/entity-communications-base@6.1.0-edge.3':
+    dependencies:
+      '@memberjunction/communication-types': 6.1.0-edge.3
+      '@memberjunction/core': 6.1.0-edge.4
+      '@memberjunction/core-entities': 6.1.0-edge.3
+      '@memberjunction/global': 6.1.0-edge.4
+    transitivePeerDependencies:
+      - supports-color
+
   '@memberjunction/entity-communications-base@6.1.0-edge.4':
     dependencies:
       '@memberjunction/communication-types': 6.1.0-edge.4
@@ -11505,6 +11886,10 @@ snapshots:
       - stream-browserify
       - supports-color
       - typescript
+
+  '@memberjunction/export-engine@6.1.0-edge.3':
+    dependencies:
+      exceljs: 4.4.0
 
   '@memberjunction/export-engine@6.1.0-edge.4':
     dependencies:
@@ -11766,6 +12151,8 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
+  '@memberjunction/geo-maps@6.1.0-edge.3': {}
+
   '@memberjunction/geo-maps@6.1.0-edge.4': {}
 
   '@memberjunction/global@6.1.0-edge.4':
@@ -11774,6 +12161,30 @@ snapshots:
       lodash: 4.18.1
       rxjs: 7.8.2
       uuid: 13.0.2
+
+  '@memberjunction/graphql-dataprovider@6.1.0-edge.3(ws@8.21.3)':
+    dependencies:
+      '@memberjunction/actions-base': 6.1.0-edge.3
+      '@memberjunction/ai-core-plus': 6.1.0-edge.3
+      '@memberjunction/core': 6.1.0-edge.4
+      '@memberjunction/core-entities': 6.1.0-edge.3
+      '@memberjunction/global': 6.1.0-edge.4
+      '@memberjunction/interactive-component-types': 6.1.0-edge.3
+      '@memberjunction/lists-base': 6.1.0-edge.3
+      '@tempfix/idb': 8.0.3
+      graphql: 16.14.2
+      graphql-request: 7.4.0(graphql@16.14.2)
+      graphql-ws: 6.2.1(graphql@16.14.2)(ws@8.21.3)
+      rxjs: 7.8.2
+      uuid: 13.0.2
+    optionalDependencies:
+      '@esbuild/win32-x64': 0.24.0
+      '@rollup/rollup-linux-x64-gnu': 4.17.2
+    transitivePeerDependencies:
+      - '@fastify/websocket'
+      - crossws
+      - supports-color
+      - ws
 
   '@memberjunction/graphql-dataprovider@6.1.0-edge.4(ws@8.21.3)':
     dependencies:
@@ -11865,12 +12276,21 @@ snapshots:
       - ws
       - zod
 
+  '@memberjunction/interactive-component-types@6.1.0-edge.3':
+    dependencies:
+      '@memberjunction/ai-vectors-memory': 6.1.0-edge.3
+      '@memberjunction/core': 6.1.0-edge.4
+    transitivePeerDependencies:
+      - supports-color
+
   '@memberjunction/interactive-component-types@6.1.0-edge.4':
     dependencies:
       '@memberjunction/ai-vectors-memory': 6.1.0-edge.4
       '@memberjunction/core': 6.1.0-edge.4
     transitivePeerDependencies:
       - supports-color
+
+  '@memberjunction/lists-base@6.1.0-edge.3': {}
 
   '@memberjunction/lists-base@6.1.0-edge.4': {}
 
@@ -11900,6 +12320,15 @@ snapshots:
       - encoding
       - stream-browserify
       - supports-color
+
+  '@memberjunction/markdown-core@6.1.0-edge.3':
+    dependencies:
+      marked: 17.0.6
+      marked-alert: 2.1.2(marked@17.0.6)
+      marked-gfm-heading-id: 4.1.4(marked@17.0.6)
+      marked-highlight: 2.2.4(marked@17.0.6)
+      marked-smartypants: 1.1.12(marked@17.0.6)
+      tslib: 2.8.1
 
   '@memberjunction/markdown-core@6.1.0-edge.4':
     dependencies:
@@ -11976,6 +12405,19 @@ snapshots:
 
   '@memberjunction/network-utils@6.1.0-edge.4': {}
 
+  '@memberjunction/ng-base-application@6.1.0-edge.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))':
+    dependencies:
+      '@angular/common': 21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2)
+      '@angular/core': 21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)
+      '@memberjunction/core': 6.1.0-edge.4
+      '@memberjunction/core-entities': 6.1.0-edge.3
+      '@memberjunction/global': 6.1.0-edge.4
+      golden-layout: 2.6.0
+      rxjs: 7.8.2
+      tslib: 2.8.1
+    transitivePeerDependencies:
+      - supports-color
+
   '@memberjunction/ng-base-application@6.1.0-edge.4(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))':
     dependencies:
       '@angular/common': 21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2)
@@ -11988,6 +12430,42 @@ snapshots:
       tslib: 2.8.1
     transitivePeerDependencies:
       - supports-color
+
+  '@memberjunction/ng-base-forms@6.1.0-edge.3(b655442e1d75554303c71e66b90bc14b)':
+    dependencies:
+      '@angular/common': 21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2)
+      '@angular/core': 21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)
+      '@angular/forms': 21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(@angular/platform-browser@21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)))(rxjs@7.8.2)
+      '@memberjunction/core': 6.1.0-edge.4
+      '@memberjunction/core-entities': 6.1.0-edge.3
+      '@memberjunction/global': 6.1.0-edge.4
+      '@memberjunction/interactive-component-types': 6.1.0-edge.3
+      '@memberjunction/ng-base-types': 6.1.0-edge.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))
+      '@memberjunction/ng-code-editor': 6.1.0-edge.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(@angular/platform-browser@21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)))(rxjs@7.8.2)
+      '@memberjunction/ng-entity-viewer': 6.1.0-edge.3(9281fd9b6d86b8d77924231f16d4bcf7)
+      '@memberjunction/ng-file-storage': 6.1.0-edge.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(@angular/forms@21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(@angular/platform-browser@21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)))(rxjs@7.8.2))(rxjs@7.8.2)(ws@8.21.3)
+      '@memberjunction/ng-list-management': 6.1.0-edge.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(@angular/forms@21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(@angular/platform-browser@21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)))(rxjs@7.8.2))(@angular/platform-browser@21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)))(rxjs@7.8.2)(ws@8.21.3)
+      '@memberjunction/ng-markdown': 6.1.0-edge.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(@angular/platform-browser@21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)))
+      '@memberjunction/ng-notifications': 6.1.0-edge.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(ws@8.21.3)
+      '@memberjunction/ng-react': 6.1.0-edge.3(@angular/compiler@21.1.3)(ws@8.21.3)
+      '@memberjunction/ng-record-changes': 6.1.0-edge.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(@angular/forms@21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(@angular/platform-browser@21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)))(rxjs@7.8.2))(ws@8.21.3)
+      '@memberjunction/ng-record-tags': 6.1.0-edge.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(@angular/platform-browser@21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)))(rxjs@7.8.2)(ws@8.21.3)
+      '@memberjunction/ng-shared-generic': 6.1.0-edge.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(@angular/platform-browser@21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)))(rxjs@7.8.2)
+      '@memberjunction/ng-ui-components': 6.1.0-edge.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(@angular/platform-browser@21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)))(rxjs@7.8.2)
+      rxjs: 7.8.2
+      tslib: 2.8.1
+    transitivePeerDependencies:
+      - '@angular/cdk'
+      - '@angular/compiler'
+      - '@angular/platform-browser'
+      - '@angular/router'
+      - '@fastify/websocket'
+      - ag-grid-angular
+      - ag-grid-community
+      - crossws
+      - supports-color
+      - ws
+      - zone.js
 
   '@memberjunction/ng-base-forms@6.1.0-edge.4(b655442e1d75554303c71e66b90bc14b)':
     dependencies:
@@ -12025,6 +12503,17 @@ snapshots:
       - ws
       - zone.js
 
+  '@memberjunction/ng-base-types@6.1.0-edge.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))':
+    dependencies:
+      '@angular/common': 21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2)
+      '@angular/core': 21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)
+      '@memberjunction/core': 6.1.0-edge.4
+      '@memberjunction/core-entities': 6.1.0-edge.3
+      '@memberjunction/global': 6.1.0-edge.4
+      tslib: 2.8.1
+    transitivePeerDependencies:
+      - supports-color
+
   '@memberjunction/ng-base-types@6.1.0-edge.4(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))':
     dependencies:
       '@angular/common': 21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2)
@@ -12034,6 +12523,34 @@ snapshots:
       '@memberjunction/global': 6.1.0-edge.4
       tslib: 2.8.1
     transitivePeerDependencies:
+      - supports-color
+
+  '@memberjunction/ng-code-editor@6.1.0-edge.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(@angular/platform-browser@21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)))(rxjs@7.8.2)':
+    dependencies:
+      '@angular/common': 21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2)
+      '@angular/core': 21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)
+      '@angular/forms': 21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(@angular/platform-browser@21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)))(rxjs@7.8.2)
+      '@codemirror/commands': 6.10.4
+      '@codemirror/lang-javascript': 6.2.5
+      '@codemirror/lang-json': 6.0.2
+      '@codemirror/lang-python': 6.2.1
+      '@codemirror/lang-sql': 6.10.0
+      '@codemirror/language': 6.12.4
+      '@codemirror/language-data': 6.5.2
+      '@codemirror/merge': 6.12.2
+      '@codemirror/state': 6.7.1
+      '@codemirror/view': 6.43.8
+      '@lezer/highlight': 1.2.3
+      '@memberjunction/core': 6.1.0-edge.4
+      '@memberjunction/core-entities': 6.1.0-edge.3
+      '@memberjunction/global': 6.1.0-edge.4
+      '@memberjunction/ng-base-types': 6.1.0-edge.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))
+      '@memberjunction/ng-container-directives': 6.1.0-edge.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))
+      codemirror: 6.0.2
+      tslib: 2.8.1
+    transitivePeerDependencies:
+      - '@angular/platform-browser'
+      - rxjs
       - supports-color
 
   '@memberjunction/ng-code-editor@6.1.0-edge.4(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(@angular/platform-browser@21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)))(rxjs@7.8.2)':
@@ -12064,6 +12581,17 @@ snapshots:
       - rxjs
       - supports-color
 
+  '@memberjunction/ng-container-directives@6.1.0-edge.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))':
+    dependencies:
+      '@angular/common': 21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2)
+      '@angular/core': 21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)
+      '@memberjunction/core': 6.1.0-edge.4
+      '@memberjunction/global': 6.1.0-edge.4
+      rxjs: 7.8.2
+      tslib: 2.8.1
+    transitivePeerDependencies:
+      - supports-color
+
   '@memberjunction/ng-container-directives@6.1.0-edge.4(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))':
     dependencies:
       '@angular/common': 21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2)
@@ -12074,6 +12602,27 @@ snapshots:
       tslib: 2.8.1
     transitivePeerDependencies:
       - supports-color
+
+  '@memberjunction/ng-credentials@6.1.0-edge.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(@angular/forms@21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(@angular/platform-browser@21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)))(rxjs@7.8.2))(@angular/platform-browser@21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)))(ws@8.21.3)':
+    dependencies:
+      '@angular/common': 21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2)
+      '@angular/core': 21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)
+      '@angular/forms': 21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(@angular/platform-browser@21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)))(rxjs@7.8.2)
+      '@memberjunction/core': 6.1.0-edge.4
+      '@memberjunction/core-entities': 6.1.0-edge.3
+      '@memberjunction/global': 6.1.0-edge.4
+      '@memberjunction/ng-base-types': 6.1.0-edge.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))
+      '@memberjunction/ng-notifications': 6.1.0-edge.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(ws@8.21.3)
+      '@memberjunction/ng-shared-generic': 6.1.0-edge.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(@angular/platform-browser@21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)))(rxjs@7.8.2)
+      '@memberjunction/ng-ui-components': 6.1.0-edge.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(@angular/platform-browser@21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)))(rxjs@7.8.2)
+      rxjs: 7.8.2
+      tslib: 2.8.1
+    transitivePeerDependencies:
+      - '@angular/platform-browser'
+      - '@fastify/websocket'
+      - crossws
+      - supports-color
+      - ws
 
   '@memberjunction/ng-credentials@6.1.0-edge.4(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(@angular/forms@21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(@angular/platform-browser@21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)))(rxjs@7.8.2))(@angular/platform-browser@21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)))(ws@8.21.3)':
     dependencies:
@@ -12087,6 +12636,27 @@ snapshots:
       '@memberjunction/ng-notifications': 6.1.0-edge.4(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(ws@8.21.3)
       '@memberjunction/ng-shared-generic': 6.1.0-edge.4(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(@angular/platform-browser@21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)))(rxjs@7.8.2)
       '@memberjunction/ng-ui-components': 6.1.0-edge.4(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(@angular/platform-browser@21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)))(rxjs@7.8.2)
+      rxjs: 7.8.2
+      tslib: 2.8.1
+    transitivePeerDependencies:
+      - '@angular/platform-browser'
+      - '@fastify/websocket'
+      - crossws
+      - supports-color
+      - ws
+
+  '@memberjunction/ng-entity-action-ux@6.1.0-edge.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(@angular/forms@21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(@angular/platform-browser@21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)))(rxjs@7.8.2))(@angular/platform-browser@21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)))(rxjs@7.8.2)(ws@8.21.3)':
+    dependencies:
+      '@angular/common': 21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2)
+      '@angular/core': 21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)
+      '@angular/forms': 21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(@angular/platform-browser@21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)))(rxjs@7.8.2)
+      '@memberjunction/core': 6.1.0-edge.4
+      '@memberjunction/core-entities': 6.1.0-edge.3
+      '@memberjunction/global': 6.1.0-edge.4
+      '@memberjunction/graphql-dataprovider': 6.1.0-edge.3(ws@8.21.3)
+      '@memberjunction/ng-base-types': 6.1.0-edge.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))
+      '@memberjunction/ng-ui-components': 6.1.0-edge.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(@angular/platform-browser@21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)))(rxjs@7.8.2)
+      '@memberjunction/record-set-processor-base': 6.1.0-edge.3
       rxjs: 7.8.2
       tslib: 2.8.1
     transitivePeerDependencies:
@@ -12111,6 +12681,40 @@ snapshots:
       rxjs: 7.8.2
       tslib: 2.8.1
     transitivePeerDependencies:
+      - '@angular/platform-browser'
+      - '@fastify/websocket'
+      - crossws
+      - supports-color
+      - ws
+
+  '@memberjunction/ng-entity-viewer@6.1.0-edge.3(9281fd9b6d86b8d77924231f16d4bcf7)':
+    dependencies:
+      '@angular/common': 21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2)
+      '@angular/core': 21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)
+      '@angular/forms': 21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(@angular/platform-browser@21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)))(rxjs@7.8.2)
+      '@memberjunction/actions-base': 6.1.0-edge.3
+      '@memberjunction/core': 6.1.0-edge.4
+      '@memberjunction/core-entities': 6.1.0-edge.3
+      '@memberjunction/export-engine': 6.1.0-edge.3
+      '@memberjunction/global': 6.1.0-edge.4
+      '@memberjunction/ng-base-types': 6.1.0-edge.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))
+      '@memberjunction/ng-entity-action-ux': 6.1.0-edge.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(@angular/forms@21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(@angular/platform-browser@21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)))(rxjs@7.8.2))(@angular/platform-browser@21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)))(rxjs@7.8.2)(ws@8.21.3)
+      '@memberjunction/ng-export-service': 6.1.0-edge.3(@angular/cdk@21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(@angular/platform-browser@21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)))(rxjs@7.8.2))(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(@angular/forms@21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(@angular/platform-browser@21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)))(rxjs@7.8.2))
+      '@memberjunction/ng-filter-builder': 6.1.0-edge.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(@angular/forms@21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(@angular/platform-browser@21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)))(rxjs@7.8.2))(rxjs@7.8.2)
+      '@memberjunction/ng-list-management': 6.1.0-edge.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(@angular/forms@21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(@angular/platform-browser@21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)))(rxjs@7.8.2))(@angular/platform-browser@21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)))(rxjs@7.8.2)(ws@8.21.3)
+      '@memberjunction/ng-map-view': 6.1.0-edge.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(@angular/platform-browser@21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)))
+      '@memberjunction/ng-notifications': 6.1.0-edge.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(ws@8.21.3)
+      '@memberjunction/ng-pagination': 6.1.0-edge.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))
+      '@memberjunction/ng-record-changes': 6.1.0-edge.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(@angular/forms@21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(@angular/platform-browser@21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)))(rxjs@7.8.2))(ws@8.21.3)
+      '@memberjunction/ng-shared-generic': 6.1.0-edge.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(@angular/platform-browser@21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)))(rxjs@7.8.2)
+      '@memberjunction/ng-timeline': 6.1.0-edge.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(@angular/platform-browser@21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)))
+      '@memberjunction/ng-ui-components': 6.1.0-edge.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(@angular/platform-browser@21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)))(rxjs@7.8.2)
+      ag-grid-angular: 35.3.1(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))
+      ag-grid-community: 35.3.1
+      rxjs: 7.8.2
+      tslib: 2.8.1
+    transitivePeerDependencies:
+      - '@angular/cdk'
       - '@angular/platform-browser'
       - '@fastify/websocket'
       - crossws
@@ -12151,6 +12755,15 @@ snapshots:
       - supports-color
       - ws
 
+  '@memberjunction/ng-export-service@6.1.0-edge.3(@angular/cdk@21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(@angular/platform-browser@21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)))(rxjs@7.8.2))(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(@angular/forms@21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(@angular/platform-browser@21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)))(rxjs@7.8.2))':
+    dependencies:
+      '@angular/cdk': 21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(@angular/platform-browser@21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)))(rxjs@7.8.2)
+      '@angular/common': 21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2)
+      '@angular/core': 21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)
+      '@angular/forms': 21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(@angular/platform-browser@21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)))(rxjs@7.8.2)
+      '@memberjunction/export-engine': 6.1.0-edge.3
+      tslib: 2.8.1
+
   '@memberjunction/ng-export-service@6.1.0-edge.4(@angular/cdk@21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(@angular/platform-browser@21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)))(rxjs@7.8.2))(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(@angular/forms@21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(@angular/platform-browser@21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)))(rxjs@7.8.2))':
     dependencies:
       '@angular/cdk': 21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(@angular/platform-browser@21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)))(rxjs@7.8.2)
@@ -12159,6 +12772,36 @@ snapshots:
       '@angular/forms': 21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(@angular/platform-browser@21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)))(rxjs@7.8.2)
       '@memberjunction/export-engine': 6.1.0-edge.4
       tslib: 2.8.1
+
+  '@memberjunction/ng-file-storage@6.1.0-edge.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(@angular/forms@21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(@angular/platform-browser@21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)))(rxjs@7.8.2))(rxjs@7.8.2)(ws@8.21.3)':
+    dependencies:
+      '@angular/common': 21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2)
+      '@angular/core': 21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)
+      '@angular/forms': 21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(@angular/platform-browser@21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)))(rxjs@7.8.2)
+      '@angular/platform-browser': 21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))
+      '@memberjunction/core': 6.1.0-edge.4
+      '@memberjunction/core-entities': 6.1.0-edge.3
+      '@memberjunction/global': 6.1.0-edge.4
+      '@memberjunction/graphql-dataprovider': 6.1.0-edge.3(ws@8.21.3)
+      '@memberjunction/ng-base-types': 6.1.0-edge.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))
+      '@memberjunction/ng-container-directives': 6.1.0-edge.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))
+      '@memberjunction/ng-credentials': 6.1.0-edge.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(@angular/forms@21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(@angular/platform-browser@21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)))(rxjs@7.8.2))(@angular/platform-browser@21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)))(ws@8.21.3)
+      '@memberjunction/ng-notifications': 6.1.0-edge.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(ws@8.21.3)
+      '@memberjunction/ng-shared': 6.1.0-edge.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2)(ws@8.21.3)
+      '@memberjunction/ng-shared-generic': 6.1.0-edge.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(@angular/platform-browser@21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)))(rxjs@7.8.2)
+      '@memberjunction/ng-ui-components': 6.1.0-edge.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(@angular/platform-browser@21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)))(rxjs@7.8.2)
+      ag-grid-angular: 35.3.1(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))
+      ag-grid-community: 35.3.1
+      tslib: 2.8.1
+      zod: 3.25.76
+    transitivePeerDependencies:
+      - '@angular/animations'
+      - '@angular/router'
+      - '@fastify/websocket'
+      - crossws
+      - rxjs
+      - supports-color
+      - ws
 
   '@memberjunction/ng-file-storage@6.1.0-edge.4(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(@angular/forms@21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(@angular/platform-browser@21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)))(rxjs@7.8.2))(rxjs@7.8.2)(ws@8.21.3)':
     dependencies:
@@ -12190,6 +12833,20 @@ snapshots:
       - supports-color
       - ws
 
+  '@memberjunction/ng-filter-builder@6.1.0-edge.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(@angular/forms@21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(@angular/platform-browser@21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)))(rxjs@7.8.2))(rxjs@7.8.2)':
+    dependencies:
+      '@angular/common': 21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2)
+      '@angular/core': 21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)
+      '@angular/forms': 21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(@angular/platform-browser@21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)))(rxjs@7.8.2)
+      '@angular/platform-browser': 21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))
+      '@memberjunction/core': 6.1.0-edge.4
+      '@memberjunction/ng-ui-components': 6.1.0-edge.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(@angular/platform-browser@21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)))(rxjs@7.8.2)
+      rxjs: 7.8.2
+      tslib: 2.8.1
+    transitivePeerDependencies:
+      - '@angular/animations'
+      - supports-color
+
   '@memberjunction/ng-filter-builder@6.1.0-edge.4(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(@angular/forms@21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(@angular/platform-browser@21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)))(rxjs@7.8.2))(rxjs@7.8.2)':
     dependencies:
       '@angular/common': 21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2)
@@ -12203,6 +12860,49 @@ snapshots:
     transitivePeerDependencies:
       - '@angular/animations'
       - supports-color
+
+  '@memberjunction/ng-graph-view@6.1.0-edge.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(@angular/forms@21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(@angular/platform-browser@21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)))(rxjs@7.8.2))(@angular/platform-browser@21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)))':
+    dependencies:
+      '@angular/common': 21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2)
+      '@angular/core': 21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)
+      '@angular/forms': 21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(@angular/platform-browser@21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)))(rxjs@7.8.2)
+      '@memberjunction/global': 6.1.0-edge.4
+      '@memberjunction/ng-ui-components': 6.1.0-edge.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(@angular/platform-browser@21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)))(rxjs@7.8.2)
+      '@types/d3': 7.4.3
+      d3: 7.9.0
+      rxjs: 7.8.2
+      tslib: 2.8.1
+    transitivePeerDependencies:
+      - '@angular/platform-browser'
+
+  '@memberjunction/ng-hierarchy-tree@6.1.0-edge.3(b655442e1d75554303c71e66b90bc14b)':
+    dependencies:
+      '@angular/common': 21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2)
+      '@angular/core': 21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)
+      '@angular/forms': 21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(@angular/platform-browser@21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)))(rxjs@7.8.2)
+      '@memberjunction/core': 6.1.0-edge.4
+      '@memberjunction/core-entities': 6.1.0-edge.3
+      '@memberjunction/global': 6.1.0-edge.4
+      '@memberjunction/ng-base-forms': 6.1.0-edge.3(b655442e1d75554303c71e66b90bc14b)
+      '@memberjunction/ng-base-types': 6.1.0-edge.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))
+      '@memberjunction/ng-ui-components': 6.1.0-edge.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(@angular/platform-browser@21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)))(rxjs@7.8.2)
+      d3: 7.9.0
+      rxjs: 7.8.2
+      tslib: 2.8.1
+    transitivePeerDependencies:
+      - '@angular/animations'
+      - '@angular/cdk'
+      - '@angular/compiler'
+      - '@angular/platform-browser'
+      - '@angular/router'
+      - '@fastify/websocket'
+      - ag-grid-angular
+      - ag-grid-community
+      - crossws
+      - primeng
+      - supports-color
+      - ws
+      - zone.js
 
   '@memberjunction/ng-hierarchy-tree@6.1.0-edge.4(b655442e1d75554303c71e66b90bc14b)':
     dependencies:
@@ -12250,6 +12950,29 @@ snapshots:
       - supports-color
       - ws
 
+  '@memberjunction/ng-list-management@6.1.0-edge.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(@angular/forms@21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(@angular/platform-browser@21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)))(rxjs@7.8.2))(@angular/platform-browser@21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)))(rxjs@7.8.2)(ws@8.21.3)':
+    dependencies:
+      '@angular/common': 21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2)
+      '@angular/core': 21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)
+      '@angular/forms': 21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(@angular/platform-browser@21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)))(rxjs@7.8.2)
+      '@memberjunction/core': 6.1.0-edge.4
+      '@memberjunction/core-entities': 6.1.0-edge.3
+      '@memberjunction/global': 6.1.0-edge.4
+      '@memberjunction/graphql-dataprovider': 6.1.0-edge.3(ws@8.21.3)
+      '@memberjunction/lists-base': 6.1.0-edge.3
+      '@memberjunction/ng-base-types': 6.1.0-edge.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))
+      '@memberjunction/ng-container-directives': 6.1.0-edge.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))
+      '@memberjunction/ng-shared-generic': 6.1.0-edge.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(@angular/platform-browser@21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)))(rxjs@7.8.2)
+      '@memberjunction/ng-ui-components': 6.1.0-edge.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(@angular/platform-browser@21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)))(rxjs@7.8.2)
+      rxjs: 7.8.2
+      tslib: 2.8.1
+    transitivePeerDependencies:
+      - '@angular/platform-browser'
+      - '@fastify/websocket'
+      - crossws
+      - supports-color
+      - ws
+
   '@memberjunction/ng-list-management@6.1.0-edge.4(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(@angular/forms@21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(@angular/platform-browser@21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)))(rxjs@7.8.2))(@angular/platform-browser@21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)))(rxjs@7.8.2)(ws@8.21.3)':
     dependencies:
       '@angular/common': 21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2)
@@ -12273,6 +12996,23 @@ snapshots:
       - supports-color
       - ws
 
+  '@memberjunction/ng-map-view@6.1.0-edge.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(@angular/platform-browser@21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)))':
+    dependencies:
+      '@angular/common': 21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2)
+      '@angular/core': 21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)
+      '@memberjunction/core': 6.1.0-edge.4
+      '@memberjunction/core-entities': 6.1.0-edge.3
+      '@memberjunction/geo-maps': 6.1.0-edge.3
+      '@memberjunction/global': 6.1.0-edge.4
+      '@memberjunction/ng-shared-generic': 6.1.0-edge.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(@angular/platform-browser@21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)))(rxjs@7.8.2)
+      '@types/leaflet': 1.9.22
+      leaflet: 1.9.4
+      rxjs: 7.8.2
+      tslib: 2.8.1
+    transitivePeerDependencies:
+      - '@angular/platform-browser'
+      - supports-color
+
   '@memberjunction/ng-map-view@6.1.0-edge.4(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(@angular/platform-browser@21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)))':
     dependencies:
       '@angular/common': 21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2)
@@ -12290,6 +13030,16 @@ snapshots:
       - '@angular/platform-browser'
       - supports-color
 
+  '@memberjunction/ng-markdown@6.1.0-edge.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(@angular/platform-browser@21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)))':
+    dependencies:
+      '@angular/common': 21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2)
+      '@angular/core': 21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)
+      '@angular/platform-browser': 21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))
+      '@memberjunction/markdown-core': 6.1.0-edge.3
+      mermaid: 11.16.1
+      prismjs: 1.30.0
+      tslib: 2.8.1
+
   '@memberjunction/ng-markdown@6.1.0-edge.4(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(@angular/platform-browser@21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)))':
     dependencies:
       '@angular/common': 21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2)
@@ -12299,6 +13049,23 @@ snapshots:
       mermaid: 11.16.1
       prismjs: 1.30.0
       tslib: 2.8.1
+
+  '@memberjunction/ng-notifications@6.1.0-edge.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(ws@8.21.3)':
+    dependencies:
+      '@angular/common': 21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2)
+      '@angular/core': 21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)
+      '@memberjunction/core': 6.1.0-edge.4
+      '@memberjunction/core-entities': 6.1.0-edge.3
+      '@memberjunction/global': 6.1.0-edge.4
+      '@memberjunction/graphql-dataprovider': 6.1.0-edge.3(ws@8.21.3)
+      '@memberjunction/ng-base-types': 6.1.0-edge.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))
+      rxjs: 7.8.2
+      tslib: 2.8.1
+    transitivePeerDependencies:
+      - '@fastify/websocket'
+      - crossws
+      - supports-color
+      - ws
 
   '@memberjunction/ng-notifications@6.1.0-edge.4(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(ws@8.21.3)':
     dependencies:
@@ -12317,11 +13084,46 @@ snapshots:
       - supports-color
       - ws
 
+  '@memberjunction/ng-pagination@6.1.0-edge.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))':
+    dependencies:
+      '@angular/common': 21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2)
+      '@angular/core': 21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)
+      tslib: 2.8.1
+
   '@memberjunction/ng-pagination@6.1.0-edge.4(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))':
     dependencies:
       '@angular/common': 21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2)
       '@angular/core': 21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)
       tslib: 2.8.1
+
+  '@memberjunction/ng-react@6.1.0-edge.3(@angular/compiler@21.1.3)(ws@8.21.3)':
+    dependencies:
+      '@angular/common': 21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2)
+      '@angular/core': 21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)
+      '@angular/platform-browser': 21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))
+      '@babel/standalone': 7.29.8
+      '@memberjunction/ai-vectors-memory': 6.1.0-edge.3
+      '@memberjunction/core': 6.1.0-edge.4
+      '@memberjunction/core-entities': 6.1.0-edge.3
+      '@memberjunction/global': 6.1.0-edge.4
+      '@memberjunction/graphql-dataprovider': 6.1.0-edge.3(ws@8.21.3)
+      '@memberjunction/interactive-component-types': 6.1.0-edge.3
+      '@memberjunction/ng-base-types': 6.1.0-edge.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))
+      '@memberjunction/ng-notifications': 6.1.0-edge.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(ws@8.21.3)
+      '@memberjunction/react-runtime': 6.1.0-edge.3(ws@8.21.3)
+      '@types/react': 19.2.18
+      '@types/react-dom': 19.2.4(@types/react@19.2.18)
+      react: 19.2.8
+      react-dom: 19.2.8(react@19.2.8)
+      rxjs: 7.8.2
+    transitivePeerDependencies:
+      - '@angular/animations'
+      - '@angular/compiler'
+      - '@fastify/websocket'
+      - crossws
+      - supports-color
+      - ws
+      - zone.js
 
   '@memberjunction/ng-react@6.1.0-edge.4(@angular/compiler@21.1.3)(ws@8.21.3)':
     dependencies:
@@ -12352,6 +13154,30 @@ snapshots:
       - ws
       - zone.js
 
+  '@memberjunction/ng-record-changes@6.1.0-edge.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(@angular/forms@21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(@angular/platform-browser@21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)))(rxjs@7.8.2))(ws@8.21.3)':
+    dependencies:
+      '@angular/common': 21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2)
+      '@angular/core': 21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)
+      '@angular/forms': 21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(@angular/platform-browser@21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)))(rxjs@7.8.2)
+      '@angular/platform-browser': 21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))
+      '@memberjunction/core': 6.1.0-edge.4
+      '@memberjunction/core-entities': 6.1.0-edge.3
+      '@memberjunction/global': 6.1.0-edge.4
+      '@memberjunction/ng-base-types': 6.1.0-edge.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))
+      '@memberjunction/ng-notifications': 6.1.0-edge.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(ws@8.21.3)
+      '@memberjunction/ng-shared-generic': 6.1.0-edge.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(@angular/platform-browser@21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)))(rxjs@7.8.2)
+      '@memberjunction/ng-ui-components': 6.1.0-edge.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(@angular/platform-browser@21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)))(rxjs@7.8.2)
+      '@memberjunction/ng-versions': 6.1.0-edge.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(@angular/forms@21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(@angular/platform-browser@21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)))(rxjs@7.8.2))(@angular/platform-browser@21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)))(ws@8.21.3)
+      diff: 8.0.3
+      rxjs: 7.8.2
+      tslib: 2.8.1
+    transitivePeerDependencies:
+      - '@angular/animations'
+      - '@fastify/websocket'
+      - crossws
+      - supports-color
+      - ws
+
   '@memberjunction/ng-record-changes@6.1.0-edge.4(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(@angular/forms@21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(@angular/platform-browser@21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)))(rxjs@7.8.2))(ws@8.21.3)':
     dependencies:
       '@angular/common': 21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2)
@@ -12376,6 +13202,27 @@ snapshots:
       - supports-color
       - ws
 
+  '@memberjunction/ng-record-tags@6.1.0-edge.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(@angular/platform-browser@21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)))(rxjs@7.8.2)(ws@8.21.3)':
+    dependencies:
+      '@angular/common': 21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2)
+      '@angular/core': 21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)
+      '@memberjunction/core': 6.1.0-edge.4
+      '@memberjunction/core-entities': 6.1.0-edge.3
+      '@memberjunction/global': 6.1.0-edge.4
+      '@memberjunction/graphql-dataprovider': 6.1.0-edge.3(ws@8.21.3)
+      '@memberjunction/ng-base-types': 6.1.0-edge.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))
+      '@memberjunction/ng-shared-generic': 6.1.0-edge.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(@angular/platform-browser@21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)))(rxjs@7.8.2)
+      '@memberjunction/ng-ui-components': 6.1.0-edge.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(@angular/platform-browser@21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)))(rxjs@7.8.2)
+      '@memberjunction/ng-word-cloud': 6.1.0-edge.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))
+      tslib: 2.8.1
+    transitivePeerDependencies:
+      - '@angular/platform-browser'
+      - '@fastify/websocket'
+      - crossws
+      - rxjs
+      - supports-color
+      - ws
+
   '@memberjunction/ng-record-tags@6.1.0-edge.4(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(@angular/platform-browser@21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)))(rxjs@7.8.2)(ws@8.21.3)':
     dependencies:
       '@angular/common': 21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2)
@@ -12397,6 +13244,22 @@ snapshots:
       - supports-color
       - ws
 
+  '@memberjunction/ng-shared-generic@6.1.0-edge.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(@angular/platform-browser@21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)))(rxjs@7.8.2)':
+    dependencies:
+      '@angular/common': 21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2)
+      '@angular/core': 21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)
+      '@angular/platform-browser': 21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))
+      '@memberjunction/core': 6.1.0-edge.4
+      '@memberjunction/core-entities': 6.1.0-edge.3
+      '@memberjunction/global': 6.1.0-edge.4
+      '@memberjunction/ng-base-types': 6.1.0-edge.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))
+      '@memberjunction/theme-engine': 6.1.0-edge.3
+      dompurify: 3.4.13
+      rxjs: 7.8.2
+      tslib: 2.8.1
+    transitivePeerDependencies:
+      - supports-color
+
   '@memberjunction/ng-shared-generic@6.1.0-edge.4(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(@angular/platform-browser@21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)))(rxjs@7.8.2)':
     dependencies:
       '@angular/common': 21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2)
@@ -12412,6 +13275,32 @@ snapshots:
       tslib: 2.8.1
     transitivePeerDependencies:
       - supports-color
+
+  '@memberjunction/ng-shared@6.1.0-edge.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2)(ws@8.21.3)':
+    dependencies:
+      '@angular/common': 21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2)
+      '@angular/core': 21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)
+      '@angular/platform-browser': 21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))
+      '@memberjunction/ai-core-plus': 6.1.0-edge.3
+      '@memberjunction/ai-engine-base': 6.1.0-edge.3
+      '@memberjunction/core': 6.1.0-edge.4
+      '@memberjunction/core-entities': 6.1.0-edge.3
+      '@memberjunction/entity-communications-base': 6.1.0-edge.3
+      '@memberjunction/global': 6.1.0-edge.4
+      '@memberjunction/graphql-dataprovider': 6.1.0-edge.3(ws@8.21.3)
+      '@memberjunction/ng-base-application': 6.1.0-edge.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))
+      '@memberjunction/ng-base-types': 6.1.0-edge.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))
+      '@memberjunction/ng-notifications': 6.1.0-edge.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(ws@8.21.3)
+      '@memberjunction/ng-shared-generic': 6.1.0-edge.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(@angular/platform-browser@21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)))(rxjs@7.8.2)
+      html-to-image: 1.11.13
+      rxjs: 7.8.2
+      tslib: 2.8.1
+    transitivePeerDependencies:
+      - '@angular/animations'
+      - '@fastify/websocket'
+      - crossws
+      - supports-color
+      - ws
 
   '@memberjunction/ng-shared@6.1.0-edge.4(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2)(ws@8.21.3)':
     dependencies:
@@ -12439,6 +13328,19 @@ snapshots:
       - supports-color
       - ws
 
+  '@memberjunction/ng-timeline@6.1.0-edge.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(@angular/platform-browser@21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)))':
+    dependencies:
+      '@angular/common': 21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2)
+      '@angular/core': 21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)
+      '@memberjunction/core': 6.1.0-edge.4
+      '@memberjunction/ng-base-types': 6.1.0-edge.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))
+      '@memberjunction/ng-ui-components': 6.1.0-edge.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(@angular/platform-browser@21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)))(rxjs@7.8.2)
+      rxjs: 7.8.2
+      tslib: 2.8.1
+    transitivePeerDependencies:
+      - '@angular/platform-browser'
+      - supports-color
+
   '@memberjunction/ng-timeline@6.1.0-edge.4(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(@angular/platform-browser@21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)))':
     dependencies:
       '@angular/common': 21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2)
@@ -12452,6 +13354,18 @@ snapshots:
       - '@angular/platform-browser'
       - supports-color
 
+  '@memberjunction/ng-ui-components@6.1.0-edge.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(@angular/platform-browser@21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)))(rxjs@7.8.2)':
+    dependencies:
+      '@angular/cdk': 21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(@angular/platform-browser@21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)))(rxjs@7.8.2)
+      '@angular/common': 21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2)
+      '@angular/core': 21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)
+      '@angular/forms': 21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(@angular/platform-browser@21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)))(rxjs@7.8.2)
+      angular-split: 20.0.0(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2)
+      rxjs: 7.8.2
+      tslib: 2.8.1
+    transitivePeerDependencies:
+      - '@angular/platform-browser'
+
   '@memberjunction/ng-ui-components@6.1.0-edge.4(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(@angular/platform-browser@21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)))(rxjs@7.8.2)':
     dependencies:
       '@angular/cdk': 21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(@angular/platform-browser@21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)))(rxjs@7.8.2)
@@ -12463,6 +13377,27 @@ snapshots:
       tslib: 2.8.1
     transitivePeerDependencies:
       - '@angular/platform-browser'
+
+  '@memberjunction/ng-versions@6.1.0-edge.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(@angular/forms@21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(@angular/platform-browser@21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)))(rxjs@7.8.2))(@angular/platform-browser@21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)))(ws@8.21.3)':
+    dependencies:
+      '@angular/common': 21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2)
+      '@angular/core': 21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)
+      '@angular/forms': 21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(@angular/platform-browser@21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)))(rxjs@7.8.2)
+      '@memberjunction/core': 6.1.0-edge.4
+      '@memberjunction/core-entities': 6.1.0-edge.3
+      '@memberjunction/global': 6.1.0-edge.4
+      '@memberjunction/graphql-dataprovider': 6.1.0-edge.3(ws@8.21.3)
+      '@memberjunction/ng-base-types': 6.1.0-edge.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))
+      '@memberjunction/ng-shared-generic': 6.1.0-edge.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(@angular/platform-browser@21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)))(rxjs@7.8.2)
+      '@memberjunction/ng-ui-components': 6.1.0-edge.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(@angular/platform-browser@21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)))(rxjs@7.8.2)
+      rxjs: 7.8.2
+      tslib: 2.8.1
+    transitivePeerDependencies:
+      - '@angular/platform-browser'
+      - '@fastify/websocket'
+      - crossws
+      - supports-color
+      - ws
 
   '@memberjunction/ng-versions@6.1.0-edge.4(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(@angular/forms@21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(@angular/platform-browser@21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)))(rxjs@7.8.2))(@angular/platform-browser@21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)))(ws@8.21.3)':
     dependencies:
@@ -12484,6 +13419,12 @@ snapshots:
       - crossws
       - supports-color
       - ws
+
+  '@memberjunction/ng-word-cloud@6.1.0-edge.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))':
+    dependencies:
+      '@angular/common': 21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2)
+      '@angular/core': 21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)
+      tslib: 2.8.1
 
   '@memberjunction/ng-word-cloud@6.1.0-edge.4(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))':
     dependencies:
@@ -12835,6 +13776,21 @@ snapshots:
       - supports-color
       - ws
 
+  '@memberjunction/react-runtime@6.1.0-edge.3(ws@8.21.3)':
+    dependencies:
+      '@babel/standalone': 7.29.8
+      '@memberjunction/core': 6.1.0-edge.4
+      '@memberjunction/core-entities': 6.1.0-edge.3
+      '@memberjunction/global': 6.1.0-edge.4
+      '@memberjunction/graphql-dataprovider': 6.1.0-edge.3(ws@8.21.3)
+      '@memberjunction/interactive-component-types': 6.1.0-edge.3
+      rxjs: 7.8.2
+    transitivePeerDependencies:
+      - '@fastify/websocket'
+      - crossws
+      - supports-color
+      - ws
+
   '@memberjunction/react-runtime@6.1.0-edge.4(ws@8.21.3)':
     dependencies:
       '@babel/standalone': 7.29.8
@@ -12854,6 +13810,13 @@ snapshots:
     dependencies:
       '@memberjunction/core': 6.1.0-edge.4
       '@memberjunction/core-entities': 6.1.0-edge.4
+      '@memberjunction/global': 6.1.0-edge.4
+    transitivePeerDependencies:
+      - supports-color
+
+  '@memberjunction/record-set-processor-base@6.1.0-edge.3':
+    dependencies:
+      '@memberjunction/core': 6.1.0-edge.4
       '@memberjunction/global': 6.1.0-edge.4
     transitivePeerDependencies:
       - supports-color
@@ -13635,6 +14598,8 @@ snapshots:
       '@memberjunction/sql-dialect': 6.1.0-edge.4
       '@memberjunction/sqlglot-ts': 6.1.0-edge.4
 
+  '@memberjunction/sql-dialect@6.1.0-edge.3': {}
+
   '@memberjunction/sql-dialect@6.1.0-edge.4': {}
 
   '@memberjunction/sql-parser@6.1.0-edge.4':
@@ -13909,6 +14874,14 @@ snapshots:
       - ws
       - zod
 
+  '@memberjunction/templates-base-types@6.1.0-edge.3':
+    dependencies:
+      '@memberjunction/core': 6.1.0-edge.4
+      '@memberjunction/core-entities': 6.1.0-edge.3
+      '@memberjunction/global': 6.1.0-edge.4
+    transitivePeerDependencies:
+      - supports-color
+
   '@memberjunction/templates-base-types@6.1.0-edge.4':
     dependencies:
       '@memberjunction/core': 6.1.0-edge.4
@@ -14153,6 +15126,8 @@ snapshots:
       - ws
       - zod
 
+  '@memberjunction/theme-engine@6.1.0-edge.3': {}
+
   '@memberjunction/theme-engine@6.1.0-edge.4': {}
 
   '@memberjunction/version-history@6.1.0-edge.4':
@@ -14225,6 +15200,44 @@ snapshots:
       - utf-8-validate
 
   '@mixmark-io/domino@2.2.0': {}
+
+  '@mj-biz-apps/common-entities@5.37.0(@memberjunction/core@6.1.0-edge.4)(@memberjunction/global@6.1.0-edge.4)':
+    dependencies:
+      '@memberjunction/core': 6.1.0-edge.4
+      '@memberjunction/global': 6.1.0-edge.4
+      zod: 3.25.76
+
+  '@mj-biz-apps/common-ng@5.37.0(0aa5cbed652a381e6ca71a23b69335fb)':
+    dependencies:
+      '@angular/common': 21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2)
+      '@angular/core': 21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)
+      '@angular/forms': 21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(@angular/platform-browser@21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)))(rxjs@7.8.2)
+      '@memberjunction/actions-base': 6.1.0-edge.4
+      '@memberjunction/core': 6.1.0-edge.4
+      '@memberjunction/core-entities': 6.1.0-edge.4
+      '@memberjunction/global': 6.1.0-edge.4
+      '@memberjunction/graphql-dataprovider': 6.1.0-edge.4(ws@8.21.3)
+      '@memberjunction/ng-base-forms': 6.1.0-edge.4(b655442e1d75554303c71e66b90bc14b)
+      '@memberjunction/ng-entity-viewer': 6.1.0-edge.4(9281fd9b6d86b8d77924231f16d4bcf7)
+      '@memberjunction/ng-graph-view': 6.1.0-edge.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(@angular/forms@21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(@angular/platform-browser@21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)))(rxjs@7.8.2))(@angular/platform-browser@21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)))
+      '@memberjunction/ng-hierarchy-tree': 6.1.0-edge.3(b655442e1d75554303c71e66b90bc14b)
+      '@memberjunction/ng-link-directives': 6.1.0-edge.4(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2)(ws@8.21.3)
+      '@memberjunction/ng-shared': 6.1.0-edge.4(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2)(ws@8.21.3)
+      '@memberjunction/ng-ui-components': 6.1.0-edge.4(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(@angular/platform-browser@21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)))(rxjs@7.8.2)
+      '@mj-biz-apps/common-entities': 5.37.0(@memberjunction/core@6.1.0-edge.4)(@memberjunction/global@6.1.0-edge.4)
+    transitivePeerDependencies:
+      - '@angular/cdk'
+      - '@angular/compiler'
+      - '@angular/platform-browser'
+      - '@angular/router'
+      - '@fastify/websocket'
+      - ag-grid-angular
+      - ag-grid-community
+      - crossws
+      - primeng
+      - supports-color
+      - ws
+      - zone.js
 
   '@modelcontextprotocol/sdk@1.30.0(zod@3.25.76)':
     dependencies:
