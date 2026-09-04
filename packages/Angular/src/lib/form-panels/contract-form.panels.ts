@@ -33,6 +33,16 @@ interface ContractFieldSpec {
     type: ContractFieldType;
     link?: 'Record' | 'URL';
     span?: boolean;
+    /**
+     * Never editable, even in Edit mode — the SERVER owns this value (issue #28 item 18).
+     *
+     * Distinct from a field the API happens to reject: these render as an input a person can type
+     * into, and the typing is silently discarded or overwritten on save. `ContractNumber` is minted
+     * under a lock in `assignContractNumber()`, `HasModifications` is settled by the server's
+     * `ValidateAsync()`, and `SupersededByContractID` is written only by `Contracts.Supersede` on the
+     * SUCCESSOR — editing it here would set the opposite direction from the Re-papering panel.
+     */
+    readOnly?: boolean;
 }
 
 const FIELD_STYLES = `
@@ -404,7 +414,8 @@ function daysUntil(d: Date | string | null | undefined): number | null {
                 @for (f of Fields; track f.name) {
                     <div class="mjc-fg" [class.mjc-fg--span]="f.span">
                         <mj-form-field [Record]="Record" [ShowLabel]="true" [FieldName]="f.name" [Type]="f.type"
-                            [EditMode]="EditMode" [FormContext]="FormContext" [LinkType]="f.link ?? 'None'"
+                            [EditMode]="f.readOnly ? false : EditMode" [FormContext]="FormContext"
+                            [LinkType]="f.link ?? 'None'"
                             (Navigate)="FormComponent.OnFormNavigate($event)"></mj-form-field>
                     </div>
                 }
@@ -414,11 +425,11 @@ function daysUntil(d: Date | string | null | undefined): number | null {
 })
 export class MJCContractAgreementPanel extends BaseFormPanel<ContractEntity> {
     public readonly Fields: ContractFieldSpec[] = [
-        { name: 'ContractNumber', type: 'textbox' },
+        { name: 'ContractNumber', type: 'textbox', readOnly: true },
         { name: 'ContractTypeID', type: 'textbox', link: 'Record' },
         { name: 'ContractTemplateID', type: 'textbox', link: 'Record' },
         { name: 'SigningProviderURL', type: 'textbox', link: 'URL' },
-        { name: 'HasModifications', type: 'checkbox' },
+        { name: 'HasModifications', type: 'checkbox', readOnly: true },
         { name: 'Description', type: 'textarea', span: true },
     ];
 }
@@ -444,7 +455,8 @@ export class MJCContractAgreementPanel extends BaseFormPanel<ContractEntity> {
                 @for (f of Fields; track f.name) {
                     <div class="mjc-fg" [class.mjc-fg--span]="f.span">
                         <mj-form-field [Record]="Record" [ShowLabel]="true" [FieldName]="f.name" [Type]="f.type"
-                            [EditMode]="EditMode" [FormContext]="FormContext" [LinkType]="f.link ?? 'None'"
+                            [EditMode]="f.readOnly ? false : EditMode" [FormContext]="FormContext"
+                            [LinkType]="f.link ?? 'None'"
                             (Navigate)="FormComponent.OnFormNavigate($event)"></mj-form-field>
                     </div>
                 }
@@ -487,7 +499,8 @@ export class MJCContractPartiesPanel extends BaseFormPanel<ContractEntity> {
                 @for (f of Fields; track f.name) {
                     <div class="mjc-fg" [class.mjc-fg--span]="f.span">
                         <mj-form-field [Record]="Record" [ShowLabel]="true" [FieldName]="f.name" [Type]="f.type"
-                            [EditMode]="EditMode" [FormContext]="FormContext" [LinkType]="f.link ?? 'None'"
+                            [EditMode]="f.readOnly ? false : EditMode" [FormContext]="FormContext"
+                            [LinkType]="f.link ?? 'None'"
                             (Navigate)="FormComponent.OnFormNavigate($event)"></mj-form-field>
                     </div>
                 }
@@ -522,7 +535,8 @@ export class MJCContractNotesPanel extends BaseFormPanel<ContractEntity> {
                 @for (f of Fields; track f.name) {
                     <div class="mjc-fg" [class.mjc-fg--span]="f.span">
                         <mj-form-field [Record]="Record" [ShowLabel]="true" [FieldName]="f.name" [Type]="f.type"
-                            [EditMode]="EditMode" [FormContext]="FormContext" [LinkType]="f.link ?? 'None'"
+                            [EditMode]="f.readOnly ? false : EditMode" [FormContext]="FormContext"
+                            [LinkType]="f.link ?? 'None'"
                             (Navigate)="FormComponent.OnFormNavigate($event)"></mj-form-field>
                     </div>
                 }
@@ -531,9 +545,32 @@ export class MJCContractNotesPanel extends BaseFormPanel<ContractEntity> {
     `,
 })
 export class MJCContractProvenanceFieldsPanel extends BaseFormPanel<ContractEntity> {
+    /**
+     * READ-ONLY, and the section KEPT — a deliberate departure from issue #28 item 18.
+     *
+     * Item 18 says to hide this section entirely, on the stated grounds that the hero's Source Deal
+     * link (item 1) replaces it. That premise does not hold yet. Item 1 renders the stat ONLY when
+     * `CreatingEntityID` and `CreatingRecordID` are both set, and on this database exactly one contract
+     * of eleven has them — `CTR-000026`, whose pair was typed in by hand: the entity is
+     * `MJ: Explorer Navigation Items` rather than Deals and the record id is not a valid UUID. So on
+     * every contract a person can currently open, the replacement is invisible. Hiding this section
+     * today would remove the only visible provenance for a stat that does not appear.
+     *
+     * WHAT ITEM 18 IS ACTUALLY ABOUT, and this half is not in doubt: these two fields rendered as
+     * ordinary inputs a person could type into, which is how that junk pair got there.
+     * `CreatingEntityID` is a real FK to `__mj.Entity` and `CreatingRecordID` is the row it names, and
+     * `CK_Contract_CreatingPairBothOrNeither` requires both or neither — so editing one field alone
+     * produces a save the constraint refuses, and editing both silently re-points a contract's
+     * provenance at an unrelated record, which is then what the hero's link displays. The server sets
+     * this pair (`LiveContractsSeam.setProvenance`, on Close-Won) and nothing else should.
+     *
+     * Read-only closes that defect and keeps the ids visible beneath the hero's human-readable name —
+     * complements rather than duplicates. Revisit hiding the section once a contract created by a real
+     * Close-Won deal exists to verify item 1 against.
+     */
     public readonly Fields: ContractFieldSpec[] = [
-        { name: 'CreatingEntityID', type: 'textbox', link: 'Record' },
-        { name: 'CreatingRecordID', type: 'textbox' },
+        { name: 'CreatingEntityID', type: 'textbox', link: 'Record', readOnly: true },
+        { name: 'CreatingRecordID', type: 'textbox', readOnly: true },
     ];
 }
 
@@ -558,7 +595,8 @@ export class MJCContractProvenanceFieldsPanel extends BaseFormPanel<ContractEnti
                 @for (f of Fields; track f.name) {
                     <div class="mjc-fg" [class.mjc-fg--span]="f.span">
                         <mj-form-field [Record]="Record" [ShowLabel]="true" [FieldName]="f.name" [Type]="f.type"
-                            [EditMode]="EditMode" [FormContext]="FormContext" [LinkType]="f.link ?? 'None'"
+                            [EditMode]="f.readOnly ? false : EditMode" [FormContext]="FormContext"
+                            [LinkType]="f.link ?? 'None'"
                             (Navigate)="FormComponent.OnFormNavigate($event)"></mj-form-field>
                     </div>
                 }
@@ -569,7 +607,7 @@ export class MJCContractProvenanceFieldsPanel extends BaseFormPanel<ContractEnti
 export class MJCContractLifecyclePanel extends BaseFormPanel<ContractEntity> {
     public readonly Fields: ContractFieldSpec[] = [
         { name: 'ParentContractID', type: 'textbox', link: 'Record' },
-        { name: 'SupersededByContractID', type: 'textbox', link: 'Record' },
+        { name: 'SupersededByContractID', type: 'textbox', link: 'Record', readOnly: true },
     ];
 }
 

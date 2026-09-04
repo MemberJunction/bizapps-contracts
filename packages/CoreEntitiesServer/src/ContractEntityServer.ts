@@ -219,6 +219,7 @@ export class ContractEntityServer extends ContractEntity {
         this.refuseSelfReferences(result);
         await this.refuseLineageCycles(result);
         await this.refuseCrossLevelSupersession(result);
+        await this.refuseCrossCustomerSupersession(result);
 
         return result;
     }
@@ -572,6 +573,63 @@ export class ContractEntityServer extends ContractEntity {
                     `${describe(myParentID, 'this contract')}, but ${describe(theirParentID, 'that one')}. A re-papering replaces an ` +
                     `agreement with one at the same level — two top-level agreements, or two documents under the same ` +
                     `parent. Pick a successor alongside this contract, or correct whichever parent is wrong.`,
+                this.SupersededByContractID,
+                ValidationErrorType.Failure,
+            ),
+        );
+    }
+
+    /**
+     * A re-papering replaces one customer's agreement with another agreement for THAT SAME CUSTOMER.
+     *
+     * WHY THE SERVER OWNS THIS, given the picker already filters on it (issue #28 item 4). The picker
+     * decides what to OFFER; this decides what is ALLOWED, and the two are not the same surface. The
+     * FK is writable by anything holding a `ContractEntity` — the generated form, an import, another
+     * app — and only the entity tier sees all of them. Exactly the split already documented on
+     * `refuseCrossLevelSupersession`, which this mirrors deliberately: same trigger, same shape, same
+     * `isNewlySelected` gate so a re-save of an existing chain is not retro-refused.
+     *
+     * Cross-customer supersession is not a rule about tidiness. `Superseded` is derived from this
+     * column, so pointing one customer's contract at another's silently retires an agreement that is
+     * still in force, for a party who was never involved in the re-papering.
+     */
+    private async refuseCrossCustomerSupersession(result: ValidationResult): Promise<void> {
+        if (!this.SupersededByContractID) return;
+        if (!this.isNewlySelected('SupersededByContractID')) return;
+
+        // Reported in full by `refuseSelfReferences`; a contract always shares a customer with itself,
+        // so there is nothing this rule could add beyond a second message for the same failure.
+        if (UUIDsEqual(this.SupersededByContractID, this.ID)) return;
+
+        const target = await this.RunViewProviderToUse.RunView<{
+            ContractNumber: string;
+            CustomerOrganizationID: string;
+            CustomerOrganization: string | null;
+        }>(
+            {
+                EntityName: 'MJ_BizApps_Contracts: Contracts',
+                ExtraFilter: `ID = '${this.SupersededByContractID}'`,
+                Fields: ['ContractNumber', 'CustomerOrganizationID', 'CustomerOrganization'],
+                ResultType: 'simple',
+            },
+            this.ContextCurrentUser,
+        );
+        const row = target?.Results?.[0];
+        // A missing successor is reported by `refuseCrossLevelSupersession`, which runs immediately
+        // before this and reads the same record. Saying it twice helps nobody.
+        if (!row) return;
+
+        if (UUIDsEqual(row.CustomerOrganizationID, this.CustomerOrganizationID)) return;
+
+        result.Success = false;
+        result.Errors.push(
+            new ValidationErrorInfo(
+                'SupersededByContractID',
+                `Contract ${this.ContractNumber ?? this.ID} cannot be superseded by ` +
+                    `${row.ContractNumber ?? 'that contract'}: they belong to different customers` +
+                    `${row.CustomerOrganization ? ` (${row.CustomerOrganization})` : ''}. A re-papering ` +
+                    `replaces an agreement with a later agreement for the SAME customer. Pick a contract ` +
+                    `for this customer, or correct whichever customer is wrong.`,
                 this.SupersededByContractID,
                 ValidationErrorType.Failure,
             ),
