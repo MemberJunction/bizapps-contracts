@@ -1,7 +1,7 @@
 {
-  "mjdevManaged": "MJDEV-MANAGED: mjdev owns parts of this file \u2014 the \"packages/dev-apps/*\" workspaces glob, any dev-linked open-app dependencies (e.g. \"@mj-biz-apps/*\"), and the Angular \"overrides\" pin set. Do not hand-edit those; the tool wires and reverts them. They are left visible in git status, but the git-tree guard blocks committing them. See .mjdev-docs/MANAGED-FILES.md; revert with `mjdev git:stage-clean <slug> package.json`.",
+  "mjdevManaged": "MJDEV-MANAGED: mjdev owns parts of this file — the \"packages/dev-apps/*\" workspaces glob, any dev-linked open-app dependencies (e.g. \"@mj-biz-apps/*\"), and the Angular \"overrides\" pin set. Do not hand-edit those; the tool wires and reverts them. They are left visible in git status, but the git-tree guard blocks committing them. See .mjdev-docs/MANAGED-FILES.md; revert with `mjdev git:stage-clean <slug> package.json`.",
   "name": "@mj-biz-apps/contracts-core-entities-server",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "type": "module",
   "description": "Server-side entity subclass overrides (validation, computed fields, save hooks). TODO(template): rename.",
   "main": "dist/index.js",
@@ -16,7 +16,7 @@
   },
   "license": "BUSL-1.1",
   "dependencies": {
-    "@mj-biz-apps/contracts-entities": "^0.2.0"
+    "@mj-biz-apps/contracts-entities": "^0.3.0"
   },
   "peerDependencies": {
     "@memberjunction/core": "^6.1.0-edge.4",

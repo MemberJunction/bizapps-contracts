@@ -1,6 +1,6 @@
 {
   "name": "@mj-biz-apps/contracts-entities",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "type": "module",
   "description": "Generated entity subclasses for the app schema. TODO(template): rename package + description.",
   "main": "dist/index.js",

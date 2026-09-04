@@ -1,5 +1,16 @@
 # @mj-biz-apps/contracts-actions
 
+## 0.3.0
+
+### Patch Changes
+
+- 84fc58c: License declarations now agree on BUSL-1.1 everywhere.
+
+  Every machine-readable declaration was already correct. The README footer was not: it linked
+  the text "ISC" to `LICENSE`, a file whose first line reads "Business Source License 1.1", so
+  the one place a human is told the license contradicted the file it pointed at. The link text
+  now names the license the file actually grants.
+
 ## 0.2.0
 
 ### Minor Changes
