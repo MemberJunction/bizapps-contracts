@@ -59,10 +59,20 @@ const pool = await new sql.ConnectionPool({
  * different times — first `TerminatedDate IS NOT NULL` (so a termination scheduled for next year made a
  * live contract read Terminated), then briefly an unreachable branch asserting the opposite — and
  * nothing caught either, because nothing tested the boundary.
+ *
+ * MOVED AGAIN 2026-08-30, and this one is a DECISION rather than a third oscillation. `terminated TODAY`
+ * expected Active, on the reading that a contract is in force through the end of its last day. Andrew
+ * settled it the other way in contracts#28 item 13: terminated means terminated FROM that date, which is
+ * also what the Dates tab has always told the user it means. `V202608300100` moves the view from `<` to
+ * `<=` to match, and this fixture is what proves the view actually moved.
+ *
+ * The neighbours did NOT move, and the difference is the point: `term ends TODAY` stays Active, because
+ * an END date is the last day the agreement covers, while a TERMINATED date is the day it stops. Two
+ * date columns, two meanings, and making them symmetric would expire every contract a day early.
  */
 const FIXTURES = [
     { label: 'terminated yesterday — the termination has taken effect', terminated: -1, effective: -200, end: 200, superseded: false, expect: 'Terminated' },
-    { label: 'terminated TODAY — in force through the end of the day',  terminated: 0,  effective: -200, end: 200, superseded: false, expect: 'Active' },
+    { label: 'terminated TODAY — Terminated from this date, inclusive',  terminated: 0,  effective: -200, end: 200, superseded: false, expect: 'Terminated' },
     { label: 'terminated TOMORROW — notice served, not yet effective',  terminated: 1,  effective: -200, end: 200, superseded: false, expect: 'Active' },
     { label: 'superseded — the successor FK is the state',              terminated: null, effective: -200, end: 200, superseded: true,  expect: 'Superseded' },
     { label: 'expired — the term ended yesterday',                      terminated: null, effective: -200, end: -1,  superseded: false, expect: 'Expired' },

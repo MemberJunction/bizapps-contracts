@@ -12,11 +12,23 @@
  * Here the work runs on the server, where the server subclass resolves correctly and every rule in
  * `ContractEntityServer.ValidateAsync()` — same-level, self-reference, lineage cycles — actually fires.
  *
- * REPLACE, NOT ADD. The schema deliberately allows MANY predecessors to name one successor
- * (consolidation), so setting a new predecessor without releasing the old one leaves the agreement
- * quietly superseding BOTH. The UI is a single-select, so one predecessor is the intent: release the
- * others, then link. Passing `PredecessorID: null` releases everything and links nothing, which is
- * what "unlink" is.
+ * ADD, NOT REPLACE -- REVERSED 2026-08-30 (contracts#28 item 10). The previous reasoning is kept
+ * here because it was deliberate rather than careless, and knowing why it was wrong is the point.
+ * This module used to argue: the schema allows many predecessors to name one successor, the picker is
+ * a single-select, therefore one predecessor is the intent, therefore release the others before
+ * linking. The premise was the wrong way round. A consolidated agreement really does replace several
+ * earlier ones, and a single-select picker is how you ADD them one at a time -- so "replace" meant
+ * picking a second contract silently released the first, its only trace a "Released ..." suffix on a
+ * success message that reads like reassurance rather than a warning.
+ *
+ * So: LINKING ADDS. Contracts this agreement already supersedes are left exactly as they are. Removal
+ * is explicit and singular, through `ReleasePredecessorID`, which clears the one contract named and no
+ * other -- item 9, where the panel passed the clicked ID to a handler that discarded it and released
+ * every predecessor.
+ *
+ * There is deliberately NO "release everything" input any more. A call carrying neither ID is REFUSED
+ * rather than quietly treated as one, because the old shape (`PredecessorID: null`) meant exactly that,
+ * and a stale caller sending it should be told rather than silently change nothing.
  *
  * NO transaction wrapper, deliberately. Each contract is saved through its own entity so every rule
  * runs, and the outcome is reported per-record. A half-applied change is visible in the returned list
@@ -39,8 +51,16 @@ const E_CONTRACT = 'MJ_BizApps_Contracts: Contracts';
 export interface SupersedeInput {
     /** The agreement doing the superseding — the record the user is looking at. */
     SuccessorID: string;
-    /** The agreement being replaced. `null` releases every predecessor and links none (unlink). */
-    PredecessorID: string | null;
+    /**
+     * Link this contract as a predecessor. ADDS — whatever this agreement already supersedes is left
+     * exactly as it is, because one agreement may legitimately replace several.
+     */
+    PredecessorID?: string | null;
+    /**
+     * Release this ONE predecessor and no other. Named separately from `PredecessorID` so the two
+     * intentions cannot be confused: no value of `PredecessorID` means "unlink".
+     */
+    ReleasePredecessorID?: string | null;
 }
 
 export interface SupersedeOutput {
@@ -70,15 +90,41 @@ export class SupersedeOperation extends BaseRemotableOperation<SupersedeInput, S
         }
 
         const released: string[] = [];
-        const same = (a: string | null, b: string | null) =>
+        const same = (a: string | null | undefined, b: string | null | undefined) =>
             !!a && !!b && a.toLowerCase() === b.toLowerCase();
 
-        // Release every predecessor except the one being (re-)linked, so re-picking the same contract
-        // is a no-op rather than a clear-and-reset.
-        for (const current of await this.readSupersedes(provider, user, input.SuccessorID)) {
-            if (same(current.ID, input.PredecessorID)) continue;
+        const toLink = input.PredecessorID ?? null;
+        const toRelease = input.ReleasePredecessorID ?? null;
+
+        // REFUSED, NOT READ AS "RELEASE EVERYTHING". Until 2026-08 a null `PredecessorID` with nothing
+        // else meant "clear every predecessor" — the behaviour item 10 removed. A caller still sending
+        // that shape would otherwise get a green result that changed nothing at all.
+        if (!toLink && !toRelease) {
+            throw new Error(
+                'Supersede needs either PredecessorID (link one) or ReleasePredecessorID (release one); ' +
+                    'it received neither. A null PredecessorID used to mean "release every predecessor" — ' +
+                    'that meaning is gone, so this refuses rather than silently doing nothing.',
+            );
+        }
+
+        // ONE predecessor: the one named. The old loop walked every predecessor and cleared all but the
+        // one being linked, which is how clicking "Unlink CTR-0001" also unlinked CTR-0002 (item 9).
+        if (toRelease) {
+            const current = (await this.readSupersedes(provider, user, input.SuccessorID))
+                .find((c) => same(c.ID, toRelease));
+            if (!current) {
+                // Not silence: the caller believes this contract is a predecessor and it is not, so say
+                // so. A concurrent unlink elsewhere lands here, and the returned list shows the truth.
+                return {
+                    Supersedes: await this.readSupersedes(provider, user, input.SuccessorID),
+                    Released: released,
+                    Refused: 'That contract is not superseded by this agreement, so there was nothing to release.',
+                };
+            }
             const previous = await provider.GetEntityObject<ContractEntity>(E_CONTRACT, user);
-            if (!(await previous.Load(current.ID))) continue;
+            if (!(await previous.Load(current.ID))) {
+                throw new Error(`The contract to release (${current.ContractNumber}) could not be loaded.`);
+            }
             previous.SupersededByContractID = null;
             if (!(await previous.Save())) {
                 return {
@@ -91,9 +137,19 @@ export class SupersedeOperation extends BaseRemotableOperation<SupersedeInput, S
             released.push(current.ContractNumber);
         }
 
-        if (input.PredecessorID && !same(input.PredecessorID, input.SuccessorID)) {
+        if (toLink && same(toLink, input.SuccessorID)) {
+            // Was a silent skip that reported success having done nothing. ContractEntity.Supersede()
+            // refuses this anyway; saying so is more use than a green message.
+            return {
+                Supersedes: await this.readSupersedes(provider, user, input.SuccessorID),
+                Released: released,
+                Refused: 'A contract cannot supersede itself.',
+            };
+        }
+
+        if (toLink) {
             const predecessor = await provider.GetEntityObject<ContractEntity>(E_CONTRACT, user);
-            if (!(await predecessor.Load(input.PredecessorID))) {
+            if (!(await predecessor.Load(toLink))) {
                 throw new Error('The contract to be superseded could not be loaded.');
             }
             // Through Supersede(), not a bare field write, so the entity keeps owning the rule.

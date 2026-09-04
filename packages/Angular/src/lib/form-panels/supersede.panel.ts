@@ -28,12 +28,20 @@ import { BaseFormPanel, BaseFormsModule } from '@memberjunction/ng-base-forms';
 import { MJComboboxComponent, MJButtonDirective, MJAlertComponent } from '@memberjunction/ng-ui-components';
 import type { IRemoteOperationProvider } from '@memberjunction/core';
 import { ContractEntity } from '@mj-biz-apps/contracts-entities';
+import { ContractOptionLabel, SameCustomerClause } from '@mj-biz-apps/contracts-entities';
 import { MJC_ENTITIES } from '../data/entity-names';
 
 /** The server-side operation key. One place, because RouteOperation is stringly typed. */
 const SUPERSEDE_OP = 'Contracts.Supersede';
 
-interface Candidate { ID: string; ContractNumber: string; ContractType: string; Label: string }
+interface Candidate {
+    ID: string;
+    ContractNumber: string;
+    ContractType: string;
+    /** Free text on the agreement. Preferred over the type in the label — see `labelFor`. */
+    Description: string | null;
+    Label: string;
+}
 
 @RegisterClassEx(BaseFormPanel, {
     key: 'contracts:supersede',
@@ -175,15 +183,33 @@ export class MJCContractSupersedePanel extends BaseFormPanel<ContractEntity> {
      * longer maintains its own cached idea of what the contract supersedes.
      */
     public async LinkSupersedes(): Promise<void> {
-        await this.invoke(this.PickedPredecessorID || null, 'Linked — that contract is now superseded by this agreement.');
+        if (!this.PickedPredecessorID) return;
+        await this.invoke(
+            { PredecessorID: this.PickedPredecessorID },
+            'Linked — that contract is now superseded by this agreement.',
+        );
     }
 
-    /** Release one predecessor. `null` predecessor = release everything. */
-    public async UnlinkSupersedes(_predecessorID: string): Promise<void> {
-        await this.invoke(null, 'Unlinked — that agreement is no longer superseded by this one.');
+    /**
+     * Release exactly the contract whose button was clicked.
+     *
+     * THE ARGUMENT USED TO BE DISCARDED. The template has always passed `p.ID`; this method took it as
+     * `_predecessorID` and called the operation with `null`, which meant "release EVERY predecessor".
+     * On a contract superseding one agreement that looks correct, which is why it survived — on a
+     * consolidation, clicking "Unlink CTR-0001" also unlinked CTR-0002 (contracts#28 item 9).
+     */
+    public async UnlinkSupersedes(predecessorID: string): Promise<void> {
+        if (!predecessorID) return;
+        await this.invoke(
+            { ReleasePredecessorID: predecessorID },
+            'Unlinked — that agreement is no longer superseded by this one.',
+        );
     }
 
-    private async invoke(predecessorID: string | null, okMessage: string): Promise<void> {
+    private async invoke(
+        what: { PredecessorID?: string; ReleasePredecessorID?: string },
+        okMessage: string,
+    ): Promise<void> {
         if (!this.Record?.ID) return;
         this.Busy = true;
         this.LinkError = '';
@@ -197,9 +223,9 @@ export class MJCContractSupersedePanel extends BaseFormPanel<ContractEntity> {
                 throw new Error('This provider cannot route remote operations, so re-papering is unavailable here.');
             }
             const result = await provider.RouteOperation<
-                { SuccessorID: string; PredecessorID: string | null },
+                { SuccessorID: string; PredecessorID?: string; ReleasePredecessorID?: string },
                 { Supersedes: Array<{ ID: string; ContractNumber: string }>; Released: string[]; Refused?: string }
-            >(SUPERSEDE_OP, { SuccessorID: this.Record.ID, PredecessorID: predecessorID });
+            >(SUPERSEDE_OP, { SuccessorID: this.Record.ID, ...what });
 
             if (!result?.Success) {
                 throw new Error(result?.ErrorMessage || 'The server did not complete the request.');
@@ -210,7 +236,9 @@ export class MJCContractSupersedePanel extends BaseFormPanel<ContractEntity> {
             if (out?.Refused) {
                 this.LinkError = out.Refused;
             } else {
-                this.LinkOk = okMessage + (out?.Released?.length ? ` Released ${out.Released.join(', ')}.` : '');
+                // No "Released ..." suffix (item 10). Linking no longer releases anything, so the only
+                // call that fills `Released` is an unlink — where the message already names what went.
+                this.LinkOk = okMessage;
                 this.PickedPredecessorID = '';
             }
             await this.loadCandidates();
@@ -266,16 +294,39 @@ export class MJCContractSupersedePanel extends BaseFormPanel<ContractEntity> {
         try {
             const parentID = this.Record?.ParentContractID ?? null;
             const sameLevel = parentID === null ? 'ParentContractID IS NULL' : `ParentContractID = '${parentID}'`;
-            const r = await rv.RunView<{ ID: string; ContractNumber: string; ContractType: string }>({
+
+            /**
+             * SAME CUSTOMER, and this is the rule the picker was missing (#28 item 4).
+             *
+             * Re-papering replaces one customer's agreement with another agreement for THAT customer.
+             * Offering another customer's contract is not merely untidy: linking it would point one
+             * organisation's lineage at another's, and the successor's terms would read as governing a
+             * party that never signed them.
+             *
+             * `CustomerOrganizationID` is NOT NULL on this table, so there is no "customer unknown" case
+             * to widen for — an absent value here means the record could not be read, and offering the
+             * whole book because of that is exactly the failure this rule exists to stop. So a missing
+             * value yields NO candidates rather than all of them.
+             */
+            const sameCustomer = SameCustomerClause(this.Record?.CustomerOrganizationID);
+
+            const r = await rv.RunView<{
+                ID: string;
+                ContractNumber: string;
+                ContractType: string;
+                Description: string | null;
+            }>({
                 EntityName: MJC_ENTITIES.Contract,
-                Fields: ['ID', 'ContractNumber', 'ContractType'],
-                ExtraFilter: `${sameLevel} AND SupersededByContractID IS NULL AND ID <> '${me}'`,
+                Fields: ['ID', 'ContractNumber', 'ContractType', 'Description'],
+                ExtraFilter:
+                    `${sameCustomer} AND ${sameLevel} ` +
+                    `AND SupersededByContractID IS NULL AND ID <> '${me}'`,
                 OrderBy: 'ContractNumber ASC',
                 ResultType: 'simple',
             });
             this._candidates = (r?.Success ? r.Results : []).map((c) => ({
                 ...c,
-                Label: `${c.ContractNumber} — ${c.ContractType ?? 'Contract'}`,
+                Label: ContractOptionLabel(c),
             }));
         } catch (e) {
             // Do NOT swallow this. An empty list and a failed read look identical in the UI, and the

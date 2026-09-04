@@ -219,6 +219,7 @@ export class ContractEntityServer extends ContractEntity {
         this.refuseSelfReferences(result);
         await this.refuseLineageCycles(result);
         await this.refuseCrossLevelSupersession(result);
+        await this.refuseCrossCustomerSupersession(result);
 
         return result;
     }
@@ -517,6 +518,60 @@ export class ContractEntityServer extends ContractEntity {
      * is the primary flow this rule exists to police. Gated on `isNewlySelected` instead, so an ordinary
      * re-save of an existing chain is not re-policed and legacy rows are not retro-refused.
      */
+    /**
+     * R-4 — a contract may only be superseded by another contract for the SAME CUSTOMER.
+     *
+     * `supersede.panel.ts` filters the picker to the same customer, and that decides what is OFFERED.
+     * This decides what is ALLOWED, which is a different question: the operation is reachable without
+     * the picker — `Contracts.Supersede` is a remote operation, and `SupersededByContractID` is a
+     * writable column — so a rule enforced only in the dropdown is a rule enforced nowhere.
+     *
+     * WHY IT MATTERS BEYOND TIDINESS. Linking across customers points one organisation's lineage at
+     * another's, so the successor's terms read as governing a party that never signed them, and the
+     * predecessor's customer loses the trail to whatever actually replaced their agreement.
+     *
+     * `CustomerOrganizationID` is NOT NULL on this table, so both sides always have one and there is no
+     * "unknown customer" case to be lenient about. A row that cannot be read is reported by
+     * {@link refuseCrossLevelSupersession}, which runs first and returns on the same not-found; this
+     * skips a second message for a failure already recorded rather than trusting another layer.
+     */
+    private async refuseCrossCustomerSupersession(result: ValidationResult): Promise<void> {
+        if (!this.SupersededByContractID) return;
+        if (!this.isNewlySelected('SupersededByContractID')) return;
+        if (UUIDsEqual(this.SupersededByContractID, this.ID)) return;
+
+        const target = await this.RunViewProviderToUse.RunView<{
+            ContractNumber: string;
+            CustomerOrganizationID: string;
+        }>(
+            {
+                EntityName: 'MJ_BizApps_Contracts: Contracts',
+                ExtraFilter: `ID = '${this.SupersededByContractID}'`,
+                Fields: ['ContractNumber', 'CustomerOrganizationID'],
+                ResultType: 'simple',
+            },
+            this.ContextCurrentUser,
+        );
+        const row = target?.Results?.[0];
+        // Not-found is refuseCrossLevelSupersession's to report — see the note above.
+        if (!row) return;
+
+        if (UUIDsEqual(row.CustomerOrganizationID, this.CustomerOrganizationID)) return;
+
+        result.Success = false;
+        result.Errors.push(
+            new ValidationErrorInfo(
+                'SupersededByContractID',
+                `Contract ${this.ContractNumber ?? this.ID} cannot be superseded by ` +
+                    `${row.ContractNumber ?? 'that contract'}: they belong to different customers. A re-papering ` +
+                    `replaces one customer's agreement with another agreement for that same customer. Pick a ` +
+                    `successor for this contract's customer, or correct whichever customer is wrong.`,
+                this.SupersededByContractID,
+                ValidationErrorType.Failure,
+            ),
+        );
+    }
+
     private async refuseCrossLevelSupersession(result: ValidationResult): Promise<void> {
         if (!this.SupersededByContractID) return;
         if (!this.isNewlySelected('SupersededByContractID')) return;

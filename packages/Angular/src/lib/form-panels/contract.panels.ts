@@ -121,6 +121,18 @@ function chipClassFor(state: ContractState): string {
             </div>
             @if (!Collapsed) {
                 <div class="mjc-hero__summary">
+                    <!--
+                        OUR SIDE FIRST, AND IT IS NOT CALLED "SELLING" (#28 item 8).
+                        
+                        CompanyID is which of OUR entities holds the agreement. Someone scanning contracts
+                        orients by that before they look at who it is with, so it leads the summary rather
+                        than sitting third. "Selling" was also the wrong word: the company holds the
+                        contract whether or not anything is being sold.
+                    -->
+                    <div class="mjc-hero__stat">
+                        <span class="mjc-hero__stat-label">Company</span>
+                        <span class="mjc-hero__stat-val">{{ CompanyName || '—' }}</span>
+                    </div>
                     <div class="mjc-hero__stat">
                         <span class="mjc-hero__stat-label">Customer</span>
                         @if (Record.CustomerOrganizationID && CustomerName) {
@@ -136,10 +148,6 @@ function chipClassFor(state: ContractState): string {
                         } @else {
                             <span class="mjc-hero__stat-val">{{ ContactName || '—' }}</span>
                         }
-                    </div>
-                    <div class="mjc-hero__stat">
-                        <span class="mjc-hero__stat-label">Selling</span>
-                        <span class="mjc-hero__stat-val">{{ CompanyName || '—' }}</span>
                     </div>
                     <div class="mjc-hero__stat">
                         <span class="mjc-hero__stat-label">Executed</span>
@@ -457,13 +465,22 @@ export class MJCContractHeroPanel extends BaseFormPanel<ContractEntity> {
                         }
                     </div>
                     <div class="mjc-field">
-                        <label>Renewal notice we owe (days)</label>
+                        <label>Renewal notice (days)</label>
                         @if (EditMode) {
                             <input type="number" min="0" style="width:100%" [ngModel]="Record.RenewalNoticeDays"
                                    (ngModelChange)="Set('RenewalNoticeDays', $event)" aria-label="Renewal notice days" />
                         } @else {
                             <div class="mjc-val">{{ Record.RenewalNoticeDays ? Record.RenewalNoticeDays + ' days' : '—' }}</div>
                         }
+                        <!--
+                            WHICH DIRECTION THE NOTICE RUNS IS THE WHOLE POINT (#28 item 6). This field
+                            and CancellationWindowDays below are both "a number of days of notice",
+                            and the old labels left the reader to work out whose notice each one was.
+                            One is what we owe them; the other is what they owe us.
+                        -->
+                        <div class="mjc-hint">
+                            Written notice we must give the customer before a renewal price change.
+                        </div>
                         @if (NoticeDeadline) {
                             <div class="mjc-hint">deadline: {{ NoticeDeadline | date: 'd MMM y' }}</div>
                         }
@@ -476,6 +493,7 @@ export class MJCContractHeroPanel extends BaseFormPanel<ContractEntity> {
                         } @else {
                             <div class="mjc-val">{{ Record.CancellationWindowDays ? Record.CancellationWindowDays + ' days' : '—' }}</div>
                         }
+                        <div class="mjc-hint">Notice the customer must give us to cancel.</div>
                         @if (InCancellationWindow) { <div class="mjc-hint">the window is open now</div> }
                     </div>
                     <div class="mjc-field">
