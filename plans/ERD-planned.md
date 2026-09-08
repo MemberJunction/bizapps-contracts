@@ -596,15 +596,16 @@ erDiagram
     }
 ```
 
-### 6.1 Documents
+### 6.1 Attachments
 
-**Every document attaches through `__mj.FileEntityRecordLink`.** There is no document column on
-`Contract` — the named `ExecutedDocumentFileID` FK an earlier draft carried was removed on 2026-08-18
-(§9). A `File` row's `ProviderKey` is a path inside a storage provider, so the executed PDF is
-**registered rather than uploaded** when it already exists in SharePoint.
+**Every file attaches through MJ's standard attachments** (`__mj.File` + `__mj.FileEntityRecordLink`).
+There is no document column on `Contract` — the named `ExecutedDocumentFileID` FK an earlier draft
+carried was removed on 2026-08-18 (§9). The form toolbar's attachments control is the UI; contracts
+does not ship a second documents panel. An entity turns this off only with
+`Configuration.Attachments.Enabled: false` — Contracts and Contract Templates leave the default on.
 
-`SigningProviderURL` is the direct link to the document in PandaDoc — the fallback that works before any
-integration and when a SharePoint sync has broken.
+`SigningProviderURL` is the direct link to the document in PandaDoc — the fallback that works before
+any storage account is configured, and when a sync has broken.
 
 ### 6.2 The deal link — `CreatingEntityID` / `CreatingRecordID`
 

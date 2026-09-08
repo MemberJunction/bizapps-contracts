@@ -205,7 +205,7 @@ Worth knowing before the walkthrough so nothing is a surprise:
 |---|---|
 | **Billing generation** — turning a due event into an order | **Blocked.** Needs two seams in orders (`Subscription.BillingMode`, and the price-resolver slot). The worklist shows what *would* run. |
 | **Amendments** | Table and CHECKs exist; no operation. Amendments change a *live* term; renewals start a new one. |
-| **Documents** | Attach through MJ's `FileEntityRecordLink`, no column here. **7 storage providers registered, 0 accounts configured** — nothing can be uploaded until someone picks one. |
+| **Attachments** | MJ's standard record attachments (`mj-record-attachments` on the form toolbar). **7 storage providers registered, 0 accounts configured** — nothing can be uploaded until someone picks an account. |
 | **Signatures** | Reads MJ's `SignatureRequest`. No signature account configured, so it would render an empty state. |
 | **Commitments / true-up** | Schema is there, no engine. `TrueUpPolicy` currently has no consistency rules — see question 13. |
 

@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Contracts — Option B · Decision inbox</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
+  <link rel="stylesheet" href="tokens.css" />
+  <link rel="stylesheet" href="chrome.css" />
+</head>
+<body>
+<div class="app">
+  <div class="thesis">
+    <b>Thesis:</b> One ranked inbox of decisions, not four tiles. Each row is a verb: attach paper, send notice, record a modification, or wait.
+    Sorted by harm if ignored. Best for a single owner who works the queue.
+    <b>Tradeoff:</b> weaker as a portfolio view — you cannot see the 90-day shape at a glance.
+  </div>
+  <header class="topnav">
+    <div class="brand"><span class="mark">MJ</span> Contracts <span class="app-label">Open App</span></div>
+    <div class="tabs" id="tabs"><button class="tab is-on" type="button"><i class="fa-solid fa-file-contract"></i> Contracts</button></div>
+    <div class="top-right"><span class="chip">11 open decisions</span><span class="avatar">AK</span></div>
+  </header>
+  <div class="shell">
+    <nav class="rail">
+      <button class="nav is-on" type="button"><i class="fa-solid fa-inbox"></i> Inbox<span class="badge">11</span></button>
+      <button class="nav" type="button"><i class="fa-solid fa-table-list"></i> All contracts</button>
+      <button class="nav" type="button"><i class="fa-solid fa-hourglass-half"></i> Renewals</button>
+    </nav>
+    <div class="main">
+      <div class="page-h">
+        <div>
+          <h1>Decision inbox</h1>
+          <div class="sub">Harm if ignored, then deadline. Counts from the layered view — never a second definition of “expiring soon.”</div>
+        </div>
+        <div class="actions"><button class="btn primary" type="button" onclick="openRec('new')">New contract</button></div>
+      </div>
+      <div class="content">
+        <div class="inbox">
+          <button class="item" type="button" onclick="openRec('091')">
+            <div class="dot" style="background:var(--mj-status-error)"></div>
+            <div><b>Attach executed copy</b><div class="muted">ASAE exhibitor 2026 is Active with IsAwaitingDocument. We are already performing.</div></div>
+            <span class="pill past">today</span>
+          </button>
+          <button class="item" type="button" onclick="openRec('090')">
+            <div class="dot" style="background:var(--mj-status-error)"></div>
+            <div><b>Attach executed copy</b><div class="muted">HH catering addendum — Active, no paper.</div></div>
+            <span class="pill past">today</span>
+          </button>
+          <button class="item" type="button" onclick="openRec('107')">
+            <div class="dot" style="background:var(--mj-status-error)"></div>
+            <div><b>Attach executed copy</b><div class="muted">Plant 2 SOW exhibit. Also modified.</div></div>
+            <span class="pill past">today</span>
+          </button>
+          <button class="item" type="button" onclick="openRec('122')">
+            <div class="dot" style="background:var(--mj-status-warning)"></div>
+            <div><b>Send or waive notice</b><div class="muted">CESSE booth 2026. Deadline 19 Sep.</div></div>
+            <span class="pill warn">19 days</span>
+          </button>
+          <button class="item" type="button" onclick="openRec('104')">
+            <div class="dot" style="background:var(--mj-status-warning)"></div>
+            <div><b>Send or waive notice</b><div class="muted">HH Venue MSA auto-renews if silent. Deadline 28 Sep.</div></div>
+            <span class="pill warn">28 days</span>
+          </button>
+          <button class="item" type="button" onclick="openRec('112')">
+            <div class="dot" style="background:var(--mj-status-warning)"></div>
+            <div><b>Send or waive notice</b><div class="muted">Plant 2 SOW — already modified. Notice 12 Oct.</div></div>
+            <span class="muted">42 days</span>
+          </button>
+          <button class="item" type="button" onclick="openRec('118')">
+            <div class="dot" style="background:var(--mj-status-success)"></div>
+            <div><b>Wait</b><div class="muted">Leadership Summit rider is Executed, effective 15 Nov. Nothing to do.</div></div>
+            <span class="pill ok">info</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+<script>
+function openRec(id) {
+  const t = document.getElementById('toast');
+  t.textContent = 'OpenEntityRecord("MJ_BizApps_Contracts: Contracts", CTR-' + id + ')';
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2400);
+  const tabs = document.getElementById('tabs');
+  const b = document.createElement('button');
+  b.className = 'tab is-on';
+  b.textContent = 'CTR-' + id;
+  [...tabs.querySelectorAll('.tab')].forEach(x => x.classList.remove('is-on'));
+  tabs.appendChild(b);
+}
+</script>
+</body>
+</html>

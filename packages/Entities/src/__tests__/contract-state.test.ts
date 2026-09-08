@@ -15,15 +15,34 @@
  * down against the deployed view.
  */
 import { describe, expect, it } from 'vitest';
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { CONTRACT_STATES, type ContractState } from '../contract-state.js';
 
-// The wrapper view moved here in the 2026-08-23 flatten (was
-// V202608182001__v0.1.x__Contracts_derived_columns_outer_view.sql). The assertions below
-// are unchanged — they are what proves the CASE survived the move intact.
-const MIGRATION = 'V202608240200__v0.1.x__Layered_base_views_and_derived_fields.sql';
-const sql = readFileSync(fileURLToPath(new URL(`../../../../migrations/${MIGRATION}`, import.meta.url)), 'utf8');
+/**
+ * THE NEWEST MIGRATION THAT DEFINES `vwContracts`, RESOLVED — NOT PINNED.
+ *
+ * This was a hardcoded filename, and it had already been hand-repointed once when the view moved in
+ * the 2026-08-23 flatten. On 2026-08-30 it silently went stale a second time: contracts#28 item 13
+ * moved the Terminated branch to `<=` in a NEW migration, and every assertion below carried on
+ * reading the old file and passing. A suite whose stated job is "the migration says what we think it
+ * says" was describing a migration the database no longer runs last.
+ *
+ * Resolving the newest definer makes that impossible. Filename order is release order —
+ * `migration-conventions.test.ts` proves the timestamps are zero-padded and strictly increasing, so a
+ * plain sort is a real ordering rather than a hopeful one.
+ */
+const MIGRATIONS_DIR = fileURLToPath(new URL('../../../../migrations/', import.meta.url));
+const DEFINES_VIEW = /CREATE\s+OR\s+ALTER\s+VIEW\s+\[\$\{flyway:defaultSchema\}\]\.\[vwContracts\]/i;
+const definers = readdirSync(MIGRATIONS_DIR)
+    .filter((f) => f.endsWith('.sql'))
+    .sort()
+    .filter((f) => DEFINES_VIEW.test(readFileSync(MIGRATIONS_DIR + f, 'utf8')));
+if (definers.length === 0) {
+    throw new Error('No migration defines vwContracts — this suite would assert against nothing.');
+}
+const MIGRATION = definers[definers.length - 1];
+const sql = readFileSync(MIGRATIONS_DIR + MIGRATION, 'utf8');
 const squash = (s: string) => s.replace(/\s+/g, ' ').trim();
 const flat = squash(sql);
 
@@ -42,7 +61,10 @@ const RULE: ReadonlyArray<{ state: ContractState; because: string; predicate: st
     {
         state: 'Terminated',
         because: 'somebody ended the agreement, and the termination has taken effect',
-        predicate: "g.TerminatedDate IS NOT NULL AND g.TerminatedDate < CAST(GETUTCDATE() AS date) THEN 'Terminated'",
+        // `<=`, not `<` — contracts#28 item 13. Terminated means terminated FROM that date, which is
+        // what the Dates tab has always told the user. Its neighbour `Expired` stays `<` on purpose:
+        // an END date is the last day the agreement covers, a TERMINATED date is the day it stops.
+        predicate: "g.TerminatedDate IS NOT NULL AND g.TerminatedDate <= CAST(GETUTCDATE() AS date) THEN 'Terminated'",
     },
     {
         state: 'Superseded',

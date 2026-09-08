@@ -34,29 +34,19 @@ Two more core tables complete the picture:
   any file and any record of any entity. This is how MJ attaches documents to business records
   without either side needing a column. **It has no role, label, or ordering column.**
 
-### 1.1a How much of `FileEntityRecordLink` is actually built (as of MJ 6.1)
+### 1.1a Record-scoped attachments (current MJ)
 
-This matters, because "use the platform primitive and you inherit its future features" is only a good
-argument if features are accruing to it. Read from the source:
+MJ now ships **standard attachments on every entity record**. The generated form toolbar opens
+`<mj-record-attachments>`; link rows write `__mj.FileEntityRecordLink`. An entity turns the feature
+off with `Configuration.Attachments.Enabled: false` (`IEntityAttachmentsConfiguration` on
+`MJ: Entities.Configuration`). Default is on. Contracts does not turn it off.
 
-| Question | Answer |
-|---|---|
-| Who **writes** link rows in MJ core? | **Exactly one place** — `packages/AI/Agents/src/realtime/realtime-recording-store.ts`, which links a session recording to its `AI Agent Session` record. |
-| Is there a generic **"files on this record" UI**? | **No.** The shipped Angular components (`Angular/Generic/file-storage`: `files-grid`, `file-upload`) accept a **`CategoryID` only** — no `EntityID` / `RecordID` inputs — and nothing wires them into the generated entity form. |
-| So does a generated form show a record's linked files today? | **No.** |
+⚠ **Contracts does not add a named file FK.** A `Contract.ExecutedDocumentFileID` was proposed and
+removed on 2026-08-18 (ERD §9, R-8): the link table alone is sufficient, and no file is required to
+create a contract. "Has a document?" is an `EXISTS` against `FileEntityRecordLink`, surfaced as
+`IsAwaitingDocument` on the layered base view.
 
-**MJ core's own answer to the gap is to hold both.** The same recording-store code writes the link row
-*"so it's discoverable via MJ: File Entity Record Links"* **and** stamps a named `RecordingFileID` FK on
-the session; `__mj.Conversation` carries the identical column. So a named FK for *the* document alongside
-link rows for everything else is a real core idiom.
-
-⚠ **Contracts deliberately does NOT follow it.** A `Contract.ExecutedDocumentFileID` FK was proposed and
-then **removed on 2026-08-18** (ERD §9, R-8): the link table alone is sufficient, and no document is
-required to create a contract. "Has a document?" is therefore an `EXISTS` against
-`FileEntityRecordLink`, surfaced as a derived column on the layered base view.
-
-**The opportunity:** a generic record-scoped attachments panel is a small, obviously-useful
-contribution back to MJ, and contracts is the app that most wants it.
+The v1 `RecordFilesPanelBase` in this repo was a stand-in for the gap above. That panel is deleted.
 
 ### 1.2 The seven drivers
 

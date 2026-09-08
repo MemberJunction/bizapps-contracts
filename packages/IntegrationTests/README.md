@@ -34,8 +34,10 @@ appended to whatever the config lists. `bizapps-orders` uses the identical arran
 ## Running
 
 ```bash
-# The fast inner loop — works today. Boots the provider directly, no metadata, stack traces on failure.
-node test-harnesses/integration.mjs                       # every bundle
+# The fast inner loop. Boots the provider directly, no metadata, stack traces on failure.
+# contracts-world COMMITS a portfolio (CTR-WORLD) so Explorer has rows; the other bundles roll back.
+node test-harnesses/integration.mjs                       # every bundle (world first)
+node test-harnesses/integration.mjs contracts-world        # seed visible contracts
 node test-harnesses/integration.mjs contracts-graph-save   # one bundle
 node test-harnesses/integration.mjs contracts-graph-save.GS3  # one check
 ```
@@ -62,28 +64,21 @@ with `Unknown integration check bundle`:
 MJ_INTEGRATION_TEST=1 ./node_modules/.bin/mj test suite --name "BizApps Contracts Integration"
 ```
 
-## Current state — the package is an empty shell
+## Current state
 
-`src/index.ts` is `export {}`. The v1 bundles (`contracts-composition` CC1–CC16,
-`contracts-save-contract` SC1–SC9, `contracts-billing` BE1–BE15, `contracts-amendment` AM1–AM8)
-tested machinery the rebuild deleted, so they went with it rather than being edited to pass against a
-schema they no longer describe.
-
-Four v2 bundles are planned — **plan item 13**, and they are already hardcoded in
-`test-harnesses/integration.mjs`'s `ALL_BUNDLES`:
+Plan item 13's four bundles are built, plus `contracts-world` so the app is not empty in Explorer.
+v1's `contracts-composition` / `contracts-save-contract` / `contracts-billing` / `contracts-amendment`
+tested machinery the rebuild deleted and stay gone.
 
 | Bundle | Covers |
 |---|---|
-| `contracts-graph-save` | header + modifications atomicity, rollback on invalid, flag invariant — the D-15 acceptance test |
-| `contracts-numbering` | `ContractNumber` CTR sequence under concurrency |
-| `contracts-provisions` | seed completeness incl. text, sequence renumbering |
-| `contracts-watchlist` | derived column **values** (`IsAwaitingDocument`, `IsChangeOrder`, `DaysToEnd`, `RenewalNoticeDeadline`, `IsInCancellationWindow`) |
+| `contracts-world` | COMMITS CTR-WORLD: a published template, four customers, and a contract in every derived `State`, with relative dates and minted `CTR-` numbers |
+| `contracts-graph-save` | header + modifications atomicity, rollback on invalid, `HasModifications` monotonic, type/template rules — the D-15 acceptance test |
+| `contracts-numbering` | `ContractNumber` CTR sequence, uniqueness under concurrency, reserved `CTR-` namespace |
+| `contracts-provisions` | seed completeness incl. text, natural order via `ProvisionSortKey` (`1.9` before `1.10`) |
+| `contracts-watchlist` | derived column **values** (`IsAwaitingDocument`, `DaysToEnd`, `RenewalNoticeDeadline`, `IsInCancellationWindow`, `State`). `IsChangeOrder` was removed from the view — W8 asserts `ParentContractID` instead |
 
-So a run today correctly reports `no checks matched … known bundles: self-test`. That output is
-**proof the seam works** — `self-test` is MJ's own framework-internal bundle, visible because the
-registry is process-global and shared. Adding a bundle here requires no wiring change; add the
-checks, export them from `src/index.ts`, and update `ALL_BUNDLES` + `testing.md` if the name differs
-from the four above.
+`contracts-world` is the only bundle that leaves rows. Re-running it updates dates so the watchlist does not drift. The rest wrap each check in a provider transaction and roll it back.
 
 ## Writing a bundle
 

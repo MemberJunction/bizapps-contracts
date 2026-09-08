@@ -1,0 +1,18 @@
+[
+  {
+    "_comments": [
+      "Shared watchlist view for the Contracts command center. DaysToEnd first so notice work sorts to the top."
+    ],
+    "fields": {
+      "Name": "Contracts: Watchlist",
+      "Description": "Agreements with term, state, customer, auto-renew, and days-to-end — the scan an AE or exec actually does.",
+      "EntityID": "@lookup:MJ: Entities.Name=MJ_BizApps_Contracts: Contracts",
+      "UserID": "ECAFCCEC-6A37-EF11-86D4-000D3A4E707E",
+      "IsShared": true,
+      "GridState": "{\"sortSettings\":[{\"field\":\"DaysToEnd\",\"dir\":\"asc\"}],\"columnSettings\":[{\"Name\":\"ContractNumber\",\"DisplayName\":\"Number\",\"orderIndex\":0,\"width\":120,\"pinned\":\"left\"},{\"Name\":\"CustomerOrganization\",\"DisplayName\":\"Customer\",\"orderIndex\":1,\"width\":200},{\"Name\":\"ContractType\",\"DisplayName\":\"Type\",\"orderIndex\":2,\"width\":130},{\"Name\":\"State\",\"DisplayName\":\"State\",\"orderIndex\":3,\"width\":110,\"format\":{\"type\":\"text\",\"conditionalRules\":[{\"condition\":\"equals\",\"value\":\"Active\",\"style\":{\"color\":\"#047857\",\"backgroundColor\":\"#d1fae5\",\"bold\":true}},{\"condition\":\"equals\",\"value\":\"Executed\",\"style\":{\"color\":\"#1d4ed8\",\"backgroundColor\":\"#dbeafe\"}},{\"condition\":\"equals\",\"value\":\"Terminated\",\"style\":{\"color\":\"#b45309\",\"backgroundColor\":\"#fef3c7\"}}]}},{\"Name\":\"EffectiveDate\",\"DisplayName\":\"Effective\",\"orderIndex\":4,\"width\":120,\"format\":{\"type\":\"date\",\"dateFormat\":\"medium\"}},{\"Name\":\"EndDate\",\"DisplayName\":\"Ends\",\"orderIndex\":5,\"width\":120,\"format\":{\"type\":\"date\",\"dateFormat\":\"medium\"}},{\"Name\":\"DaysToEnd\",\"DisplayName\":\"Days left\",\"orderIndex\":6,\"width\":100,\"format\":{\"type\":\"number\",\"decimals\":0,\"align\":\"right\",\"conditionalRules\":[{\"condition\":\"lessThan\",\"value\":0,\"style\":{\"color\":\"#b45309\",\"bold\":true}},{\"condition\":\"lessThanOrEqual\",\"value\":60,\"style\":{\"color\":\"#b45309\"}}]}},{\"Name\":\"AutoRenew\",\"DisplayName\":\"Auto-renew\",\"orderIndex\":7,\"width\":110,\"format\":{\"type\":\"boolean\",\"trueLabel\":\"Yes\",\"falseLabel\":\"No\"}},{\"Name\":\"Company\",\"DisplayName\":\"Selling as\",\"orderIndex\":8,\"width\":140}]}"
+    },
+    "primaryKey": {
+      "ID": "c0a7c7ed-0001-4c6d-8e9f-0a1b2c3d4e5f"
+    }
+  }
+]

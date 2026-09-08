@@ -231,9 +231,8 @@
       "Contract Templates -> Provisions: PRIMARY. The provisions ARE the template's content.",
       "",
       "Rail order on the template form is Details, then Provisions (ruled 2026-08-19). That falls out",
-      "of MJ's fixed band order — lead contributions → Details → Primary related → More — once the",
-      "Documents panel stops being a lead contribution on this entity. See the chromeGroup:'more' note",
-      "in record-files.panel.ts for why that is the only way to order Details ahead of it."
+      "of MJ's fixed band order — lead contributions → Details → Primary related → More. Files on a",
+      "template version attach through MJ's stock attachments (form toolbar), not a custom Documents section."
     ],
     "fields": {
       "DisplayName": "Provisions",

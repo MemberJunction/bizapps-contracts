@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Contracts — Option C · Portfolio map</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
+  <link rel="stylesheet" href="tokens.css" />
+  <link rel="stylesheet" href="chrome.css" />
+</head>
+<body>
+<div class="app">
+  <div class="thesis">
+    <b>Thesis:</b> The dashboard is the tree of agreements — selling company → counterparty → contract → child SOW.
+    Health is paper and notice, never dollars. Best for someone who thinks in accounts.
+    <b>Tradeoff:</b> a wide tree is slow to scan for “what is due this week.”
+  </div>
+  <header class="topnav">
+    <div class="brand"><span class="mark">MJ</span> Contracts <span class="app-label">Open App</span></div>
+    <div class="tabs" id="tabs"><button class="tab is-on" type="button"><i class="fa-solid fa-file-contract"></i> Contracts</button></div>
+    <div class="top-right"><span class="avatar">AK</span></div>
+  </header>
+  <div class="shell">
+    <nav class="rail">
+      <button class="nav is-on" type="button"><i class="fa-solid fa-sitemap"></i> Portfolio</button>
+      <button class="nav" type="button"><i class="fa-solid fa-table-list"></i> All contracts</button>
+    </nav>
+    <div class="main">
+      <div class="page-h">
+        <div>
+          <h1>Portfolio</h1>
+          <div class="sub">Click a contract → Explorer. Red = in force without paper. Amber = notice window. Templates are labelled so they cannot be mistaken for agreements.</div>
+        </div>
+      </div>
+      <div class="content tree">
+        <div class="node root">Blue Cypress Partners <span class="muted" style="font-weight:500">selling company</span>
+          <div class="node paper" onclick="openRec('091')"><b>ASAE exhibitor 2026</b> · Active · no paper · ends 4 Oct</div>
+          <div class="node" style="cursor:default"><b>Master Agreement v3</b> <span class="pill pipe">template, not a contract</span></div>
+          <div class="node notice" onclick="openRec('112')"><b>Plant 2 SOW</b> · child of MA · modified · notice 12 Oct
+            <div class="node" onclick="event.stopPropagation()" style="cursor:default">Limitation of liability deviation</div>
+          </div>
+          <div class="node" onclick="openRec('130')"><b>Annual software MSA</b> · Active · modified</div>
+        </div>
+        <div class="node root">Harbor House Events
+          <div class="node notice" onclick="openRec('104')"><b>Venue MSA</b> · Active · notice 28 Sep · auto-renew</div>
+          <div class="node paper" onclick="openRec('090')"><b>Catering addendum</b> · Active · no paper</div>
+          <div class="node" onclick="openRec('118')"><b>Leadership Summit rider</b> · Executed · effective 15 Nov</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+<script>
+function openRec(id) {
+  const t = document.getElementById('toast');
+  t.textContent = 'OpenEntityRecord("MJ_BizApps_Contracts: Contracts", CTR-' + id + ')';
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2400);
+  const tabs = document.getElementById('tabs');
+  const b = document.createElement('button');
+  b.className = 'tab is-on';
+  b.textContent = 'CTR-' + id;
+  [...tabs.querySelectorAll('.tab')].forEach(x => x.classList.remove('is-on'));
+  tabs.appendChild(b);
+}
+</script>
+</body>
+</html>

@@ -38,6 +38,7 @@
     "contract-template-types",
     "contract-types",
     "entity-relationships",
+    "user-views",
     "applications"
   ],
   "sqlLogging": {

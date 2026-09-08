@@ -48,6 +48,9 @@ export * from './value-list-validation';
  * against by contract-state.test.ts. */
 export * from './contract-state';
 
+/** Which contracts the Supersedes picker may offer, and how it names them (#28 item 4). */
+export * from './supersede-candidates';
+
 /* NOTE on `src/generated/remote_operations.ts`: CodeGen writes it, and it is deliberately NOT
  * re-exported. v2 ships zero remote operations (plan §6.3), so every symbol in that file is an
  * MJ-CORE operation (AISkill, PredictiveStudio, TaskGraph, …) emitted into every app's file

@@ -78,6 +78,37 @@ export function FindDuplicateProvisionIDs(provisionIDs: readonly unknown[]): str
     return duplicates;
 }
 
+/**
+ * R-12 — `CK_Contract_Dates` as a predicate: is this pair of dates definitely out of order?
+ *
+ * MIRRORS THE CONSTRAINT EXACTLY, which is `EndDate IS NULL OR EffectiveDate IS NULL OR EndDate >=
+ * EffectiveDate`. So this returns true ONLY when both dates are readable and the end really does fall
+ * before the start. Three consequences worth stating, because each is a way the obvious version would
+ * be wrong:
+ *
+ *   * EQUAL DATES PASS. A contract that starts and ends on the same day is a real one-day agreement.
+ *     Refusing it would reject rows the database accepts — worse than the error being replaced.
+ *   * EITHER MISSING PASSES. Half-filled dates are the normal state of a form mid-edit, and the
+ *     constraint itself allows them.
+ *   * UNREADABLE PASSES. Typed `Date | null`, but a form binding can put a string here, and comparing
+ *     a string to a Date compares nonsense rather than throwing. Anything that will not parse is
+ *     treated as "not yet known" rather than as an error on a field still being typed.
+ *
+ * Exported and pure so it can be asserted directly, the way `IsSameContractLevel` above is — not
+ * restated in a test, which is a copy that can drift from the rule it claims to check.
+ */
+export function IsEndBeforeEffective(effectiveDate: unknown, endDate: unknown): boolean {
+    const at = (v: unknown): number | null => {
+        if (v === null || v === undefined || v === '') return null;
+        const t = v instanceof Date ? v.getTime() : new Date(v as string).getTime();
+        return Number.isFinite(t) ? t : null;
+    };
+    const effective = at(effectiveDate);
+    const end = at(endDate);
+    if (effective === null || end === null) return false;
+    return end < effective;
+}
+
 @RegisterClass(BaseEntity, 'MJ_BizApps_Contracts: Contracts')
 export class ContractEntity extends mjBizAppsContractsContractEntity {
     /**
@@ -113,8 +144,38 @@ export class ContractEntity extends mjBizAppsContractsContractEntity {
         }
 
         this.refuseDuplicateStagedModifications(result);
+        this.refuseEndBeforeEffective(result);
 
         return result;
+    }
+
+    /**
+     * R-12 — `CK_Contract_Dates` in words, before the database says it in SQL.
+     *
+     * The constraint has always existed, so the data was never at risk; what the user got was the raw
+     * violation text naming a constraint and no field. This runs in the browser AND on the server
+     * (`Validate()` is shared), so the message arrives on the End Date field before a save is attempted.
+     *
+     * THE PREDICATE MIRRORS THE CONSTRAINT EXACTLY — `EndDate IS NULL OR EffectiveDate IS NULL OR
+     * EndDate >= EffectiveDate`. Both-null and either-null pass, and equal dates pass: a contract that
+     * starts and ends on the same day is a real one-day agreement, and refusing it here would reject
+     * rows the database accepts, which is worse than the error it replaces.
+     *
+     * The constraint STAYS. This is the friendly path, not the enforcement: a write that reaches the
+     * table by some other route still meets the check.
+     */
+    private refuseEndBeforeEffective(result: ValidationResult): void {
+        if (!IsEndBeforeEffective(this.EffectiveDate, this.EndDate)) return;
+
+        result.Success = false;
+        result.Errors.push(
+            new ValidationErrorInfo(
+                'EndDate',
+                'End Date must be on or after the Effective Date.',
+                this.EndDate,
+                ValidationErrorType.Failure,
+            ),
+        );
     }
 
     /**
