@@ -38,9 +38,9 @@ Versioning and publishing are separate, and neither writes to a branch.
 
 1. `version.yml` maintains a **"Version Packages" PR** into `next` — the bump,
    the CHANGELOGs, `mj-app.json`'s version and range, and a refreshed
-   `pnpm-lock.yaml`. Review it and merge when you are ready to release. Its
-   checks do not start on their own under the default `GITHUB_TOKEN`: click
-   **Approve and run** on the PR.
+   `pnpm-lock.yaml`. Review it and merge when you are ready to release. Its checks
+   run automatically — the PR is opened by a GitHub App, and App-created PRs
+   trigger workflows, so `build.yml` verifies `--frozen-lockfile` before you merge.
 2. Open one PR: `next` → `main`, titled `Release vX.Y.Z`.
    `release-readiness.yml` asserts no changesets are still pending and that a
    release carrying migrations is at least a minor.
