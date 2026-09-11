@@ -46,13 +46,26 @@ describe('item 8 — the two parties, named and ordered', () => {
         expect(customer).toBeGreaterThan(company);
     });
 
-    it('needs no metadata entry — CodeGen already derives the DisplayName', () => {
-        // CodeGen strips a trailing `ID` from a foreign key, so `CompanyID` already reads "Company";
-        // `CustomerOrganizationID` reading "Customer Organization" is the same rule. Measured on
-        // BizAppsDev: the column already held the target value and a sync push reported no changes.
+    it('and wherever the DisplayName comes from, it is "Company"', () => {
+        /*
+         * THIS ASSERTION USED TO RUN THE OTHER WAY, and the flip is worth recording rather than
+         * quietly making. It required the metadata file to hold NO `CompanyID` entry, on the finding
+         * that CodeGen strips a trailing `ID` from a foreign key — so `CompanyID` already reads
+         * "Company", the same rule that makes `CustomerOrganizationID` read "Customer Organization",
+         * and measured on BizAppsDev a sync push reported no changes.
+         *
+         * That finding still holds; it was never the point. The issue asked for the DisplayName to be
+         * "Company", and `next` ships it declared explicitly. Redundant with what CodeGen derives is
+         * not the same as wrong, and a test that FAILS when someone states the intended value outright
+         * is testing the mechanism rather than the outcome. So this pins the outcome: if the entry
+         * exists it must say "Company", and if it does not, CodeGen's rule already produces it.
+         */
         const meta = readFileSync(root('metadata/entity-fields/.entity-fields.json'), 'utf8');
-        const entries: Array<{ primaryKey?: { ID?: string } }> = JSON.parse(meta);
-        expect(entries.filter((e) => e.primaryKey?.ID?.endsWith('Name=CompanyID'))).toEqual([]);
+        const entries: Array<{ primaryKey?: { ID?: string }; fields?: { DisplayName?: string } }> =
+            JSON.parse(meta);
+        const company = entries.filter((e) => e.primaryKey?.ID?.endsWith('Name=CompanyID'));
+        expect(company.length).toBeLessThanOrEqual(1);
+        for (const e of company) expect(e.fields?.DisplayName).toBe('Company');
     });
 });
 
