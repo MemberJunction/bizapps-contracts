@@ -165,6 +165,35 @@ describe('the shapes that must not be read as "release everything"', () => {
         expect(world.table.get('p-2')!.SupersededByContractID).toBe(SUCCESSOR);
     });
 
+    it('refuses both IDs in one call, and touches nothing when it does', async () => {
+        // Not a theoretical shape. Before the guard, PredecessorID === ReleasePredecessorID released
+        // the contract and re-linked it in the same request, returning Released: ['CTR-0001'] next to
+        // a Supersedes list that still contained CTR-0001 — and writing the row twice, so the audit
+        // trail records a release that never held.
+        const world = makeWorld(TWO_PREDECESSORS);
+        const op = new SupersedeOperation() as unknown as {
+            InternalExecute(i: SupersedeInput, p: unknown, u: unknown, c: unknown): Promise<SupersedeOutput>;
+        };
+        await expect(
+            op.InternalExecute(
+                { SuccessorID: SUCCESSOR, PredecessorID: 'P-1', ReleasePredecessorID: 'P-1' },
+                world.provider,
+                {} as never,
+                {} as never,
+            ),
+        ).rejects.toThrow(/one action at a time/i);
+        expect(world.saves).toEqual([]);
+        expect(world.table.get('p-1')!.SupersededByContractID).toBe(SUCCESSOR);
+    });
+
+    it('refuses two different IDs too — a link and a release are two requests', async () => {
+        // This pair DOES produce a coherent result, and is refused anyway: nothing asks for it, the
+        // panel sends one verb at a time, and a request carrying two decisions has no obvious report.
+        await expect(
+            run(TWO_PREDECESSORS, { SuccessorID: SUCCESSOR, PredecessorID: 'P-3', ReleasePredecessorID: 'P-1' }),
+        ).rejects.toThrow(/one action at a time/i);
+    });
+
     it('refuses a contract superseding itself instead of quietly reporting success', async () => {
         const { out, world } = await run(TWO_PREDECESSORS, { SuccessorID: SUCCESSOR, PredecessorID: SUCCESSOR });
         expect(out.Refused).toMatch(/cannot supersede itself/i);
