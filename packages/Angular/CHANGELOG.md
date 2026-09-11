@@ -1,5 +1,96 @@
 # @mj-biz-apps/contracts-ng
 
+## 0.4.0
+
+### Minor Changes
+
+- 0c6981a: Three fixes to what the contract form asserts and what it lets you type (#28 items 16, 18 and 20).
+
+  **"Awaiting document" cleared as soon as any file was linked**, so an exhibit, a draft or the wrong PDF silenced the warning — the system could not tell the executed agreement from a scan of a business card, which makes the chip worse than absent. `vwContracts.IsAwaitingDocument` now requires a linked file carrying MJ's file category **Executed Agreement**, and the migration seeds that category idempotently by name. A category rather than a column on `Contract`, because ERD R-8 ships no `ExecutedDocumentFileID` FK and "what kind of document is this" is a property of the file.
+
+  **Contract Number, Has Modifications and Superseded By Contract** rendered as editable inputs even though the server assigns all three — the number is minted under a lock, the flag is settled in `ValidateAsync()`, and the supersession FK is written only by `Contracts.Supersede` on the successor, so editing it here sets the opposite direction from the Re-papering panel. All three are now read-only. Parent Contract stays editable, as item 11 requires.
+
+  **The term countdown** appeared in both the header and the Dates tab, computed separately in each. The header keeps it.
+
+  The migration re-creates `vwContracts` in full, as `CREATE OR ALTER` requires, so it also carries forward the inclusive `Terminated` boundary that item 13 set in `V202608300100`. Sorting later than that file, it would otherwise have reverted it.
+
+  Minor: the branch carries a versioned migration.
+
+### Patch Changes
+
+- 14eebae: The contract header showed **Company twice**. `next` already carried the Company stat and the rebase re-applied this branch's version next to it; the two insertions were adjacent rather than overlapping, so nothing conflicted and a build-only CI had nothing to fail on. One block now, and a test asserts no stat label is rendered twice — generalised, because a duplicated stat is exactly what a rebase against a branch solving the same issue produces.
+
+  The **Re-papering read-only chips** now read "Finish editing to change" / "Save this contract first", as #203 item 19 specified. They were missed because the commit carrying that copy also carried supersede work `next` had solved its own way, so the whole commit was dropped in the rebase.
+
+- 2fefe94: The hero names its two parties the way the rest of the app does, and the form stops explaining itself (#28 items 8 and 19).
+
+  The selling company's stat was labelled "Selling", a word that appeared on no other surface and matched no field a user could go looking for — the column is `CompanyID` and every grid calls it Company. It is now **Company**, and it comes before **Customer**: our company first, then the counterparty, which is how the agreement itself reads. No metadata change is needed; CodeGen strips a trailing `ID` from a foreign key and already derives "Company", the same rule that makes `CustomerOrganizationID` read "Customer Organization".
+
+  Eight pieces of prose described how the software works rather than what the reader should do. The hero's flag becomes "Contract number is assigned on save." — how the counter avoids a collision is not a fact about this contract. The Terminated hint says what setting the date _does_ rather than characterising it as "a fact about what happened". The derived-lifecycle note, the executed-date-may-precede reassurance, the orders-subscription ruling and the auto-renew aside are deleted. The Renewal and Lineage empty states name what is absent instead of characterising the contract. The "as stated in the agreement" chip stays, as specified.
+
+  Both items shipped once before and were reverted when `origin/next` rewrote the contract form; this re-applies them against its collapsible hero and stat grid. Item 19's three Documents replacements are **not** included: next replaced the custom Documents panel with MJ stock attachments, so they need re-scoping against the new mechanism rather than porting.
+
+- 4a710c1: Contract form Overview panel and header chips: plain-English copy.
+
+  The Overview panel landed after golive #203 item 19 was written, so its strings were never put through
+  that copy pass and still read in developer voice — health alerts arguing why a condition matters
+  ("the watchlist cannot see this", "a customer can walk without renewing"), a card titled "What needs a
+  person", and an Auto-renew subtext of "as the paper states" / "someone must act". The header chip
+  tooltips in `contract.panels.ts` carried duplicate wording of their own.
+
+  Each message is replaced with the verbatim copy specified on the issue: the alert states the condition,
+  the next-step card states the action. The card header becomes **Next step**, the Auto-renew subtext line
+  is dropped, the Parties card label **Selling as** becomes **Company** (golive #203 item 8) and its empty
+  Agreement value becomes **None**, and the Obligation card's **Created from** row is hidden when there is
+  no source record rather than reading "Entered directly" (golive #203 item 1).
+
+  Copy only. No getter decides differently than it did before — which messages appear, and when, is
+  unchanged. The one structural edit is the hidden **Created from** row, which added a `HasSource` getter
+  and left `CanOpenSource` alone; `SourceLabel` no longer carries the "Entered directly" fallback because
+  nothing renders it without a source any more.
+
+  Dates, Renewal terms, Lineage and Re-papering copy are golive #203 item 19 / contracts #36 and are not
+  touched here, and the dashboard intro paragraph is contracts #42.
+
+  Also fixed in passing: `Term ends ${endsInText(d)}` doubled the verb on the day a term ends — "Term ends
+  ends today." — and read "Term ends ended 3 days ago" behind it. The alert and the next-step line now
+  compose the clause through `termEndsText`, which carries the verb so it agrees with the tense
+  `endsInText` picked. Andrew's copy for every other day ("Term ends in 5 months.") is unchanged, and
+  `EndClock` still calls `endsInText` directly.
+
+- 8d9983c: The polymorphic provenance pair can no longer be typed over (#28 item 18, completing it).
+
+  `CreatingEntityID` and `CreatingRecordID` rendered as ordinary inputs in Edit mode even though the server owns them — `LiveContractsSeam.setProvenance` sets the pair on Close-Won and nothing else should. `CreatingEntityID` is a real FK to `__mj.Entity` and `CreatingRecordID` is the row it names, with `CK_Contract_CreatingPairBothOrNeither` requiring both or neither, so editing one field alone produced a save the constraint refused and editing both silently re-pointed a contract's provenance at an unrelated record — which is then what the header's Source Deal link displays. Both are now read-only, joining Contract Number, Has Modifications and Superseded By Contract.
+
+  **The Provenance section is kept, which item 18 says to hide.** Its stated reason is that item 1's Source Deal link replaces the section, and that is not yet true: the link renders only when both provenance columns are set, and one contract of eleven has them — a hand-typed pair naming `MJ: Explorer Navigation Items` with a record id that is not a valid UUID. On every contract a person can currently open, the replacement is invisible, so hiding the section would remove the only visible provenance in exchange for a stat that does not appear. Worth revisiting once a contract created by a real Close-Won deal exists to verify item 1 against.
+
+- abba50e: The header names the record that created a contract, a recorded zero stops reading as "not recorded", and edit-mode controls get their width from the kit (#28 items 1, 21 and 5's panel half).
+
+  The "Created from" stat rendered `CreatingEntity` — the name of an entity, not a record — so a contract raised from a Close-Won deal read "Deals" and one entered by hand read "Entered directly". Neither told the reader which deal. It is now a **Source Deal** stat carrying the deal's own name, clickable through to the record, and absent entirely when there is no source. Nothing is hardcoded to Deals: `CreatingEntityID`/`CreatingRecordID` is a polymorphic pair, so the entity is resolved from the id and the label takes that entity's own singular name — an Order would read "Source Order" with no code change. Navigation reuses the panel's existing `open()` helper, the one Customer and Contact use, so ctrl/cmd-click opens a new tab like every other link on the form.
+
+  A recorded `0` now reads "0 days" and "0%". `Record.X ? … : '—'` conflated zero with absent, so the panel reported holding no figure about a figure that says no notice is required. The "No renewal terms recorded." empty state now also requires Auto-renews to be No — it previously appeared directly beneath a field reading Yes.
+
+  The seven inline `style="width:100%"` attributes are gone; the kit's `.mjc-field input, .mjc-field select` rule carries the width along with everything else that makes edit mode match read mode.
+
+  All three shipped once before and were reverted when `origin/next` rewrote the contract form; this re-applies them against its stat grid.
+
+- 533f873: The Source stat hides itself when the provenance names a record that does not exist.
+
+  `CreatingEntityID`/`CreatingRecordID` can point at nothing — a hand-typed pair, a deleted row — and the stat rendered an "Open" button that navigated nowhere. A link that cannot work is worse than an absent stat: it invites a click and spends the reader's trust.
+
+  The fix distinguishes two cases the code had conflated. A name read that **succeeds and matches nothing** means the record is not there, so the stat hides. A read that **throws** means the record may exist and simply be unreadable by this user, so the link stays and the value falls back to "Open" — which is what the original fallback was written for. Treating both as "no name" is what made a dead button look deliberate.
+
+- 92a377d: Three places where the Re-papering panel described something other than what was on screen (#28 item 23).
+
+  **Changing the selection left the previous outcome up.** "Linked — that contract is now superseded by this agreement." stayed on screen while the user picked a different contract, reading as a description of the new selection. A success message that reports an action nobody took is worse than no message; both banners now clear when the selection changes.
+
+  **The candidate list was keyed on a boolean.** The form reuses the panel instance when it navigates, so the flag stayed true and the picker went on offering the previous contract's candidates — filtered to the previous customer and the previous level, which is a wrong list rather than a stale one. It is now keyed on the record's ID.
+
+  **A failed read stayed reported after a later one succeeded**, so the panel showed candidates and told the reader it could not read any.
+
+- Updated dependencies [0c6981a]
+  - @mj-biz-apps/contracts-entities@0.4.0
+
 ## 0.3.0
 
 ### Patch Changes
