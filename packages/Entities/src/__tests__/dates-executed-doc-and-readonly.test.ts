@@ -1,34 +1,34 @@
 /**
- * The date rule, the executed-agreement rule, the locked fields, and the countdown —
- * issue #28 items 12, 16 (database half), 18 (read-only half) and 20.
+ * The executed-agreement rule, the locked fields, and the countdown —
+ * issue #28 items 16 (database half), 18 (read-only half) and 20.
  *
- * ITEM 12 IS REAL BEHAVIOUR AND IS TESTED AS SUCH: `Validate()` needs no provider, so the rule runs
- * here against a constructed entity rather than being asserted from source. The others are structural
- * — a view's SQL, a field flag, a deleted template line — and none needs a database to be true.
+ * These are structural — a view's SQL, a field flag, a deleted template line — and none needs a
+ * database to be true.
  *
- * ON ITEM 13, WHICH THIS FILE ONCE SAID WAS UNRESOLVED: it shipped one commit later, in
- * `V202609010200`, after the ruling that item 13 had already made the call explicitly — `<=` on
- * Terminated, `<` on Expired. Its own tests live in `contract-state.test.ts` and
- * `state-derivation.mjs`. What remains here is narrower and still worth having: item 16's migration
- * must not carry the boundary change, because item 13's migration owns it and two files editing the
- * same predicate is how one silently wins.
+ * ITEM 12 IS NOT HERE, and neither is item 13. Both shipped separately on `next`: the date-order
+ * rule in `ContractEntity.IsEndBeforeEffective`, covered by `contract-date-order.test.ts`, and the
+ * inclusive Terminated boundary in `V202608300100`, covered by `contract-state.test.ts` and
+ * `state-derivation.mjs`. An earlier draft of this file asserted its own competing implementation of
+ * item 12 against the source text, which is exactly the sort of assertion that fails the moment the
+ * behaviour is delivered by a different, equally correct implementation.
+ *
+ * WHAT IS STILL WORTH HAVING HERE about item 13 is narrower: item 16's migration re-creates the whole
+ * view, so it must carry item 13's boundary forward rather than reverting it. Two files editing the
+ * same predicate is how one silently wins, and the later migration is the one that does.
  */
 import { readFileSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { ContractEntity } from '../ContractEntity';
 
 const root = (p: string) => fileURLToPath(new URL('../../../../' + p, import.meta.url));
 const strip = (t: string) => t.replace(/\/\*[\s\S]*?\*\//g, '').replace(/<!--[\s\S]*?-->/g, '');
 
-const ENTITY = readFileSync(root('packages/Entities/src/ContractEntity.ts'), 'utf8');
 const PANELS = strip(readFileSync(root('packages/Angular/src/lib/form-panels/contract.panels.ts'), 'utf8'));
 const FORM_FIELDS_RAW = readFileSync(root('packages/Angular/src/lib/form-panels/contract-form.panels.ts'), 'utf8');
 
-/** SQL with `--` line comments removed. Item 16's migration header discusses item 13 at length — it
- *  was written before item 13 shipped and records why that boundary was excluded from THIS file — so
- *  an absence check against the raw text reports the explanation as the defect. The header itself
- *  stays as written: an applied migration is immutable. */
+/** SQL with `--` line comments removed. Item 16's migration header discusses both date boundaries at
+ *  length, in order to explain why a file about executed documents sets the Terminated predicate at
+ *  all — so an absence check against the raw text reports the explanation as the defect. */
 const sqlCode = (t: string) => t.replace(/^\s*--.*$/gm, '');
 
 /**
@@ -59,43 +59,6 @@ const migration = (): string => {
     const found = migrationFiles();
     return found.length === 1 ? readFileSync(dir + '/' + found[0], 'utf8') : '';
 };
-
-describe('item 12 — a term cannot end before it starts', () => {
-    it('the rule is on the SHARED subclass, so it runs in both tiers', () => {
-        // Client-side via the form's Validate(), server-side inside ValidateAsync(). A rule that only
-        // ran in the browser would be a UI courtesy with a raw CK_Contract_Dates error behind it.
-        expect(ENTITY).toContain('private refuseEndBeforeEffective(');
-        expect(ENTITY).toContain('this.refuseEndBeforeEffective(result)');
-    });
-
-    it('reports the issue’s message, on the End Date field', () => {
-        expect(ENTITY).toContain("'End Date must be on or after the Effective Date.'");
-        const fn = ENTITY.slice(ENTITY.indexOf('private refuseEndBeforeEffective('));
-        expect(fn.slice(0, fn.indexOf('\n    }'))).toContain("'EndDate'");
-    });
-
-    it('compares calendar days, not instants', () => {
-        // These are `date` columns but the entity hands back a JS Date whose time component is
-        // whatever the transport produced — a raw comparison would refuse a valid same-day term.
-        const fn = ENTITY.slice(ENTITY.indexOf('private refuseEndBeforeEffective('));
-        expect(fn.slice(0, fn.indexOf('\n    }'))).toContain('Date.UTC(');
-    });
-
-    it('is inclusive: a single-day term is allowed', () => {
-        const fn = ENTITY.slice(ENTITY.indexOf('private refuseEndBeforeEffective('));
-        const body = fn.slice(0, fn.indexOf('\n    }'));
-        expect(body).toContain('>= day(effective)');
-    });
-
-    it('says nothing when either date is absent', () => {
-        const fn = ENTITY.slice(ENTITY.indexOf('private refuseEndBeforeEffective('));
-        expect(fn.slice(0, fn.indexOf('\n    }'))).toContain('if (!effective || !end) return;');
-    });
-
-    it('is registered, so the rule is reachable at all', () => {
-        expect(typeof ContractEntity).toBe('function');
-    });
-});
 
 describe('item 16 — only the executed agreement clears the flag', () => {
     it('exactly one migration seeds the category, so the target is unambiguous', () => {
@@ -132,19 +95,26 @@ describe('item 16 — only the executed agreement clears the flag', () => {
         expect(migration()).toContain('ct.RequiresExecutedDocument = 1');
     });
 
-    it('leaves the Terminated boundary to item 13, which owns it', () => {
+    it('carries item 13\u2019s Terminated boundary forward rather than reverting it', () => {
         /*
-         * Item 13 SHIPPED, in V202609010200 — this is no longer "13 is undecided". The guarantee is
-         * that item 16's migration does not also edit that predicate: both files carry the whole view
-         * because CREATE OR ALTER requires it, so if each set the boundary independently the newest
-         * would silently win and the older file would read as authority for something it no longer
-         * decides. One predicate, one owner.
+         * THE DIRECTION OF THIS CHECK IS THE POINT, and it is the opposite of what it once was.
          *
-         * Checked against the SQL rather than the file text: this migration's header discusses the
-         * boundary at length in order to explain the split.
+         * Item 13 made Terminated inclusive (`<=`) in V202608300100. This migration sorts LATER and
+         * re-creates the whole view, because CREATE OR ALTER offers no way to edit one branch — so
+         * "leave that predicate to its owner" is not available here. Leaving it as written would
+         * quietly revert item 13 on every database that applied both, in a file whose subject is
+         * something else entirely. The later migration is the one that decides, so it has to decide
+         * correctly.
+         *
+         * Expired stays `<`, which is not an inconsistency: an End Date is the last day the agreement
+         * covers, a Terminated Date is the day it stops.
+         *
+         * Checked against the SQL rather than the file text, because the header discusses both
+         * boundaries in prose in order to explain exactly this.
          */
-        expect(sqlCode(migration())).not.toContain('TerminatedDate <=');
-        expect(sqlCode(migration())).toContain('g.TerminatedDate < CAST(GETUTCDATE() AS date)');
+        expect(sqlCode(migration())).toContain('g.TerminatedDate <= CAST(GETUTCDATE() AS date)');
+        expect(sqlCode(migration())).not.toContain('g.TerminatedDate < CAST(GETUTCDATE() AS date)');
+        expect(sqlCode(migration())).toContain('g.EndDate < CAST(GETUTCDATE() AS date)');
     });
 });
 

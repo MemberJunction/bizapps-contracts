@@ -27,15 +27,16 @@
 -- rebuilt from zero. Idempotent throughout: re-running seeds nothing twice and
 -- CREATE OR ALTER is by definition re-appliable.
 --
--- ⚠ WHAT THIS MIGRATION DELIBERATELY DOES NOT DO. Item 13 asks for `Terminated`
--- to become inclusive of its date (`TerminatedDate <= today`). It is NOT here.
--- The current `<` is a documented, reasoned decision in
--- V202608240200 -- "a period ending on a date runs through the END of that date
--- (an agreement 'terminating on 31 December' is in force all of 31 December)" --
--- and `test-harnesses/state-derivation.mjs` asserts it in three fixtures. Item 13
--- reverses that on purpose or by oversight, and which one it is needs a person to
--- say. Bundling it in here would have buried the contradiction in a migration
--- nobody re-reads.
+-- ⚠ THIS MIGRATION RE-CREATES THE WHOLE VIEW, so it must carry forward every
+-- other decision already made about it. In particular item 13, which shipped in
+-- V202608300100: `Terminated` is INCLUSIVE of its date (`TerminatedDate <=
+-- today`), because the Dates tab tells the user that setting the date marks the
+-- contract Terminated FROM that date. An earlier draft of this file was written
+-- against a base where item 13 had not landed and still said `<`; because
+-- CREATE OR ALTER replaces the view wholesale and this migration sorts LATER,
+-- that would have silently reverted item 13 on every database that applied both.
+-- `Expired` deliberately stays `<`: an End Date is the last day the agreement
+-- covers, a Terminated Date is the day it stops.
 -- =============================================================================
 
 ---------------------------------------------------------------------------
@@ -64,17 +65,18 @@ SELECT
     --   Terminated  outranks everything ONCE IT HAS TAKEN EFFECT: somebody ended this
     --               agreement, and that is a fact about what happened, not a projection
     --               of the term. It stays Terminated even if the end date later passes.
-    --               The boundary is `< today`, NOT `IS NOT NULL`, and that is contract
-    --               law rather than a coding preference: a period ending on a date runs
-    --               through the END of that date (an agreement "terminating on 31
-    --               December" is in force all of 31 December), so a contract whose
-    --               TerminatedDate is TODAY is still in force today and reads Terminated
-    --               from tomorrow. A FUTURE TerminatedDate — notice served, effective
-    --               later — must therefore NOT read as already terminated; before this
-    --               fix it did. Same treatment as EndDate below, which is the point:
-    --               both are dates, and a `date` column carries no time, so end-of-day
-    --               is the only reading available. (A contract that specifies a TIME,
-    --               or an immediate for-cause termination, needs datetime2 — not
+    --               The boundary is `<= today`, NOT `IS NOT NULL` (item 13, shipped in
+    --               V202608300100 and carried forward here): the Dates tab tells the
+    --               user that setting a Terminated Date marks the contract Terminated
+    --               FROM that date, so the day itself must read Terminated rather than
+    --               Active-until-midnight. A FUTURE TerminatedDate — notice served,
+    --               effective later — still reads as not yet terminated, which is why
+    --               this is a date comparison and not `IS NOT NULL`.
+    --               NOT symmetric with EndDate below, deliberately: an End Date is the
+    --               last day the agreement COVERS, a Terminated Date is the day it
+    --               STOPS, so `Expired` stays `<` and making the pair match would
+    --               expire every contract a day early. (A contract that specifies a
+    --               TIME, or an immediate for-cause termination, needs datetime2 — not
     --               expressible here, and out of scope.)
     --   Superseded  the successor FK IS the superseded state — there is no separate
     --               column to disagree with it (R-18 dropped the tautological CHECK).
@@ -93,7 +95,7 @@ SELECT
     -- no start date recorded is Executed, because the signature is the fact that
     -- moved it on.
     CASE
-        WHEN g.TerminatedDate IS NOT NULL AND g.TerminatedDate < CAST(GETUTCDATE() AS date) THEN 'Terminated'
+        WHEN g.TerminatedDate IS NOT NULL AND g.TerminatedDate <= CAST(GETUTCDATE() AS date) THEN 'Terminated'
         WHEN g.SupersededByContractID IS NOT NULL                          THEN 'Superseded'
         WHEN g.EndDate IS NOT NULL AND g.EndDate < CAST(GETUTCDATE() AS date) THEN 'Expired'
         WHEN g.EffectiveDate IS NOT NULL AND g.EffectiveDate <= CAST(GETUTCDATE() AS date) THEN 'Active'
