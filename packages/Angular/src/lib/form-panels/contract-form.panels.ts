@@ -69,6 +69,18 @@ function endsInText(days: number | null | undefined): string {
     return `in ${months} month${months === 1 ? '' : 's'}`;
 }
 
+/**
+ * The whole clause, verb included, because the verb has to agree with the tense
+ * `endsInText` picks. Writing `Term ends ${endsInText(d)}` reads "Term ends ends
+ * today" on the day a term ends, and "Term ends ended 3 days ago" behind it.
+ */
+function termEndsText(days: number | null | undefined): string {
+    if (days == null) return '';
+    if (days < 0) return `Term ${endsInText(days)}`;
+    if (days === 0) return 'Term ends today';
+    return `Term ends ${endsInText(days)}`;
+}
+
 /* ── Overview ─────────────────────────────────────────────────────────────── */
 
 @RegisterClassEx(BaseFormPanel, {
@@ -320,7 +332,7 @@ export class MJCContractOverviewPanel extends BaseFormPanel<ContractEntity> {
         if (end != null && end < 0 && !this.Record.TerminatedDate) {
             out.push('The term has ended and no termination date is recorded.');
         } else if (this.State === 'Active' && end != null && end <= 120) {
-            out.push(`Term ends ${endsInText(end)}.`);
+            out.push(`${termEndsText(end)}.`);
         }
         const notice = daysUntil(this.Record.RenewalNoticeDeadline);
         if (notice != null && notice < 0) {
@@ -345,7 +357,7 @@ export class MJCContractOverviewPanel extends BaseFormPanel<ContractEntity> {
         }
         const end = this.Record?.DaysToEnd;
         if (this.State === 'Active' && end != null && end <= 120) {
-            return `Begin renewal discussion. Term ends ${endsInText(end)}.`;
+            return `Begin renewal discussion. ${termEndsText(end)}.`;
         }
         if (this.Record?.HasModifications) return 'Review the modifications to the standard agreement.';
         return null;

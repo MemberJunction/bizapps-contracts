@@ -23,3 +23,9 @@ nothing renders it without a source any more.
 
 Dates, Renewal terms, Lineage and Re-papering copy are golive #203 item 19 / contracts #36 and are not
 touched here, and the dashboard intro paragraph is contracts #42.
+
+Also fixed in passing: `Term ends ${endsInText(d)}` doubled the verb on the day a term ends — "Term ends
+ends today." — and read "Term ends ended 3 days ago" behind it. The alert and the next-step line now
+compose the clause through `termEndsText`, which carries the verb so it agrees with the tense
+`endsInText` picked. Andrew's copy for every other day ("Term ends in 5 months.") is unchanged, and
+`EndClock` still calls `endsInText` directly.
