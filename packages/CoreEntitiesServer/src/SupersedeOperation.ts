@@ -54,6 +54,8 @@ export interface SupersedeInput {
     /**
      * Link this contract as a predecessor. ADDS — whatever this agreement already supersedes is left
      * exactly as it is, because one agreement may legitimately replace several.
+     *
+     * Mutually exclusive with `ReleasePredecessorID`: one verb per call, and both set is refused.
      */
     PredecessorID?: string | null;
     /**
@@ -83,6 +85,27 @@ export class SupersedeOperation extends BaseRemotableOperation<SupersedeInput, S
         _context: RemoteOpServerContext,
     ): Promise<SupersedeOutput> {
         if (!input?.SuccessorID) throw new Error('SuccessorID is required.');
+
+        // ONE VERB PER CALL, refused rather than ordered.
+        //
+        // WITH THE SAME ID IN BOTH FIELDS this used to release the contract and then re-link it, and
+        // report BOTH: `Released: ['CTR-0001']` came back alongside a `Supersedes` list still
+        // containing CTR-0001. The caller is told a release happened that did not survive the same
+        // request, and the row takes two writes — cleared, then set again — so anything reading the
+        // audit trail sees a release nobody performed. Ordering the branches the other way just moves
+        // which half of the answer is the lie.
+        //
+        // WITH DIFFERENT IDS it does work, and is still refused: releasing X while linking Y is two
+        // decisions in one request, the panel sends one verb at a time, and nothing has asked for the
+        // combination. A refusal the caller can read beats an interpretation picked on their behalf.
+        //
+        // The guard sits before the successor is loaded, so a rejected call reads and writes nothing.
+        if (input.PredecessorID && input.ReleasePredecessorID) {
+            throw new Error(
+                'Supersede takes one action at a time: PredecessorID to add a predecessor, or ' +
+                    'ReleasePredecessorID to release one — not both in the same call.',
+            );
+        }
 
         const successor = await provider.GetEntityObject<ContractEntity>(E_CONTRACT, user);
         if (!(await successor.Load(input.SuccessorID))) {
