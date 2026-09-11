@@ -107,7 +107,8 @@ interface Candidate {
                             [Filterable]="true"
                             [Disabled]="Busy"
                             Placeholder="Search contracts at this level…"
-                            [(ngModel)]="PickedPredecessorID" />
+                            [ngModel]="PickedPredecessorID"
+                            (ngModelChange)="PickPredecessor($event)" />
 
                         <button mjButton variant="primary" size="sm" type="button"
                                 [disabled]="Busy || !PickedPredecessorID"
@@ -157,12 +158,35 @@ export class MJCContractSupersedePanel extends BaseFormPanel<ContractEntity> {
     public Supersedes: Array<{ ID: string; ContractNumber: string }> = [];
 
     private _candidates: Candidate[] = [];
-    private loaded = false;
+    /**
+     * WHICH contract the candidate list was loaded for, not merely whether it was (issue #28 item 23).
+     *
+     * A boolean belongs to the panel, and the panel outlives the record: the form reuses the same
+     * component instance when it navigates to another contract, so the flag stayed true and the picker
+     * went on offering the PREVIOUS contract's candidates — filtered to the previous customer and the
+     * previous level, which is a WRONG list rather than a stale one.
+     */
+    private loadedFor: string | null = null;
 
     /** Eligible predecessors. Loaded on first read; no EditMode gate, because the panel is always shown. */
     public get Candidates(): Candidate[] {
-        if (!this.loaded && this.Record?.ID) { this.loaded = true; void this.load(); }
+        const id = this.Record?.ID;
+        if (id && this.loadedFor !== id) { this.loadedFor = id; void this.load(); }
         return this._candidates;
+    }
+
+    /**
+     * Take a new selection, and drop the outcome of the last one (issue #28 item 23).
+     *
+     * A `[(ngModel)]` two-way binding was enough to hold the value and is not enough here: the success
+     * and error banners sat until the next click, so "Linked — that contract is now superseded by this
+     * agreement." stayed on screen while the user picked a DIFFERENT contract, appearing to describe
+     * the new selection. A stale success is worse than no message; it reports an action nobody took.
+     */
+    public PickPredecessor(id: string): void {
+        this.PickedPredecessorID = id ?? '';
+        this.LinkOk = '';
+        this.LinkError = '';
     }
 
     /**
@@ -328,13 +352,18 @@ export class MJCContractSupersedePanel extends BaseFormPanel<ContractEntity> {
                 ...c,
                 Label: ContractOptionLabel(c),
             }));
+            // A LATER SUCCESS CLEARS AN EARLIER FAILURE (#28 item 23). Without this the warning from a
+            // read that failed stayed on screen over a list that had since loaded, so the panel showed
+            // candidates and told the reader it could not read any. Cleared HERE rather than at the top
+            // of the try, so a reload does not blank the explanation while it is in flight.
+            this.LoadError = '';
         } catch (e) {
             // Do NOT swallow this. An empty list and a failed read look identical in the UI, and the
             // difference is the whole diagnosis — an earlier version returned [] here and the picker
             // simply sat greyed out with nothing to explain it.
             this._candidates = [];
             this.LoadError = `Could not read eligible contracts: ${e instanceof Error ? e.message : String(e)}`;
-            this.loaded = false; // let the next read retry
+            this.loadedFor = null; // let the next read retry
         } finally {
             this.CandidatesLoading = false;
             this.cdr.detectChanges();
