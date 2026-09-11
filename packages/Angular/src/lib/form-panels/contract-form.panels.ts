@@ -109,7 +109,7 @@ function endsInText(days: number | null | undefined): string {
                 } @else if (Record.IsSaved) {
                     <div class="mjc-ov-ok">
                         <i class="fa-solid fa-circle-check" aria-hidden="true"></i>
-                        Nothing on this agreement is asking for a person.
+                        No issues.
                     </div>
                 }
 
@@ -132,7 +132,6 @@ function endsInText(days: number | null | undefined): string {
                     <div class="mjc-ov-kpi">
                         <div class="l">Auto-renew</div>
                         <div class="v">{{ Record.AutoRenew ? 'Yes' : 'No' }}</div>
-                        <div class="s">{{ Record.AutoRenew ? 'as the paper states' : 'someone must act' }}</div>
                     </div>
                 </div>
 
@@ -156,8 +155,8 @@ function endsInText(days: number | null | undefined): string {
                                     } @else { {{ ContactName || '—' }} }
                                 </div>
                             </div>
-                            <div><div class="l">Selling as</div><div class="v">{{ CompanyName || '—' }}</div></div>
-                            <div><div class="l">Agreement</div><div class="v">{{ TemplateName || 'no standard terms' }}</div></div>
+                            <div><div class="l">Company</div><div class="v">{{ CompanyName || '—' }}</div></div>
+                            <div><div class="l">Agreement</div><div class="v">{{ TemplateName || 'None' }}</div></div>
                         </div>
                     </article>
                     <article class="mjc-ov-card">
@@ -168,21 +167,23 @@ function endsInText(days: number | null | undefined): string {
                             <div><div class="l">Notice we owe</div><div class="v">{{ DaysLabel(Record.RenewalNoticeDays) }}</div></div>
                             <div><div class="l">Cancel window</div><div class="v">{{ DaysLabel(Record.CancellationWindowDays) }}</div></div>
                             <div><div class="l">Annual increase</div><div class="v">{{ IncreaseLabel }}</div></div>
-                            <div><div class="l">Created from</div>
-                                <div class="v">
-                                    @if (CanOpenSource) {
-                                        <button type="button" class="mjc-ov-link" (click)="OpenSource($event)">{{ SourceLabel }}</button>
-                                    } @else { {{ SourceLabel }} }
+                            @if (HasSource) {
+                                <div><div class="l">Created from</div>
+                                    <div class="v">
+                                        @if (CanOpenSource) {
+                                            <button type="button" class="mjc-ov-link" (click)="OpenSource($event)">{{ SourceLabel }}</button>
+                                        } @else { {{ SourceLabel }} }
+                                    </div>
                                 </div>
-                            </div>
+                            }
                         </div>
                     </article>
                     <article class="mjc-ov-card mjc-ov-card--wide">
-                        <header><i class="fa-solid fa-person-walking"></i> What needs a person</header>
+                        <header><i class="fa-solid fa-person-walking"></i> Next step</header>
                         @if (NextMove) {
                             <p class="mjc-ov-next">{{ NextMove }}</p>
                         } @else {
-                            <p class="mjc-ov-empty">No action sitting on this agreement right now.</p>
+                            <p class="mjc-ov-empty">No action needed.</p>
                         }
                     </article>
                 </div>
@@ -297,54 +298,56 @@ export class MJCContractOverviewPanel extends BaseFormPanel<ContractEntity> {
         if (days != null && days <= 30) return 'warning';
         return 'muted';
     }
+    public get HasSource(): boolean {
+        return !!this.Record?.CreatingEntity;
+    }
     public get CanOpenSource(): boolean {
         return !!(this.Record?.CreatingEntity && this.Record?.CreatingRecordID);
     }
     public get SourceLabel(): string {
-        if (!this.Record?.CreatingEntity) return 'Entered directly';
-        return this.Record.CreatingEntity;
+        return this.Record?.CreatingEntity ?? '';
     }
     public get Health(): string[] {
         const out: string[] = [];
         if (!this.Record) return out;
         if (this.Record.IsAwaitingDocument) {
-            out.push('This type expects an executed document and none is attached.');
+            out.push('Executed agreement not attached.');
         }
         if (this.Record.IsInCancellationWindow) {
-            out.push('The cancellation window is open — a customer can walk without renewing.');
+            out.push('Cancellation window is open.');
         }
         const end = this.Record.DaysToEnd;
         if (end != null && end < 0 && !this.Record.TerminatedDate) {
             out.push('The term has ended and no termination date is recorded.');
         } else if (this.State === 'Active' && end != null && end <= 120) {
-            out.push(`Term ends ${endsInText(end)} — this belongs on the renewals watchlist.`);
+            out.push(`Term ends ${endsInText(end)}.`);
         }
         const notice = daysUntil(this.Record.RenewalNoticeDeadline);
         if (notice != null && notice < 0) {
             out.push('Renewal notice deadline has already passed.');
         } else if (notice != null && notice <= 30) {
-            out.push(`We owe written notice by ${dateLabel(this.Record.RenewalNoticeDeadline)}.`);
+            out.push(`Renewal notice due by ${dateLabel(this.Record.RenewalNoticeDeadline)}.`);
         }
         if (this.Record.HasModifications) {
-            out.push('The standard agreement was modified — read the paper.');
+            out.push('Standard agreement was modified.');
         }
         if (this.State === 'Active' && !this.Record.EndDate) {
-            out.push('Active with no end date — the watchlist cannot see this.');
+            out.push('Active with no end date.');
         }
         return out;
     }
     public get NextMove(): string | null {
-        if (this.Record?.IsAwaitingDocument) return 'Attach the executed document. Finance cannot process paper they cannot see.';
-        if (this.Record?.IsInCancellationWindow) return 'Cancellation window is open. Confirm whether this renews or walks.';
+        if (this.Record?.IsAwaitingDocument) return 'Attach the executed agreement.';
+        if (this.Record?.IsInCancellationWindow) return 'Cancellation window is open. Confirm whether the customer is renewing.';
         const notice = daysUntil(this.Record?.RenewalNoticeDeadline);
         if (notice != null && notice <= 30) {
             return `Send the renewal notice. Deadline ${dateLabel(this.Record?.RenewalNoticeDeadline)}.`;
         }
         const end = this.Record?.DaysToEnd;
         if (this.State === 'Active' && end != null && end <= 120) {
-            return `Start the renewal conversation. Term ends ${endsInText(end)}.`;
+            return `Begin renewal discussion. Term ends ${endsInText(end)}.`;
         }
-        if (this.Record?.HasModifications) return 'Read the deviations before anyone treats this as a standard agreement.';
+        if (this.Record?.HasModifications) return 'Review the modifications to the standard agreement.';
         return null;
     }
 

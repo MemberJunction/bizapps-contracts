@@ -100,13 +100,13 @@ function chipClassFor(state: ContractState): string {
                         @if (TypeName) { <span class="mjc-chip mjc-chip--info">{{ TypeName }}</span> }
                         @if (Record.HasModifications) {
                             <span class="mjc-chip mjc-chip--warn"
-                                  title="This contract deviates from the standard agreement — read the paper">
+                                  title="Standard agreement was modified">
                                 <i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i> Agreement modified
                             </span>
                         }
                         @if (IsAwaitingDocument) {
                             <span class="mjc-chip mjc-chip--warn"
-                                  title="This contract type expects an executed document and none is attached">
+                                  title="Executed agreement not attached">
                                 <i class="fa-solid fa-file-circle-question" aria-hidden="true"></i> Awaiting document
                             </span>
                         }
