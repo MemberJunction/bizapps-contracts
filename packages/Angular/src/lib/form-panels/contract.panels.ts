@@ -134,10 +134,6 @@ function chipClassFor(state: ContractState): string {
                         <span class="mjc-hero__stat-val">{{ CompanyName || '—' }}</span>
                     </div>
                     <div class="mjc-hero__stat">
-                        <span class="mjc-hero__stat-label">Company</span>
-                        <span class="mjc-hero__stat-val">{{ CompanyName || '—' }}</span>
-                    </div>
-                    <div class="mjc-hero__stat">
                         <span class="mjc-hero__stat-label">Customer</span>
                         @if (Record.CustomerOrganizationID && CustomerName) {
                             <button type="button" class="mjc-hero__stat-val is-link" (click)="OpenCustomer($event)">{{ CustomerName }}</button>

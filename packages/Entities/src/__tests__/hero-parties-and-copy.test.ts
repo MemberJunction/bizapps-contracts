@@ -38,6 +38,21 @@ describe('item 8 — the two parties, named and ordered', () => {
         expect(PANELS).not.toContain('>Selling<');
     });
 
+    it('and exactly once — no stat label is rendered twice', () => {
+        /*
+         * THIS CAUGHT NOTHING AND SHOULD HAVE. The header carried TWO identical Company blocks after
+         * the rebase: `next` already had the stat from its own item-8 work, and re-applying this
+         * branch's version inserted a second one next to it. Neither git nor CI could see it — the two
+         * insertions were adjacent rather than overlapping, so there was no conflict, and CI runs
+         * build-only, so duplicate markup compiles. `toContain` above passes on a duplicate too.
+         *
+         * Generalised rather than pinned to Company. A duplicated stat is what a rebase against a
+         * branch solving the same issue produces, and the next one will not necessarily be this stat.
+         */
+        const labels = statLabels();
+        expect(labels).toEqual([...new Set(labels)]);
+    });
+
     it('and comes before the customer', () => {
         const labels = statLabels();
         const company = labels.indexOf('Company');

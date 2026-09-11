@@ -95,7 +95,7 @@ interface Candidate {
                                 —
                             }
                             <span class="mjc-chip mjc-chip--muted">
-                                {{ Record?.IsSaved ? 'finish editing to change this' : 'save this contract first' }}
+                                {{ Record?.IsSaved ? 'Finish editing to change' : 'Save this contract first' }}
                             </span>
                         </span>
                     } @else {

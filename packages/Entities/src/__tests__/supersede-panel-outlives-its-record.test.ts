@@ -21,6 +21,17 @@ import { describe, expect, it } from 'vitest';
 const root = (p: string) => fileURLToPath(new URL('../../../../' + p, import.meta.url));
 const SUPERSEDE = readFileSync(root('packages/Angular/src/lib/form-panels/supersede.panel.ts'), 'utf8');
 
+describe('item 19 — the chips say what to do, in the issue\u2019s words', () => {
+    it('the read-only chip carries #203 item 19\u2019s copy exactly', () => {
+        // Sentence case, and no trailing "this" — the row of the item-19 table that covers this panel.
+        // It was missed by the rebase: the commit carrying it also carried supersede work that next
+        // had already solved its own way, so the whole commit was dropped and this line came with it.
+        expect(SUPERSEDE).toContain("'Finish editing to change'");
+        expect(SUPERSEDE).toContain("'Save this contract first'");
+        expect(SUPERSEDE).not.toContain('finish editing to change this');
+    });
+});
+
 describe('item 23 — changing the selection drops the previous outcome', () => {
     it('the picker reports its change rather than only storing it', () => {
         // `[(ngModel)]` alone holds the value and runs nothing, which is why the banners survived a
