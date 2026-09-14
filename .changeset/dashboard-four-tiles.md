@@ -15,3 +15,10 @@ Tile clicks carry a filter preset to the destination worklist, so a tile lands o
 just counted rather than on an unfiltered one. Declares `mj-bizapps-tasks` as a dependency:
 the "to process" tile and the new "Has open task" pill read Tasks, and the finance flow is
 task-driven.
+
+The tile-4 count's `CompanyIDs` parameter is declared in the query's metadata rather than left to
+the server's query-extraction pipeline to infer. MJ's parameter processor rejects any parameter a
+query does not declare, so on a host seeded by a route that does not run extraction the tile failed
+every read and rendered a dash. `query-categories` and `queries` also join `directoryOrder`: an
+unlisted folder is pushed in alphabetical order, which put the queries ahead of the category they
+look up by name and broke a push against an empty database — the exact shape of the release capture.
