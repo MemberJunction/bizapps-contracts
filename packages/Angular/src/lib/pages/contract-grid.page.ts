@@ -151,10 +151,24 @@ export abstract class MJCContractGridPageBase implements OnInit {
         return '';
     }
 
+    /**
+     * ⚠ A PRESET ARRIVES BEFORE THIS RUNS. The section calls `ApplyPreset` on the freshly created
+     * component and only then runs change detection — which is what invokes this hook. So on a
+     * first visit the preset lands on an empty `Pills` list, parks itself in `pendingPresetId`, and
+     * without the flush below is overwritten here by the default pill. The symptom was a tile that
+     * worked on the second click and not the first: tile 3 landed on Renewals showing the default
+     * "next 120 days" instead of the notice window, and tile 4 never reached "Special terms" at all
+     * on a host without bizapps-tasks, because the only other flush is the one after All Contracts'
+     * async task-pill read succeeds.
+     *
+     * Flushed BEFORE `rebuild()` rather than after, so the grid's first `Params` is already the one
+     * the user asked for — flushing afterwards would run the default filter and replace it a tick
+     * later, which is a visible flash and a wasted read.
+     */
     public ngOnInit(): void {
         this.Pills = this.pills;
         this.ActivePillId = this.Pills[0]?.Id ?? null;
-        this.rebuild();
+        if (!this.applyPendingPreset()) this.rebuild();
         void this.refreshCounts();
     }
 
@@ -192,9 +206,20 @@ export abstract class MJCContractGridPageBase implements OnInit {
     /** Set when a preset arrived before its pill existed. */
     protected pendingPresetId: string | null = null;
 
-    /** Subclasses that add pills asynchronously call this once the pills are in place. */
-    protected applyPendingPreset(): void {
-        if (this.pendingPresetId) this.ApplyPreset(this.pendingPresetId);
+    /**
+     * Flush a preset that arrived before its pill existed. Called from `ngOnInit` once the declared
+     * pills are in place, and again by subclasses that add a pill asynchronously.
+     *
+     * Returns whether a preset was actually applied, which `ngOnInit` uses to avoid rebuilding
+     * twice — `ApplyPreset` rebuilds on its own.
+     */
+    protected applyPendingPreset(): boolean {
+        if (!this.pendingPresetId) return false;
+        const id = this.pendingPresetId;
+        this.ApplyPreset(id);
+        // `ApplyPreset` re-parks the id when the pill STILL does not exist, in which case nothing
+        // was applied and the caller must do its own rebuild.
+        return this.pendingPresetId !== id;
     }
 
     public ApplySearch(text: string): void {
@@ -347,6 +372,15 @@ export class MJCAllContractsPageComponent extends MJCContractGridPageBase {
      * Task-first: the oldest untouched contract is the one to chase. Special terms: BY CUSTOMER, which
      * is what the dashboard tile counts — it counts clients, so its landing list groups a client's
      * agreements together rather than scattering them through a number-ordered list.
+     *
+     * ⚠ DEPARTURE FROM #30, stated rather than silent. The issue asks the "to process" list to sort by
+     * TASK DUE DATE; this sorts by effective date. Due date is not a column on `vwContracts` — it lives
+     * on the Task row, which this page never reads (the pill is an `EXISTS` subquery, deliberately, so
+     * the grid stays a single-entity read). Ordering by it would mean either a third wrapper view
+     * projecting a foreign app's column, or joining Tasks into the grid's own query — the first is the
+     * migration the issue itself rules out, the second couples this list to bizapps-tasks being present.
+     * Oldest-effective-date-first answers the same question the due date is a proxy for: which
+     * agreement has been sitting unprocessed longest.
      */
     protected override get orderBy(): string {
         switch (this.ActivePillId) {
