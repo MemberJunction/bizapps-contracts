@@ -68,6 +68,7 @@ import {
     MJCContractRenewalPanel,
 } from './lib/form-panels/contract.panels';
 import { MJCContractSupersedePanel } from './lib/form-panels/supersede.panel';
+import { MJCContractExecutedAgreementPanel } from './lib/form-panels/executed-agreement.panel';
 import { ContractFormPolicy } from './lib/form-panels/contract-form.policy';
 import {
     MJCContractAgreementPanel,
@@ -88,6 +89,7 @@ export {
     MJCContractLineagePanel,
 } from './lib/form-panels/contract.panels';
 export { MJCContractSupersedePanel } from './lib/form-panels/supersede.panel';
+export { MJCContractExecutedAgreementPanel } from './lib/form-panels/executed-agreement.panel';
 export { ContractFormPolicy } from './lib/form-panels/contract-form.policy';
 export {
     MJCContractOverviewPanel,
@@ -157,6 +159,7 @@ export function LoadMjBizappsContractsClient(): void {
     void MJCContractRenewalPanel;
     void MJCContractLineagePanel;
     void MJCContractSupersedePanel;
+    void MJCContractExecutedAgreementPanel;
     void MJCOrganizationAgreementsPanel;
     void MJCPersonAgreementsPanel;
 }

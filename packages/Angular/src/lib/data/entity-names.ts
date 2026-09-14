@@ -27,4 +27,8 @@ export const MJC_FOREIGN_ENTITIES = {
     Person: 'MJ_BizApps_Common: People',
     /** MJ CORE's Company, not accounting's — verified against __mj.EntityRelationship. */
     Company: 'MJ: Companies',
+    /** MJ CORE's file storage: a file row, its category, and the polymorphic record↔file link (golive #213). */
+    File: 'MJ: Files',
+    FileCategory: 'MJ: File Categories',
+    FileEntityRecordLink: 'MJ: File Entity Record Links',
 } as const;
