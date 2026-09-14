@@ -1,6 +1,6 @@
 ---
-'@mj-biz-apps/contracts-entities': patch
-'@mj-biz-apps/contracts-ng': patch
+'@mj-biz-apps/contracts-entities': minor
+'@mj-biz-apps/contracts-ng': minor
 ---
 
 Contract Types carry renewal defaults, and a new contract starts from them (golive #217 / C-US1).
