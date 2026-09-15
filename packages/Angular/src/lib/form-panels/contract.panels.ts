@@ -630,13 +630,16 @@ export class MJCContractRenewalPanel extends BaseFormPanel<ContractEntity> imple
      * (golive #217 / C-US1). The rule itself is `ContractEntity.SeedRenewalDefaultsFromType()`; this
      * is only the trigger.
      *
-     * WHY `ngDoCheck` AND NOT A CHANGE EVENT, which was the first design. `mj-form-field` emits
-     * `ValueChange`, so the Agreement panel could hook the type field it renders — but that is not the
-     * ONLY way to change the type. The generated `contractDetails` section renders `ContractTypeID`
-     * too (nothing replaces that section), and under `left-nav` it is right there in Details. A hook
-     * bound to one of the two field instances seeds from one and not the other, which on screen reads
-     * as the feature working intermittently. Watching the RECORD covers every edit path, including
-     * ones added later.
+     * WHY `ngDoCheck` AND NOT A CHANGE EVENT. `mj-form-field` emits `ValueChange`, so the Agreement
+     * panel could hook the type field it renders, and today that is the only place the type IS edited
+     * — the Overview panel replaces the generated `contractDetails` section
+     * (`contract-form.panels.ts:105`), so the field does not also appear in Details. (An earlier
+     * version of this comment claimed it did, and was wrong; corrected on review of PR #50. Do not
+     * design around a second edit path — there isn't one.)
+     *
+     * The record watch is kept anyway, because the trigger then lives with the fields it writes rather
+     * than in whichever panel happens to render the type today. A panel reshuffle cannot silently
+     * disconnect it, and no cross-panel wiring is needed to reach the four fields.
      *
      * The cost is a string compare per change-detection pass, and the guards matter more than the
      * compare: `IsSaved` keeps this off existing contracts entirely, `seededFromTypeID` makes it fire
