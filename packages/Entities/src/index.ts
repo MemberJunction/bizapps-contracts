@@ -55,6 +55,11 @@ export * from './supersede-candidates';
  * sales depends on this app, so the link stays polymorphic and is resolved from metadata at runtime. */
 export * from './source-record-candidates';
 
+/* Which template a NEW contract starts with, and when we may write it there (golive #218). The
+ * Agreement panel owns the query; the decisions inside it live here, where a unit test reaches them
+ * without standing up Angular's DI. */
+export * from './default-template';
+
 /* The file category that clears IsAwaitingDocument (golive #203 item 16 / #213). One spelling, shared by
  * the view, the migration seed and the form panel that marks a file. */
 export * from './executed-agreement';

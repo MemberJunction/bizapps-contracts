@@ -13,7 +13,7 @@
  *
  * @module @mj-biz-apps/contracts-ng
  */
-import { ChangeDetectorRef, Component, ViewEncapsulation, inject } from '@angular/core';
+import { ChangeDetectorRef, Component, ViewEncapsulation, inject, type OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { CompositeKey } from '@memberjunction/core';
@@ -23,9 +23,13 @@ import { MJAlertComponent, MJButtonDirective, MJComboboxComponent } from '@membe
 import type { AfterDataLoadEventArgs } from '@memberjunction/ng-entity-viewer';
 import {
     ContractEntity,
+    CurrentTemplateFilter,
+    CurrentTemplateOrderBy,
     DealIDClause,
     DealOptionLabel,
     DealSearchClause,
+    RecordWantsDefaultTemplate,
+    ShouldDefaultTemplate,
     type ContractState,
     type DealOption,
 } from '@mj-biz-apps/contracts-entities';
@@ -451,6 +455,7 @@ function daysUntil(d: Date | string | null | undefined): number | null {
                         <mj-form-field [Record]="Record" [ShowLabel]="true" [FieldName]="f.name" [Type]="f.type"
                             [EditMode]="f.readOnly ? false : EditMode" [FormContext]="FormContext"
                             [LinkType]="f.link ?? 'None'"
+                            (ValueChange)="OnFieldValueChange($event)"
                             (Navigate)="FormComponent.OnFormNavigate($event)"></mj-form-field>
                     </div>
                 }
@@ -458,7 +463,9 @@ function daysUntil(d: Date | string | null | undefined): number | null {
         </mj-collapsible-panel>
     `,
 })
-export class MJCContractAgreementPanel extends BaseFormPanel<ContractEntity> {
+export class MJCContractAgreementPanel extends BaseFormPanel<ContractEntity> implements OnInit {
+    private readonly cdr = inject(ChangeDetectorRef);
+
     public readonly Fields: ContractFieldSpec[] = [
         { name: 'ContractNumber', type: 'textbox', readOnly: true },
         { name: 'ContractTypeID', type: 'textbox', link: 'Record' },
@@ -467,6 +474,124 @@ export class MJCContractAgreementPanel extends BaseFormPanel<ContractEntity> {
         { name: 'HasModifications', type: 'checkbox', readOnly: true },
         { name: 'Description', type: 'textarea', span: true },
     ];
+
+    /**
+     * The template ID this panel last put in the field — how it tells its own default from a choice.
+     *
+     * Session-local on purpose: it is never read from the record, because the record cannot say who
+     * wrote a value into it. See `RecordWantsDefaultTemplate`, which owns what it means.
+     */
+    private lastDefaultedID: string | null = null;
+
+    /**
+     * A contract that arrives with its type already set — Explorer's `NewRecordValues`, or a New
+     * clicked from a type-scoped list — gets its template here, before the form is ever drawn.
+     *
+     * The commoner path is a person choosing the type by hand, which never reaches `ngOnInit` and is
+     * why `OnFieldValueChange` exists too. Both call the same method; neither is sufficient alone.
+     */
+    public async ngOnInit(): Promise<void> {
+        await this.defaultTemplate();
+    }
+
+    /**
+     * Re-decide the template whenever the CONTRACT TYPE changes (golive #218).
+     *
+     * `mj-form-field` emits this from its value setter, so it fires for a person's edit and NOT for
+     * the programmatic assignment below — writing `Record.ContractTemplateID` directly bypasses the
+     * setter. That asymmetry is what keeps this from re-entering itself.
+     */
+    public async OnFieldValueChange(event: { FieldName: string }): Promise<void> {
+        if (event?.FieldName !== 'ContractTypeID') return;
+        await this.defaultTemplate();
+    }
+
+    /**
+     * Put the current standard-terms version in the field, if we are allowed to.
+     *
+     * THE CHEAP HALF OF THE RULE RUNS FIRST. `RecordWantsDefaultTemplate` needs no database, and it
+     * is false for every saved contract — so opening an existing agreement costs no extra query at
+     * all, and the full rule is still evaluated in one place, on `ShouldDefaultTemplate`, before
+     * anything is written.
+     */
+    private async defaultTemplate(): Promise<void> {
+        const record = this.Record;
+        if (!record) return;
+
+        const state = {
+            isSaved: record.IsSaved,
+            currentTemplateID: record.ContractTemplateID,
+            lastDefaultedID: this.lastDefaultedID,
+        };
+        if (!RecordWantsDefaultTemplate(state)) return;
+
+        const templateRequired = await this.typeRequiresTemplate(record.ContractTypeID);
+        if (!ShouldDefaultTemplate({ ...state, templateRequired })) return;
+
+        const templateID = await this.currentTemplateID();
+        if (!templateID) return;
+
+        record.ContractTemplateID = templateID;
+        this.lastDefaultedID = templateID;
+        // The FK editor reads its value off the record every pass and resolves the name it shows
+        // asynchronously, so the label catches up on its own once this pass has run.
+        this.cdr.detectChanges();
+    }
+
+    /**
+     * Does the contract's current type say its terms live in a template — `TemplateRequired`?
+     *
+     * READ FROM THE FLAG, NEVER FROM THE TYPE'S NAME. The columns on `ContractType` exist precisely
+     * so no code branches on a name someone can rename; `ContractEntityServer` reads the same flag
+     * to decide whether to REQUIRE the template this defaults.
+     */
+    private async typeRequiresTemplate(typeID: string | null | undefined): Promise<boolean> {
+        const id = (typeID ?? '').trim();
+        if (!id) return false; // no type chosen yet — nothing to ask
+
+        const { ScopedRunView } = await import('../data/provider');
+        const rv = ScopedRunView(this.FormComponent?.ProviderToUse);
+        try {
+            const r = await rv.RunView<{ TemplateRequired: boolean }>({
+                EntityName: MJC_ENTITIES.ContractType,
+                Fields: ['TemplateRequired'],
+                ExtraFilter: `ID = '${id.replace(/'/g, "''")}'`,
+                ResultType: 'simple',
+            });
+            return r?.Success === true && r.Results?.[0]?.TemplateRequired === true;
+        } catch {
+            // A read we could not make is not a type we may assume needs a template. Defaulting on a
+            // guess would write standard terms into a contract on the strength of a failed query.
+            return false;
+        }
+    }
+
+    /**
+     * The newest Published, usable template — the one a new contract should start on.
+     *
+     * A FAILED OR EMPTY READ IS SILENT, and deliberately so. This is a convenience: the field stays
+     * empty, the picker still works, and the server still refuses a save with no template when the
+     * type demands one — which is the message the user needs and the one they would already get.
+     * Announcing "could not default a template" on a form nobody has filled in yet reports our own
+     * plumbing as the user's problem.
+     */
+    private async currentTemplateID(): Promise<string | null> {
+        const { ScopedRunView } = await import('../data/provider');
+        const rv = ScopedRunView(this.FormComponent?.ProviderToUse);
+        try {
+            const r = await rv.RunView<{ ID: string }>({
+                EntityName: MJC_ENTITIES.ContractTemplate,
+                Fields: ['ID'],
+                ExtraFilter: CurrentTemplateFilter,
+                OrderBy: CurrentTemplateOrderBy,
+                MaxRows: 1,
+                ResultType: 'simple',
+            });
+            return r?.Success ? (r.Results?.[0]?.ID ?? null) : null;
+        } catch {
+            return null;
+        }
+    }
 }
 
 @RegisterClassEx(BaseFormPanel, {
