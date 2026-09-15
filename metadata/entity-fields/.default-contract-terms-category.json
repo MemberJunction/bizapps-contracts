@@ -1,0 +1,51 @@
+[
+  {
+    "_comments": [
+      "Which SECTION of the generated Contract Type form the four renewal defaults appear in.",
+      "",
+      "EntityField.Category is MJ metadata, so it belongs here rather than in a migration (Amith, PR",
+      "#50) \u2014 the same reason .contract-type-field-categories.json carries the section's icon and",
+      "description. CodeGen's AI categorisation assigns a Category only when it runs its advanced",
+      "generation pass over a new field; it did not on the from-zero replay, and four uncategorised",
+      "fields render in a generic Details block instead of 'Default Contract Terms'. Stating it here",
+      "makes the grouping a fact of the repo rather than a by-product of a model call.",
+      "",
+      "GeneratedFormSection = 'Category' is what tells CodeGen to group by Category at all; every other",
+      "categorised field on this entity carries it."
+    ],
+    "fields": {
+      "Category": "Default Contract Terms",
+      "GeneratedFormSection": "Category"
+    },
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entity Fields.Entity=MJ_BizApps_Contracts: Contract Types&Name=DefaultAutoRenew"
+    }
+  },
+  {
+    "fields": {
+      "Category": "Default Contract Terms",
+      "GeneratedFormSection": "Category"
+    },
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entity Fields.Entity=MJ_BizApps_Contracts: Contract Types&Name=DefaultRenewalNoticeDays"
+    }
+  },
+  {
+    "fields": {
+      "Category": "Default Contract Terms",
+      "GeneratedFormSection": "Category"
+    },
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entity Fields.Entity=MJ_BizApps_Contracts: Contract Types&Name=DefaultCancellationWindowDays"
+    }
+  },
+  {
+    "fields": {
+      "Category": "Default Contract Terms",
+      "GeneratedFormSection": "Category"
+    },
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entity Fields.Entity=MJ_BizApps_Contracts: Contract Types&Name=DefaultAnnualIncreasePercent"
+    }
+  }
+]
