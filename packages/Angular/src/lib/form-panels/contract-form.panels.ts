@@ -13,16 +13,36 @@
  *
  * @module @mj-biz-apps/contracts-ng
  */
-import { Component, ViewEncapsulation } from '@angular/core';
+import { ChangeDetectorRef, Component, ViewEncapsulation, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { CompositeKey } from '@memberjunction/core';
 import { RegisterClassEx } from '@memberjunction/global';
 import { BaseFormPanel, BaseFormsModule } from '@memberjunction/ng-base-forms';
+import { MJAlertComponent, MJButtonDirective, MJComboboxComponent } from '@memberjunction/ng-ui-components';
 import type { AfterDataLoadEventArgs } from '@memberjunction/ng-entity-viewer';
-import { ContractEntity, type ContractState } from '@mj-biz-apps/contracts-entities';
+import {
+    ContractEntity,
+    DealIDClause,
+    DealOptionLabel,
+    DealSearchClause,
+    type ContractState,
+    type DealOption,
+} from '@mj-biz-apps/contracts-entities';
 import { MJC_ENTITIES, MJC_FOREIGN_ENTITIES } from '../data/entity-names';
 
 const E = MJC_ENTITIES.Contract;
+
+/**
+ * A deal option with its rendered label attached (golive #219).
+ *
+ * The label is computed ONCE per row, on load, rather than from a template call: `mj-combobox` reads
+ * `TextField` on every change-detection pass and for every option, so a function there re-renders the
+ * whole list on each keystroke.
+ */
+interface DealChoice extends DealOption {
+    Label: string;
+}
 
 type ContractFieldType =
     | 'textbox' | 'textarea' | 'number' | 'datepicker' | 'checkbox'
@@ -541,12 +561,75 @@ export class MJCContractNotesPanel extends BaseFormPanel<ContractEntity> {
     selector: 'mjc-contract-provenance-panel',
     standalone: true,
     encapsulation: ViewEncapsulation.None,
-    imports: [CommonModule, BaseFormsModule],
+    imports: [CommonModule, FormsModule, BaseFormsModule, MJComboboxComponent, MJButtonDirective, MJAlertComponent],
     styles: [FIELD_STYLES],
     template: `
         <mj-collapsible-panel SectionKey="origin" SectionName="Provenance" Icon="fa-solid fa-diagram-project"
             [Form]="FormComponent" [FormContext]="FormContext">
             <div class="mjc-fields-grid">
+                @if (EditMode && ShowLookup) {
+                    <div class="mjc-fg mjc-fg--span">
+                        <!-- Mirrors mj-form-field's own markup (mj-forms-field / -label / -control) so this
+                             reads as an ordinary form line. It cannot BE an mj-form-field: that binds ONE
+                             field, and the whole point here is that the two halves move together. -->
+                        <div class="mj-forms-field">
+                            <label class="mj-forms-field-label">Source deal</label>
+                            <div class="mj-forms-field-control">
+                                @if (Locked) {
+                                    <span class="mj-forms-field-value">
+                                        {{ LockedSummary }}
+                                        <span class="mjc-chip mjc-chip--muted">Already recorded</span>
+                                    </span>
+                                    <button mjButton variant="flat" size="sm" type="button" (click)="Unlock()">
+                                        Change source
+                                    </button>
+                                    <div class="mjc-hint">
+                                        This contract already records where it came from — usually the deal that
+                                        closed it. Re-pointing that is rewriting history, so it takes a deliberate
+                                        second click.
+                                    </div>
+                                } @else {
+                                    <mj-combobox
+                                        [Data]="Deals"
+                                        TextField="Label"
+                                        ValueField="ID"
+                                        [ValuePrimitive]="true"
+                                        [Filterable]="false"
+                                        Placeholder="Search deals by name, number or customer…"
+                                        [ngModel]="PickedDealID"
+                                        (ngModelChange)="PickDeal($event)"
+                                        (FilterChange)="Search($event)" />
+
+                                    @if (PickedDealID) {
+                                        <button mjButton variant="flat" size="sm" type="button" (click)="ClearSource()">
+                                            Clear
+                                        </button>
+                                    }
+
+                                    <div class="mjc-hint">
+                                        Starts with this customer's deals; typing searches every deal by name,
+                                        number or customer. Choosing one fills both fields below — Save commits them.
+                                    </div>
+                                    <!-- Said out loud, because the combobox's own empty state reads "No data
+                                         found" — indistinguishable from a search that genuinely matched nothing. -->
+                                    @if (Loading) { <div class="mjc-hint">Searching deals…</div> }
+                                    @if (LoadError) { <mj-alert Variant="warning" Size="sm" [Message]="LoadError" /> }
+                                    @if (ForeignSource) {
+                                        <mj-alert Variant="warning" Size="sm"
+                                            [Message]="'This contract’s source is not a deal — the fields below name the record it points at. Choosing a deal here replaces it.'" />
+                                    }
+                                }
+                            </div>
+                        </div>
+                    </div>
+                } @else if (EditMode) {
+                    <div class="mjc-fg mjc-fg--span">
+                        <div class="mjc-hint">
+                            No deal lookup here: this installation has no Deals entity, or you cannot read it.
+                            The fields below stay read-only rather than offering two ids to type by hand.
+                        </div>
+                    </div>
+                }
                 @for (f of Fields; track f.name) {
                     <div class="mjc-fg" [class.mjc-fg--span]="f.span">
                         <mj-form-field [Record]="Record" [ShowLabel]="true" [FieldName]="f.name" [Type]="f.type"
@@ -560,33 +643,240 @@ export class MJCContractNotesPanel extends BaseFormPanel<ContractEntity> {
     `,
 })
 export class MJCContractProvenanceFieldsPanel extends BaseFormPanel<ContractEntity> {
+    private readonly cdr = inject(ChangeDetectorRef);
+
     /**
-     * READ-ONLY, and the section KEPT — a deliberate departure from issue #28 item 18.
+     * THE RAW IDS STAY, AND STAY READ-ONLY. The lookup above is what WRITES them (golive #219).
      *
-     * Item 18 says to hide this section entirely, on the stated grounds that the hero's Source Deal
-     * link (item 1) replaces it. That premise does not hold yet. Item 1 renders the stat ONLY when
-     * `CreatingEntityID` and `CreatingRecordID` are both set, and on this database exactly one contract
-     * of eleven has them — `CTR-000026`, whose pair was typed in by hand: the entity is
-     * `MJ: Explorer Navigation Items` rather than Deals and the record id is not a valid UUID. So on
-     * every contract a person can currently open, the replacement is invisible. Hiding this section
-     * today would remove the only visible provenance for a stat that does not appear.
+     * ── WHY THEY WERE READ-ONLY, WHICH HAS NOT CHANGED ────────────────────────────────────────
      *
-     * WHAT ITEM 18 IS ACTUALLY ABOUT, and this half is not in doubt: these two fields rendered as
-     * ordinary inputs a person could type into, which is how that junk pair got there.
-     * `CreatingEntityID` is a real FK to `__mj.Entity` and `CreatingRecordID` is the row it names, and
-     * `CK_Contract_CreatingPairBothOrNeither` requires both or neither — so editing one field alone
-     * produces a save the constraint refuses, and editing both silently re-points a contract's
-     * provenance at an unrelated record, which is then what the hero's link displays. The server sets
-     * this pair (`LiveContractsSeam.setProvenance`, on Close-Won) and nothing else should.
+     * `CreatingEntityID` is a real FK to `__mj.Entity` and `CreatingRecordID` is the row it names, under
+     * `CK_Contract_CreatingPairBothOrNeither` — both or neither. Rendered as two ordinary inputs
+     * (contracts#28 item 18) they produced exactly the two failures the shape invites: editing one
+     * alone is a save the constraint refuses, and editing both silently re-points a contract's
+     * provenance at an unrelated record. `CTR-000026` still carries the evidence — a hand-typed pair
+     * naming `MJ: Explorer Navigation Items` with a record id that is not a UUID.
      *
-     * Read-only closes that defect and keeps the ids visible beneath the hero's human-readable name —
-     * complements rather than duplicates. Revisit hiding the section once a contract created by a real
-     * Close-Won deal exists to verify item 1 against.
+     * ── WHAT #219 ADDS, AND WHY IT IS NOT A REVERSAL ──────────────────────────────────────────
+     *
+     * Story C-US1 says finance may attach a MANUALLY created contract to an existing deal. Item 18's
+     * read-only made that impossible: the Close Won seam became not just the preferred writer but the
+     * only one, and a contract typed in by hand could never show its deal. The answer is not to reopen
+     * the fields — it is to write them through a control that cannot produce a half pair. The lookup
+     * sets both halves from one chosen deal and clears both together; these two remain what they became
+     * in item 18, a read-only audit of what the pair actually holds, sitting under a human-readable name.
+     *
+     * The SECTION is likewise kept rather than hidden (item 18 asked for it gone, on the premise that
+     * the hero's Source Deal stat replaces it). With #219 that premise becomes true for deals — but the
+     * pair is polymorphic and the stat renders only what it can resolve, so the ids stay as the one
+     * place a reader can see the provenance verbatim, which is item 3 of #219.
      */
     public readonly Fields: ContractFieldSpec[] = [
         { name: 'CreatingEntityID', type: 'textbox', link: 'Record', readOnly: true },
         { name: 'CreatingRecordID', type: 'textbox', readOnly: true },
     ];
+
+    /** Options for the picker. Never read directly — go through the `Deals` getter, which loads. */
+    private _deals: DealChoice[] = [];
+    /** Bound to the combobox. Mirrors `CreatingRecordID`, and is '' whenever the source is not a deal. */
+    public PickedDealID = '';
+    public Loading = false;
+    /** Why the list is empty, when the reason is a failure rather than genuinely nothing. */
+    public LoadError = '';
+    /** The pair names a record of some OTHER entity — surfaced rather than silently shown as blank. */
+    public ForeignSource = false;
+    /** This contract arrived with provenance already recorded, so re-pointing takes a second click. */
+    public Locked = false;
+    /** Label of the deal currently linked, for the locked line. */
+    public SelectedLabel = '';
+
+    /**
+     * Which contract the picker was loaded for — not merely whether it was.
+     *
+     * The form reuses one component instance as it navigates, so a boolean leaves the PREVIOUS
+     * contract's candidates in the dropdown: a list scoped to the previous customer, which is a wrong
+     * list rather than a stale one. Same defect, same fix, as the Supersedes picker (contracts#28
+     * item 23).
+     */
+    private loadedFor: string | null = null;
+    private searchTimer: ReturnType<typeof setTimeout> | null = null;
+
+    /**
+     * Is there a Deals entity this user can see?
+     *
+     * Resolved from METADATA BY NAME, never imported: sales depends on contracts, so this app may not
+     * depend on sales (see `MJC_FOREIGN_ENTITIES.Deal`). A host without sales installed, or a user
+     * without read permission, simply gets no picker — the read-only ids and the hint below say so
+     * rather than rendering a control that can find nothing.
+     */
+    public get DealLookupAvailable(): boolean {
+        return !!this.dealEntityID();
+    }
+
+    /**
+     * Whether to render the lookup — AND the panel's single load trigger.
+     *
+     * `BaseFormPanel` has no lifecycle hook and the slot host sets `Record` before view init, so the
+     * first template read is the earliest reliable moment to do per-record work. This is the FIRST
+     * thing the template reads, which is the whole reason the trigger lives here rather than on
+     * `Deals`: the options are read inside the unlocked branch only, so a contract that arrives with
+     * provenance would never read them, `syncFromRecord()` would never run, and `Locked` would never
+     * become true — the guard silently absent on exactly the records it exists to protect.
+     *
+     * Keyed on the record so navigating the form to another contract re-syncs and reloads.
+     */
+    public get ShowLookup(): boolean {
+        if (!this.DealLookupAvailable) return false;
+        const key = this.Record?.ID ?? 'new';
+        if (this.loadedFor !== key) {
+            this.loadedFor = key;
+            this.syncFromRecord();
+            void this.load('');
+        }
+        return true;
+    }
+
+    /** The candidate deals. Loaded by {@link ShowLookup}; this is a plain read. */
+    public get Deals(): DealChoice[] {
+        return this._deals;
+    }
+
+    /**
+     * What the locked line says about the existing link.
+     *
+     * Deliberately does NOT claim the Close Won automation set it: nothing on the row records who
+     * did, and a contract linked by hand, saved and reopened arrives locked the same way. The panel
+     * says what it can actually see — the deal's name when the list has it, that the source is not a
+     * deal when the entity half says so, and otherwise nothing more than that something is linked.
+     * The raw ids sit directly below either way.
+     */
+    public get LockedSummary(): string {
+        if (this.SelectedLabel) return this.SelectedLabel;
+        if (this.ForeignSource) return 'Linked to a record that is not a deal';
+        return 'A source record is already linked';
+    }
+
+    /** Release the re-point guard. Deliberate, and only ever by a click. */
+    public Unlock(): void {
+        this.Locked = false;
+    }
+
+    /**
+     * Take a chosen deal — and write BOTH halves of the pair, always.
+     *
+     * This is the whole reason the control exists. There is no path here that sets one column: a
+     * chosen deal writes the Deals entity id together with the deal's own id, and an empty selection
+     * goes through {@link ClearSource}, which empties both. The database's both-or-neither constraint
+     * (and the validator CodeGen derives from it) can therefore never be the thing that reports a
+     * mistake this form allowed a person to make.
+     */
+    public PickDeal(dealID: string | null | undefined): void {
+        const entityID = this.dealEntityID();
+        const id = (dealID ?? '').trim();
+        if (!entityID || !this.Record) return;
+        if (!id) { this.ClearSource(); return; }
+
+        this.Record.CreatingEntityID = entityID;
+        this.Record.CreatingRecordID = id;
+        this.PickedDealID = id;
+        this.ForeignSource = false;
+        this.SelectedLabel = this._deals.find((d) => d.ID === id)?.Label ?? '';
+    }
+
+    /** Empty BOTH halves. The constraint's other legal state, and #219's third acceptance criterion. */
+    public ClearSource(): void {
+        if (!this.Record) return;
+        this.Record.CreatingEntityID = null;
+        this.Record.CreatingRecordID = null;
+        this.PickedDealID = '';
+        this.ForeignSource = false;
+        this.SelectedLabel = '';
+    }
+
+    /**
+     * Re-query as the user types, debounced.
+     *
+     * SERVER-SIDE, with the combobox's own `Filterable` off. Client filtering would need every deal in
+     * the database loaded to be correct, and it filters on the option LABEL — so a search that matched
+     * a customer whose name the label abbreviates would hide rows the server just returned. One
+     * authority for what matches, and it is the query.
+     */
+    public Search(text: string): void {
+        if (this.searchTimer) clearTimeout(this.searchTimer);
+        // Long enough that a typed word is one read, short enough to feel immediate.
+        this.searchTimer = setTimeout(() => void this.load(text), 250);
+    }
+
+    /** The Deals entity's id, or null when this installation has no such entity. */
+    private dealEntityID(): string | null {
+        const entities = this.FormComponent?.ProviderToUse?.Entities;
+        return entities?.find((e) => e.Name === MJC_FOREIGN_ENTITIES.Deal)?.ID ?? null;
+    }
+
+    /**
+     * Read the record's pair into the control's own state.
+     *
+     * The pair is POLYMORPHIC, so "there is a `CreatingRecordID`" does not mean "a deal is selected".
+     * Pre-selecting on the record id alone would show an unrelated record's id as the chosen deal; the
+     * entity half has to agree first, and when it does not, `ForeignSource` says so out loud.
+     *
+     * `Locked` is captured HERE — from what the record ARRIVED with — and never recomputed live. A
+     * live "already set, so lock it" would re-lock the instant a user picked a deal, which is the
+     * guard eating the very edit it was there to confirm.
+     */
+    private syncFromRecord(): void {
+        const entityID = this.Record?.CreatingEntityID ?? null;
+        const recordID = this.Record?.CreatingRecordID ?? null;
+        const dealEntityID = this.dealEntityID();
+        const isDeal = !!entityID && !!dealEntityID && entityID.toLowerCase() === dealEntityID.toLowerCase();
+
+        this.PickedDealID = isDeal ? String(recordID ?? '') : '';
+        this.ForeignSource = !!entityID && !isDeal;
+        this.Locked = !!entityID && !!recordID;
+        this.SelectedLabel = '';
+    }
+
+    /**
+     * Load the options.
+     *
+     * With nothing typed this is the contract's customer's deals — #219 item 2's "prefer deals for the
+     * contract's customer organization" — ORed with the deal already linked, so a contract pointed at
+     * a deal outside its customer still shows what it is pointed AT rather than a blank box. Typing
+     * widens the search to every deal by name, number or customer. The clauses themselves live in
+     * `@mj-biz-apps/contracts-entities`, where they can be unit-tested without Angular.
+     */
+    private async load(searchText: string): Promise<void> {
+        if (!this.DealLookupAvailable) return;
+        this.Loading = true;
+        this.LoadError = '';
+        try {
+            const { ScopedRunView } = await import('../data/provider');
+            const rv = ScopedRunView(this.FormComponent?.ProviderToUse);
+            const search = (searchText ?? '').trim();
+            const filter = search
+                ? DealSearchClause(null, search)
+                : `(${DealSearchClause(this.Record?.CustomerOrganizationID)}) OR (${DealIDClause(this.Record?.CreatingRecordID)})`;
+
+            const r = await rv.RunView<DealOption>({
+                EntityName: MJC_FOREIGN_ENTITIES.Deal,
+                Fields: ['ID', 'DealNumber', 'Name', 'Account'],
+                ExtraFilter: filter,
+                OrderBy: 'Name ASC',
+                MaxRows: 100,
+                ResultType: 'simple',
+            });
+            if (!r?.Success) throw new Error(r?.ErrorMessage || 'The deals could not be read.');
+
+            this._deals = (r.Results ?? []).map((d) => ({ ...d, Label: DealOptionLabel(d) }));
+            this.SelectedLabel = this._deals.find((d) => d.ID === this.PickedDealID)?.Label ?? this.SelectedLabel;
+        } catch (e) {
+            this._deals = [];
+            this.LoadError = e instanceof Error ? e.message : String(e);
+        } finally {
+            this.Loading = false;
+            this.cdr.detectChanges();
+        }
+    }
 }
 
 @RegisterClassEx(BaseFormPanel, {

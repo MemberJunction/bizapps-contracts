@@ -31,4 +31,17 @@ export const MJC_FOREIGN_ENTITIES = {
     File: 'MJ: Files',
     FileCategory: 'MJ: File Categories',
     FileEntityRecordLink: 'MJ: File Entity Record Links',
+    /**
+     * bizapps-SALES, and read SOFTLY — no manifest dependency, deliberately (golive #219).
+     *
+     * Sales depends on THIS app: its Close-Won seam is what creates contracts. That is precisely why
+     * a contract's provenance is the polymorphic `CreatingEntityID` / `CreatingRecordID` pair rather
+     * than a `DealID` column — a hard reference upward would invert the dependency graph, and the
+     * Contract entity's own description says so in as many words.
+     *
+     * So this is a NAME resolved from provider metadata at runtime and nothing more. No import, no
+     * entry in `mj-app.json`. An installation without sales finds no such entity, and the Source-record
+     * picker does not render — a supported state, not a failure.
+     */
+    Deal: 'MJ_BizApps_Sales: Deals',
 } as const;

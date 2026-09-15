@@ -118,12 +118,20 @@ describe('item 16 — only the executed agreement clears the flag', () => {
     });
 });
 
-describe('item 18 — the server owns these three fields', () => {
+describe('item 18 — these fields are never typed into', () => {
     it('the field spec can declare a field never-editable', () => {
         expect(FORM_FIELDS_RAW).toContain('readOnly?: boolean;');
         expect(FORM_FIELDS_RAW).toContain('[EditMode]="f.readOnly ? false : EditMode"');
     });
 
+    /*
+     * `ContractNumber` and `HasModifications` ARE server-owned — minted under a lock, and settled by
+     * `ValidateAsync()`. `SupersededByContractID` is written only by `Contracts.Supersede`, on the
+     * successor. The provenance pair is a different case since golive #219: finance may set it, but
+     * never by typing into these two inputs, because the halves are under a both-or-neither constraint
+     * and hand entry is what produced `CTR-000026`'s corrupt pair. The lookup above them writes both
+     * at once; these stay read-only, which is what `source-deal-lookup.test.ts` pins.
+     */
     it.each([
         ['ContractNumber', "{ name: 'ContractNumber', type: 'textbox', readOnly: true }"],
         ['HasModifications', "{ name: 'HasModifications', type: 'checkbox', readOnly: true }"],
@@ -136,15 +144,16 @@ describe('item 18 — the server owns these three fields', () => {
 
     it('the Provenance SECTION is kept, contrary to item 18 — deliberately', () => {
         /*
-         * Item 18 says hide it, because item 1's Source Deal link replaces it. That premise is false
-         * on this database: item 1 renders only when both provenance columns are set, and one contract
-         * of eleven has them — with a hand-typed pair naming `MJ: Explorer Navigation Items` and a
-         * record id that is not a valid UUID. Hiding the section would remove the only visible
-         * provenance in exchange for a stat that does not appear.
+         * Item 18 says hide it, because item 1's Source Deal link replaces it. The premise was false
+         * when it was written — item 1 renders only when both provenance columns are set, and one
+         * contract of eleven had them, from a hand-typed pair naming `MJ: Explorer Navigation Items`
+         * with a record id that is not a valid UUID.
          *
-         * This test exists so the departure is a decision somebody can find, not a gap. Delete it
-         * together with the panel once a contract created by a real Close-Won deal exists to verify
-         * item 1 against.
+         * GOLIVE #219 MAKES IT HALF TRUE and settles the section's fate the other way. Finance can now
+         * link a deal from this very section, so contracts that show a Source Deal stat stop being a
+         * theoretical population. But the pair is polymorphic and the stat renders only what it can
+         * RESOLVE, so the ids below the lookup remain the one place a reader sees the provenance
+         * verbatim — #219 item 3 asks for exactly that. The section stays for good.
          */
         expect(FORM_FIELDS_RAW).toContain("replacesSectionKey: 'provenance'");
         expect(FORM_FIELDS_RAW).toContain('MJCContractProvenanceFieldsPanel');
