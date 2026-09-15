@@ -633,7 +633,7 @@ export class MJCContractRenewalPanel extends BaseFormPanel<ContractEntity> imple
      * WHY `ngDoCheck` AND NOT A CHANGE EVENT. `mj-form-field` emits `ValueChange`, so the Agreement
      * panel could hook the type field it renders, and today that is the only place the type IS edited
      * — the Overview panel replaces the generated `contractDetails` section
-     * (`contract-form.panels.ts:105`), so the field does not also appear in Details. (An earlier
+     * (`contract-form.panels.ts:125`), so the field does not also appear in Details. (An earlier
      * version of this comment claimed it did, and was wrong; corrected on review of PR #50. Do not
      * design around a second edit path — there isn't one.)
      *
