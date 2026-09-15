@@ -150,25 +150,25 @@ GO
 -- CodeGen capture — everything below this line is GENERATED. Replace it wholesale
 -- on regeneration; see docs/database-migrations.md § the 50-blank-line rule.
 --
--- The field-category setting the Contract Type form reads is NOT in here: MJ
--- metadata rows are never hand-written as SQL in a migration, so it lives in
--- `metadata/entity-settings/` and reaches a host through the release-time
--- Metadata_Sync. CodeGen's own two `Update FieldCategory…` statements were
--- therefore dropped from this capture — they set the whole JSON to the single
--- category CodeGen had just generated, which would strip the three the baseline
--- seeds.
+-- Captured from a FROM-ZERO replay: the whole contracts train applied to a clean
+-- database carrying MJ core + bizapps-common, then `mj sync push --dir metadata`,
+-- then `mj codegen` — in that order, which is the order Amith asked for on PR #50.
 --
--- ⚠ STILL TO DO BEFORE MERGE: re-capture this block from a from-zero run —
--- `mj migrate` → `mj sync push --dir metadata` → `mj codegen` against a clean
--- database — and replace everything below the separator with what that emits.
--- The block below predates the move of the setting into `metadata/`.
+-- Note what is NOT here, and why. CodeGen emits no `Update FieldCategory…`
+-- statements any more: the field-category setting lives in
+-- `metadata/entity-settings/` and was already in the database when this ran, so
+-- there was nothing for CodeGen to generate. An earlier draft of this migration
+-- hand-wrote that setting as SQL, which is exactly what the metadata folder is
+-- for. The four fields' `Category` is metadata for the same reason and lives in
+-- `metadata/entity-fields/.default-contract-terms-category.json`; a host receives
+-- both through the release-time Metadata_Sync, not through this file.
 -- =============================================================================
 /* SQL text to update existing entities from schema */
 EXEC [${mjSchema}].[spUpdateExistingEntitiesFromSchema] @ExcludedSchemaNames='sys,staging,dbo,${mjSchema}', @IncludedSchemaNames='${flyway:defaultSchema}';
 
 /* SQL text to insert 4 new entity field(s) */
 
-      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = '37ef1ace-158d-4b02-9731-ac989b80ab64' OR (EntityID = 'C8909A57-6DDB-4585-BE00-E707C5B4F262' AND Name = 'DefaultAutoRenew')) BEGIN
+      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = '0e84b4a9-1d67-4563-a5a0-ef4f75c80694' OR (EntityID = 'C8909A57-6DDB-4585-BE00-E707C5B4F262' AND Name = 'DefaultAutoRenew')) BEGIN
          INSERT INTO [${mjSchema}].[EntityField]
          (
             [ID],
@@ -201,7 +201,7 @@ EXEC [${mjSchema}].[spUpdateExistingEntitiesFromSchema] @ExcludedSchemaNames='sy
          )
          VALUES
          (
-            '37ef1ace-158d-4b02-9731-ac989b80ab64',
+            '0e84b4a9-1d67-4563-a5a0-ef4f75c80694',
             'C8909A57-6DDB-4585-BE00-E707C5B4F262', -- Entity: MJ_BizApps_Contracts: Contract Types
             (SELECT COALESCE(MAX([Sequence]), 0) + 1 FROM [${mjSchema}].[EntityField] WHERE [EntityID] = 'C8909A57-6DDB-4585-BE00-E707C5B4F262'),
             'DefaultAutoRenew',
@@ -231,7 +231,7 @@ EXEC [${mjSchema}].[spUpdateExistingEntitiesFromSchema] @ExcludedSchemaNames='sy
          )
       END;
 
-      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = '886e3bf0-6f99-4bad-b049-d19d34897288' OR (EntityID = 'C8909A57-6DDB-4585-BE00-E707C5B4F262' AND Name = 'DefaultRenewalNoticeDays')) BEGIN
+      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = 'e9a6cb34-2b1c-44a9-8260-d7e14c7b1f49' OR (EntityID = 'C8909A57-6DDB-4585-BE00-E707C5B4F262' AND Name = 'DefaultRenewalNoticeDays')) BEGIN
          INSERT INTO [${mjSchema}].[EntityField]
          (
             [ID],
@@ -264,7 +264,7 @@ EXEC [${mjSchema}].[spUpdateExistingEntitiesFromSchema] @ExcludedSchemaNames='sy
          )
          VALUES
          (
-            '886e3bf0-6f99-4bad-b049-d19d34897288',
+            'e9a6cb34-2b1c-44a9-8260-d7e14c7b1f49',
             'C8909A57-6DDB-4585-BE00-E707C5B4F262', -- Entity: MJ_BizApps_Contracts: Contract Types
             (SELECT COALESCE(MAX([Sequence]), 0) + 1 FROM [${mjSchema}].[EntityField] WHERE [EntityID] = 'C8909A57-6DDB-4585-BE00-E707C5B4F262'),
             'DefaultRenewalNoticeDays',
@@ -294,7 +294,7 @@ EXEC [${mjSchema}].[spUpdateExistingEntitiesFromSchema] @ExcludedSchemaNames='sy
          )
       END;
 
-      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = '1289ff74-772b-4e77-b68d-5fef1e798e0a' OR (EntityID = 'C8909A57-6DDB-4585-BE00-E707C5B4F262' AND Name = 'DefaultCancellationWindowDays')) BEGIN
+      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = '111cfb1b-1efb-4e60-a79d-41a391ef596a' OR (EntityID = 'C8909A57-6DDB-4585-BE00-E707C5B4F262' AND Name = 'DefaultCancellationWindowDays')) BEGIN
          INSERT INTO [${mjSchema}].[EntityField]
          (
             [ID],
@@ -327,7 +327,7 @@ EXEC [${mjSchema}].[spUpdateExistingEntitiesFromSchema] @ExcludedSchemaNames='sy
          )
          VALUES
          (
-            '1289ff74-772b-4e77-b68d-5fef1e798e0a',
+            '111cfb1b-1efb-4e60-a79d-41a391ef596a',
             'C8909A57-6DDB-4585-BE00-E707C5B4F262', -- Entity: MJ_BizApps_Contracts: Contract Types
             (SELECT COALESCE(MAX([Sequence]), 0) + 1 FROM [${mjSchema}].[EntityField] WHERE [EntityID] = 'C8909A57-6DDB-4585-BE00-E707C5B4F262'),
             'DefaultCancellationWindowDays',
@@ -357,7 +357,7 @@ EXEC [${mjSchema}].[spUpdateExistingEntitiesFromSchema] @ExcludedSchemaNames='sy
          )
       END;
 
-      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = 'b5b42453-03af-4806-8b87-7e80d7c78164' OR (EntityID = 'C8909A57-6DDB-4585-BE00-E707C5B4F262' AND Name = 'DefaultAnnualIncreasePercent')) BEGIN
+      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = 'da53b111-bc39-49f6-bcfb-55380e260227' OR (EntityID = 'C8909A57-6DDB-4585-BE00-E707C5B4F262' AND Name = 'DefaultAnnualIncreasePercent')) BEGIN
          INSERT INTO [${mjSchema}].[EntityField]
          (
             [ID],
@@ -390,7 +390,7 @@ EXEC [${mjSchema}].[spUpdateExistingEntitiesFromSchema] @ExcludedSchemaNames='sy
          )
          VALUES
          (
-            'b5b42453-03af-4806-8b87-7e80d7c78164',
+            'da53b111-bc39-49f6-bcfb-55380e260227',
             'C8909A57-6DDB-4585-BE00-E707C5B4F262', -- Entity: MJ_BizApps_Contracts: Contract Types
             (SELECT COALESCE(MAX([Sequence]), 0) + 1 FROM [${mjSchema}].[EntityField] WHERE [EntityID] = 'C8909A57-6DDB-4585-BE00-E707C5B4F262'),
             'DefaultAnnualIncreasePercent',
@@ -439,6 +439,87 @@ EXEC [${mjSchema}].[spUpdateSchemaInfoFromDatabase] @ExcludedSchemaNames='sys,st
 -- This file should NOT be edited by hand.
 -----------------------------------------------------------------;
 
+/* Index for Foreign Keys for Contract */
+-----------------------------------------------------------------
+-- SQL Code Generation
+-- Entity: MJ_BizApps_Contracts: Contracts
+-- Item: Index for Foreign Keys
+--
+-- This was generated by the MemberJunction CodeGen tool.
+-- This file should NOT be edited by hand.
+-----------------------------------------------------------------
+-- Index for foreign key ContractTypeID in table Contract
+IF NOT EXISTS (
+    SELECT 1
+    FROM sys.indexes
+    WHERE name = 'IDX_AUTO_MJ_FKEY_Contract_ContractTypeID' 
+    AND object_id = OBJECT_ID('[${flyway:defaultSchema}].[Contract]')
+)
+CREATE INDEX IDX_AUTO_MJ_FKEY_Contract_ContractTypeID ON [${flyway:defaultSchema}].[Contract] ([ContractTypeID]);
+
+-- Index for foreign key CompanyID in table Contract
+IF NOT EXISTS (
+    SELECT 1
+    FROM sys.indexes
+    WHERE name = 'IDX_AUTO_MJ_FKEY_Contract_CompanyID' 
+    AND object_id = OBJECT_ID('[${flyway:defaultSchema}].[Contract]')
+)
+CREATE INDEX IDX_AUTO_MJ_FKEY_Contract_CompanyID ON [${flyway:defaultSchema}].[Contract] ([CompanyID]);
+
+-- Index for foreign key CustomerOrganizationID in table Contract
+IF NOT EXISTS (
+    SELECT 1
+    FROM sys.indexes
+    WHERE name = 'IDX_AUTO_MJ_FKEY_Contract_CustomerOrganizationID' 
+    AND object_id = OBJECT_ID('[${flyway:defaultSchema}].[Contract]')
+)
+CREATE INDEX IDX_AUTO_MJ_FKEY_Contract_CustomerOrganizationID ON [${flyway:defaultSchema}].[Contract] ([CustomerOrganizationID]);
+
+-- Index for foreign key PrimaryContactPersonID in table Contract
+IF NOT EXISTS (
+    SELECT 1
+    FROM sys.indexes
+    WHERE name = 'IDX_AUTO_MJ_FKEY_Contract_PrimaryContactPersonID' 
+    AND object_id = OBJECT_ID('[${flyway:defaultSchema}].[Contract]')
+)
+CREATE INDEX IDX_AUTO_MJ_FKEY_Contract_PrimaryContactPersonID ON [${flyway:defaultSchema}].[Contract] ([PrimaryContactPersonID]);
+
+-- Index for foreign key ContractTemplateID in table Contract
+IF NOT EXISTS (
+    SELECT 1
+    FROM sys.indexes
+    WHERE name = 'IDX_AUTO_MJ_FKEY_Contract_ContractTemplateID' 
+    AND object_id = OBJECT_ID('[${flyway:defaultSchema}].[Contract]')
+)
+CREATE INDEX IDX_AUTO_MJ_FKEY_Contract_ContractTemplateID ON [${flyway:defaultSchema}].[Contract] ([ContractTemplateID]);
+
+-- Index for foreign key CreatingEntityID in table Contract
+IF NOT EXISTS (
+    SELECT 1
+    FROM sys.indexes
+    WHERE name = 'IDX_AUTO_MJ_FKEY_Contract_CreatingEntityID' 
+    AND object_id = OBJECT_ID('[${flyway:defaultSchema}].[Contract]')
+)
+CREATE INDEX IDX_AUTO_MJ_FKEY_Contract_CreatingEntityID ON [${flyway:defaultSchema}].[Contract] ([CreatingEntityID]);
+
+-- Index for foreign key ParentContractID in table Contract
+IF NOT EXISTS (
+    SELECT 1
+    FROM sys.indexes
+    WHERE name = 'IDX_AUTO_MJ_FKEY_Contract_ParentContractID' 
+    AND object_id = OBJECT_ID('[${flyway:defaultSchema}].[Contract]')
+)
+CREATE INDEX IDX_AUTO_MJ_FKEY_Contract_ParentContractID ON [${flyway:defaultSchema}].[Contract] ([ParentContractID]);
+
+-- Index for foreign key SupersededByContractID in table Contract
+IF NOT EXISTS (
+    SELECT 1
+    FROM sys.indexes
+    WHERE name = 'IDX_AUTO_MJ_FKEY_Contract_SupersededByContractID' 
+    AND object_id = OBJECT_ID('[${flyway:defaultSchema}].[Contract]')
+)
+CREATE INDEX IDX_AUTO_MJ_FKEY_Contract_SupersededByContractID ON [${flyway:defaultSchema}].[Contract] ([SupersededByContractID]);
+
 /* Base View SQL for MJ_BizApps_Contracts: Contract Types */
 -----------------------------------------------------------------
 -- SQL Code Generation
@@ -466,9 +547,9 @@ SELECT
 FROM
     [${flyway:defaultSchema}].[ContractType] AS c
 GO
+REVOKE SELECT ON [${flyway:defaultSchema}].[vwContractTypes] FROM [cdp_UI]
 REVOKE SELECT ON [${flyway:defaultSchema}].[vwContractTypes] FROM [cdp_Developer]
 REVOKE SELECT ON [${flyway:defaultSchema}].[vwContractTypes] FROM [cdp_Integration]
-REVOKE SELECT ON [${flyway:defaultSchema}].[vwContractTypes] FROM [cdp_UI]
 GRANT SELECT ON [${flyway:defaultSchema}].[vwContractTypes] TO [cdp_UI], [cdp_Developer], [cdp_Integration];
 
 /* Base View Permissions SQL for MJ_BizApps_Contracts: Contract Types */
@@ -481,9 +562,9 @@ GRANT SELECT ON [${flyway:defaultSchema}].[vwContractTypes] TO [cdp_UI], [cdp_De
 -- This file should NOT be edited by hand.
 -----------------------------------------------------------------
 
+REVOKE SELECT ON [${flyway:defaultSchema}].[vwContractTypes] FROM [cdp_UI]
 REVOKE SELECT ON [${flyway:defaultSchema}].[vwContractTypes] FROM [cdp_Developer]
 REVOKE SELECT ON [${flyway:defaultSchema}].[vwContractTypes] FROM [cdp_Integration]
-REVOKE SELECT ON [${flyway:defaultSchema}].[vwContractTypes] FROM [cdp_UI]
 GRANT SELECT ON [${flyway:defaultSchema}].[vwContractTypes] TO [cdp_UI], [cdp_Developer], [cdp_Integration];
 
 /* spCreate SQL for MJ_BizApps_Contracts: Contract Types */
@@ -598,14 +679,14 @@ BEGIN
     SELECT * FROM [${flyway:defaultSchema}].[vwContractTypes] WHERE [ID] = (SELECT [ID] FROM @InsertedRow)
 END
 GO
-REVOKE EXECUTE ON [${flyway:defaultSchema}].[spCreateContractType] FROM [cdp_Developer]
 REVOKE EXECUTE ON [${flyway:defaultSchema}].[spCreateContractType] FROM [cdp_Integration]
+REVOKE EXECUTE ON [${flyway:defaultSchema}].[spCreateContractType] FROM [cdp_Developer]
 GRANT EXECUTE ON [${flyway:defaultSchema}].[spCreateContractType] TO [cdp_Developer], [cdp_Integration];
 
 /* spCreate Permissions for MJ_BizApps_Contracts: Contract Types */
 
-REVOKE EXECUTE ON [${flyway:defaultSchema}].[spCreateContractType] FROM [cdp_Developer]
 REVOKE EXECUTE ON [${flyway:defaultSchema}].[spCreateContractType] FROM [cdp_Integration]
+REVOKE EXECUTE ON [${flyway:defaultSchema}].[spCreateContractType] FROM [cdp_Developer]
 GRANT EXECUTE ON [${flyway:defaultSchema}].[spCreateContractType] TO [cdp_Developer], [cdp_Integration];
 
 /* spUpdate SQL for MJ_BizApps_Contracts: Contract Types */
@@ -714,6 +795,428 @@ REVOKE EXECUTE ON [${flyway:defaultSchema}].[spUpdateContractType] FROM [cdp_Dev
 REVOKE EXECUTE ON [${flyway:defaultSchema}].[spUpdateContractType] FROM [cdp_Integration]
 GRANT EXECUTE ON [${flyway:defaultSchema}].[spUpdateContractType] TO [cdp_Developer], [cdp_Integration];
 
+/* Base View SQL for MJ_BizApps_Contracts: Contracts */
+-----------------------------------------------------------------
+-- SQL Code Generation
+-- Entity: MJ_BizApps_Contracts: Contracts
+-- Item: vwContractsGenerated
+--
+-- This was generated by the MemberJunction CodeGen tool.
+-- This file should NOT be edited by hand.
+-----------------------------------------------------------------
+
+------------------------------------------------------------
+----- BASE VIEW FOR ENTITY:      MJ_BizApps_Contracts: Contracts
+-----               SCHEMA:      ${flyway:defaultSchema}
+-----               BASE TABLE:  Contract
+-----               PRIMARY KEY: ID
+------------------------------------------------------------
+IF OBJECT_ID('[${flyway:defaultSchema}].[vwContractsGenerated]', 'V') IS NOT NULL
+    DROP VIEW [${flyway:defaultSchema}].[vwContractsGenerated];
+GO
+
+CREATE VIEW [${flyway:defaultSchema}].[vwContractsGenerated]
+AS
+SELECT
+    c.*,
+    mjBizAppsContractsContractType_ContractTypeID.[Name] AS [ContractType],
+    MJCompany_CompanyID.[Name] AS [Company],
+    mjBizAppsCommonOrganization_CustomerOrganizationID.[Name] AS [CustomerOrganization],
+    mjBizAppsCommonPerson_PrimaryContactPersonID.[DisplayName] AS [PrimaryContactPerson],
+    mjBizAppsContractsContractTemplate_ContractTemplateID.[Name] AS [ContractTemplate],
+    MJEntity_CreatingEntityID.[Name] AS [CreatingEntity],
+    mjBizAppsContractsContract_ParentContractID.[ContractNumber] AS [ParentContract],
+    mjBizAppsContractsContract_SupersededByContractID.[ContractNumber] AS [SupersededByContract]
+FROM
+    [${flyway:defaultSchema}].[Contract] AS c
+INNER JOIN
+    [${flyway:defaultSchema}].[ContractType] AS mjBizAppsContractsContractType_ContractTypeID
+  ON
+    [c].[ContractTypeID] = mjBizAppsContractsContractType_ContractTypeID.[ID]
+INNER JOIN
+    [${mjSchema}].[Company] AS MJCompany_CompanyID
+  ON
+    [c].[CompanyID] = MJCompany_CompanyID.[ID]
+INNER JOIN
+    [${mjSchema}_BizAppsCommon].[Organization] AS mjBizAppsCommonOrganization_CustomerOrganizationID
+  ON
+    [c].[CustomerOrganizationID] = mjBizAppsCommonOrganization_CustomerOrganizationID.[ID]
+LEFT OUTER JOIN
+    [${mjSchema}_BizAppsCommon].[Person] AS mjBizAppsCommonPerson_PrimaryContactPersonID
+  ON
+    [c].[PrimaryContactPersonID] = mjBizAppsCommonPerson_PrimaryContactPersonID.[ID]
+LEFT OUTER JOIN
+    [${flyway:defaultSchema}].[ContractTemplate] AS mjBizAppsContractsContractTemplate_ContractTemplateID
+  ON
+    [c].[ContractTemplateID] = mjBizAppsContractsContractTemplate_ContractTemplateID.[ID]
+LEFT OUTER JOIN
+    [${mjSchema}].[Entity] AS MJEntity_CreatingEntityID
+  ON
+    [c].[CreatingEntityID] = MJEntity_CreatingEntityID.[ID]
+LEFT OUTER JOIN
+    [${flyway:defaultSchema}].[Contract] AS mjBizAppsContractsContract_ParentContractID
+  ON
+    [c].[ParentContractID] = mjBizAppsContractsContract_ParentContractID.[ID]
+LEFT OUTER JOIN
+    [${flyway:defaultSchema}].[Contract] AS mjBizAppsContractsContract_SupersededByContractID
+  ON
+    [c].[SupersededByContractID] = mjBizAppsContractsContract_SupersededByContractID.[ID]
+GO
+IF OBJECT_ID('[${flyway:defaultSchema}].[vwContracts]', 'V') IS NOT NULL
+BEGIN
+    EXEC sp_executesql N'REVOKE SELECT ON [${flyway:defaultSchema}].[vwContracts] FROM [cdp_Integration]
+REVOKE SELECT ON [${flyway:defaultSchema}].[vwContracts] FROM [cdp_UI]
+REVOKE SELECT ON [${flyway:defaultSchema}].[vwContracts] FROM [cdp_Developer]
+GRANT SELECT ON [${flyway:defaultSchema}].[vwContracts] TO [cdp_UI], [cdp_Developer], [cdp_Integration]';
+END;
+
+/* Base View Permissions SQL for MJ_BizApps_Contracts: Contracts */
+-----------------------------------------------------------------
+-- SQL Code Generation
+-- Entity: MJ_BizApps_Contracts: Contracts
+-- Item: Permissions for vwContracts
+--
+-- This was generated by the MemberJunction CodeGen tool.
+-- This file should NOT be edited by hand.
+-----------------------------------------------------------------
+
+IF OBJECT_ID('[${flyway:defaultSchema}].[vwContracts]', 'V') IS NOT NULL
+BEGIN
+    EXEC sp_executesql N'REVOKE SELECT ON [${flyway:defaultSchema}].[vwContracts] FROM [cdp_Integration]
+REVOKE SELECT ON [${flyway:defaultSchema}].[vwContracts] FROM [cdp_UI]
+REVOKE SELECT ON [${flyway:defaultSchema}].[vwContracts] FROM [cdp_Developer]
+GRANT SELECT ON [${flyway:defaultSchema}].[vwContracts] TO [cdp_UI], [cdp_Developer], [cdp_Integration]';
+END;
+
+/* spCreate SQL for MJ_BizApps_Contracts: Contracts */
+-----------------------------------------------------------------
+-- SQL Code Generation
+-- Entity: MJ_BizApps_Contracts: Contracts
+-- Item: spCreateContract
+--
+-- This was generated by the MemberJunction CodeGen tool.
+-- This file should NOT be edited by hand.
+-----------------------------------------------------------------
+
+------------------------------------------------------------
+----- CREATE PROCEDURE FOR Contract
+------------------------------------------------------------
+IF OBJECT_ID('[${flyway:defaultSchema}].[spCreateContract]', 'P') IS NOT NULL
+    DROP PROCEDURE [${flyway:defaultSchema}].[spCreateContract];
+GO
+
+CREATE PROCEDURE [${flyway:defaultSchema}].[spCreateContract]
+    @ID uniqueidentifier = NULL,
+    @ContractNumber_Clear bit = 0,
+    @ContractNumber nvarchar(50) = NULL,
+    @ContractTypeID uniqueidentifier,
+    @CompanyID uniqueidentifier,
+    @CustomerOrganizationID uniqueidentifier,
+    @PrimaryContactPersonID_Clear bit = 0,
+    @PrimaryContactPersonID uniqueidentifier = NULL,
+    @ContractTemplateID_Clear bit = 0,
+    @ContractTemplateID uniqueidentifier = NULL,
+    @CreatingEntityID_Clear bit = 0,
+    @CreatingEntityID uniqueidentifier = NULL,
+    @CreatingRecordID_Clear bit = 0,
+    @CreatingRecordID nvarchar(450) = NULL,
+    @ParentContractID_Clear bit = 0,
+    @ParentContractID uniqueidentifier = NULL,
+    @SupersededByContractID_Clear bit = 0,
+    @SupersededByContractID uniqueidentifier = NULL,
+    @SigningProviderURL_Clear bit = 0,
+    @SigningProviderURL nvarchar(1000) = NULL,
+    @EffectiveDate_Clear bit = 0,
+    @EffectiveDate date = NULL,
+    @ExecutedDate_Clear bit = 0,
+    @ExecutedDate date = NULL,
+    @EndDate_Clear bit = 0,
+    @EndDate date = NULL,
+    @TerminatedDate_Clear bit = 0,
+    @TerminatedDate date = NULL,
+    @AutoRenew bit = NULL,
+    @RenewalNoticeDays_Clear bit = 0,
+    @RenewalNoticeDays int = NULL,
+    @CancellationWindowDays_Clear bit = 0,
+    @CancellationWindowDays int = NULL,
+    @AnnualIncreasePercent_Clear bit = 0,
+    @AnnualIncreasePercent decimal(7, 4) = NULL,
+    @HasModifications bit = NULL,
+    @Description_Clear bit = 0,
+    @Description nvarchar(MAX) = NULL,
+    @Notes_Clear bit = 0,
+    @Notes nvarchar(MAX) = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+    DECLARE @InsertedRow TABLE ([ID] UNIQUEIDENTIFIER)
+
+    IF @ID IS NOT NULL
+    BEGIN
+        -- User provided a value, use it
+        INSERT INTO [${flyway:defaultSchema}].[Contract]
+            (
+                [ID],
+                [ContractNumber],
+                [ContractTypeID],
+                [CompanyID],
+                [CustomerOrganizationID],
+                [PrimaryContactPersonID],
+                [ContractTemplateID],
+                [CreatingEntityID],
+                [CreatingRecordID],
+                [ParentContractID],
+                [SupersededByContractID],
+                [SigningProviderURL],
+                [EffectiveDate],
+                [ExecutedDate],
+                [EndDate],
+                [TerminatedDate],
+                [AutoRenew],
+                [RenewalNoticeDays],
+                [CancellationWindowDays],
+                [AnnualIncreasePercent],
+                [HasModifications],
+                [Description],
+                [Notes]
+            )
+        OUTPUT INSERTED.[ID] INTO @InsertedRow
+        VALUES
+            (
+                @ID,
+                CASE WHEN @ContractNumber_Clear = 1 THEN NULL ELSE ISNULL(@ContractNumber, NULL) END,
+                @ContractTypeID,
+                @CompanyID,
+                @CustomerOrganizationID,
+                CASE WHEN @PrimaryContactPersonID_Clear = 1 THEN NULL ELSE ISNULL(@PrimaryContactPersonID, NULL) END,
+                CASE WHEN @ContractTemplateID_Clear = 1 THEN NULL ELSE ISNULL(@ContractTemplateID, NULL) END,
+                CASE WHEN @CreatingEntityID_Clear = 1 THEN NULL ELSE ISNULL(@CreatingEntityID, NULL) END,
+                CASE WHEN @CreatingRecordID_Clear = 1 THEN NULL ELSE ISNULL(@CreatingRecordID, NULL) END,
+                CASE WHEN @ParentContractID_Clear = 1 THEN NULL ELSE ISNULL(@ParentContractID, NULL) END,
+                CASE WHEN @SupersededByContractID_Clear = 1 THEN NULL ELSE ISNULL(@SupersededByContractID, NULL) END,
+                CASE WHEN @SigningProviderURL_Clear = 1 THEN NULL ELSE ISNULL(@SigningProviderURL, NULL) END,
+                CASE WHEN @EffectiveDate_Clear = 1 THEN NULL ELSE ISNULL(@EffectiveDate, NULL) END,
+                CASE WHEN @ExecutedDate_Clear = 1 THEN NULL ELSE ISNULL(@ExecutedDate, NULL) END,
+                CASE WHEN @EndDate_Clear = 1 THEN NULL ELSE ISNULL(@EndDate, NULL) END,
+                CASE WHEN @TerminatedDate_Clear = 1 THEN NULL ELSE ISNULL(@TerminatedDate, NULL) END,
+                ISNULL(@AutoRenew, 0),
+                CASE WHEN @RenewalNoticeDays_Clear = 1 THEN NULL ELSE ISNULL(@RenewalNoticeDays, NULL) END,
+                CASE WHEN @CancellationWindowDays_Clear = 1 THEN NULL ELSE ISNULL(@CancellationWindowDays, NULL) END,
+                CASE WHEN @AnnualIncreasePercent_Clear = 1 THEN NULL ELSE ISNULL(@AnnualIncreasePercent, NULL) END,
+                ISNULL(@HasModifications, 0),
+                CASE WHEN @Description_Clear = 1 THEN NULL ELSE ISNULL(@Description, NULL) END,
+                CASE WHEN @Notes_Clear = 1 THEN NULL ELSE ISNULL(@Notes, NULL) END
+            )
+    END
+    ELSE
+    BEGIN
+        -- No value provided, let database use its default (e.g., NEWSEQUENTIALID())
+        INSERT INTO [${flyway:defaultSchema}].[Contract]
+            (
+                [ContractNumber],
+                [ContractTypeID],
+                [CompanyID],
+                [CustomerOrganizationID],
+                [PrimaryContactPersonID],
+                [ContractTemplateID],
+                [CreatingEntityID],
+                [CreatingRecordID],
+                [ParentContractID],
+                [SupersededByContractID],
+                [SigningProviderURL],
+                [EffectiveDate],
+                [ExecutedDate],
+                [EndDate],
+                [TerminatedDate],
+                [AutoRenew],
+                [RenewalNoticeDays],
+                [CancellationWindowDays],
+                [AnnualIncreasePercent],
+                [HasModifications],
+                [Description],
+                [Notes]
+            )
+        OUTPUT INSERTED.[ID] INTO @InsertedRow
+        VALUES
+            (
+                CASE WHEN @ContractNumber_Clear = 1 THEN NULL ELSE ISNULL(@ContractNumber, NULL) END,
+                @ContractTypeID,
+                @CompanyID,
+                @CustomerOrganizationID,
+                CASE WHEN @PrimaryContactPersonID_Clear = 1 THEN NULL ELSE ISNULL(@PrimaryContactPersonID, NULL) END,
+                CASE WHEN @ContractTemplateID_Clear = 1 THEN NULL ELSE ISNULL(@ContractTemplateID, NULL) END,
+                CASE WHEN @CreatingEntityID_Clear = 1 THEN NULL ELSE ISNULL(@CreatingEntityID, NULL) END,
+                CASE WHEN @CreatingRecordID_Clear = 1 THEN NULL ELSE ISNULL(@CreatingRecordID, NULL) END,
+                CASE WHEN @ParentContractID_Clear = 1 THEN NULL ELSE ISNULL(@ParentContractID, NULL) END,
+                CASE WHEN @SupersededByContractID_Clear = 1 THEN NULL ELSE ISNULL(@SupersededByContractID, NULL) END,
+                CASE WHEN @SigningProviderURL_Clear = 1 THEN NULL ELSE ISNULL(@SigningProviderURL, NULL) END,
+                CASE WHEN @EffectiveDate_Clear = 1 THEN NULL ELSE ISNULL(@EffectiveDate, NULL) END,
+                CASE WHEN @ExecutedDate_Clear = 1 THEN NULL ELSE ISNULL(@ExecutedDate, NULL) END,
+                CASE WHEN @EndDate_Clear = 1 THEN NULL ELSE ISNULL(@EndDate, NULL) END,
+                CASE WHEN @TerminatedDate_Clear = 1 THEN NULL ELSE ISNULL(@TerminatedDate, NULL) END,
+                ISNULL(@AutoRenew, 0),
+                CASE WHEN @RenewalNoticeDays_Clear = 1 THEN NULL ELSE ISNULL(@RenewalNoticeDays, NULL) END,
+                CASE WHEN @CancellationWindowDays_Clear = 1 THEN NULL ELSE ISNULL(@CancellationWindowDays, NULL) END,
+                CASE WHEN @AnnualIncreasePercent_Clear = 1 THEN NULL ELSE ISNULL(@AnnualIncreasePercent, NULL) END,
+                ISNULL(@HasModifications, 0),
+                CASE WHEN @Description_Clear = 1 THEN NULL ELSE ISNULL(@Description, NULL) END,
+                CASE WHEN @Notes_Clear = 1 THEN NULL ELSE ISNULL(@Notes, NULL) END
+            )
+    END
+    -- return the new record from the base view, which might have some calculated fields
+    SELECT * FROM [${flyway:defaultSchema}].[vwContracts] WHERE [ID] = (SELECT [ID] FROM @InsertedRow)
+END
+GO
+REVOKE EXECUTE ON [${flyway:defaultSchema}].[spCreateContract] FROM [cdp_Developer]
+REVOKE EXECUTE ON [${flyway:defaultSchema}].[spCreateContract] FROM [cdp_Integration]
+GRANT EXECUTE ON [${flyway:defaultSchema}].[spCreateContract] TO [cdp_Developer], [cdp_Integration];
+
+/* spCreate Permissions for MJ_BizApps_Contracts: Contracts */
+
+REVOKE EXECUTE ON [${flyway:defaultSchema}].[spCreateContract] FROM [cdp_Developer]
+REVOKE EXECUTE ON [${flyway:defaultSchema}].[spCreateContract] FROM [cdp_Integration]
+GRANT EXECUTE ON [${flyway:defaultSchema}].[spCreateContract] TO [cdp_Developer], [cdp_Integration];
+
+/* spUpdate SQL for MJ_BizApps_Contracts: Contracts */
+-----------------------------------------------------------------
+-- SQL Code Generation
+-- Entity: MJ_BizApps_Contracts: Contracts
+-- Item: spUpdateContract
+--
+-- This was generated by the MemberJunction CodeGen tool.
+-- This file should NOT be edited by hand.
+-----------------------------------------------------------------
+
+------------------------------------------------------------
+----- UPDATE PROCEDURE FOR Contract
+------------------------------------------------------------
+IF OBJECT_ID('[${flyway:defaultSchema}].[spUpdateContract]', 'P') IS NOT NULL
+    DROP PROCEDURE [${flyway:defaultSchema}].[spUpdateContract];
+GO
+
+CREATE PROCEDURE [${flyway:defaultSchema}].[spUpdateContract]
+    @ID uniqueidentifier,
+    @ContractNumber_Clear bit = 0,
+    @ContractNumber nvarchar(50) = NULL,
+    @ContractTypeID uniqueidentifier = NULL,
+    @CompanyID uniqueidentifier = NULL,
+    @CustomerOrganizationID uniqueidentifier = NULL,
+    @PrimaryContactPersonID_Clear bit = 0,
+    @PrimaryContactPersonID uniqueidentifier = NULL,
+    @ContractTemplateID_Clear bit = 0,
+    @ContractTemplateID uniqueidentifier = NULL,
+    @CreatingEntityID_Clear bit = 0,
+    @CreatingEntityID uniqueidentifier = NULL,
+    @CreatingRecordID_Clear bit = 0,
+    @CreatingRecordID nvarchar(450) = NULL,
+    @ParentContractID_Clear bit = 0,
+    @ParentContractID uniqueidentifier = NULL,
+    @SupersededByContractID_Clear bit = 0,
+    @SupersededByContractID uniqueidentifier = NULL,
+    @SigningProviderURL_Clear bit = 0,
+    @SigningProviderURL nvarchar(1000) = NULL,
+    @EffectiveDate_Clear bit = 0,
+    @EffectiveDate date = NULL,
+    @ExecutedDate_Clear bit = 0,
+    @ExecutedDate date = NULL,
+    @EndDate_Clear bit = 0,
+    @EndDate date = NULL,
+    @TerminatedDate_Clear bit = 0,
+    @TerminatedDate date = NULL,
+    @AutoRenew bit = NULL,
+    @RenewalNoticeDays_Clear bit = 0,
+    @RenewalNoticeDays int = NULL,
+    @CancellationWindowDays_Clear bit = 0,
+    @CancellationWindowDays int = NULL,
+    @AnnualIncreasePercent_Clear bit = 0,
+    @AnnualIncreasePercent decimal(7, 4) = NULL,
+    @HasModifications bit = NULL,
+    @Description_Clear bit = 0,
+    @Description nvarchar(MAX) = NULL,
+    @Notes_Clear bit = 0,
+    @Notes nvarchar(MAX) = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+    UPDATE
+        [${flyway:defaultSchema}].[Contract]
+    SET
+        [ContractNumber] = CASE WHEN @ContractNumber_Clear = 1 THEN NULL ELSE ISNULL(@ContractNumber, [ContractNumber]) END,
+        [ContractTypeID] = ISNULL(@ContractTypeID, [ContractTypeID]),
+        [CompanyID] = ISNULL(@CompanyID, [CompanyID]),
+        [CustomerOrganizationID] = ISNULL(@CustomerOrganizationID, [CustomerOrganizationID]),
+        [PrimaryContactPersonID] = CASE WHEN @PrimaryContactPersonID_Clear = 1 THEN NULL ELSE ISNULL(@PrimaryContactPersonID, [PrimaryContactPersonID]) END,
+        [ContractTemplateID] = CASE WHEN @ContractTemplateID_Clear = 1 THEN NULL ELSE ISNULL(@ContractTemplateID, [ContractTemplateID]) END,
+        [CreatingEntityID] = CASE WHEN @CreatingEntityID_Clear = 1 THEN NULL ELSE ISNULL(@CreatingEntityID, [CreatingEntityID]) END,
+        [CreatingRecordID] = CASE WHEN @CreatingRecordID_Clear = 1 THEN NULL ELSE ISNULL(@CreatingRecordID, [CreatingRecordID]) END,
+        [ParentContractID] = CASE WHEN @ParentContractID_Clear = 1 THEN NULL ELSE ISNULL(@ParentContractID, [ParentContractID]) END,
+        [SupersededByContractID] = CASE WHEN @SupersededByContractID_Clear = 1 THEN NULL ELSE ISNULL(@SupersededByContractID, [SupersededByContractID]) END,
+        [SigningProviderURL] = CASE WHEN @SigningProviderURL_Clear = 1 THEN NULL ELSE ISNULL(@SigningProviderURL, [SigningProviderURL]) END,
+        [EffectiveDate] = CASE WHEN @EffectiveDate_Clear = 1 THEN NULL ELSE ISNULL(@EffectiveDate, [EffectiveDate]) END,
+        [ExecutedDate] = CASE WHEN @ExecutedDate_Clear = 1 THEN NULL ELSE ISNULL(@ExecutedDate, [ExecutedDate]) END,
+        [EndDate] = CASE WHEN @EndDate_Clear = 1 THEN NULL ELSE ISNULL(@EndDate, [EndDate]) END,
+        [TerminatedDate] = CASE WHEN @TerminatedDate_Clear = 1 THEN NULL ELSE ISNULL(@TerminatedDate, [TerminatedDate]) END,
+        [AutoRenew] = ISNULL(@AutoRenew, [AutoRenew]),
+        [RenewalNoticeDays] = CASE WHEN @RenewalNoticeDays_Clear = 1 THEN NULL ELSE ISNULL(@RenewalNoticeDays, [RenewalNoticeDays]) END,
+        [CancellationWindowDays] = CASE WHEN @CancellationWindowDays_Clear = 1 THEN NULL ELSE ISNULL(@CancellationWindowDays, [CancellationWindowDays]) END,
+        [AnnualIncreasePercent] = CASE WHEN @AnnualIncreasePercent_Clear = 1 THEN NULL ELSE ISNULL(@AnnualIncreasePercent, [AnnualIncreasePercent]) END,
+        [HasModifications] = ISNULL(@HasModifications, [HasModifications]),
+        [Description] = CASE WHEN @Description_Clear = 1 THEN NULL ELSE ISNULL(@Description, [Description]) END,
+        [Notes] = CASE WHEN @Notes_Clear = 1 THEN NULL ELSE ISNULL(@Notes, [Notes]) END
+    WHERE
+        [ID] = @ID
+
+    -- Check if the update was successful
+    IF @@ROWCOUNT = 0
+        -- Nothing was updated, return no rows, but column structure from base view intact, semantically correct this way.
+        SELECT TOP 0 * FROM [${flyway:defaultSchema}].[vwContracts] WHERE 1=0
+    ELSE
+        -- Return the updated record so the caller can see the updated values and any calculated fields
+        SELECT
+                                        *
+                                    FROM
+                                        [${flyway:defaultSchema}].[vwContracts]
+                                    WHERE
+                                        [ID] = @ID
+                                    
+END
+GO
+
+REVOKE EXECUTE ON [${flyway:defaultSchema}].[spUpdateContract] FROM [cdp_Developer]
+REVOKE EXECUTE ON [${flyway:defaultSchema}].[spUpdateContract] FROM [cdp_Integration]
+GRANT EXECUTE ON [${flyway:defaultSchema}].[spUpdateContract] TO [cdp_Developer], [cdp_Integration]
+GO
+
+------------------------------------------------------------
+----- TRIGGER FOR __mj_UpdatedAt field for the Contract table
+------------------------------------------------------------
+IF OBJECT_ID('[${flyway:defaultSchema}].[trgUpdateContract]', 'TR') IS NOT NULL
+    DROP TRIGGER [${flyway:defaultSchema}].[trgUpdateContract];
+GO
+CREATE TRIGGER [${flyway:defaultSchema}].trgUpdateContract
+ON [${flyway:defaultSchema}].[Contract]
+AFTER UPDATE
+AS
+BEGIN
+    SET NOCOUNT ON;
+    UPDATE
+        [${flyway:defaultSchema}].[Contract]
+    SET
+        __mj_UpdatedAt = GETUTCDATE()
+    FROM
+        [${flyway:defaultSchema}].[Contract] AS _organicTable
+    INNER JOIN
+        INSERTED AS I ON
+        _organicTable.[ID] = I.[ID];
+END;
+GO
+
+/* spUpdate Permissions for MJ_BizApps_Contracts: Contracts */
+
+REVOKE EXECUTE ON [${flyway:defaultSchema}].[spUpdateContract] FROM [cdp_Developer]
+REVOKE EXECUTE ON [${flyway:defaultSchema}].[spUpdateContract] FROM [cdp_Integration]
+GRANT EXECUTE ON [${flyway:defaultSchema}].[spUpdateContract] TO [cdp_Developer], [cdp_Integration];
+
 /* spDelete SQL for MJ_BizApps_Contracts: Contract Types */
 -----------------------------------------------------------------
 -- SQL Code Generation
@@ -760,100 +1263,64 @@ REVOKE EXECUTE ON [${flyway:defaultSchema}].[spDeleteContractType] FROM [cdp_Dev
 REVOKE EXECUTE ON [${flyway:defaultSchema}].[spDeleteContractType] FROM [cdp_Integration]
 GRANT EXECUTE ON [${flyway:defaultSchema}].[spDeleteContractType] TO [cdp_Developer], [cdp_Integration];
 
-/* SQL text to delete unneeded entity fields (1 scoped entities) */
-EXEC [${mjSchema}].[spDeleteUnneededEntityFields] @ExcludedSchemaNames='sys,staging,dbo,${mjSchema}', @EntityIDs='C8909A57-6DDB-4585-BE00-E707C5B4F262', @IncludedSchemaNames='${flyway:defaultSchema}';
+/* spDelete SQL for MJ_BizApps_Contracts: Contracts */
+-----------------------------------------------------------------
+-- SQL Code Generation
+-- Entity: MJ_BizApps_Contracts: Contracts
+-- Item: spDeleteContract
+--
+-- This was generated by the MemberJunction CodeGen tool.
+-- This file should NOT be edited by hand.
+-----------------------------------------------------------------
 
-/* SQL text to update existing entity fields from schema (1 scoped entities) */
-EXEC [${mjSchema}].[spUpdateExistingEntityFieldsFromSchema] @ExcludedSchemaNames='sys,staging,dbo,${mjSchema}', @EntityIDs='C8909A57-6DDB-4585-BE00-E707C5B4F262', @IncludedSchemaNames='${flyway:defaultSchema}';
+------------------------------------------------------------
+----- DELETE PROCEDURE FOR Contract
+------------------------------------------------------------
+IF OBJECT_ID('[${flyway:defaultSchema}].[spDeleteContract]', 'P') IS NOT NULL
+    DROP PROCEDURE [${flyway:defaultSchema}].[spDeleteContract];
+GO
+
+CREATE PROCEDURE [${flyway:defaultSchema}].[spDeleteContract]
+    @ID uniqueidentifier
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    DELETE FROM
+        [${flyway:defaultSchema}].[Contract]
+    WHERE
+        [ID] = @ID
+
+
+    -- Check if the delete was successful
+    IF @@ROWCOUNT = 0
+        SELECT NULL AS [ID] -- Return NULL for all primary key fields to indicate no record was deleted
+    ELSE
+        SELECT @ID AS [ID] -- Return the primary key values to indicate we successfully deleted the record
+END
+GO
+REVOKE EXECUTE ON [${flyway:defaultSchema}].[spDeleteContract] FROM [cdp_Developer]
+REVOKE EXECUTE ON [${flyway:defaultSchema}].[spDeleteContract] FROM [cdp_Integration]
+GRANT EXECUTE ON [${flyway:defaultSchema}].[spDeleteContract] TO [cdp_Developer], [cdp_Integration];
+
+/* spDelete Permissions for MJ_BizApps_Contracts: Contracts */
+
+REVOKE EXECUTE ON [${flyway:defaultSchema}].[spDeleteContract] FROM [cdp_Developer]
+REVOKE EXECUTE ON [${flyway:defaultSchema}].[spDeleteContract] FROM [cdp_Integration]
+GRANT EXECUTE ON [${flyway:defaultSchema}].[spDeleteContract] TO [cdp_Developer], [cdp_Integration];
+
+/* SQL text to delete unneeded entity fields (2 scoped entities) */
+EXEC [${mjSchema}].[spDeleteUnneededEntityFields] @ExcludedSchemaNames='sys,staging,dbo,${mjSchema}', @EntityIDs='C8909A57-6DDB-4585-BE00-E707C5B4F262,5DEB0B11-ED6C-48B3-9200-F4441396C5E2', @IncludedSchemaNames='${flyway:defaultSchema}';
+
+/* SQL text to update existing entity fields from schema (2 scoped entities) */
+EXEC [${mjSchema}].[spUpdateExistingEntityFieldsFromSchema] @ExcludedSchemaNames='sys,staging,dbo,${mjSchema}', @EntityIDs='C8909A57-6DDB-4585-BE00-E707C5B4F262,5DEB0B11-ED6C-48B3-9200-F4441396C5E2', @IncludedSchemaNames='${flyway:defaultSchema}';
 
 /* SQL text to set default column width where needed */
 EXEC [${mjSchema}].[spSetDefaultColumnWidthWhereNeeded] @ExcludedSchemaNames='sys,staging,dbo,${mjSchema}', @IncludedSchemaNames='${flyway:defaultSchema}';
 
-/* Set categories for 4 fields */
-
--- UPDATE Entity Field Category Info MJ_BizApps_Contracts: Contract Types.DefaultAutoRenew 
-UPDATE [${mjSchema}].[EntityField]
-SET 
-   Category = 'Default Contract Terms',
-   GeneratedFormSection = 'Category'
-WHERE 
-   ID = '37EF1ACE-158D-4B02-9731-AC989B80AB64';
-
--- UPDATE Entity Field Category Info MJ_BizApps_Contracts: Contract Types.DefaultRenewalNoticeDays 
-UPDATE [${mjSchema}].[EntityField]
-SET 
-   Category = 'Default Contract Terms',
-   GeneratedFormSection = 'Category'
-WHERE 
-   ID = '886E3BF0-6F99-4BAD-B049-D19D34897288';
-
--- UPDATE Entity Field Category Info MJ_BizApps_Contracts: Contract Types.DefaultCancellationWindowDays 
-UPDATE [${mjSchema}].[EntityField]
-SET 
-   Category = 'Default Contract Terms',
-   GeneratedFormSection = 'Category'
-WHERE 
-   ID = '1289FF74-772B-4E77-B68D-5FEF1E798E0A';
-
--- UPDATE Entity Field Category Info MJ_BizApps_Contracts: Contract Types.DefaultAnnualIncreasePercent 
-UPDATE [${mjSchema}].[EntityField]
-SET 
-   Category = 'Default Contract Terms',
-   GeneratedFormSection = 'Category'
-WHERE 
-   ID = 'B5B42453-03AF-4806-8B87-7E80D7C78164';
-
-/* Generated Validation Functions for MJ_BizApps_Contracts: Contract Types */
--- CHECK constraint for MJ_BizApps_Contracts: Contract Types: Field: DefaultAnnualIncreasePercent was newly set or modified since the last generation of the validation function, the code was regenerated and updating the GeneratedCode table with the new generated validation function
-IF NOT EXISTS (
-      SELECT 1 FROM [${mjSchema}].[GeneratedCode] WHERE [CategoryID] = (SELECT [ID] FROM [${mjSchema}].[vwGeneratedCodeCategories] WHERE [Name]='CodeGen: Validators') AND [LinkedEntityID] = 'DF238F34-2837-EF11-86D4-6045BDEE16E6' AND [LinkedRecordPrimaryKey] = 'B5B42453-03AF-4806-8B87-7E80D7C78164'
-   )
-   BEGIN
-      INSERT INTO [${mjSchema}].[GeneratedCode] ([ID], [CategoryID], [GeneratedByModelID], [GeneratedAt], [Language], [Status], [Source], [Code], [Description], [Name], [LinkedEntityID], [LinkedRecordPrimaryKey])
-VALUES ('7f9d40d2-25e3-452d-a404-da56d0831ee1', (SELECT [ID] FROM [${mjSchema}].[vwGeneratedCodeCategories] WHERE [Name]='CodeGen: Validators'), 'C43229F6-4CC8-4838-9D04-03419A2DA191', GETUTCDATE(), 'TypeScript', 'Approved', '([DefaultAnnualIncreasePercent] IS NULL OR [DefaultAnnualIncreasePercent]>=(0))', 'public ValidateDefaultAnnualIncreasePercentGreaterThanOrEqualToZero(result: ValidationResult) {
-	if (this.DefaultAnnualIncreasePercent != null && this.DefaultAnnualIncreasePercent < 0) {
-		result.Errors.push(new ValidationErrorInfo(
-			"DefaultAnnualIncreasePercent",
-			"Default annual increase percentage must be greater than or equal to 0.",
-			this.DefaultAnnualIncreasePercent,
-			ValidationErrorType.Failure
-		));
-	}
-}', 'The default annual increase percentage must be greater than or equal to 0% if it is specified.', 'ValidateDefaultAnnualIncreasePercentGreaterThanOrEqualToZero', 'DF238F34-2837-EF11-86D4-6045BDEE16E6', 'B5B42453-03AF-4806-8B87-7E80D7C78164')
-   END;
-
--- CHECK constraint for MJ_BizApps_Contracts: Contract Types: Field: DefaultCancellationWindowDays was newly set or modified since the last generation of the validation function, the code was regenerated and updating the GeneratedCode table with the new generated validation function
-IF NOT EXISTS (
-      SELECT 1 FROM [${mjSchema}].[GeneratedCode] WHERE [CategoryID] = (SELECT [ID] FROM [${mjSchema}].[vwGeneratedCodeCategories] WHERE [Name]='CodeGen: Validators') AND [LinkedEntityID] = 'DF238F34-2837-EF11-86D4-6045BDEE16E6' AND [LinkedRecordPrimaryKey] = '1289FF74-772B-4E77-B68D-5FEF1E798E0A'
-   )
-   BEGIN
-      INSERT INTO [${mjSchema}].[GeneratedCode] ([ID], [CategoryID], [GeneratedByModelID], [GeneratedAt], [Language], [Status], [Source], [Code], [Description], [Name], [LinkedEntityID], [LinkedRecordPrimaryKey])
-VALUES ('24722a93-596a-4b57-8b31-5b027411061d', (SELECT [ID] FROM [${mjSchema}].[vwGeneratedCodeCategories] WHERE [Name]='CodeGen: Validators'), 'C43229F6-4CC8-4838-9D04-03419A2DA191', GETUTCDATE(), 'TypeScript', 'Approved', '([DefaultCancellationWindowDays] IS NULL OR [DefaultCancellationWindowDays]>=(0))', 'public ValidateDefaultCancellationWindowDaysMin(result: ValidationResult) {
-	if (this.DefaultCancellationWindowDays != null && this.DefaultCancellationWindowDays < 0) {
-		result.Errors.push(new ValidationErrorInfo(
-			"DefaultCancellationWindowDays",
-			"The default cancellation window days must be 0 or greater.",
-			this.DefaultCancellationWindowDays,
-			ValidationErrorType.Failure
-		));
-	}
-}', 'The default cancellation window days, if specified, must be a non-negative number (0 or greater).', 'ValidateDefaultCancellationWindowDaysMin', 'DF238F34-2837-EF11-86D4-6045BDEE16E6', '1289FF74-772B-4E77-B68D-5FEF1E798E0A')
-   END;
-
--- CHECK constraint for MJ_BizApps_Contracts: Contract Types: Field: DefaultRenewalNoticeDays was newly set or modified since the last generation of the validation function, the code was regenerated and updating the GeneratedCode table with the new generated validation function
-IF NOT EXISTS (
-      SELECT 1 FROM [${mjSchema}].[GeneratedCode] WHERE [CategoryID] = (SELECT [ID] FROM [${mjSchema}].[vwGeneratedCodeCategories] WHERE [Name]='CodeGen: Validators') AND [LinkedEntityID] = 'DF238F34-2837-EF11-86D4-6045BDEE16E6' AND [LinkedRecordPrimaryKey] = '886E3BF0-6F99-4BAD-B049-D19D34897288'
-   )
-   BEGIN
-      INSERT INTO [${mjSchema}].[GeneratedCode] ([ID], [CategoryID], [GeneratedByModelID], [GeneratedAt], [Language], [Status], [Source], [Code], [Description], [Name], [LinkedEntityID], [LinkedRecordPrimaryKey])
-VALUES ('60cbce5b-012b-49c5-b94f-4445a99f00ec', (SELECT [ID] FROM [${mjSchema}].[vwGeneratedCodeCategories] WHERE [Name]='CodeGen: Validators'), 'C43229F6-4CC8-4838-9D04-03419A2DA191', GETUTCDATE(), 'TypeScript', 'Approved', '([DefaultRenewalNoticeDays] IS NULL OR [DefaultRenewalNoticeDays]>=(0))', 'public ValidateDefaultRenewalNoticeDaysMin(result: ValidationResult) {
-	if (this.DefaultRenewalNoticeDays != null && this.DefaultRenewalNoticeDays < 0) {
-		result.Errors.push(new ValidationErrorInfo(
-			"DefaultRenewalNoticeDays",
-			"Default renewal notice days must be 0 or greater.",
-			this.DefaultRenewalNoticeDays,
-			ValidationErrorType.Failure
-		));
-	}
-}', 'The default renewal notice days, if specified, must be 0 or greater to ensure a valid notice period.', 'ValidateDefaultRenewalNoticeDaysMin', 'DF238F34-2837-EF11-86D4-6045BDEE16E6', '886E3BF0-6F99-4BAD-B049-D19D34897288')
-   END;
+/* Refresh custom base views for modified entities so schema changes are picked up */
+EXEC sp_refreshview '${flyway:defaultSchema}.vwContractsGenerated';
+IF OBJECT_ID('[${flyway:defaultSchema}].[vwContracts]', 'V') IS NOT NULL
+BEGIN
+    EXEC sp_executesql N'EXEC sp_refreshview ''${flyway:defaultSchema}.vwContracts'';';
+END;
