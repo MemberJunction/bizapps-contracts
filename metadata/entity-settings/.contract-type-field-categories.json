@@ -5,7 +5,7 @@
       "CodeGen groups the generated form by EntityField.Category; these two settings are what give",
       "each group a name-level icon and description.",
       "",
-      "THIS IS METADATA AND MUST NEVER BE WRITTEN AS SQL IN A MIGRATION (ruled by Amith on PR #50).",
+      "THIS IS METADATA AND MUST NEVER BE WRITTEN AS SQL IN A MIGRATION.",
       "An earlier draft of V202609140100 hand-merged the same JSON with two UPDATE statements. A",
       "setting written that way is invisible to `mj sync`, so it drifts from the JSON the release-time",
       "Metadata_Sync migration is generated from, and the next real push silently contradicts it.",

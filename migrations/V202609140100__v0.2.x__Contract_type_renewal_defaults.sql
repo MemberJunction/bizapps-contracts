@@ -152,7 +152,8 @@ GO
 --
 -- Captured from a FROM-ZERO replay: the whole contracts train applied to a clean
 -- database carrying MJ core + bizapps-common, then `mj sync push --dir metadata`,
--- then `mj codegen` — in that order, which is the order Amith asked for on PR #50.
+-- then `mj codegen` — in that order. The push has to land before CodeGen runs,
+-- or CodeGen reads settings that are not there yet and regenerates without them.
 --
 -- Note what is NOT here, and why. CodeGen emits no `Update FieldCategory…`
 -- statements any more: the field-category setting lives in
