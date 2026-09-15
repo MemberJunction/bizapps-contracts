@@ -634,8 +634,8 @@ export class MJCContractRenewalPanel extends BaseFormPanel<ContractEntity> imple
      * panel could hook the type field it renders, and today that is the only place the type IS edited
      * — the Overview panel replaces the generated `contractDetails` section
      * (`contract-form.panels.ts:125`), so the field does not also appear in Details. (An earlier
-     * version of this comment claimed it did, and was wrong; corrected on review of PR #50. Do not
-     * design around a second edit path — there isn't one.)
+     * version of this comment claimed it did, and was wrong. Do not design around a second edit
+     * path — there isn't one.)
      *
      * The record watch is kept anyway, because the trigger then lives with the fields it writes rather
      * than in whichever panel happens to render the type today. A panel reshuffle cannot silently
