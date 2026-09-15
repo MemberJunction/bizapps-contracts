@@ -28,8 +28,9 @@ import {
     DealIDClause,
     DealOptionLabel,
     DealSearchClause,
-    RecordWantsDefaultTemplate,
+    MayWriteDefaultTemplate,
     ShouldDefaultTemplate,
+    ShouldWithdrawDefaultTemplate,
     type ContractState,
     type DealOption,
 } from '@mj-biz-apps/contracts-entities';
@@ -479,7 +480,7 @@ export class MJCContractAgreementPanel extends BaseFormPanel<ContractEntity> imp
      * The template ID this panel last put in the field — how it tells its own default from a choice.
      *
      * Session-local on purpose: it is never read from the record, because the record cannot say who
-     * wrote a value into it. See `RecordWantsDefaultTemplate`, which owns what it means.
+     * wrote a value into it. See `MayWriteDefaultTemplate`, which owns what it means.
      */
     private lastDefaultedID: string | null = null;
 
@@ -523,9 +524,23 @@ export class MJCContractAgreementPanel extends BaseFormPanel<ContractEntity> imp
             currentTemplateID: record.ContractTemplateID,
             lastDefaultedID: this.lastDefaultedID,
         };
-        if (!RecordWantsDefaultTemplate(state)) return;
+        if (!MayWriteDefaultTemplate(state)) return;
 
         const templateRequired = await this.typeRequiresTemplate(record.ContractTypeID);
+        // A type we could not READ decides nothing in either direction — see typeRequiresTemplate.
+        if (templateRequired === null) return;
+
+        // A DEFAULT LEAVES WITH THE TYPE THAT SUPPLIED IT. Checked BEFORE the default, because the
+        // two are mutually exclusive and this is the branch the first cut of this panel missed: it
+        // stopped at `!ShouldDefaultTemplate` and left an Order Form's template sitting on a Change
+        // Order, which saved without complaint.
+        if (ShouldWithdrawDefaultTemplate({ ...state, templateRequired })) {
+            record.ContractTemplateID = null;
+            this.lastDefaultedID = null;
+            this.cdr.detectChanges();
+            return;
+        }
+
         if (!ShouldDefaultTemplate({ ...state, templateRequired })) return;
 
         const templateID = await this.currentTemplateID();
@@ -544,10 +559,20 @@ export class MJCContractAgreementPanel extends BaseFormPanel<ContractEntity> imp
      * READ FROM THE FLAG, NEVER FROM THE TYPE'S NAME. The columns on `ContractType` exist precisely
      * so no code branches on a name someone can rename; `ContractEntityServer` reads the same flag
      * to decide whether to REQUIRE the template this defaults.
+     *
+     * THREE-WAY, AND THE THIRD CASE IS LOAD-BEARING. `false` now means "this type does not want a
+     * template", which WITHDRAWS one this panel defaulted — so a read that failed must not be folded
+     * into it. It was `boolean` while defaulting was the only outcome, where swallowing a failure as
+     * `false` merely declined to act; under the withdrawal it would quietly take away a default on
+     * the strength of a query that never answered.
+     *
+     *   · `true`  — the type requires a template
+     *   · `false` — the type does not, or there is no type at all: both known answers
+     *   · `null`  — could not tell, and the caller does nothing in either direction
      */
-    private async typeRequiresTemplate(typeID: string | null | undefined): Promise<boolean> {
+    private async typeRequiresTemplate(typeID: string | null | undefined): Promise<boolean | null> {
         const id = (typeID ?? '').trim();
-        if (!id) return false; // no type chosen yet — nothing to ask
+        if (!id) return false; // no type chosen — a KNOWN answer, and the one that withdraws
 
         const { ScopedRunView } = await import('../data/provider');
         const rv = ScopedRunView(this.FormComponent?.ProviderToUse);
@@ -558,11 +583,10 @@ export class MJCContractAgreementPanel extends BaseFormPanel<ContractEntity> imp
                 ExtraFilter: `ID = '${id.replace(/'/g, "''")}'`,
                 ResultType: 'simple',
             });
-            return r?.Success === true && r.Results?.[0]?.TemplateRequired === true;
+            if (r?.Success !== true || r.Results?.[0] === undefined) return null;
+            return r.Results[0].TemplateRequired === true;
         } catch {
-            // A read we could not make is not a type we may assume needs a template. Defaulting on a
-            // guess would write standard terms into a contract on the strength of a failed query.
-            return false;
+            return null;
         }
     }
 
