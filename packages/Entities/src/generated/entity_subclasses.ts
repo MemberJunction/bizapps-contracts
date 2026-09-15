@@ -287,6 +287,26 @@ export const mjBizAppsContractsContractTypeSchema = z.object({
         * * Display Name: Updated At
         * * SQL Data Type: datetimeoffset
         * * Default Value: getutcdate()`),
+    DefaultAutoRenew: z.boolean().nullable().describe(`
+        * * Field Name: DefaultAutoRenew
+        * * Display Name: Default Auto Renew
+        * * SQL Data Type: bit
+        * * Description: Seeds Contract.AutoRenew when a new contract picks this type. NULL means the type has no opinion and the contract is left alone — which is why this is nullable where the contract's own column is not. Copied once, on an unsaved contract; never consulted afterwards and never enforced.`),
+    DefaultRenewalNoticeDays: z.number().nullable().describe(`
+        * * Field Name: DefaultRenewalNoticeDays
+        * * Display Name: Default Renewal Notice Days
+        * * SQL Data Type: int
+        * * Description: Seeds Contract.RenewalNoticeDays — the notice WE owe the customer before a renewal price change. NULL means no default. A starting point for whoever reads the paper, not a term of any agreement.`),
+    DefaultCancellationWindowDays: z.number().nullable().describe(`
+        * * Field Name: DefaultCancellationWindowDays
+        * * Display Name: Default Cancellation Window Days
+        * * SQL Data Type: int
+        * * Description: Seeds Contract.CancellationWindowDays — the notice the CUSTOMER owes us to cancel. Deliberately a separate default from the renewal notice even where a type sets them equal: one obligation is ours and the other theirs, and a single default would hide that.`),
+    DefaultAnnualIncreasePercent: z.number().nullable().describe(`
+        * * Field Name: DefaultAnnualIncreasePercent
+        * * Display Name: Default Annual Increase Percent
+        * * SQL Data Type: decimal(7, 4)
+        * * Description: Seeds Contract.AnnualIncreasePercent — the year-over-year uplift this kind of agreement usually carries. NULL means no default. Same precision as the column it seeds, so a legal default can never seed an unsaveable contract.`),
 });
 
 export type mjBizAppsContractsContractTypeEntityType = z.infer<typeof mjBizAppsContractsContractTypeSchema>;
@@ -1169,6 +1189,9 @@ export class mjBizAppsContractsContractTypeEntity extends BaseEntity<mjBizAppsCo
 
     /**
     * Validate() method override for MJ_BizApps_Contracts: Contract Types entity. This is an auto-generated method that invokes the generated validators for this entity for the following fields:
+    * * DefaultAnnualIncreasePercent: The default annual increase percentage must be greater than or equal to 0% if it is specified.
+    * * DefaultCancellationWindowDays: The default cancellation window days, if specified, must be a non-negative number (0 or greater).
+    * * DefaultRenewalNoticeDays: The default renewal notice days, if specified, must be 0 or greater to ensure a valid notice period.
     * * Table-Level: An entity cannot be designated as both a root and a child at the same time.
     * @public
     * @method
@@ -1176,10 +1199,64 @@ export class mjBizAppsContractsContractTypeEntity extends BaseEntity<mjBizAppsCo
     */
     public override Validate(): ValidationResult {
         const result = super.Validate();
+        this.ValidateDefaultAnnualIncreasePercentGreaterThanOrEqualToZero(result);
+        this.ValidateDefaultCancellationWindowDaysMin(result);
+        this.ValidateDefaultRenewalNoticeDaysMin(result);
         this.ValidateRootAndChildExclusivity(result);
         result.Success = result.Success && (result.Errors.length === 0);
 
         return result;
+    }
+
+    /**
+    * The default annual increase percentage must be greater than or equal to 0% if it is specified.
+    * @param result - the ValidationResult object to add any errors or warnings to
+    * @public
+    * @method
+    */
+    public ValidateDefaultAnnualIncreasePercentGreaterThanOrEqualToZero(result: ValidationResult) {
+    	if (this.DefaultAnnualIncreasePercent != null && this.DefaultAnnualIncreasePercent < 0) {
+    		result.Errors.push(new ValidationErrorInfo(
+    			"DefaultAnnualIncreasePercent",
+    			"Default annual increase percentage must be greater than or equal to 0.",
+    			this.DefaultAnnualIncreasePercent,
+    			ValidationErrorType.Failure
+    		));
+    	}
+    }
+
+    /**
+    * The default cancellation window days, if specified, must be a non-negative number (0 or greater).
+    * @param result - the ValidationResult object to add any errors or warnings to
+    * @public
+    * @method
+    */
+    public ValidateDefaultCancellationWindowDaysMin(result: ValidationResult) {
+    	if (this.DefaultCancellationWindowDays != null && this.DefaultCancellationWindowDays < 0) {
+    		result.Errors.push(new ValidationErrorInfo(
+    			"DefaultCancellationWindowDays",
+    			"The default cancellation window days must be 0 or greater.",
+    			this.DefaultCancellationWindowDays,
+    			ValidationErrorType.Failure
+    		));
+    	}
+    }
+
+    /**
+    * The default renewal notice days, if specified, must be 0 or greater to ensure a valid notice period.
+    * @param result - the ValidationResult object to add any errors or warnings to
+    * @public
+    * @method
+    */
+    public ValidateDefaultRenewalNoticeDaysMin(result: ValidationResult) {
+    	if (this.DefaultRenewalNoticeDays != null && this.DefaultRenewalNoticeDays < 0) {
+    		result.Errors.push(new ValidationErrorInfo(
+    			"DefaultRenewalNoticeDays",
+    			"Default renewal notice days must be 0 or greater.",
+    			this.DefaultRenewalNoticeDays,
+    			ValidationErrorType.Failure
+    		));
+    	}
     }
 
     /**
@@ -1328,6 +1405,58 @@ export class mjBizAppsContractsContractTypeEntity extends BaseEntity<mjBizAppsCo
     */
     get __mj_UpdatedAt(): Date {
         return this.Get('__mj_UpdatedAt');
+    }
+
+    /**
+    * * Field Name: DefaultAutoRenew
+    * * Display Name: Default Auto Renew
+    * * SQL Data Type: bit
+    * * Description: Seeds Contract.AutoRenew when a new contract picks this type. NULL means the type has no opinion and the contract is left alone — which is why this is nullable where the contract's own column is not. Copied once, on an unsaved contract; never consulted afterwards and never enforced.
+    */
+    get DefaultAutoRenew(): boolean | null {
+        return this.Get('DefaultAutoRenew');
+    }
+    set DefaultAutoRenew(value: boolean | null) {
+        this.Set('DefaultAutoRenew', value);
+    }
+
+    /**
+    * * Field Name: DefaultRenewalNoticeDays
+    * * Display Name: Default Renewal Notice Days
+    * * SQL Data Type: int
+    * * Description: Seeds Contract.RenewalNoticeDays — the notice WE owe the customer before a renewal price change. NULL means no default. A starting point for whoever reads the paper, not a term of any agreement.
+    */
+    get DefaultRenewalNoticeDays(): number | null {
+        return this.Get('DefaultRenewalNoticeDays');
+    }
+    set DefaultRenewalNoticeDays(value: number | null) {
+        this.Set('DefaultRenewalNoticeDays', value);
+    }
+
+    /**
+    * * Field Name: DefaultCancellationWindowDays
+    * * Display Name: Default Cancellation Window Days
+    * * SQL Data Type: int
+    * * Description: Seeds Contract.CancellationWindowDays — the notice the CUSTOMER owes us to cancel. Deliberately a separate default from the renewal notice even where a type sets them equal: one obligation is ours and the other theirs, and a single default would hide that.
+    */
+    get DefaultCancellationWindowDays(): number | null {
+        return this.Get('DefaultCancellationWindowDays');
+    }
+    set DefaultCancellationWindowDays(value: number | null) {
+        this.Set('DefaultCancellationWindowDays', value);
+    }
+
+    /**
+    * * Field Name: DefaultAnnualIncreasePercent
+    * * Display Name: Default Annual Increase Percent
+    * * SQL Data Type: decimal(7, 4)
+    * * Description: Seeds Contract.AnnualIncreasePercent — the year-over-year uplift this kind of agreement usually carries. NULL means no default. Same precision as the column it seeds, so a legal default can never seed an unsaveable contract.
+    */
+    get DefaultAnnualIncreasePercent(): number | null {
+        return this.Get('DefaultAnnualIncreasePercent');
+    }
+    set DefaultAnnualIncreasePercent(value: number | null) {
+        this.Set('DefaultAnnualIncreasePercent', value);
     }
 }
 
