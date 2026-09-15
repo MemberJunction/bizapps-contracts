@@ -39,57 +39,36 @@
 -- =============================================================================
 
 ---------------------------------------------------------------------------
--- 1 · The columns. Idempotent: COL_LENGTH returns NULL for a column that is
---     not there, and the whole block is skipped on a database that has them.
+-- The columns, in ONE statement with their constraints.
+--
+-- No IF guards anywhere in this file, and that is the convention rather than
+-- an oversight: migrations always run in order and exactly once, so a script
+-- never has to defend itself against a database that already has its changes.
+-- Guards are noise, and they make the PostgreSQL conversion harder.
+--
+-- The three numeric floors mirror CK_Contract_* on the columns these seed. A
+-- negative notice period is not a shorter one, it is a data entry error, and
+-- catching it on the TYPE means catching it once rather than on every contract
+-- the type seeds.
 ---------------------------------------------------------------------------
-IF COL_LENGTH('${flyway:defaultSchema}.ContractType', 'DefaultAutoRenew') IS NULL
-    ALTER TABLE [${flyway:defaultSchema}].[ContractType] ADD [DefaultAutoRenew] BIT NULL;
-GO
-
-IF COL_LENGTH('${flyway:defaultSchema}.ContractType', 'DefaultRenewalNoticeDays') IS NULL
-    ALTER TABLE [${flyway:defaultSchema}].[ContractType] ADD [DefaultRenewalNoticeDays] INT NULL;
-GO
-
-IF COL_LENGTH('${flyway:defaultSchema}.ContractType', 'DefaultCancellationWindowDays') IS NULL
-    ALTER TABLE [${flyway:defaultSchema}].[ContractType] ADD [DefaultCancellationWindowDays] INT NULL;
-GO
-
-IF COL_LENGTH('${flyway:defaultSchema}.ContractType', 'DefaultAnnualIncreasePercent') IS NULL
-    ALTER TABLE [${flyway:defaultSchema}].[ContractType] ADD [DefaultAnnualIncreasePercent] DECIMAL(7,4) NULL;
-GO
-
----------------------------------------------------------------------------
--- 2 · The same floors the contract's own columns carry (CK_Contract_*). A
---     negative notice period is not a shorter one, it is a data entry error,
---     and catching it on the TYPE means it is caught once rather than on every
---     contract the type seeds.
----------------------------------------------------------------------------
-IF NOT EXISTS (SELECT 1 FROM sys.check_constraints WHERE [name] = 'CK_ContractType_DefaultRenewalNoticeDays')
-    ALTER TABLE [${flyway:defaultSchema}].[ContractType] ADD CONSTRAINT [CK_ContractType_DefaultRenewalNoticeDays]
-        CHECK ([DefaultRenewalNoticeDays] IS NULL OR [DefaultRenewalNoticeDays] >= 0);
-GO
-
-IF NOT EXISTS (SELECT 1 FROM sys.check_constraints WHERE [name] = 'CK_ContractType_DefaultCancellationWindow')
-    ALTER TABLE [${flyway:defaultSchema}].[ContractType] ADD CONSTRAINT [CK_ContractType_DefaultCancellationWindow]
-        CHECK ([DefaultCancellationWindowDays] IS NULL OR [DefaultCancellationWindowDays] >= 0);
-GO
-
-IF NOT EXISTS (SELECT 1 FROM sys.check_constraints WHERE [name] = 'CK_ContractType_DefaultAnnualIncrease')
-    ALTER TABLE [${flyway:defaultSchema}].[ContractType] ADD CONSTRAINT [CK_ContractType_DefaultAnnualIncrease]
+ALTER TABLE [${flyway:defaultSchema}].[ContractType] ADD
+    [DefaultAutoRenew] BIT NULL,
+    [DefaultRenewalNoticeDays] INT NULL,
+    [DefaultCancellationWindowDays] INT NULL,
+    [DefaultAnnualIncreasePercent] DECIMAL(7,4) NULL,
+    CONSTRAINT [CK_ContractType_DefaultRenewalNoticeDays]
+        CHECK ([DefaultRenewalNoticeDays] IS NULL OR [DefaultRenewalNoticeDays] >= 0),
+    CONSTRAINT [CK_ContractType_DefaultCancellationWindow]
+        CHECK ([DefaultCancellationWindowDays] IS NULL OR [DefaultCancellationWindowDays] >= 0),
+    CONSTRAINT [CK_ContractType_DefaultAnnualIncrease]
         CHECK ([DefaultAnnualIncreasePercent] IS NULL OR [DefaultAnnualIncreasePercent] >= 0);
 GO
 
 ---------------------------------------------------------------------------
--- 3 · Descriptions. CodeGen copies these onto the EntityField rows, so this is
---     the text an admin reads on the Contract Type form — the only place the
---     "starting point, not a rule" distinction can be stated where it is read.
---     Guarded individually: a re-run must not fail on a property already there.
+-- Descriptions. CodeGen copies these onto the EntityField rows, so this is the
+-- text an admin reads on the Contract Type form -- the only place the
+-- "starting point, not a rule" distinction can be stated where it is read.
 ---------------------------------------------------------------------------
-IF NOT EXISTS (
-    SELECT 1 FROM sys.extended_properties ep
-    WHERE ep.major_id = OBJECT_ID('${flyway:defaultSchema}.ContractType')
-      AND ep.minor_id = COLUMNPROPERTY(OBJECT_ID('${flyway:defaultSchema}.ContractType'), 'DefaultAutoRenew', 'ColumnId')
-      AND ep.[name] = 'MS_Description')
 EXEC sp_addextendedproperty @name=N'MS_Description',
     @value=N'Seeds Contract.AutoRenew when a new contract picks this type. NULL means the type has no opinion and the contract is left alone — which is why this is nullable where the contract''s own column is not. Copied once, on an unsaved contract; never consulted afterwards and never enforced.',
     @level0type=N'SCHEMA', @level0name=N'${flyway:defaultSchema}',
@@ -97,11 +76,6 @@ EXEC sp_addextendedproperty @name=N'MS_Description',
     @level2type=N'COLUMN', @level2name=N'DefaultAutoRenew';
 GO
 
-IF NOT EXISTS (
-    SELECT 1 FROM sys.extended_properties ep
-    WHERE ep.major_id = OBJECT_ID('${flyway:defaultSchema}.ContractType')
-      AND ep.minor_id = COLUMNPROPERTY(OBJECT_ID('${flyway:defaultSchema}.ContractType'), 'DefaultRenewalNoticeDays', 'ColumnId')
-      AND ep.[name] = 'MS_Description')
 EXEC sp_addextendedproperty @name=N'MS_Description',
     @value=N'Seeds Contract.RenewalNoticeDays — the notice WE owe the customer before a renewal price change. NULL means no default. A starting point for whoever reads the paper, not a term of any agreement.',
     @level0type=N'SCHEMA', @level0name=N'${flyway:defaultSchema}',
@@ -109,11 +83,6 @@ EXEC sp_addextendedproperty @name=N'MS_Description',
     @level2type=N'COLUMN', @level2name=N'DefaultRenewalNoticeDays';
 GO
 
-IF NOT EXISTS (
-    SELECT 1 FROM sys.extended_properties ep
-    WHERE ep.major_id = OBJECT_ID('${flyway:defaultSchema}.ContractType')
-      AND ep.minor_id = COLUMNPROPERTY(OBJECT_ID('${flyway:defaultSchema}.ContractType'), 'DefaultCancellationWindowDays', 'ColumnId')
-      AND ep.[name] = 'MS_Description')
 EXEC sp_addextendedproperty @name=N'MS_Description',
     @value=N'Seeds Contract.CancellationWindowDays — the notice the CUSTOMER owes us to cancel. Deliberately a separate default from the renewal notice even where a type sets them equal: one obligation is ours and the other theirs, and a single default would hide that.',
     @level0type=N'SCHEMA', @level0name=N'${flyway:defaultSchema}',
@@ -121,54 +90,11 @@ EXEC sp_addextendedproperty @name=N'MS_Description',
     @level2type=N'COLUMN', @level2name=N'DefaultCancellationWindowDays';
 GO
 
-IF NOT EXISTS (
-    SELECT 1 FROM sys.extended_properties ep
-    WHERE ep.major_id = OBJECT_ID('${flyway:defaultSchema}.ContractType')
-      AND ep.minor_id = COLUMNPROPERTY(OBJECT_ID('${flyway:defaultSchema}.ContractType'), 'DefaultAnnualIncreasePercent', 'ColumnId')
-      AND ep.[name] = 'MS_Description')
 EXEC sp_addextendedproperty @name=N'MS_Description',
     @value=N'Seeds Contract.AnnualIncreasePercent — the year-over-year uplift this kind of agreement usually carries. NULL means no default. Same precision as the column it seeds, so a legal default can never seed an unsaveable contract.',
     @level0type=N'SCHEMA', @level0name=N'${flyway:defaultSchema}',
     @level1type=N'TABLE',  @level1name=N'ContractType',
     @level2type=N'COLUMN', @level2name=N'DefaultAnnualIncreasePercent';
-GO
-
----------------------------------------------------------------------------
--- 4 · The form section these four fields live in, MERGED rather than replaced.
---
---     ⚠ THIS BLOCK IS HAND-WRITTEN AND THE CAPTURE BELOW HAS BEEN TRIMMED TO
---     MATCH. CodeGen emitted its own pair of UPDATEs here, and both set the
---     WHOLE `FieldCategoryInfo` / `FieldCategoryIcons` JSON to the one category
---     it had just generated — dropping `Contract Type Details`, `Configuration
---     Rules` and `System Metadata`, which the baseline seeds (B…Baseline.sql
---     lines 8601 and 8606) and the generated form reads for each section's icon
---     and description. Applying it as emitted would silently strip three
---     sections' chrome on every install. The two statements were therefore
---     REMOVED from the capture and replaced by the merge below.
---
---     Anyone re-capturing this migration must do the same: regenerate, delete
---     CodeGen's two `Update FieldCategory…` statements, and leave this block
---     standing. Filed upstream; until it is fixed the trim is the fix.
----------------------------------------------------------------------------
-DECLARE @ContractTypeEntityID UNIQUEIDENTIFIER =
-    (SELECT TOP 1 [ID] FROM [${mjSchema}].[Entity]
-      WHERE [SchemaName] = '${flyway:defaultSchema}' AND [BaseTable] = 'ContractType');
-
--- Looked up by NAME, never by a literal: CodeGen mints the Entity id at first
--- registration, so it differs between databases. Skips cleanly when the row is
--- absent — on a fresh install CodeGen's own registration runs in the capture below.
-IF @ContractTypeEntityID IS NOT NULL
-BEGIN
-    UPDATE [${mjSchema}].[EntitySetting]
-       SET [Value] = N'{"Contract Type Details":{"icon":"fa fa-info-circle","description":"Basic identification and status information for the contract type"},"Configuration Rules":{"icon":"fa fa-cogs","description":"Business logic and constraints governing contract behavior and placement"},"Default Contract Terms":{"icon":"fa fa-sliders-h","description":"Default renewal terms copied onto a new contract of this type. A starting point the user may change, not a rule."},"System Metadata":{"icon":"fa fa-cog","description":"System-managed audit and tracking fields"}}',
-           [__mj_UpdatedAt] = GETUTCDATE()
-     WHERE [EntityID] = @ContractTypeEntityID AND [Name] = 'FieldCategoryInfo';
-
-    UPDATE [${mjSchema}].[EntitySetting]
-       SET [Value] = N'{"Contract Type Details":"fa fa-info-circle","Configuration Rules":"fa fa-cogs","Default Contract Terms":"fa fa-sliders-h","System Metadata":"fa fa-cog"}',
-           [__mj_UpdatedAt] = GETUTCDATE()
-     WHERE [EntityID] = @ContractTypeEntityID AND [Name] = 'FieldCategoryIcons';
-END
 GO
 
 
@@ -224,9 +150,18 @@ GO
 -- CodeGen capture — everything below this line is GENERATED. Replace it wholesale
 -- on regeneration; see docs/database-migrations.md § the 50-blank-line rule.
 --
--- TRIMMED, deliberately: CodeGen's two `Update FieldCategory…` statements were
--- removed and replaced by the hand-written merge in step 4 above. Re-apply that
--- trim every time this capture is regenerated.
+-- The field-category setting the Contract Type form reads is NOT in here: MJ
+-- metadata rows are never hand-written as SQL in a migration, so it lives in
+-- `metadata/entity-settings/` and reaches a host through the release-time
+-- Metadata_Sync. CodeGen's own two `Update FieldCategory…` statements were
+-- therefore dropped from this capture — they set the whole JSON to the single
+-- category CodeGen had just generated, which would strip the three the baseline
+-- seeds.
+--
+-- ⚠ STILL TO DO BEFORE MERGE: re-capture this block from a from-zero run —
+-- `mj migrate` → `mj sync push --dir metadata` → `mj codegen` against a clean
+-- database — and replace everything below the separator with what that emits.
+-- The block below predates the move of the setting into `metadata/`.
 -- =============================================================================
 /* SQL text to update existing entities from schema */
 EXEC [${mjSchema}].[spUpdateExistingEntitiesFromSchema] @ExcludedSchemaNames='sys,staging,dbo,${mjSchema}', @IncludedSchemaNames='${flyway:defaultSchema}';
