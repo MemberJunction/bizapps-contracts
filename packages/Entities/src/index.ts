@@ -51,6 +51,10 @@ export * from './contract-state';
 /** Which contracts the Supersedes picker may offer, and how it names them (#28 item 4). */
 export * from './supersede-candidates';
 
+/* Which DEALS the Source-record picker may offer, and how it names them (golive #219). Name-only:
+ * sales depends on this app, so the link stays polymorphic and is resolved from metadata at runtime. */
+export * from './source-record-candidates';
+
 /* The file category that clears IsAwaitingDocument (golive #203 item 16 / #213). One spelling, shared by
  * the view, the migration seed and the form panel that marks a file. */
 export * from './executed-agreement';
