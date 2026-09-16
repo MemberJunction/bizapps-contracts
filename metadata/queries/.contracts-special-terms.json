@@ -6,31 +6,13 @@
       "UserQuestion": "How many clients have contracts that deviate from our standard terms, and across how many contracts?",
       "Description": "One row: the number of DISTINCT customers holding at least one Active or Executed contract with recorded modifications, and the number of such contracts. Drives the Contracts dashboard's \"Clients with special terms\" tile and its \"across N contracts\" footnote \u2014 one read so the two figures cannot disagree.",
       "SQL": "@file:SQL/contracts-special-terms.sql",
-      "TechnicalDescription": "Nunjucks-parameterized on CompanyIDs (optional array of Company UUIDs from the dashboard's company chips, passed through the sqlIn filter; omitted entirely when empty, since sqlIn renders (NULL) for an empty array and would match nothing). Aggregates __mj_BizAppsContracts.vwContracts where HasModifications = 1 and State IN ('Active','Executed'). Always returns exactly one row, with zeros when nothing matches.",
+      "TechnicalDescription": "Nunjucks-parameterized on CompanyIDs (optional array of Company UUIDs from the dashboard's company chips, passed through the sqlIn filter; omitted entirely when empty, since sqlIn renders (NULL) for an empty array and would match nothing). Aggregates __mj_BizAppsContracts.vwContracts where HasModifications = 1 and State IN ('Active','Executed'). Always returns exactly one row, with zeros when nothing matches. The CompanyIDs parameter row is created by the server's query-extraction pipeline rather than declared in metadata/, and reaches a host inside the release Metadata_Sync capture; see the header of SQL/contracts-special-terms.sql for why it cannot be declared.",
       "Status": "Approved",
       "QualityRank": 8,
       "ExecutionCostRank": 1,
       "UsesTemplate": true
     },
-    "relatedEntities": {
-      "MJ: Query Parameters": [
-        {
-          "fields": {
-            "QueryID": "@parent:ID",
-            "Name": "CompanyIDs",
-            "Type": "array",
-            "IsRequired": false,
-            "DefaultValue": null,
-            "Description": "Optional list of Company UUIDs from the Contracts dashboard's company chips. Omitted from the WHERE clause entirely when empty, because the sqlIn filter renders (NULL) for an empty array and would turn \"All companies\" into \"no companies\". DECLARED EXPLICITLY rather than left to the server's query-extraction pipeline: the parameter processor rejects any parameter the query does not declare (\"Unknown parameter\"), so on a host seeded by any route that does not run extraction, the dashboard's \"Clients with special terms\" tile would fail every read and render a dash.",
-            "SampleValue": "[\"6C0A1000-0001-4000-A000-000000000001\"]",
-            "DetectionMethod": "Manual"
-          },
-          "primaryKey": {
-            "ID": "C4F1A9D2-3B67-4E85-9A10-7D2E4C8B6F03"
-          }
-        }
-      ]
-    },
+    "relatedEntities": {},
     "primaryKey": {
       "ID": "A93597C0-100E-4059-ABC5-E08DD708E520"
     },

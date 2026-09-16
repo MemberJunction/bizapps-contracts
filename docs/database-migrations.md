@@ -212,3 +212,13 @@ MJ command for step 3 if you want it whole-database rather than schema-scoped.
 silently reverting to `NOT NULL` — was invisible on inspection and caught immediately by
 step 3, because the `ALTER COLUMN` that relaxed it was buried inside an `IF EXISTS` block
 in a migration whose filename was about something else entirely.
+
+**When the capture is next regenerated, grep it for `spCreateQueryParameter` and the name
+`CompanyIDs`.** The Contracts Special Terms query takes that parameter, and `metadata/`
+deliberately does not declare the parameter row — the server's query-extraction pipeline
+owns it, and the capture picks it up only because SQL logging records the server's writes
+as well as the sync's. No committed migration carries that query or its parameter yet, so
+the first regeneration is the first time the guarantee is actually exercised. If the call
+is absent, the query ships to hosts without its parameter and the dashboard's "Clients with
+special terms" tile renders a dash on every read, because the parameter processor rejects
+an undeclared parameter.

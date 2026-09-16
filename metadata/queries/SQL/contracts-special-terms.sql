@@ -27,6 +27,24 @@
 -- every element, so no id reaches SQL text unescaped; an empty array is guarded by the `if` rather
 -- than passed through, because `sqlIn` renders `(NULL)` for an empty list — which would match
 -- nothing and silently turn "All companies" into "no companies".
+--
+-- ⚠ THE PARAMETER ROW IS OWNED BY EXTRACTION, NOT BY metadata/. There is deliberately no
+-- `MJ: Query Parameters` entry in `.contracts-special-terms.json`, and adding one breaks the push.
+-- `MJQueryEntityServer.Save` runs the query-extraction pipeline synchronously after the base save
+-- whenever the query is new or its SQL is dirty, so the pipeline writes its own row — fresh GUID,
+-- `DetectionMethod` 'AI' — before MetadataSync gets to any declared child, and the declared row then
+-- violates `UQ_QueryParameter_QueryID_Name`. Reordering alone would not settle it either:
+-- `updateParameterIfChanged` forces `DetectionMethod` back to 'AI' and overwrites Description and
+-- SampleValue from the template on every SQL change, so a hand-declared row has no stable state.
+--
+-- The row still reaches a host, because `metadata/` ships exactly one way — inside the release
+-- `V…__Metadata_Sync.sql`, which is the SQL logger's output from an in-process push and therefore
+-- captures extraction's own `spCreateQueryParameter` call alongside the sync's writes. That is the
+-- whole guarantee: without a parameter row the processor rejects `CompanyIDs` as an unknown
+-- parameter and the tile renders a dash rather than a count.
+--
+-- Making the declaration work needs MetadataSync to write sync-supplied parameters before the parent
+-- save that triggers extraction, and extraction to yield to them: MemberJunction/MJ#4545.
 SELECT
     COUNT(DISTINCT c.CustomerOrganizationID) AS CustomerCount,
     COUNT(*) AS ContractCount
