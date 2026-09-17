@@ -22,6 +22,20 @@
 import { BaseEntity, ValidationErrorInfo, ValidationErrorType, ValidationResult } from '@memberjunction/core';
 import { RegisterClass } from '@memberjunction/global';
 import { mjBizAppsContractsContractEntity } from './generated/entity_subclasses';
+import {
+    ComputeRenewalSeed,
+    RENEWAL_SEED_FIELDS,
+    type ContractRenewalField,
+    type ContractTypeRenewalDefaults,
+    type RenewalSeed,
+} from './renewal-defaults';
+
+/**
+ * Guards an ID before it is interpolated into a filter. Mirrors `ContractEntityServer`'s own guard;
+ * both exist because MJ has no parameter binding on `ExtraFilter`, so the shape check IS the
+ * protection.
+ */
+const UUID_SHAPE = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
 
 /**
  * Do two contracts sit at the SAME LEVEL of the tree — i.e. may one supersede the other?
@@ -329,6 +343,101 @@ export class ContractEntity extends mjBizAppsContractsContractEntity {
         }
         this.SupersededByContractID = successor.ID;
     }
+
+    /* ────────────────────────────────────────────────────────────────────────
+     * Renewal-obligation defaults (golive #217 / C-US1). The decision is in
+     * `renewal-defaults.ts`; this is the half that reads the type row and writes.
+     * ──────────────────────────────────────────────────────────────────────── */
+
+    /**
+     * Record that the USER set one of the four renewal fields, so seeding will never overwrite it.
+     *
+     * Called by the form panel that owns those fields, on every write it makes. It has to be an
+     * explicit signal rather than something derived from the entity's dirty state: `AutoRenew` starts
+     * at No on a new contract, so a user who deliberately answers No leaves the field holding the
+     * value it already had, and no amount of comparing against `OldValue` can tell that apart from a
+     * field nobody has looked at.
+     */
+    public MarkRenewalFieldEdited(field: ContractRenewalField): void {
+        this.renewalFieldsUserEdited.add(field);
+    }
+
+    /**
+     * Copy the selected Contract Type's renewal defaults onto this contract.
+     *
+     * UNSAVED RECORDS ONLY, and this is the guard that makes the feature safe rather than merely
+     * convenient. On a saved contract every renewal value was typed by somebody reading the paper —
+     * including the blanks, which mean "the agreement says nothing" — so a type change on an existing
+     * record must not touch them. The story is about filling in a new contract, and the blast radius
+     * is kept to exactly that.
+     *
+     * Returns whether anything was written, so a caller can skip a redundant change-detection pass.
+     * Safe to call repeatedly with the same type: the computed seed is empty when the fields already
+     * hold their targets.
+     */
+    public async SeedRenewalDefaultsFromType(): Promise<boolean> {
+        if (this.IsSaved) return false;
+
+        // Captured ONCE, before the first seed ever writes: the values this record had of its own
+        // accord. Restored later for any field the newly-chosen type has no opinion about, so a
+        // default never outlives the type that supplied it.
+        this.renewalFieldsPristine ??= this.currentRenewalValues();
+
+        const seed = ComputeRenewalSeed({
+            defaults: await this.loadRenewalDefaults(),
+            current: this.currentRenewalValues(),
+            pristine: this.renewalFieldsPristine,
+            userEdited: this.renewalFieldsUserEdited,
+        });
+
+        const fields = Object.keys(seed) as ContractRenewalField[];
+        for (const field of fields) {
+            this.Set(field, seed[field]);
+        }
+        return fields.length > 0;
+    }
+
+    /** The four fields as they stand right now. */
+    private currentRenewalValues(): RenewalSeed {
+        const values: RenewalSeed = {};
+        for (const field of RENEWAL_SEED_FIELDS) {
+            values[field.ContractField] = this.Get(field.ContractField);
+        }
+        return values;
+    }
+
+    /**
+     * The selected type's four default columns, or null when no type is selected — which restores the
+     * pristine values rather than leaving the departing type's numbers behind.
+     *
+     * One `RunView` rather than an entity load: four scalars are wanted and none of the type's rules
+     * are, and this runs on a keystroke-adjacent path (picking from a dropdown). The UUID is shape-
+     * checked before it reaches `ExtraFilter` for the same reason `ContractEntityServer` checks the
+     * one it walks the lineage with — this string is concatenated into SQL.
+     */
+    private async loadRenewalDefaults(): Promise<ContractTypeRenewalDefaults | null> {
+        const id = String(this.ContractTypeID ?? '').trim();
+        if (!UUID_SHAPE.test(id)) return null;
+
+        const result = await this.RunViewProviderToUse.RunView<ContractTypeRenewalDefaults>(
+            {
+                EntityName: 'MJ_BizApps_Contracts: Contract Types',
+                ExtraFilter: `ID = '${id}'`,
+                Fields: RENEWAL_SEED_FIELDS.map((f) => f.TypeField),
+                ResultType: 'simple',
+            },
+            this.ContextCurrentUser,
+        );
+        return result?.Results?.[0] ?? null;
+    }
+
+    /**
+     * Per-instance and deliberately NOT persisted: both of these describe an editing session, not the
+     * contract. A fresh instance of a saved record starts with neither, which is right — seeding does
+     * not run on saved records at all.
+     */
+    private readonly renewalFieldsUserEdited = new Set<ContractRenewalField>();
+    private renewalFieldsPristine: RenewalSeed | null = null;
 
 }
 

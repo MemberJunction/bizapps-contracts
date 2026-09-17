@@ -1,0 +1,71 @@
+[
+  {
+    "_comments": [
+      "The Contract Type form's SECTIONS — each category's icon and the sentence under its header.",
+      "CodeGen groups the generated form by EntityField.Category; these two settings are what give",
+      "each group a name-level icon and description.",
+      "",
+      "THIS IS METADATA AND MUST NEVER BE WRITTEN AS SQL IN A MIGRATION.",
+      "An earlier draft of V202609140100 hand-merged the same JSON with two UPDATE statements. A",
+      "setting written that way is invisible to `mj sync`, so it drifts from the JSON the release-time",
+      "Metadata_Sync migration is generated from, and the next real push silently contradicts it.",
+      "",
+      "The VALUE IS A JSON OBJECT, not a string containing JSON. `mj sync` stringifies an object for a",
+      "string column on its own, and writing the escaped form by hand is how a quoting mistake becomes",
+      "a setting nothing can parse.",
+      "",
+      "Both rows carry the IDs the baseline seeded (B202608040001 lines 8601 and 8606), so this file",
+      "UPDATES them rather than inserting a second copy. It therefore has to carry EVERY category, not",
+      "just the new one: the value is replaced wholesale, and listing only 'Default Contract Terms'",
+      "would strip the three the baseline shipped — which is exactly the defect CodeGen's own emitted",
+      "UPDATE had.",
+      "",
+      "Dev loop after editing this file: `mj migrate` -> `mj sync push --dir metadata` -> `mj codegen`.",
+      "Skipping the push leaves the setting unapplied and CodeGen regenerates the form without it."
+    ],
+    "fields": {
+      "EntityID": "@lookup:MJ: Entities.Name=MJ_BizApps_Contracts: Contract Types",
+      "Name": "FieldCategoryInfo",
+      "Value": {
+        "Contract Type Details": {
+          "icon": "fa fa-info-circle",
+          "description": "Basic identification and status information for the contract type"
+        },
+        "Configuration Rules": {
+          "icon": "fa fa-cogs",
+          "description": "Business logic and constraints governing contract behavior and placement"
+        },
+        "Default Contract Terms": {
+          "icon": "fa fa-sliders-h",
+          "description": "Default renewal terms copied onto a new contract of this type. A starting point the user may change, not a rule."
+        },
+        "System Metadata": {
+          "icon": "fa fa-cog",
+          "description": "System-managed audit and tracking fields"
+        }
+      }
+    },
+    "primaryKey": {
+      "ID": "D2D62A86-3C4A-442A-BC2C-A0498B5F5632"
+    }
+  },
+  {
+    "_comments": [
+      "The legacy icons-only setting, kept in step with the one above because older form chrome still",
+      "reads it. Same rules: object value, every category listed, baseline's own ID."
+    ],
+    "fields": {
+      "EntityID": "@lookup:MJ: Entities.Name=MJ_BizApps_Contracts: Contract Types",
+      "Name": "FieldCategoryIcons",
+      "Value": {
+        "Contract Type Details": "fa fa-info-circle",
+        "Configuration Rules": "fa fa-cogs",
+        "Default Contract Terms": "fa fa-sliders-h",
+        "System Metadata": "fa fa-cog"
+      }
+    },
+    "primaryKey": {
+      "ID": "14088B52-F54B-47E4-BC16-9C4F325C7450"
+    }
+  }
+]

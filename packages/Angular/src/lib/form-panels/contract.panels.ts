@@ -33,7 +33,7 @@
  *
  * @module @mj-biz-apps/contracts-ng
  */
-import { ChangeDetectorRef, Component, ViewEncapsulation, inject } from '@angular/core';
+import { ChangeDetectorRef, Component, type DoCheck, ViewEncapsulation, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { CompositeKey } from '@memberjunction/core';
@@ -41,7 +41,7 @@ import { UserInfoEngine } from '@memberjunction/core-entities';
 import { RegisterClassEx } from '@memberjunction/global';
 import { BaseFormPanel, BaseFormsModule } from '@memberjunction/ng-base-forms';
 import { HierarchyTreeComponent, type HierarchyTreeConfig, type HierarchyNodeEvent } from '@memberjunction/ng-hierarchy-tree';
-import { ContractEntity, type ContractState } from '@mj-biz-apps/contracts-entities';
+import { ContractEntity, type ContractRenewalField, type ContractState } from '@mj-biz-apps/contracts-entities';
 import { MJC_ENTITIES, MJC_FOREIGN_ENTITIES } from '../data/entity-names';
 
 const COLLAPSE_SETTING = 'mj.identityHeader.collapsed.contract';
@@ -622,7 +622,58 @@ export class MJCContractHeroPanel extends BaseFormPanel<ContractEntity> {
         </mj-collapsible-panel>
     `,
 })
-export class MJCContractRenewalPanel extends BaseFormPanel<ContractEntity> {
+export class MJCContractRenewalPanel extends BaseFormPanel<ContractEntity> implements DoCheck {
+    private readonly cdr = inject(ChangeDetectorRef);
+
+    /**
+     * Seed the four fields from the Contract Type whenever the type changes on an UNSAVED contract
+     * (golive #217 / C-US1). The rule itself is `ContractEntity.SeedRenewalDefaultsFromType()`; this
+     * is only the trigger.
+     *
+     * WHY `ngDoCheck` AND NOT A CHANGE EVENT. `mj-form-field` emits `ValueChange`, so the Agreement
+     * panel could hook the type field it renders, and today that is the only place the type IS edited
+     * — the Overview panel replaces the generated `contractDetails` section
+     * (`contract-form.panels.ts:130`), so the field does not also appear in Details. (An earlier
+     * version of this comment claimed it did, and was wrong. Do not design around a second edit
+     * path — there isn't one.)
+     *
+     * The record watch is kept anyway, because the trigger then lives with the fields it writes rather
+     * than in whichever panel happens to render the type today. A panel reshuffle cannot silently
+     * disconnect it, and no cross-panel wiring is needed to reach the four fields.
+     *
+     * The cost is a string compare per change-detection pass, and the guards matter more than the
+     * compare: `IsSaved` keeps this off existing contracts entirely, `seededFromTypeID` makes it fire
+     * once per distinct type rather than once per pass, and `seedInFlight` stops a second read
+     * starting while the first is in the air. A failed read leaves `seededFromTypeID` SET on purpose —
+     * retrying from a change-detection pass would turn one unreachable database into a request storm,
+     * and the fields simply stay as the user left them, which is the pre-#217 behaviour.
+     */
+    public ngDoCheck(): void {
+        const record = this.Record;
+        if (!record || record.IsSaved || this.seedInFlight) return;
+
+        const typeID = String(record.ContractTypeID ?? '');
+        if (typeID === this.seededFromTypeID) return;
+
+        this.seededFromTypeID = typeID;
+        this.seedInFlight = true;
+        void record
+            .SeedRenewalDefaultsFromType()
+            .then((changed) => {
+                if (changed) this.cdr.markForCheck();
+            })
+            .catch(() => {
+                /* Unreadable type row: leave the fields alone. See the note above on not retrying. */
+            })
+            .finally(() => {
+                this.seedInFlight = false;
+            });
+    }
+
+    /** The type the fields currently reflect. `null` until the first pass, so a new form seeds once. */
+    private seededFromTypeID: string | null = null;
+    private seedInFlight = false;
+
     /**
      * A day count, where ZERO IS A VALUE (issue #28 item 21).
      *
@@ -660,8 +711,12 @@ export class MJCContractRenewalPanel extends BaseFormPanel<ContractEntity> {
      * so the write goes through one place — a two-way binding on `Record.X` works but gives no hook for
      * the dirty notification the form toolbar needs.
      */
-    public Set(field: 'AutoRenew' | 'RenewalNoticeDays' | 'CancellationWindowDays' | 'AnnualIncreasePercent', value: unknown): void {
+    public Set(field: ContractRenewalField, value: unknown): void {
         (this.Record as unknown as Record<string, unknown>)[field] = value;
+        // The user has now answered this field, so no later type change may overwrite it (#217). Said
+        // explicitly rather than inferred from the entity's dirty state: `AutoRenew` starts at No, so a
+        // deliberate No is byte-identical to a field nobody has touched.
+        this.Record?.MarkRenewalFieldEdited(field);
     }
 
     /** The authoritative view column — unlike State, nobody wants this tracking a half-typed edit. */

@@ -60,6 +60,12 @@ export * from './source-record-candidates';
  * without standing up Angular's DI. */
 export * from './default-template';
 
+/* Seeding the four renewal fields from the Contract Type (golive #217 / C-US1). The pure decision;
+ * the I/O half is `ContractEntity.SeedRenewalDefaultsFromType()`. Exported because the form panel
+ * needs the field list and the `ContractRenewalField` type, and the tests assert the decision
+ * directly rather than restating it. */
+export * from './renewal-defaults';
+
 /* The file category that clears IsAwaitingDocument (golive #203 item 16 / #213). One spelling, shared by
  * the view, the migration seed and the form panel that marks a file. */
 export * from './executed-agreement';
