@@ -58,6 +58,8 @@
     "fields": {
       "BaseViewGenerated": false,
       "GeneratedBaseViewName": "vwContractsGenerated",
+      "AllowUserSearchAPI": true,
+      "AutoUpdateAllowUserSearchAPI": false,
       "Configuration": {
         "UI": {
           "Form": {
@@ -67,6 +69,29 @@
           }
         }
       }
+    },
+    "relatedEntities": {
+      "MJ: Entity Fields": [
+        {
+          "primaryKey": {
+            "ID": "@lookup:MJ: Entity Fields.Name=ContractNumber&EntityID=@parent:ID"
+          },
+          "fields": {
+            "IncludeInUserSearchAPI": true,
+            "UserSearchPredicateAPI": "Exact",
+            "AutoUpdateIncludeInUserSearchAPI": false
+          }
+        },
+        {
+          "primaryKey": {
+            "ID": "@lookup:MJ: Entity Fields.Name=ID&EntityID=@parent:ID"
+          },
+          "fields": {
+            "IncludeInUserSearchAPI": false,
+            "AutoUpdateIncludeInUserSearchAPI": false
+          }
+        }
+      ]
     },
     "primaryKey": {
       "ID": "@lookup:MJ: Entities.Name=MJ_BizApps_Contracts: Contracts"
@@ -87,6 +112,8 @@
       "so the chrome stays stock and only the section content changes."
     ],
     "fields": {
+      "AllowUserSearchAPI": true,
+      "AutoUpdateAllowUserSearchAPI": false,
       "Configuration": {
         "UI": {
           "Form": {
@@ -97,12 +124,63 @@
         }
       }
     },
+    "relatedEntities": {
+      "MJ: Entity Fields": [
+        {
+          "primaryKey": {
+            "ID": "@lookup:MJ: Entity Fields.Name=Name&EntityID=@parent:ID"
+          },
+          "fields": {
+            "IncludeInUserSearchAPI": true,
+            "UserSearchPredicateAPI": "BeginsWith",
+            "AutoUpdateIncludeInUserSearchAPI": false
+          }
+        },
+        {
+          "primaryKey": {
+            "ID": "@lookup:MJ: Entity Fields.Name=VersionLabel&EntityID=@parent:ID"
+          },
+          "fields": {
+            "IncludeInUserSearchAPI": true,
+            "UserSearchPredicateAPI": "Exact",
+            "AutoUpdateIncludeInUserSearchAPI": false
+          }
+        },
+        {
+          "primaryKey": {
+            "ID": "@lookup:MJ: Entity Fields.Name=ID&EntityID=@parent:ID"
+          },
+          "fields": {
+            "IncludeInUserSearchAPI": false,
+            "AutoUpdateIncludeInUserSearchAPI": false
+          }
+        }
+      ]
+    },
     "primaryKey": {
       "ID": "@lookup:MJ: Entities.Name=MJ_BizApps_Contracts: Contract Templates"
     },
     "sync": {
       "lastModified": "2026-08-19T15:53:55.610Z",
       "checksum": "8d7d4e12e5a3ecc7f548bdb430c2216f9e423cc12cb1a64817fd9ea5d76a6943"
+    }
+  },
+  {
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entities.Name=MJ_BizApps_Contracts: Contract Template Provisions"
+    },
+    "fields": {
+      "AllowUserSearchAPI": false,
+      "AutoUpdateAllowUserSearchAPI": false
+    }
+  },
+  {
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entities.Name=MJ_BizApps_Contracts: Contract Template Modifications"
+    },
+    "fields": {
+      "AllowUserSearchAPI": false,
+      "AutoUpdateAllowUserSearchAPI": false
     }
   }
 ]
