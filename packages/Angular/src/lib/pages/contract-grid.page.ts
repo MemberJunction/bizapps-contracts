@@ -29,6 +29,7 @@ import type { RunViewParams } from '@memberjunction/core';
 import { BaseFormsModule } from '@memberjunction/ng-base-forms';
 import { MJC_ENTITIES } from '../data/entity-names';
 import { ScopedRunView } from '../data/provider';
+import { BuildOpenTaskFilters } from '../data/task-filters';
 import { MJCFkNavigateDirective } from '../directives/fk-navigate.directive';
 
 /** One filter pill: a label, the SQL it contributes, and a live count. */
@@ -150,10 +151,24 @@ export abstract class MJCContractGridPageBase implements OnInit {
         return '';
     }
 
+    /**
+     * ⚠ A PRESET ARRIVES BEFORE THIS RUNS. The section calls `ApplyPreset` on the freshly created
+     * component and only then runs change detection — which is what invokes this hook. So on a
+     * first visit the preset lands on an empty `Pills` list, parks itself in `pendingPresetId`, and
+     * without the flush below is overwritten here by the default pill. The symptom was a tile that
+     * worked on the second click and not the first: tile 3 landed on Renewals showing the default
+     * "next 120 days" instead of the notice window, and tile 4 never reached "Special terms" at all
+     * on a host without bizapps-tasks, because the only other flush is the one after All Contracts'
+     * async task-pill read succeeds.
+     *
+     * Flushed BEFORE `rebuild()` rather than after, so the grid's first `Params` is already the one
+     * the user asked for — flushing afterwards would run the default filter and replace it a tick
+     * later, which is a visible flash and a wasted read.
+     */
     public ngOnInit(): void {
         this.Pills = this.pills;
         this.ActivePillId = this.Pills[0]?.Id ?? null;
-        this.rebuild();
+        if (!this.applyPendingPreset()) this.rebuild();
         void this.refreshCounts();
     }
 
@@ -161,6 +176,50 @@ export abstract class MJCContractGridPageBase implements OnInit {
     public SelectPill(id: string): void {
         this.ActivePillId = this.ActivePillId === id ? null : id;
         this.rebuild();
+    }
+
+    /**
+     * A preset requested by the HOST rather than clicked by the user — how a dashboard tile lands on
+     * the list it just counted.
+     *
+     * SETS rather than toggles, which is the whole reason this is not `SelectPill`. Arriving from a
+     * tile whose pill happens to be active already must leave it active; toggling would clear the
+     * filter and show the user everything, which is precisely the opposite of what they asked for.
+     *
+     * ⚠ MUST WORK ON A CACHED PAGE. The section detaches rather than destroys sub-pages, so the
+     * second visit reuses an instance whose `ngOnInit` has long since run — a preset read at init
+     * would be ignored on every visit after the first. `rebuild()` ends in `detectChanges()`, which
+     * is what makes the re-inserted view actually repaint.
+     */
+    public ApplyPreset(pillId: string | null): void {
+        if (pillId && !this.Pills.some((p) => p.Id === pillId)) {
+            // The pill exists but has not been built yet — a page whose pills depend on an async read
+            // can be navigated to before that read lands. Hold it; `applyPendingPreset` finishes the job.
+            this.pendingPresetId = pillId;
+            return;
+        }
+        this.pendingPresetId = null;
+        this.ActivePillId = pillId;
+        this.rebuild();
+    }
+
+    /** Set when a preset arrived before its pill existed. */
+    protected pendingPresetId: string | null = null;
+
+    /**
+     * Flush a preset that arrived before its pill existed. Called from `ngOnInit` once the declared
+     * pills are in place, and again by subclasses that add a pill asynchronously.
+     *
+     * Returns whether a preset was actually applied, which `ngOnInit` uses to avoid rebuilding
+     * twice — `ApplyPreset` rebuilds on its own.
+     */
+    protected applyPendingPreset(): boolean {
+        if (!this.pendingPresetId) return false;
+        const id = this.pendingPresetId;
+        this.ApplyPreset(id);
+        // `ApplyPreset` re-parks the id when the pill STILL does not exist, in which case nothing
+        // was applied and the caller must do its own rebuild.
+        return this.pendingPresetId !== id;
     }
 
     public ApplySearch(text: string): void {
@@ -274,12 +333,99 @@ const GRID_TEMPLATE = `
 export class MJCAllContractsPageComponent extends MJCContractGridPageBase {
     public Intro = 'Every agreement on record. Double-click a row to open it.';
 
+    /**
+     * The "Has open task" pill is added AFTER init, not declared with the others, because its filter
+     * has to be built from live metadata — the Tasks entity ids and the CONTRACT_PROCESSING type id
+     * are database values, not constants (see `data/task-filters.ts`).
+     *
+     * When bizapps-tasks is absent the pill is NOT ADDED AT ALL. A pill whose filter matches nothing
+     * would render "Has open task 0" and read as "there is no work", which is a claim this page has
+     * no business making on a host where tasks do not exist. Absent beats wrong.
+     */
+    public override ngOnInit(): void {
+        super.ngOnInit();
+        void this.addOpenTaskPill();
+    }
+
+    private async addOpenTaskPill(): Promise<void> {
+        const filters = await BuildOpenTaskFilters();
+        if (!filters) return;
+
+        this.Pills = [
+            ...this.Pills,
+            {
+                Id: 'has-open-task',
+                Label: 'Has open task',
+                Filter: filters.HasOpenTask,
+                Hint: 'Finance has an open Contract Processing task on this contract',
+            },
+        ];
+        // A tile may have navigated here before this pill existed.
+        this.applyPendingPreset();
+        void this.refreshCounts();
+    }
+
+    /**
+     * The active pill decides the ordering, because each of these pills asks a different question and
+     * a question implies its own "most important first".
+     *
+     * Task-first: the oldest untouched contract is the one to chase. Special terms: BY CUSTOMER, which
+     * is what the dashboard tile counts — it counts clients, so its landing list groups a client's
+     * agreements together rather than scattering them through a number-ordered list.
+     *
+     * ⚠ DEPARTURE FROM #30, stated rather than silent. The issue asks the "to process" list to sort by
+     * TASK DUE DATE; this sorts by effective date. Due date is not a column on `vwContracts` — it lives
+     * on the Task row, which this page never reads (the pill is an `EXISTS` subquery, deliberately, so
+     * the grid stays a single-entity read). Ordering by it would mean either a third wrapper view
+     * projecting a foreign app's column, or joining Tasks into the grid's own query — the first is the
+     * migration the issue itself rules out, the second couples this list to bizapps-tasks being present.
+     * Oldest-effective-date-first answers the same question the due date is a proxy for: which
+     * agreement has been sitting unprocessed longest.
+     */
+    protected override get orderBy(): string {
+        switch (this.ActivePillId) {
+            case 'has-open-task':
+                return 'CASE WHEN EffectiveDate IS NULL THEN 1 ELSE 0 END, EffectiveDate ASC';
+            case 'special-terms':
+                return 'CustomerOrganization ASC, EffectiveDate DESC';
+            default:
+                return super.orderBy;
+        }
+    }
+
     protected get pills(): MJCFilterPill[] {
         return [
             { Id: 'open', Label: 'Open', Filter: `State IN ('Draft','Executed','Active')`, Hint: 'Not expired, terminated or superseded' },
             { Id: 'active', Label: 'In force', Filter: `State = 'Active'`, Hint: 'Started and not yet ended' },
             { Id: 'executed', Label: 'Signed, not started', Filter: `State = 'Executed'`, Hint: 'Executed with a future effective date' },
             { Id: 'modified', Label: 'Modified', Filter: 'HasModifications = 1', Hint: 'Deviates from the standard agreement' },
+            {
+                /**
+                 * WHERE THE DASHBOARD'S "Clients with special terms" TILE LANDS.
+                 *
+                 * ⚠ THIS PREDICATE IS ALSO WRITTEN IN SQL, in
+                 * `metadata/queries/SQL/contracts-special-terms.sql`, which is what produces the tile's
+                 * count. The two cannot be collapsed — one runs server-side as a stored query because
+                 * it counts DISTINCT customers, the other is a client filter over the same view — so
+                 * they are paired by comment at both ends and each names the other.
+                 *
+                 * There is deliberately NO test asserting the two strings match. This repo already
+                 * tried mirroring a rule across TypeScript and SQL with a text-comparing guard
+                 * (`contract-state.ts`), and it failed exactly where a text guard is blind: the two
+                 * renderings diverged SEMANTICALLY while still looking similar. A guard that has to be
+                 * right about two implementations is a third thing to get wrong. If these drift, the
+                 * tile's footnote and this list's row count disagree — which is visible on screen, and
+                 * is a better detector than a green test.
+                 *
+                 * Narrower than 'modified' above on purpose: that pill is every modified agreement
+                 * including expired ones, which is a real question; this one is agreements IN FORCE
+                 * that deviate, which is what the tile counts.
+                 */
+                Id: 'special-terms',
+                Label: 'Special terms',
+                Filter: `HasModifications = 1 AND State IN ('Active','Executed')`,
+                Hint: 'In force and deviating from the standard agreement — the dashboard tile lands here',
+            },
             { Id: 'all', Label: 'All', Filter: '', Hint: 'Including expired, terminated and superseded' },
         ];
     }

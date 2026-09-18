@@ -4,7 +4,7 @@
   "name": "mj-bizapps-contracts",
   "displayName": "BizApps Contracts",
   "description": "The record of customer agreements — executed documents, which version of the standard agreement each one incorporates, the provisions negotiated away from it, and the renewal, notice and escalation terms that appear nowhere on an order. A record-keeping and lookup surface: it does not price, bill, recognize revenue, or create orders.",
-  "version": "0.4.2",
+  "version": "0.5.0",
   "license": "BUSL-1.1",
   "icon": "fa-solid fa-file-signature",
   "color": "#264FAF",
@@ -16,8 +16,12 @@
   "mjVersionRange": ">=6.1.0-edge.4 <7.0.0",
   "dependencies": {
     "mj-bizapps-common": {
-      "version": ">=5.36.0 <6.0.0",
+      "version": ">=5.42.0 <6.0.0",
       "repository": "https://github.com/MemberJunction/bizapps-common"
+    },
+    "mj-bizapps-tasks": {
+      "version": ">=1.4.0 <2.0.0",
+      "repository": "https://github.com/MemberJunction/bizapps-tasks"
     }
   },
   "schema": {
