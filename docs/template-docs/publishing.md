@@ -23,8 +23,8 @@ The lockfile refresh is not incidental. `changeset version` rewrites every
 `package.json` — internal dependency ranges included — and does **not** touch
 the lockfile. Skip it and `--frozen-lockfile` fails on every branch afterwards.
 
-Its checks do not start on their own under the default `GITHUB_TOKEN`; they wait
-for a maintainer to click **Approve and run** on the PR.
+Its checks run automatically: the PR is opened by a GitHub App, and App-created
+PRs trigger workflows, so `build.yml` verifies `--frozen-lockfile` before merge.
 
 ### 2. `release-readiness.yml` — on the version PR, and on any PR to `main`
 
@@ -86,7 +86,7 @@ migrations, never a rebuild.
 - [ ] `next` is green (build.yml + changes.yml)
 - [ ] Release PR `next` → `main` merged
 - [ ] "Version Packages" PR reviewed and merged into `next` (confirm it carries the
-      refreshed lockfile and the `mj-app.json` sync; click **Approve and run** to
-      get its checks)
+      refreshed lockfile and the `mj-app.json` sync — its checks run on their own,
+      since a GitHub App opens the PR)
 - [ ] Release PR `next` → `main` green on `release-readiness`
 - [ ] Workflow run green; tag exists; packages on npm
