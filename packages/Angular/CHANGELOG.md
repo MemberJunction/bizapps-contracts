@@ -1,5 +1,106 @@
 # @mj-biz-apps/contracts-ng
 
+## 0.5.0
+
+### Minor Changes
+
+- 8b87cd4: Rebuild the Contracts dashboard as four tiles over the book of agreements (#30).
+
+  The page now extends MJ's `BaseDashboard` — the pattern MJ itself uses for sub-pages of a
+  left-nav shell — so it gets `loadData()`/`Refresh()`, an `Error` output the section renders,
+  and a guaranteed `NotifyLoadComplete()` it previously never called at all. Charts, funnel,
+  horizon buckets and the hot list are gone; what replaces them is four counts (to process,
+  awaiting executed document, notice deadlines, clients with special terms) over a grid of
+  active and executed contracts, filtered by a multi-select Company chip group.
+
+  Tile clicks carry a filter preset to the destination worklist, so a tile lands on the list it
+  just counted rather than on an unfiltered one. Declares `mj-bizapps-tasks` as a dependency:
+  the "to process" tile and the new "Has open task" pill read Tasks, and the finance flow is
+  task-driven.
+
+  `query-categories` and `queries` join `directoryOrder`. An unlisted folder is pushed in alphabetical
+  order, which put the queries ahead of the category they look up by name and broke a push against an
+  empty database — the exact shape of the release capture.
+
+  The tile-4 count's `CompanyIDs` parameter row is left to the server's query-extraction pipeline
+  rather than declared in `metadata/`. Declaring it cannot work: extraction runs synchronously inside
+  the query's own save and writes the row first, so a declared row collides on
+  `UQ_QueryParameter_QueryID_Name`, and extraction would overwrite its fields on the next SQL change
+  in any case. The row still reaches a host, because the release `Metadata_Sync` capture is the SQL
+  logger's output from an in-process push and includes extraction's writes.
+
+- 19f851d: Default a new contract's template to the current published version (golive #218).
+
+  Story C-US1 says `ContractTemplateID` starts on the current template and the user corrects it
+  if the executed document cites an older version. Nothing defaulted it, so every new Order Form,
+  Statement of Work and Payment Link opened with the field empty — and all three carry
+  `TemplateRequired = 1`, so the save was refused until the user found the picker themselves.
+
+  The Agreement panel now fills the field when a new contract is opened with a type already set,
+  and again whenever the type is changed on an unsaved one. The candidate is the newest
+  `Published` template with `IsUsable = 1`, ordered by `IntroducedDate` — both clauses restate what
+  `ContractEntityServer.refuseUnusableTemplate()` enforces on save, so the default can never offer
+  something the server then rejects.
+
+  A default also LEAVES with the type that supplied it: change an Order Form to a Change Order and
+  the template the form filled in is withdrawn. Nothing downstream would have caught it otherwise —
+  the server refuses a MISSING template on a type that requires one and says nothing about a present
+  one on a type that does not, so the contract would have saved claiming to incorporate standard
+  terms nobody chose.
+
+  What it will not do: touch a saved contract, or touch a template the user picked by hand — that one
+  is neither overwritten nor withdrawn. It never defaults onto a Change Order, which carries
+  `TemplateRequired = 0` and no template of its own. A contract type that cannot be READ decides
+  nothing in either direction, which is why the type read is three-way rather than a boolean: folding
+  a failed query into "does not require one" would quietly withdraw a legitimate default. A failed or
+  empty template read is silent — the field stays empty and the picker still works.
+
+  Scoping was the issue's one open decision: the newest published usable template wins regardless
+  of template type. `ContractType` carries no `ContractTemplateTypeID`, so there is nothing in the
+  data to scope by, and of the two seeded template types only Master Agreement has templates behind
+  it — Statement of Work is seeded deliberately unused.
+
+  The four decisions (`CurrentTemplateFilter`, `CurrentTemplateOrderBy`, `ShouldDefaultTemplate`,
+  `ShouldWithdrawDefaultTemplate`) live in `contracts-entities`, where a unit test reaches them
+  without standing up Angular's DI — the same split as `supersede-candidates.ts`. Defaulting and
+  withdrawing read one shared comparison for "is this value ours", so the two directions cannot
+  drift apart.
+
+- e0d98c4: Contract Types carry renewal defaults, and a new contract starts from them (golive #217 / C-US1).
+
+  Story C-US1 says the renewal-obligation fields on a new contract are seeded from the selected
+  Contract Type. Nothing implemented it: `ContractType` had no default columns at all, so finance
+  typed `AutoRenew`, `RenewalNoticeDays`, `CancellationWindowDays` and `AnnualIncreasePercent` by hand
+  on every contract, including the ones whose type already determines the answer.
+
+  `ContractType` gains four nullable columns — `DefaultAutoRenew`, `DefaultRenewalNoticeDays`,
+  `DefaultCancellationWindowDays`, `DefaultAnnualIncreasePercent` — editable on its generated form
+  (reached from Configuration) in a new **Default Contract Terms** section. The three numeric ones
+  mirror the contract's own columns exactly, precision and `>= 0` check included, so a default that is
+  legal on the type can never seed a contract that will not save.
+
+  **`DefaultAutoRenew` is nullable although the column it seeds is not.** A type needs three answers —
+  renews, does not renew, and _no opinion_ — and NULL is the third. Every existing row starts there,
+  so an install that never opens Configuration behaves exactly as it does today.
+
+  On an **unsaved** contract, choosing or changing the type copies those defaults onto the four fields.
+  Three rules govern it: a field the user has typed into is never overwritten; a field the new type
+  says nothing about is restored to what it held before any seeding, so a default leaves with the type
+  that supplied it; and saved contracts are untouched entirely, because every value on one — blanks
+  included — was entered by somebody reading the paper.
+
+  Nothing reads these columns at save time and nothing validates against them. They are a starting
+  point, unlike the type's `MustBeRoot` / `MustBeChild` / `TemplateRequired`, which are rules the
+  server enforces. The seeding trigger watches the record rather than a field-change event, because
+  `ContractTypeID` is editable both in the Agreement panel and in the generated Details section and a
+  hook on one of them would seed from one path and not the other.
+
+### Patch Changes
+
+- Updated dependencies [19f851d]
+- Updated dependencies [e0d98c4]
+  - @mj-biz-apps/contracts-entities@0.5.0
+
 ## 0.4.2
 
 ### Patch Changes
