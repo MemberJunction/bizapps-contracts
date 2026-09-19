@@ -41,6 +41,7 @@ import { UserInfoEngine } from '@memberjunction/core-entities';
 import { RegisterClassEx } from '@memberjunction/global';
 import { BaseFormPanel, BaseFormsModule } from '@memberjunction/ng-base-forms';
 import { HierarchyTreeComponent, type HierarchyTreeConfig, type HierarchyNodeEvent } from '@memberjunction/ng-hierarchy-tree';
+import { RelatedChipsComponent, type BizAppsRelatedLink } from '@mj-biz-apps/common-ng';
 import { ContractEntity, type ContractRenewalField, type ContractState } from '@mj-biz-apps/contracts-entities';
 import { MJC_ENTITIES, MJC_FOREIGN_ENTITIES } from '../data/entity-names';
 
@@ -76,7 +77,7 @@ function chipClassFor(state: ContractState): string {
     selector: 'mjc-contract-hero-panel',
     standalone: true,
     encapsulation: ViewEncapsulation.None,
-    imports: [CommonModule, BaseFormsModule],
+    imports: [CommonModule, BaseFormsModule, RelatedChipsComponent],
     styleUrls: ['../styles/contracts-kit.css'],
     template: `
         <div class="mjc-hero" [class.mjc-hero--collapsed]="Collapsed">
@@ -165,16 +166,20 @@ function chipClassFor(state: ContractState): string {
                         <span class="mjc-hero__stat-label">Agreement</span>
                         <span class="mjc-hero__stat-val">{{ TemplateName || '—' }}</span>
                     </div>
-                    @if (HasSource) {
-                        <div class="mjc-hero__stat">
-                            <span class="mjc-hero__stat-label">{{ SourceLabel }}</span>
-                            <button type="button" class="mjc-hero__stat-val is-link" (click)="OpenSource($event)"
-                                    [attr.aria-label]="'Open ' + (SourceName || 'the source record')">
-                                {{ SourceName || 'Open' }}
-                            </button>
-                        </div>
-                    }
                 </div>
+                <!--
+                    THE RELATED ROW IS SHARED, NOT OURS (golive#225).
+
+                    The source link used to be a seventh stat in the grid above, resolved by ~90 lines
+                    of this panel. Sales and orders each needed the same thing and had either a
+                    different answer or none, so the resolving — and, more to the point, the rules
+                    about when a link must NOT be drawn — moved into the shared chip row. All this
+                    panel decides now is which relationships a contract has.
+                -->
+                <bizapps-related-chips
+                    [Links]="RelatedLinks"
+                    [Provider]="FormComponent.ProviderToUse"
+                    (Navigate)="FormComponent.OnFormNavigate($event)" />
                 @if (DaysToEnd !== null) {
                     <div class="mjc-hero__next">
                         <span class="mjc-hero__stat-label">Term</span>
@@ -301,7 +306,6 @@ function chipClassFor(state: ContractState): string {
     `],
 })
 export class MJCContractHeroPanel extends BaseFormPanel<ContractEntity> {
-    private readonly cdr = inject(ChangeDetectorRef);
 
     public Collapsed = false;
 
@@ -355,113 +359,62 @@ export class MJCContractHeroPanel extends BaseFormPanel<ContractEntity> {
     public get CompanyName(): string { return this.Record?.Company ?? ''; }
     public get ContactName(): string { return this.Record?.PrimaryContactPerson ?? ''; }
     public get TemplateName(): string { return this.Record?.ContractTemplate ?? ''; }
-    /* ── Source record — the thing that created this contract (issue #28 item 1) ──────────────
+    /* ── Related records — what this contract came from (golive#225, #28 item 1) ────────────────
      *
-     * WHAT THE STAT USED TO CLAIM. Labelled "Created from", it rendered `CreatingEntity` — the name of
-     * an ENTITY, not a record — so a contract raised from a Close-Won deal read "Deals" and one
-     * entered by hand read "Entered directly". Neither told the reader WHICH deal, and the second
-     * spends a stat on the absence of a fact.
+     * WHAT THIS PANEL STILL DECIDES, AND WHAT IT NO LONGER DOES. It decides that a contract's one
+     * relationship worth a chip is the record that created it. Resolving that record's NAME, and
+     * deciding when the chip must not be drawn at all, now belong to `bizapps-related-chips` —
+     * because sales and orders need the same two answers and each had its own, or none.
      *
-     * `CreatingEntityID` / `CreatingRecordID` is a POLYMORPHIC pair, so nothing here may assume Deals.
-     * Today `bizapps-sales` is the only writer (`LiveContractsSeam`, on Close-Won) and always stores
-     * Deals, but the column does not say so: the entity is resolved from the id, the label takes that
-     * entity's own singular name, and an Order would read "Source Order" with no edit here.
+     * `CreatingEntityID` / `CreatingRecordID` is a POLYMORPHIC pair, so nothing here may assume
+     * Deals. Today `bizapps-sales` is the only writer (`LiveContractsSeam`, on Close-Won) and always
+     * stores Deals, but the column does not say so — hence `LabelPrefix`, which lets the shared
+     * component build "Source Deal" from the resolved entity's own singular name and read
+     * "Source Order" with no edit here.
      *
-     * NAVIGATION GOES THROUGH THIS PANEL'S OWN `open()`, the helper next added for Customer and
-     * Contact. It handles ctrl/cmd-click for a new tab and routes through `OnFormNavigate` rather
-     * than `NavigationService`, and matching it matters more than the primary-key lookup an earlier
-     * version of this did — `CompositeKey.FromID` is the convention every link in this file uses.
+     * The two hiding rules #28 item 1 asked for are the shared component's now: nothing renders when
+     * `CreatingEntityID` is null (this getter returns an empty list), and nothing renders when the
+     * pair names a row that is not there — CTR-000026 carries a hand-typed pair whose record id is
+     * not even a UUID, and the header used to offer an "Open" button that navigated nowhere.
      */
 
-    /** Resolved once per record, lazily, on the first template read. */
-    private sourceFor: string | null = null;
-    public SourceLabel = 'Source record';
-    public SourceName = '';
-    /** Set when the provenance names a record that does not exist — the stat hides rather than link. */
-    public SourceMissing = false;
+    /** Cached on the record + pair, so `OnPush` does not re-resolve on every check. */
+    private relatedFor: string | null = null;
+    private relatedLinks: BizAppsRelatedLink[] = [];
 
     /**
-     * Whether this contract records what created it.
+     * The relationships this contract offers, as descriptors for the shared chip row.
      *
-     * Doubles as the load trigger — `BaseFormPanel` has no lifecycle hook and the slot host sets
-     * `Record` before view init, so the first template read is the earliest reliable moment. Keyed on
-     * the record so navigating the form to another contract reloads instead of showing the previous
-     * one's deal.
+     * Returns a STABLE array: the chip row re-resolves whenever its `Links` input is a new reference,
+     * and a getter that built a fresh array each change-detection pass would put it in a read loop.
      */
-    public get HasSource(): boolean {
+    public get RelatedLinks(): BizAppsRelatedLink[] {
         const entityID = this.Record?.CreatingEntityID;
         const recordID = this.Record?.CreatingRecordID;
-        if (!entityID || !recordID) return false;
         const key = `${this.Record?.ID}:${entityID}:${recordID}`;
-        if (this.sourceFor !== key) { this.sourceFor = key; this.SourceMissing = false; void this.loadSource(key); }
-        return !this.SourceMissing;
-    }
+        if (this.relatedFor === key) return this.relatedLinks;
 
-    /** The entity named by `CreatingEntityID`, or null when the id names nothing this user can see. */
-    private sourceEntity() {
-        const id = this.Record?.CreatingEntityID;
-        return (id ? this.FormComponent?.ProviderToUse?.Entities?.find((e) => e.ID === id) : undefined) ?? null;
-    }
-
-    /**
-     * Label from the entity, name from the record.
-     *
-     * `BaseTableDisplayName` rather than `DisplayName`: the entity is plural ("Deals") and the stat
-     * labels one record, so the singular base table is the honest word — and it is what produces
-     * "Source Deal" and "Source Order" with no de-pluralising guess.
-     */
-    private async loadSource(key: string): Promise<void> {
-        const entity = this.sourceEntity();
-        if (!entity) return;
-        this.SourceLabel = `Source ${entity.BaseTableDisplayName}`;
-
-        const nameField = entity.NameField?.Name;
-        const recordID = String(this.Record?.CreatingRecordID ?? '');
-        if (!nameField || !recordID) { this.cdr.detectChanges(); return; }
-
-        try {
-            const { ScopedRunView } = await import('../data/provider');
-            const rv = ScopedRunView(this.FormComponent?.ProviderToUse);
-            const pkField = entity.PrimaryKeys?.[0]?.Name ?? 'ID';
-            const r = await rv.RunView<Record<string, unknown>>({
-                EntityName: entity.Name,
-                Fields: [nameField],
-                ExtraFilter: `${pkField} = '${recordID.replace(/'/g, "''")}'`,
-                ResultType: 'simple',
-            });
-            // Guard against a slower read for a PREVIOUS record landing after the form moved on.
-            if (this.sourceFor !== key) return;
-            const row = r?.Success ? r.Results?.[0] : undefined;
-            if (r?.Success && !row) {
-                // READ SUCCEEDED AND MATCHED NOTHING: the provenance names a row that is not there,
-                // so there is nothing to open and the stat hides itself. This is the case the
-                // fallback below used to swallow — CTR-000026 carries a hand-typed pair whose record
-                // id is not even a UUID, and the stat rendered an "Open" button that navigated
-                // nowhere. A link that cannot work is worse than an absent stat: it invites a click
-                // and spends the reader's trust.
-                this.SourceMissing = true;
-                this.SourceName = '';
-                return;
-            }
-            this.SourceMissing = false;
-            this.SourceName = row ? String(row[nameField] ?? '') : '';
-        } catch {
-            // A THROWN read is the different case, and the fallback is still right for it: the record
-            // may well exist and simply be unreadable by this user, so the link stays and the stat
-            // says "Open". Conflating the two is what made the dead button look deliberate.
-            this.SourceMissing = false;
-            this.SourceName = '';
-        } finally {
-            this.cdr.detectChanges();
+        if (!entityID || !recordID) {
+            this.relatedFor = key;
+            this.relatedLinks = [];
+            return this.relatedLinks;
         }
+
+        // The chip row addresses entities by NAME; the provenance pair holds an entity ID, so this
+        // one lookup stays here. An EMPTY catalog is not an answer — it means metadata has not landed
+        // yet — so leave the key uncached and look again on the next check rather than deciding, once
+        // and permanently, that this contract has no source.
+        const entities = this.FormComponent?.ProviderToUse?.Entities;
+        if (!entities || entities.length === 0) return this.relatedLinks;
+
+        this.relatedFor = key;
+        const entity = entities.find((e) => e.ID === entityID) ?? null;
+        this.relatedLinks = entity
+            ? [{ Key: 'source', EntityName: entity.Name, RecordID: String(recordID), LabelPrefix: 'Source' }]
+            : [];
+        return this.relatedLinks;
     }
 
-    /** Open the record that created this contract, through the same helper as the other links. */
-    public OpenSource(event: MouseEvent): void {
-        const entity = this.sourceEntity();
-        if (!entity) return;
-        this.open(event, entity.Name, this.Record?.CreatingRecordID);
-    }
     public get IsAwaitingDocument(): boolean { return this.Record?.IsAwaitingDocument === true; }
     public get DaysToEnd(): number | null { return this.Record?.DaysToEnd ?? null; }
 
