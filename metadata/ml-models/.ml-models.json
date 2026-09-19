@@ -1,0 +1,86 @@
+[
+  {
+    "fields": {
+      "PipelineID": "C1A02E75-4C6E-49B0-96F3-79D1A8E24001",
+      "Version": 1,
+      "AlgorithmID": "25E83BF9-C5EE-4BDF-A891-D36D871B73E3",
+      "ArtifactFileID": "ED8AE479-D1DE-4871-882C-2E6CEB7514FC",
+      "FittedPreprocessing": "{\"ops\":[{\"op\":\"onehot\",\"col\":\"ContractType\",\"vocabulary\":[\"Change Order\",\"Order Form\",\"Payment Link\",\"Statement of Work\",\"Statement ofWork\"]},{\"op\":\"standardize\",\"cols\":[\"TermLengthDays\",\"DaysUntilNoticeDeadline\",\"AnnualIncreasePercent\",\"CancellationWindowDays\",\"RenewalNoticeDays\"],\"stats\":{\"TermLengthDays\":{\"mean\":427.005076142132,\"std\":186.962535878043},\"DaysUntilNoticeDeadline\":{\"mean\":-274.11167512690355,\"std\":231.02886785523822},\"AnnualIncreasePercent\":{\"mean\":5.676395939086294,\"std\":4.817741767852382},\"CancellationWindowDays\":{\"mean\":15.685279187817258,\"std\":25.861549306572247},\"RenewalNoticeDays\":{\"mean\":48.2741116751269,\"std\":24.802590945542246}}}],\"output_columns\":[\"ContractType=Change Order\",\"ContractType=Order Form\",\"ContractType=Payment Link\",\"ContractType=Statement of Work\",\"ContractType=Statement ofWork\",\"TermLengthDays\",\"DaysUntilNoticeDeadline\",\"HasModificationsFlag\",\"AutoRenewFlag\",\"HasParentContract\",\"HasCancellationWindow\",\"HasAnnualIncrease\",\"AnnualIncreasePercent\",\"CancellationWindowDays\",\"RenewalNoticeDays\"]}",
+      "FeatureSchema": "[{\"Name\":\"TermLengthDays\",\"Kind\":\"numeric\"},{\"Name\":\"DaysUntilNoticeDeadline\",\"Kind\":\"numeric\"},{\"Name\":\"HasModificationsFlag\",\"Kind\":\"numeric\"},{\"Name\":\"AutoRenewFlag\",\"Kind\":\"numeric\"},{\"Name\":\"HasParentContract\",\"Kind\":\"numeric\"},{\"Name\":\"HasCancellationWindow\",\"Kind\":\"numeric\"},{\"Name\":\"HasAnnualIncrease\",\"Kind\":\"numeric\"},{\"Name\":\"AnnualIncreasePercent\",\"Kind\":\"numeric\"},{\"Name\":\"CancellationWindowDays\",\"Kind\":\"numeric\"},{\"Name\":\"RenewalNoticeDays\",\"Kind\":\"numeric\"},{\"Name\":\"ContractType\",\"Kind\":\"categorical\"}]",
+      "TargetVariable": "NonRenewalOutcome",
+      "ProblemType": "classification",
+      "Metrics": "{\"accuracy\":1,\"f1\":1,\"precision\":1,\"recall\":1,\"auc\":1}",
+      "HoldoutMetrics": "{\"accuracy\":1,\"f1\":1,\"precision\":1,\"recall\":1,\"auc\":1}",
+      "FeatureImportance": "{\"ContractType=Change Order\":0,\"ContractType=Order Form\":0,\"ContractType=Payment Link\":0,\"ContractType=Statement of Work\":0,\"ContractType=Statement ofWork\":0,\"TermLengthDays\":0.7943400144577026,\"DaysUntilNoticeDeadline\":0.00018144605564884841,\"HasModificationsFlag\":0,\"AutoRenewFlag\":0.009668497368693352,\"HasParentContract\":0,\"HasCancellationWindow\":0.00566205196082592,\"HasAnnualIncrease\":0,\"AnnualIncreasePercent\":0.17389416694641113,\"CancellationWindowDays\":0.0070966132916510105,\"RenewalNoticeDays\":0.009157257154583931}",
+      "Lineage": "{\"pipelineId\":\"c1a02e75-4c6e-49b0-96f3-79d1a8e24001\",\"pipelineVersion\":1,\"targetEntityName\":\"MJ_BizApps_Contracts: Contracts\",\"sourceBindings\":[{\"Kind\":\"Entity\",\"Ref\":\"MJ_BizApps_Contracts: Contracts\"}],\"featureSteps\":{\"Steps\":[{\"Id\":\"select-features\",\"Kind\":\"select\",\"Columns\":[\"TermLengthDays\",\"DaysUntilNoticeDeadline\",\"HasModificationsFlag\",\"AutoRenewFlag\",\"HasParentContract\",\"HasCancellationWindow\",\"HasAnnualIncrease\",\"AnnualIncreasePercent\",\"CancellationWindowDays\",\"RenewalNoticeDays\",\"ContractType\"]},{\"Id\":\"onehot-ContractType\",\"Kind\":\"onehot\",\"Column\":\"ContractType\"},{\"Id\":\"standardize-numerics\",\"Kind\":\"standardize\",\"Columns\":[\"TermLengthDays\",\"DaysUntilNoticeDeadline\",\"AnnualIncreasePercent\",\"CancellationWindowDays\",\"RenewalNoticeDays\"]}]},\"asOfStrategy\":{\"Mode\":\"none\"},\"Tournament\":\"Contract Renewal Risk Tournament Wave 1\",\"Algorithm\":\"XGBoost\",\"TrainedAt\":\"2026-09-19T20:33:45.951Z\",\"TrainingRows\":394}",
+      "TrainedAt": "2026-09-19T20:33:45.975Z",
+      "TrainingDurationSec": 0,
+      "TrainingRowCount": 394,
+      "Status": "Published",
+      "SkipEmbeddings": false
+    },
+    "primaryKey": {
+      "ID": "C1A02E75-4C6E-49B0-96F3-79D1A8E24011"
+    },
+    "sync": {
+      "lastModified": "2026-09-19T20:34:46.318Z",
+      "checksum": "c23ca581ab494adb586722fc37ce2d957eee3d621cd6d85e8e8077377bf70609"
+    }
+  },
+  {
+    "fields": {
+      "PipelineID": "C1A02E75-4C6E-49B0-96F3-79D1A8E24001",
+      "Version": 2,
+      "AlgorithmID": "B2FD5E4A-75D4-401A-A1DA-F223A5234FDA",
+      "ArtifactFileID": "451449C2-25CD-414C-AD2B-1C18004A4A7F",
+      "FittedPreprocessing": "{\"ops\":[{\"op\":\"onehot\",\"col\":\"ContractType\",\"vocabulary\":[\"Change Order\",\"Order Form\",\"Payment Link\",\"Statement of Work\",\"Statement ofWork\"]},{\"op\":\"standardize\",\"cols\":[\"TermLengthDays\",\"DaysUntilNoticeDeadline\",\"AnnualIncreasePercent\",\"CancellationWindowDays\",\"RenewalNoticeDays\"],\"stats\":{\"TermLengthDays\":{\"mean\":427.005076142132,\"std\":186.962535878043},\"DaysUntilNoticeDeadline\":{\"mean\":-274.11167512690355,\"std\":231.02886785523822},\"AnnualIncreasePercent\":{\"mean\":5.676395939086294,\"std\":4.817741767852382},\"CancellationWindowDays\":{\"mean\":15.685279187817258,\"std\":25.861549306572247},\"RenewalNoticeDays\":{\"mean\":48.2741116751269,\"std\":24.802590945542246}}}],\"output_columns\":[\"ContractType=Change Order\",\"ContractType=Order Form\",\"ContractType=Payment Link\",\"ContractType=Statement of Work\",\"ContractType=Statement ofWork\",\"TermLengthDays\",\"DaysUntilNoticeDeadline\",\"HasModificationsFlag\",\"AutoRenewFlag\",\"HasParentContract\",\"HasCancellationWindow\",\"HasAnnualIncrease\",\"AnnualIncreasePercent\",\"CancellationWindowDays\",\"RenewalNoticeDays\"]}",
+      "FeatureSchema": "[{\"Name\":\"TermLengthDays\",\"Kind\":\"numeric\"},{\"Name\":\"DaysUntilNoticeDeadline\",\"Kind\":\"numeric\"},{\"Name\":\"HasModificationsFlag\",\"Kind\":\"numeric\"},{\"Name\":\"AutoRenewFlag\",\"Kind\":\"numeric\"},{\"Name\":\"HasParentContract\",\"Kind\":\"numeric\"},{\"Name\":\"HasCancellationWindow\",\"Kind\":\"numeric\"},{\"Name\":\"HasAnnualIncrease\",\"Kind\":\"numeric\"},{\"Name\":\"AnnualIncreasePercent\",\"Kind\":\"numeric\"},{\"Name\":\"CancellationWindowDays\",\"Kind\":\"numeric\"},{\"Name\":\"RenewalNoticeDays\",\"Kind\":\"numeric\"},{\"Name\":\"ContractType\",\"Kind\":\"categorical\"}]",
+      "TargetVariable": "NonRenewalOutcome",
+      "ProblemType": "classification",
+      "Metrics": "{\"accuracy\":1,\"f1\":1,\"precision\":1,\"recall\":1,\"auc\":1}",
+      "HoldoutMetrics": "{\"accuracy\":1,\"f1\":1,\"precision\":1,\"recall\":1,\"auc\":1}",
+      "FeatureImportance": "{\"ContractType=Change Order\":31,\"ContractType=Order Form\":8,\"ContractType=Payment Link\":16,\"ContractType=Statement of Work\":6,\"ContractType=Statement ofWork\":0,\"TermLengthDays\":307,\"DaysUntilNoticeDeadline\":103,\"HasModificationsFlag\":0,\"AutoRenewFlag\":10,\"HasParentContract\":0,\"HasCancellationWindow\":1,\"HasAnnualIncrease\":0,\"AnnualIncreasePercent\":167,\"CancellationWindowDays\":6,\"RenewalNoticeDays\":92}",
+      "Lineage": "{\"pipelineId\":\"c1a02e75-4c6e-49b0-96f3-79d1a8e24001\",\"pipelineVersion\":1,\"targetEntityName\":\"MJ_BizApps_Contracts: Contracts\",\"sourceBindings\":[{\"Kind\":\"Entity\",\"Ref\":\"MJ_BizApps_Contracts: Contracts\"}],\"featureSteps\":{\"Steps\":[{\"Id\":\"select-features\",\"Kind\":\"select\",\"Columns\":[\"TermLengthDays\",\"DaysUntilNoticeDeadline\",\"HasModificationsFlag\",\"AutoRenewFlag\",\"HasParentContract\",\"HasCancellationWindow\",\"HasAnnualIncrease\",\"AnnualIncreasePercent\",\"CancellationWindowDays\",\"RenewalNoticeDays\",\"ContractType\"]},{\"Id\":\"onehot-ContractType\",\"Kind\":\"onehot\",\"Column\":\"ContractType\"},{\"Id\":\"standardize-numerics\",\"Kind\":\"standardize\",\"Columns\":[\"TermLengthDays\",\"DaysUntilNoticeDeadline\",\"AnnualIncreasePercent\",\"CancellationWindowDays\",\"RenewalNoticeDays\"]}]},\"asOfStrategy\":{\"Mode\":\"none\"},\"Tournament\":\"Contract Renewal Risk Tournament Wave 1\",\"Algorithm\":\"LightGBM\",\"TrainedAt\":\"2026-09-19T20:33:46.011Z\",\"TrainingRows\":394}",
+      "TrainedAt": "2026-09-19T20:33:46.031Z",
+      "TrainingDurationSec": 0,
+      "TrainingRowCount": 394,
+      "Status": "Draft",
+      "SkipEmbeddings": false
+    },
+    "primaryKey": {
+      "ID": "C1A02E75-4C6E-49B0-96F3-79D1A8E24012"
+    },
+    "sync": {
+      "lastModified": "2026-09-19T20:34:46.318Z",
+      "checksum": "448e1e58014ca3aec93b78fe5c6c8e932915f43d07399f27e43bffe0b47dc321"
+    }
+  },
+  {
+    "fields": {
+      "PipelineID": "C1A02E75-4C6E-49B0-96F3-79D1A8E24001",
+      "Version": 3,
+      "AlgorithmID": "F966965D-3A87-4DD6-91E0-4F9D1AF17796",
+      "ArtifactFileID": "CB60DE2C-75D4-4FAD-A54B-E2F93FF02FF0",
+      "FittedPreprocessing": "{\"ops\":[{\"op\":\"onehot\",\"col\":\"ContractType\",\"vocabulary\":[\"Change Order\",\"Order Form\",\"Payment Link\",\"Statement of Work\",\"Statement ofWork\"]},{\"op\":\"standardize\",\"cols\":[\"TermLengthDays\",\"DaysUntilNoticeDeadline\",\"AnnualIncreasePercent\",\"CancellationWindowDays\",\"RenewalNoticeDays\"],\"stats\":{\"TermLengthDays\":{\"mean\":427.005076142132,\"std\":186.962535878043},\"DaysUntilNoticeDeadline\":{\"mean\":-274.11167512690355,\"std\":231.02886785523822},\"AnnualIncreasePercent\":{\"mean\":5.676395939086294,\"std\":4.817741767852382},\"CancellationWindowDays\":{\"mean\":15.685279187817258,\"std\":25.861549306572247},\"RenewalNoticeDays\":{\"mean\":48.2741116751269,\"std\":24.802590945542246}}}],\"output_columns\":[\"ContractType=Change Order\",\"ContractType=Order Form\",\"ContractType=Payment Link\",\"ContractType=Statement of Work\",\"ContractType=Statement ofWork\",\"TermLengthDays\",\"DaysUntilNoticeDeadline\",\"HasModificationsFlag\",\"AutoRenewFlag\",\"HasParentContract\",\"HasCancellationWindow\",\"HasAnnualIncrease\",\"AnnualIncreasePercent\",\"CancellationWindowDays\",\"RenewalNoticeDays\"]}",
+      "FeatureSchema": "[{\"Name\":\"TermLengthDays\",\"Kind\":\"numeric\"},{\"Name\":\"DaysUntilNoticeDeadline\",\"Kind\":\"numeric\"},{\"Name\":\"HasModificationsFlag\",\"Kind\":\"numeric\"},{\"Name\":\"AutoRenewFlag\",\"Kind\":\"numeric\"},{\"Name\":\"HasParentContract\",\"Kind\":\"numeric\"},{\"Name\":\"HasCancellationWindow\",\"Kind\":\"numeric\"},{\"Name\":\"HasAnnualIncrease\",\"Kind\":\"numeric\"},{\"Name\":\"AnnualIncreasePercent\",\"Kind\":\"numeric\"},{\"Name\":\"CancellationWindowDays\",\"Kind\":\"numeric\"},{\"Name\":\"RenewalNoticeDays\",\"Kind\":\"numeric\"},{\"Name\":\"ContractType\",\"Kind\":\"categorical\"}]",
+      "TargetVariable": "NonRenewalOutcome",
+      "ProblemType": "classification",
+      "Metrics": "{\"accuracy\":1,\"f1\":1,\"precision\":1,\"recall\":1,\"auc\":1}",
+      "HoldoutMetrics": "{\"accuracy\":1,\"f1\":1,\"precision\":1,\"recall\":1,\"auc\":1}",
+      "FeatureImportance": "{\"ContractType=Change Order\":0.002692214187423077,\"ContractType=Order Form\":0.0024130885736019935,\"ContractType=Payment Link\":0.0020178924098577804,\"ContractType=Statement of Work\":0.0026638385600655915,\"ContractType=Statement ofWork\":0.0000040017727801922836,\"TermLengthDays\":0.3681691956854548,\"DaysUntilNoticeDeadline\":0.020887116202822194,\"HasModificationsFlag\":0.013816641420707211,\"AutoRenewFlag\":0.12189018422099528,\"HasParentContract\":0,\"HasCancellationWindow\":0.018160015217352166,\"HasAnnualIncrease\":0.010542449982733603,\"AnnualIncreasePercent\":0.2784199313618035,\"CancellationWindowDays\":0.07947695609908964,\"RenewalNoticeDays\":0.07884647430531305}",
+      "Lineage": "{\"pipelineId\":\"c1a02e75-4c6e-49b0-96f3-79d1a8e24001\",\"pipelineVersion\":1,\"targetEntityName\":\"MJ_BizApps_Contracts: Contracts\",\"sourceBindings\":[{\"Kind\":\"Entity\",\"Ref\":\"MJ_BizApps_Contracts: Contracts\"}],\"featureSteps\":{\"Steps\":[{\"Id\":\"select-features\",\"Kind\":\"select\",\"Columns\":[\"TermLengthDays\",\"DaysUntilNoticeDeadline\",\"HasModificationsFlag\",\"AutoRenewFlag\",\"HasParentContract\",\"HasCancellationWindow\",\"HasAnnualIncrease\",\"AnnualIncreasePercent\",\"CancellationWindowDays\",\"RenewalNoticeDays\",\"ContractType\"]},{\"Id\":\"onehot-ContractType\",\"Kind\":\"onehot\",\"Column\":\"ContractType\"},{\"Id\":\"standardize-numerics\",\"Kind\":\"standardize\",\"Columns\":[\"TermLengthDays\",\"DaysUntilNoticeDeadline\",\"AnnualIncreasePercent\",\"CancellationWindowDays\",\"RenewalNoticeDays\"]}]},\"asOfStrategy\":{\"Mode\":\"none\"},\"Tournament\":\"Contract Renewal Risk Tournament Wave 1\",\"Algorithm\":\"Random Forest\",\"TrainedAt\":\"2026-09-19T20:33:46.067Z\",\"TrainingRows\":394}",
+      "TrainedAt": "2026-09-19T20:33:46.092Z",
+      "TrainingDurationSec": 0,
+      "TrainingRowCount": 394,
+      "Status": "Draft",
+      "SkipEmbeddings": false
+    },
+    "primaryKey": {
+      "ID": "C1A02E75-4C6E-49B0-96F3-79D1A8E24013"
+    },
+    "sync": {
+      "lastModified": "2026-09-19T20:34:46.318Z",
+      "checksum": "231bd009ea097903558bacd37770b9ef4f4d692ba30e4845a0c60034d01822f2"
+    }
+  }
+]

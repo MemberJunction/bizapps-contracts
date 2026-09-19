@@ -1,0 +1,31 @@
+[
+  {
+    "fields": {
+      "Name": "Score MJ_BizApps_Contracts: Contracts with model C1A02E75-4C6E-49B0-96F3-79D1A8E24011 (Monthly)",
+      "Description": "Scores active commercial agreements for Non-Renewal Risk materialized into PredictedNonRenewalRisk and PredictedRenewalRiskBand",
+      "EntityID": "5DEB0B11-ED6C-48B3-9200-F4441396C5E2",
+      "Status": "Active",
+      "WorkType": "ML Model",
+      "ScopeType": "Filter",
+      "ScopeFilter": "NonRenewalOutcome IS NULL",
+      "OnChangeEnabled": false,
+      "ScheduleEnabled": true,
+      "CronExpression": "0 0 1 * *",
+      "Timezone": "UTC",
+      "OnDemandEnabled": true,
+      "OutputMapping": "{\"fields\":{\"PredictedNonRenewalRisk\":\"$.score\",\"PredictedRenewalScoredAt\":\"$.scoredAt\"}}",
+      "SkipUnchanged": true,
+      "BatchSize": 100,
+      "MaxConcurrency": 1,
+      "Configuration": "{\"modelId\":\"C1A02E75-4C6E-49B0-96F3-79D1A8E24011\",\"primaryKeyField\":\"ID\"}",
+      "SkipEmbeddings": false
+    },
+    "primaryKey": {
+      "ID": "C1A02E75-4C6E-49B0-96F3-79D1A8E24050"
+    },
+    "sync": {
+      "lastModified": "2026-09-19T20:35:27.115Z",
+      "checksum": "95df8ace45d04829d4726f906929814d6ca8f10beccf30496ccccddf6976ec9e"
+    }
+  }
+]

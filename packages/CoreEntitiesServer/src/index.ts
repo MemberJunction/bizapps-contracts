@@ -25,7 +25,12 @@ import { LoadContractTemplateModificationEntityServer } from './ContractTemplate
 
 import { LoadSupersedeOperation } from './SupersedeOperation.js';
 
-export { ContractEntityServer, IsNewlySelected, LoadContractEntityServer } from './ContractEntityServer.js';
+export {
+    ComputePredictiveRenewalRiskBand,
+    ContractEntityServer,
+    IsNewlySelected,
+    LoadContractEntityServer,
+} from './ContractEntityServer.js';
 export {
     ContractTemplateModificationEntityServer,
     LoadContractTemplateModificationEntityServer,

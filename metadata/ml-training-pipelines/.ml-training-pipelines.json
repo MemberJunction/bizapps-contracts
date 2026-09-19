@@ -1,0 +1,28 @@
+[
+  {
+    "fields": {
+      "Name": "Predict Contract Non-Renewal Risk",
+      "Description": "Forecasts whether commercial agreements will fail to renew prior to required notice deadline, accounting for auto-renew, amendment history, terms, and fee increases.",
+      "Version": 1,
+      "Status": "Published",
+      "TargetEntityID": "5DEB0B11-ED6C-48B3-9200-F4441396C5E2",
+      "TargetVariable": "NonRenewalOutcome",
+      "ProblemType": "classification",
+      "AlgorithmID": "25E83BF9-C5EE-4BDF-A891-D36D871B73E3",
+      "Hyperparameters": "{}",
+      "SourceBindings": "[{\"Kind\":\"Entity\",\"Ref\":\"MJ_BizApps_Contracts: Contracts\"}]",
+      "FeatureSteps": "{\"Steps\":[{\"Id\":\"select-features\",\"Kind\":\"select\",\"Columns\":[\"TermLengthDays\",\"DaysUntilNoticeDeadline\",\"HasModificationsFlag\",\"AutoRenewFlag\",\"HasParentContract\",\"HasCancellationWindow\",\"HasAnnualIncrease\",\"AnnualIncreasePercent\",\"CancellationWindowDays\",\"RenewalNoticeDays\",\"ContractType\"]},{\"Id\":\"onehot-ContractType\",\"Kind\":\"onehot\",\"Column\":\"ContractType\"},{\"Id\":\"standardize-numerics\",\"Kind\":\"standardize\",\"Columns\":[\"TermLengthDays\",\"DaysUntilNoticeDeadline\",\"AnnualIncreasePercent\",\"CancellationWindowDays\",\"RenewalNoticeDays\"]}]}",
+      "AsOfStrategy": "{\"Mode\":\"none\"}",
+      "LeakageGuard": "{\"DenyFields\":[\"SupersededByContractID\",\"SupersededByContract\",\"TerminatedDate\",\"EndDate\",\"State\",\"PredictedNonRenewalRisk\",\"PredictedRenewalRiskBand\",\"PredictedRenewalScoredAt\",\"NonRenewalOutcome\"],\"SingleFeatureDominanceThreshold\":0.85}",
+      "ValidationStrategy": "{\"Strategy\":\"train_test_split\",\"TestSize\":0.2,\"LockedHoldoutFraction\":0.15}",
+      "SkipEmbeddings": false
+    },
+    "primaryKey": {
+      "ID": "C1A02E75-4C6E-49B0-96F3-79D1A8E24001"
+    },
+    "sync": {
+      "lastModified": "2026-09-19T20:34:38.626Z",
+      "checksum": "d3195660c4c92b50841e056925a018046c8c7d198c59de2dc4ab4a2b28866ee9"
+    }
+  }
+]

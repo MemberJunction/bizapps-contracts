@@ -18,7 +18,6 @@ export class mjBizAppsContractsContractTypeFormComponent extends BaseFormCompone
         this.initSections([
             { sectionKey: 'contractTypeDetails', sectionName: 'Contract Type Details', isExpanded: true },
             { sectionKey: 'configurationRules', sectionName: 'Configuration Rules', isExpanded: true },
-            { sectionKey: 'defaultContractTerms', sectionName: 'Default Contract Terms', isExpanded: true },
             { sectionKey: 'systemMetadata', sectionName: 'System Metadata', isExpanded: false },
             { sectionKey: 'mJBizAppsContractsContracts', sectionName: 'Contracts', isExpanded: false }
         ]);
