@@ -95,7 +95,6 @@ export class ContractEntityServer extends ContractEntity {
                 // indistinguishable from a hand-typed one by shape alone.
                 this.NumberWasSystemAssigned = true;
             }
-            this.syncPredictiveRenewalFieldsPreSave();
             return await super.Save();
         } catch (err) {
             LogError(`ContractEntityServer.Save failed for contract ${this.ContractNumber ?? this.ID}: ${err}`);
@@ -935,55 +934,6 @@ export class ContractEntityServer extends ContractEntity {
         }
         return assigned;
     }
-
-    /**
-     * Synchronizes PredictedRenewalRiskBand when PredictedNonRenewalRisk changes or is set.
-     * Low (<0.20), Medium (0.20-0.50), High (0.50-0.80), or Critical (>=0.80).
-     */
-    public syncPredictiveRenewalFieldsPreSave(): void {
-        try {
-            let probDirty = false;
-            try {
-                const probField = typeof this.GetFieldByName === 'function' ? this.GetFieldByName('PredictedNonRenewalRisk') : null;
-                probDirty = probField?.Dirty ?? false;
-            } catch {
-                probDirty = false;
-            }
-            if (this.PredictedNonRenewalRisk != null && (probDirty || !this.PredictedRenewalRiskBand)) {
-                this.PredictedRenewalRiskBand = ComputePredictiveRenewalRiskBand(this.PredictedNonRenewalRisk);
-            } else if (this.PredictedNonRenewalRisk == null && probDirty) {
-                this.PredictedRenewalRiskBand = null;
-            }
-        } catch {
-            // Tolerate test mocks where BaseEntity._fields is uninitialized
-        }
-    }
-}
-
-/**
- * Maps a contract non-renewal risk probability to an operational risk tier.
- * - <0.20: Low
- * - 0.20 to <0.50: Medium
- * - 0.50 to <0.80: High
- * - >=0.80: Critical
- * - null/undefined/NaN: null
- */
-export function ComputePredictiveRenewalRiskBand(
-    probability: number | null | undefined
-): ContractEntity['PredictedRenewalRiskBand'] {
-    if (probability == null || Number.isNaN(probability)) {
-        return null;
-    }
-    if (probability < 0.20) {
-        return 'Low';
-    }
-    if (probability < 0.50) {
-        return 'Medium';
-    }
-    if (probability < 0.80) {
-        return 'High';
-    }
-    return 'Critical';
 }
 
 /** Anti-tree-shake anchor — see the note in index.ts. */

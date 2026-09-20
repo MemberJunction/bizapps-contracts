@@ -13,7 +13,7 @@
       "SourceBindings": "[{\"Kind\":\"Entity\",\"Ref\":\"MJ_BizApps_Contracts: Contracts\"}]",
       "FeatureSteps": "{\"Steps\":[{\"Id\":\"select-features\",\"Kind\":\"select\",\"Columns\":[\"TermLengthDays\",\"DaysUntilNoticeDeadline\",\"HasModificationsFlag\",\"AutoRenewFlag\",\"HasParentContract\",\"HasCancellationWindow\",\"HasAnnualIncrease\",\"AnnualIncreasePercent\",\"CancellationWindowDays\",\"RenewalNoticeDays\",\"ContractType\"]},{\"Id\":\"onehot-ContractType\",\"Kind\":\"onehot\",\"Column\":\"ContractType\"},{\"Id\":\"standardize-numerics\",\"Kind\":\"standardize\",\"Columns\":[\"TermLengthDays\",\"DaysUntilNoticeDeadline\",\"AnnualIncreasePercent\",\"CancellationWindowDays\",\"RenewalNoticeDays\"]}]}",
       "AsOfStrategy": "{\"Mode\":\"none\"}",
-      "LeakageGuard": "{\"DenyFields\":[\"SupersededByContractID\",\"SupersededByContract\",\"TerminatedDate\",\"EndDate\",\"State\",\"PredictedNonRenewalRisk\",\"PredictedRenewalRiskBand\",\"PredictedRenewalScoredAt\",\"NonRenewalOutcome\"],\"SingleFeatureDominanceThreshold\":0.85}",
+      "LeakageGuard": "{\"DenyFields\":[\"SupersededByContractID\",\"SupersededByContract\",\"TerminatedDate\",\"EndDate\",\"State\",\"NonRenewalOutcome\"],\"SingleFeatureDominanceThreshold\":0.85}",
       "ValidationStrategy": "{\"Strategy\":\"train_test_split\",\"TestSize\":0.2,\"LockedHoldoutFraction\":0.15}",
       "SkipEmbeddings": false
     },
