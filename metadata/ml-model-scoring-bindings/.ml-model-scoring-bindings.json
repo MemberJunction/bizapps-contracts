@@ -4,7 +4,7 @@
       "MLModelID": "C1A02E75-4C6E-49B0-96F3-79D1A8E24011",
       "RecordProcessID": "C1A02E75-4C6E-49B0-96F3-79D1A8E24050",
       "TargetEntityID": "5DEB0B11-ED6C-48B3-9200-F4441396C5E2",
-      "TargetColumn": null,
+      "TargetColumn": "PredictedNonRenewalRisk",
       "Mode": "Scheduled",
       "SkipEmbeddings": false
     },

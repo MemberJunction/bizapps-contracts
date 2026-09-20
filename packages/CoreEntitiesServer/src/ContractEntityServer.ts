@@ -940,4 +940,3 @@ export class ContractEntityServer extends ContractEntity {
 export function LoadContractEntityServer(): void {
     void ContractEntityServer;
 }
-

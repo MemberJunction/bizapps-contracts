@@ -25,11 +25,7 @@ import { LoadContractTemplateModificationEntityServer } from './ContractTemplate
 
 import { LoadSupersedeOperation } from './SupersedeOperation.js';
 
-export {
-    ContractEntityServer,
-    IsNewlySelected,
-    LoadContractEntityServer,
-} from './ContractEntityServer.js';
+export { ContractEntityServer, IsNewlySelected, LoadContractEntityServer } from './ContractEntityServer.js';
 export {
     ContractTemplateModificationEntityServer,
     LoadContractTemplateModificationEntityServer,
