@@ -112,61 +112,98 @@ describe('item 19 — the replacements that still have a home', () => {
     });
 });
 
-describe('item 1 — the source record, as a link', () => {
-    it('the stat is absent entirely when nothing created this contract', () => {
-        expect(PANELS).toContain('@if (HasSource)');
+describe('item 1 — the source record, as a chip on the shared Related row', () => {
+    /*
+     * WHY THESE ASSERTIONS MOVED RATHER THAN WENT AWAY (golive#225). They used to name this panel's
+     * own resolver — `loadSource`, `SourceMissing`, the race guard — because the panel resolved the
+     * source record itself. It no longer does: the resolving, and with it the two rules about when a
+     * link must NOT be drawn, are `bizapps-related-chips`' and are pinned by `related-links.test.ts`
+     * in `bizapps-common`. Item 1's guarantees still have to hold on THIS form, so they are re-aimed
+     * at the half the panel kept — which relationship a contract offers, and that it is described
+     * rather than resolved — plus the wiring that hands the other half over. Deleting them would
+     * have left the delegation itself unpinned, which is the thing a future edit is most likely to
+     * undo by quietly resolving the record here again.
+     */
+
+    /** The body of the getter that builds the chip descriptors. */
+    const relatedLinks = (): string => {
+        const fn = PANELS_RAW.slice(PANELS_RAW.indexOf('public get RelatedLinks()'));
+        return fn.slice(0, fn.indexOf('\n    }'));
+    };
+
+    it('offers nothing at all when nothing created this contract', () => {
+        // An EMPTY descriptor list is how the panel says "no relationship"; the shared row renders
+        // nothing for it. That is what item 1 asked for in place of a stat reading "Entered
+        // directly", which spent a slot announcing the absence of a fact.
+        expect(relatedLinks()).toContain('if (!entityID || !recordID)');
+        expect(relatedLinks()).toContain('this.relatedLinks = [];');
         expect(PANELS).not.toContain('Entered directly');
         expect(PANELS_RAW).not.toContain('get CreatingEntityName()');
     });
 
-    it('the label comes from the resolved entity, never a hardcoded "Deal"', () => {
-        // Matching on ASSIGNMENTS rather than searching for the word: the doc comments legitimately
-        // name Deals while explaining why the code must not.
-        const assigned = [...PANELS_RAW.matchAll(/this\.SourceLabel = ([^;]+);/g)].map((m) => m[1]);
-        expect(assigned).toEqual(['`Source ${entity.BaseTableDisplayName}`']);
+    it('leaves the label to the resolved entity, never a hardcoded "Deal"', () => {
+        // `LabelPrefix` has the shared row compose the prefix with the entity's own singular name, so
+        // a pair naming Orders reads "Source Order" with no edit here. A literal `Label` on this
+        // descriptor would be exactly the hardcoding item 1 ruled out: the pair is polymorphic, and
+        // sales being its only writer today is not a promise about tomorrow.
+        expect(relatedLinks()).toContain("LabelPrefix: 'Source'");
+        expect(relatedLinks()).not.toMatch(/\bLabel:/);
+        expect(PANELS_RAW).not.toContain('this.SourceLabel');
     });
 
-    it('the entity is looked up by CreatingEntityID rather than assumed', () => {
-        const fn = PANELS_RAW.slice(PANELS_RAW.indexOf('private sourceEntity()'));
-        expect(fn.slice(0, fn.indexOf('\n    }'))).toContain('e.ID === id');
+    it('looks the entity up by CreatingEntityID rather than assuming one', () => {
+        // The one lookup that stays here, and the reason it does: the chip row addresses entities by
+        // NAME and the provenance pair holds an entity ID.
+        expect(relatedLinks()).toContain('e.ID === entityID');
+        expect(relatedLinks()).toContain('EntityName: entity.Name');
     });
 
-    it("navigation reuses this panel's own link helper, as Customer and Contact do", () => {
-        // next added `open()` for the other two links: it handles ctrl/cmd-click for a new tab and
-        // routes through OnFormNavigate. Matching it matters more than rolling a second mechanism.
-        const fn = PANELS_RAW.slice(PANELS_RAW.indexOf('public OpenSource('));
-        const body = fn.slice(0, fn.indexOf('\n    }'));
-        expect(body).toContain('this.open(event, entity.Name');
+    it("routes navigation through the form's own path, as Customer and Contact do", () => {
+        // The chip row emits instead of navigating, and the host wires it to `OnFormNavigate` — the
+        // same path every field link in this file takes, and still not `NavigationService`.
+        expect(PANELS).toMatch(/\(Navigate\)="FormComponent\.OnFormNavigate\(\$event\)"/);
         expect(PANELS).not.toContain('NavigationService');
     });
 
-    it('hides the stat when the provenance names a record that does not exist', () => {
+    it('hands the dead-link rules to the shared row rather than dropping them', () => {
         /*
-         * A read that SUCCEEDS and matches nothing means the pair points at a row that is not there
-         * — CTR-000026 carries a hand-typed pair whose record id is not even a UUID — and the stat
-         * used to render an "Open" button that navigated nowhere. A link that cannot work is worse
-         * than an absent stat: it invites a click and spends the reader's trust.
+         * Both hiding rules item 1 asked for are now the component's: no chip when the pair is null,
+         * and no chip when the pair names a row that is not there — CTR-000026 carries a hand-typed
+         * pair whose record id is not even a UUID, and the header used to offer an "Open" button that
+         * navigated nowhere. Those are enforced in common; what has to be true here is that the row
+         * is actually rendered and actually given what it needs to enforce them. A chip row bound
+         * without a provider resolves against the ambient one, which in a multi-provider host reads
+         * the wrong database — a wrong answer rather than an error.
          */
-        const fn = PANELS_RAW.slice(PANELS_RAW.indexOf('private async loadSource('));
-        const body = fn.slice(0, fn.indexOf('\n    }\n'));
-        expect(body).toContain('if (r?.Success && !row)');
-        expect(body).toContain('this.SourceMissing = true;');
-        expect(PANELS_RAW).toContain('return !this.SourceMissing;');
+        expect(PANELS_RAW).toContain("from '@mj-biz-apps/common-ng'");
+        expect(PANELS).toContain('<bizapps-related-chips');
+        expect(PANELS).toMatch(/\[Links\]="RelatedLinks"/);
+        expect(PANELS).toMatch(/\[Provider\]="FormComponent\.ProviderToUse"/);
     });
 
-    it('but KEEPS the link when the read merely threw — a different case', () => {
-        // The record may exist and simply be unreadable by this user; the fallback to "Open" is
-        // right there. Conflating the two is what made the dead button look deliberate.
-        const fn = PANELS_RAW.slice(PANELS_RAW.indexOf('private async loadSource('));
-        const body = fn.slice(0, fn.indexOf('\n    }\n'));
-        const catchAt = body.indexOf('} catch {');
-        expect(catchAt).toBeGreaterThan(-1);
-        expect(body.slice(catchAt)).toContain('this.SourceMissing = false;');
+    it('and cannot re-implement them here by accident', () => {
+        // The distinction the old code got wrong twice — a read that SUCCEEDS and matches nothing
+        // versus a read that THREW — is only safe in one place. This panel reads no record for this
+        // link at all now, so there is nothing here to get it wrong in a second way.
+        expect(PANELS_RAW).not.toContain('loadSource');
+        expect(PANELS_RAW).not.toContain('SourceMissing');
+        expect(relatedLinks()).not.toContain('RunView');
     });
 
-    it('a slow read for a previous record cannot overwrite the current one', () => {
-        const fn = PANELS_RAW.slice(PANELS_RAW.indexOf('private async loadSource('));
-        expect(fn.slice(0, fn.indexOf('\n    }\n'))).toContain('if (this.sourceFor !== key) return;');
+    it('cannot show the previous contract a chip belonging to the last one', () => {
+        /*
+         * The stale-answer hazard survived the refactor in a new shape. The old resolver raced a slow
+         * read against form navigation; the getter instead CACHES, and a cache is stale for the same
+         * reason. Two rules keep it honest: the key carries the record id as well as the pair, so
+         * navigating to another contract is a different key — and an EMPTY entity catalog is never
+         * cached as an answer, because it means metadata has not landed yet, not that this contract
+         * has no source. The array reference is stable for a reason of its own: the chip row
+         * re-resolves whenever `Links` is a new reference, so a getter building a fresh array each
+         * change-detection pass would put it in a read loop.
+         */
+        expect(relatedLinks()).toContain('`${this.Record?.ID}:${entityID}:${recordID}`');
+        expect(relatedLinks()).toContain('if (this.relatedFor === key) return this.relatedLinks;');
+        expect(relatedLinks()).toContain('entities.length === 0');
     });
 });
 
