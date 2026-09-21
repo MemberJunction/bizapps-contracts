@@ -233,6 +233,7 @@ EXEC [${mjSchema}].[spUpdateExistingEntitiesFromSchema] @ExcludedSchemaNames='sy
 
 /* SQL text to insert new entity fields dynamically */
 DECLARE @contractEntityID UNIQUEIDENTIFIER = (SELECT [ID] FROM [${mjSchema}].[Entity] WHERE [Name] = 'MJ_BizApps_Contracts: Contracts');
+IF @contractEntityID IS NULL RAISERROR('Entity not registered: MJ_BizApps_Contracts: Contracts', 16, 1);
 
 IF @contractEntityID IS NOT NULL
 BEGIN

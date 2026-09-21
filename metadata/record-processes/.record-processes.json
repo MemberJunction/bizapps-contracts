@@ -13,7 +13,7 @@
       "CronExpression": "0 0 1 * *",
       "Timezone": "UTC",
       "OnDemandEnabled": true,
-      "OutputMapping": null,
+      "OutputMapping": "{\"PredictedNonRenewalRisk\":\"$.score\",\"PredictedRenewalRiskBand\":\"$.band\",\"PredictedRenewalScoredAt\":\"$.scoredAt\"}",
       "SkipUnchanged": true,
       "BatchSize": 100,
       "MaxConcurrency": 1,
