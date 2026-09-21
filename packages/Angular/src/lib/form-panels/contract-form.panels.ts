@@ -437,7 +437,7 @@ export class MJCContractOverviewPanel extends BaseFormPanel<ContractEntity> {
  * This used to be `daysUntil(Record.RenewalNoticeDeadline)`, a local re-derivation that read the
  * stored day from UTC parts — right — and then took "today" from the SERVER'S UTC clock, which is
  * already tomorrow for the whole American evening. `vwContracts` derives `DaysToEnd` and
- * `DaysUntilNoticeDeadline` from `bt.Today`, the BUSINESS day, so from 7 PM Central `NoticeClock`,
+ * `DaysUntilNoticeDeadline` from `bt.Today`, the BUSINESS day, so from 6 PM Central `NoticeClock`,
  * `NoticeTone`, `Health` and `NextMove` were one day ahead of the `DaysToEnd` printed beside them on
  * the same card — and `NextMove`'s `notice <= 30` cutoff fired a day early.
  *

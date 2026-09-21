@@ -6,20 +6,21 @@
 Contract lifecycle and dates are judged on the business day (bc-aidp-next-golive#168).
 
 `vwContracts` compared every date against the server's UTC calendar day, which is already tomorrow
-for the whole American evening: a contract ending 31 December read as Expired at 7 PM Central on the
-31st, and `DaysToEnd`, `DaysUntilNoticeDeadline`, `NonRenewalOutcome` and the cancellation window all
-moved an evening early. The view now cross joins bizapps-common's `fnBusinessToday()` once and
-compares all nine boundaries against `bt.Today`, the calendar day in the instance's business time
-zone. The dates panel's `AsInput`/`SetDate` delegate to the shared calendar-day helpers, which also
-fixes an offset-bearing stored value rendering as the next day and an unreadable one being written
-as an `Invalid Date`. First dependency on `@mj-biz-apps/common-entities`.
+for the whole American evening: a contract ending 31 December read as Expired from 6 PM Central on
+the 31st (CST is UTC-6; on CDT the roll is an hour later), and `DaysToEnd`, `DaysUntilNoticeDeadline`,
+`NonRenewalOutcome` and the cancellation window all moved an evening early. The view now cross joins
+bizapps-common's `fnBusinessToday()` once and compares all nine boundaries against `bt.Today`, the
+calendar day in the instance's business time zone. The dates panel's `AsInput`/`SetDate` delegate to
+the shared calendar-day helpers, which also fixes an offset-bearing stored value rendering as the
+next day and an unreadable one being written as an `Invalid Date`. First dependency on
+`@mj-biz-apps/common-entities`.
 
 Every other reader of "today" moves with it, because half a fix is worse than none: before the
 migration the view and the UI were both on the UTC day and AGREED, so nothing looked broken. The
 "Notice window open"/"passed" pills, the dashboard's notice-deadline tile, the left-nav renewals badge
 and the overdue-task fragment took their day from `CAST(GETUTCDATE() AS date)`, and the Overview
 panel's `NoticeClock`, `NoticeTone`, `Health` and `NextMove` computed it from the UTC clock — so from
-7 PM Central a contract the view still gave notice time on had already dropped out of the pill, and
+6 PM Central a contract the view still gave notice time on had already dropped out of the pill, and
 one card printed `DaysToEnd` from the view next to a countdown a day ahead of it.
 
 They read the VIEW's own answer now, not a second clock. `DaysUntilNoticeDeadline` is

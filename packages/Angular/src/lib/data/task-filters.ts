@@ -114,7 +114,7 @@ export async function BuildOpenTaskFilters(
          * written as UTC MIDNIGHT of a calendar day — bizapps-sales asserts it carries no time of
          * day, precisely so "due today" cannot depend on the reader's zone — so this is a comparison
          * between calendar days and the only open question is which day is today. On the UTC day
-         * every task due today read as overdue from 7 PM Central, in the same dashboard tile whose
+         * every task due today read as overdue from 6 PM Central, in the same dashboard tile whose
          * sibling counts come from `vwContracts` on `bt.Today`.
          *
          * `DueAt` is the one column here with no business-day day-count to filter on: it belongs to

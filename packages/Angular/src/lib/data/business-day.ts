@@ -9,10 +9,14 @@
  * which is already tomorrow for the whole American evening.
  *
  * Before that migration both sides were wrong and AGREED, so nothing looked broken. Afterwards they
- * disagree for exactly the window #168 is about: at 7 PM Central `vwContracts` still reports notice
+ * disagree for exactly the window #168 is about: at 6 PM Central `vwContracts` still reports notice
  * time left on a contract that the "Notice window open" pill, the dashboard tile and the left-nav
  * badge have already dropped, because their `>=` compares the deadline against tomorrow. A row
  * visible in one place and absent from another reads as a stale page rather than as a defect.
+ *
+ * (6 PM is the CST roll — Central is UTC-6 in winter, UTC-5 on CDT, so the window opens at 7 PM for
+ * the daylight half of the year. Every "from 6 PM Central" in this package and in `V202609211200`
+ * means the same thing: the whole American evening, whichever hour it starts.)
  *
  * ## Why these predicates carry no date at all
  *

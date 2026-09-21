@@ -14,7 +14,10 @@
  * Subject is `contract-dates.ts`, not the panel: `MJCContractDatesPanel` is an `@Component` and
  * `new`-ing it outside an Angular host dies in `PlatformLocation`'s JIT fallback before any
  * assertion runs. The last describe holds the panel to its delegation instead — over a slice bounded
- * to that ONE class, because an unbounded slice polices whatever happens to be declared after it.
+ * to that ONE class's body, because a slice that overruns polices whatever is declared after it. The
+ * bound ends at the class's own closing brace, NOT at the next `export class`: the next class's
+ * decorators come before its `export class` line, and leaving them in was the bug (see
+ * `readPanelClass`, and the test that measures it).
  */
 process.env.TZ = 'America/Chicago';
 
@@ -147,6 +150,31 @@ describe('MJCContractDatesPanel', () => {
         expect(template).not.toContain('| date');
     });
 
+    it('is the only class the absence checks above police', async () => {
+        /*
+         * THE BOUND, MEASURED RATHER THAN CLAIMED.
+         *
+         * `MJCContractLineagePanel` follows the dates panel in the same file and has nothing to do
+         * with the calendar-day rule — it draws an SVG tree. Its `@RegisterClassEx`/`@Component`
+         * decorators and inline template sit between the two `export class` lines, so a bound of
+         * "the next `export class`" left all of it inside the slice, and `not.toContain('new Date(')`
+         * was quietly a rule about the lineage panel too.
+         *
+         * Asserting on the lineage panel's own selector is the cheapest proof that the slice stops
+         * short of its decorator: the selector is the FIRST line of that decorator, so if it is
+         * outside the slice, so is everything after it.
+         */
+        const source = await readPanelSource();
+        const body = await readPanelClass('MJCContractDatesPanel');
+        // The thing must exist, or this proves nothing.
+        expect(source).toContain("selector: 'mjc-contract-lineage-panel'");
+        expect(source).toContain('export class MJCContractLineagePanel');
+        expect(body).not.toContain("selector: 'mjc-contract-lineage-panel'");
+        expect(body).not.toContain('export class MJCContractLineagePanel');
+        expect(body).not.toContain('@Component');
+        expect(body).not.toContain('@RegisterClassEx');
+    });
+
     it('leaves no local-zone date pipe anywhere in the file', async () => {
         // The hero's three stats and the renewal panel's deadline hint had the same defect, so the
         // guard is the whole file rather than the one panel. `| date` on a DATE column is never right
@@ -156,23 +184,35 @@ describe('MJCContractDatesPanel', () => {
 });
 
 /**
- * ONE panel class's body, bounded at the NEXT `export class` (or EOF).
+ * ONE panel class's body — from its `export class` line to ITS OWN closing brace.
  *
- * The bound is the whole point and it was missing: `slice(indexOf('export class MJCContractDatesPanel'))`
- * runs to end-of-file, so the absence checks above were also policing `MJCContractLineagePanel`,
- * which follows it in the same file and has nothing to do with the calendar-day rule. A perfectly
- * correct `new Date(` in the lineage panel would have failed a test about the dates panel, and the
- * repair anybody reaches for first is to delete the assertion.
+ * The bound is the whole point and it has been wrong twice. First it was missing altogether:
+ * `slice(indexOf('export class MJCContractDatesPanel'))` ran to end-of-file, so the absence checks
+ * above were policing every declaration that followed. Then it was moved to the next
+ * `\nexport class `, which is BETTER AND STILL NOT THE BOUND: the next class's `@RegisterClassEx`
+ * and `@Component` decorators sit BEFORE its `export class` line, so the slice still swallowed the
+ * whole of `MJCContractLineagePanel`'s decorator — ~110 lines of metadata and inline template.
+ * Measured: a perfectly correct `new Date(` added to the lineage panel's `@Component` failed
+ * `contract-dates-panel.test.ts` (1 failed / 18 passed), in a test whose name says it is about the
+ * dates panel. The repair anybody reaches for first is to delete the assertion.
+ *
+ * A top-level class in this file closes with `}` in COLUMN ONE and nothing else in the file does, so
+ * that is the real end of the body. The `expect`s below prove the slice landed there rather than
+ * assuming it: no second `export class`, no top-level decorator (which is what the old bound let
+ * in), and a body that actually ends on its closing brace.
  */
 async function readPanelClass(name: string): Promise<string> {
     const source = await readPanelSource();
     const start = source.indexOf(`export class ${name}`);
     expect(start).toBeGreaterThan(-1);
-    const next = source.indexOf('\nexport class ', start + 1);
-    const body = next === -1 ? source.slice(start) : source.slice(start, next);
-    // A slice that swallowed the rest of the file would still satisfy every assertion above, so the
-    // bound is asserted rather than assumed.
-    expect(body).not.toContain('export class MJCContractLineagePanel');
+    const close = source.indexOf('\n}\n', start);
+    const body = close === -1 ? source.slice(start) : source.slice(start, close + 2);
+
+    expect(body.match(/^export class /gm) ?? []).toHaveLength(1);
+    // The decorators of whatever is declared NEXT begin in column one. Anything the class declares
+    // for itself (`@Input()`, `@ViewChild()`) is indented, so this catches only overrun.
+    expect(body).not.toMatch(/^@/m);
+    expect(body.trimEnd().endsWith('\n}')).toBe(true);
     return body;
 }
 

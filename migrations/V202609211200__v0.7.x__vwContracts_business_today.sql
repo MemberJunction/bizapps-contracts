@@ -3,9 +3,15 @@
 -- =============================================================================
 -- bc-aidp-next-golive#168. Every date comparison in this view was made against the
 -- SERVER'S UTC calendar day, which is already tomorrow for the whole American
--- evening: a contract ending 31 December read as Expired at 7 PM Central on the
+-- evening: a contract ending 31 December read as Expired from 6 PM Central on the
 -- 31st, and DaysToEnd, DaysUntilNoticeDeadline, NonRenewalOutcome and
 -- IsInCancellationWindow all moved an evening early.
+--
+-- SIX, not seven: 31 December is CST, which is UTC-6, so the UTC day rolls at
+-- 18:00 Central. Half the year Central is on CDT (UTC-5) and the roll is at 7 PM.
+-- The hour is not the bug and neither number is the fix — the whole evening is
+-- wrong in both — but a worked example that does not survive arithmetic is how a
+-- reader concludes the rest of the reasoning was not checked either.
 --
 -- "Today" is now `bt.Today` from bizapps-common's `fnBusinessToday()`: the calendar
 -- day in the zone the business books in (the instance's `BizApps.BusinessTimeZone`
@@ -32,8 +38,10 @@
 --    exhibit, a draft or the wrong PDF silences the warning again. Restored here,
 --    with the reasoning that was written for it. Nothing tested it: the guards in
 --    `executed-agreement-panel.test.ts` and `dates-executed-doc-and-readonly.test.ts`
---    pin themselves to the migration that SEEDS the category row, not to the newest
---    definer of the view, so they stayed green straight through the regression.
+--    pinned themselves to the migration that SEEDS the category row, not to the
+--    newest definer of the view, so they stayed green straight through the
+--    regression. Both now resolve the newest definer, through the same helper
+--    `contract-state.test.ts` uses.
 --  * V202609202354: the predictive/engineered feature columns (NonRenewalOutcome,
 --    TermLengthDays, DaysUntilNoticeDeadline, HasModificationsFlag, AutoRenewFlag,
 --    HasParentContract, HasCancellationWindow, HasAnnualIncrease) are carried forward

@@ -478,7 +478,7 @@ export class MJCRenewalsPageComponent extends MJCContractGridPageBase {
                 Label: 'Notice window open',
                 // THE VIEW'S OWN DAY-COUNT, like `next120` above it (bc-aidp-next-golive#168).
                 // This compared the deadline against `CAST(GETUTCDATE() AS date)` — the server's UTC
-                // day, already tomorrow for the whole American evening — so from 7 PM Central the pill
+                // day, already tomorrow for the whole American evening — so from 6 PM Central the pill
                 // dropped a contract whose record still said there was notice time left.
                 // `DaysUntilNoticeDeadline` is derived from `bt.Today` in the same row, so the pill
                 // and the row it hides can no longer disagree. NULL (no end date or no notice period)

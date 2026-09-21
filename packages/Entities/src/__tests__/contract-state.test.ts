@@ -15,68 +15,36 @@
  * down against the deployed view.
  */
 import { describe, expect, it } from 'vitest';
-import { readdirSync, readFileSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { CONTRACT_STATES, type ContractState } from '../contract-state.js';
+import { newestViewDefiner, sqlCode, squash } from './helpers/view-definer.js';
 
 /**
- * THE NEWEST MIGRATION THAT DEFINES `vwContracts`, RESOLVED — NOT PINNED.
+ * THE NEWEST MIGRATION THAT DEFINES `vwContracts`, RESOLVED — NOT PINNED, AND RESOLVED BY THE ONE
+ * SHARED HELPER rather than by a copy of the rule living here.
  *
  * This was a hardcoded filename, and it had already been hand-repointed once when the view moved in
  * the 2026-08-23 flatten. On 2026-08-30 it silently went stale a second time: contracts#28 item 13
  * moved the Terminated branch to `<=` in a NEW migration, and every assertion below carried on
  * reading the old file and passing. A suite whose stated job is "the migration says what we think it
- * says" was describing a migration the database no longer runs last.
+ * says" was describing a migration the database no longer runs last. On 2026-09-20 it happened a
+ * THIRD time, to a local pattern that matched `CREATE OR ALTER VIEW` and not the `DROP VIEW` +
+ * `CREATE VIEW` that `V202609202354` used.
  *
- * Resolving the newest definer makes that impossible. Filename order is release order —
- * `migration-conventions.test.ts` proves the timestamps are zero-padded and strictly increasing, so a
- * plain sort is a real ordering rather than a hopeful one.
+ * Every one of those was a private copy of "which file is the definer" drifting on its own schedule,
+ * so the rule is no longer written here. `helpers/view-definer.ts` owns it, for this file,
+ * `dates-executed-doc-and-readonly.test.ts` and `executed-agreement-panel.test.ts` alike, and it
+ * throws rather than falling back if a later migration mentions the view in a form it cannot read.
+ *
+ * `flat` is that file's SQL with BOTH comment forms stripped and whitespace normalised, so a reformat
+ * of the view does not fail a predicate assertion and no assertion below can be satisfied — or
+ * defeated — by the prose explaining the SQL. See `sqlCode` for why that matters in both directions;
+ * `describe('sqlCode …')` at the bottom of this file measures it.
  */
 const MIGRATIONS_DIR = fileURLToPath(new URL('../../../../migrations/', import.meta.url));
-/**
- * `CREATE VIEW` AND `CREATE OR ALTER VIEW`, because both spellings define it.
- *
- * This pattern matched only the second, and on 2026-09-20 the staleness it exists to prevent
- * happened for a THIRD time: `V202609202354` re-created `vwContracts` with `DROP VIEW` +
- * `CREATE VIEW`, so it was invisible here and the whole suite quietly went back to describing the
- * 1 September migration — a file the database no longer runs last.
- */
-const DEFINES_VIEW = /CREATE\s+(?:OR\s+ALTER\s+)?VIEW\s+\[\$\{flyway:defaultSchema\}\]\.\[vwContracts\]/i;
-
-/**
- * SQL WITH ITS `--` LINE COMMENTS REMOVED, so every assertion below is about the SQL and not about
- * the prose explaining it. `dates-executed-doc-and-readonly.test.ts` has the same helper, under the
- * same name, for the same reason; this file needed it and did not have it.
- *
- * Both directions were wrong without it, and the ABSENCE check is the one that bites first. The
- * migration header for #168 explains at length that the view used to compare against the server's
- * UTC day — so the moment anyone writes `GETUTCDATE` in that explanation, `not.toContain('GETUTCDATE')`
- * fails on a correct view, and the obvious repair is to weaken the assertion.
- *
- * The PRESENCE checks fail the other way, silently: `fc.Name = 'Executed Agreement'` is quoted in
- * the header's account of how V202609202354 dropped it, so a future re-creation of the view could
- * lose the predicate again and keep this suite green on the strength of the comment describing the
- * loss. That is the exact regression the guard was added for.
- *
- * Line comments only, which is all these migrations use. A naive block-comment strip would also eat
- * a block-comment opener that appears inside a string literal, and there is nothing here to gain by
- * it.
- */
-const sqlCode = (t: string) => t.replace(/^\s*--.*$/gm, '');
-
-const definers = readdirSync(MIGRATIONS_DIR)
-    .filter((f) => f.endsWith('.sql'))
-    .sort()
-    // Against the CODE, so a migration that merely DISCUSSES re-creating the view in its header —
-    // this one's does — cannot be resolved as the definer of it.
-    .filter((f) => DEFINES_VIEW.test(sqlCode(readFileSync(MIGRATIONS_DIR + f, 'utf8'))));
-if (definers.length === 0) {
-    throw new Error('No migration defines vwContracts — this suite would assert against nothing.');
-}
-const MIGRATION = definers[definers.length - 1];
-const sql = readFileSync(MIGRATIONS_DIR + MIGRATION, 'utf8');
-const squash = (s: string) => s.replace(/\s+/g, ' ').trim();
-const flat = squash(sqlCode(sql));
+const VIEW = newestViewDefiner(MIGRATIONS_DIR, 'vwContracts');
+const flat = VIEW.flat;
 
 /**
  * The rule as a person would describe it, written from the requirement rather than from the SQL:
@@ -156,8 +124,9 @@ describe('the view derives State, and the migration says what we think it says',
 
     it('takes "today" from the business zone, joined once, and never from the UTC clock', () => {
         // bc-aidp-next-golive#168: the server's UTC calendar day is already tomorrow for the whole
-        // American evening, so a contract ending 31 December read as Expired at 7 PM Central, and
-        // DaysToEnd, DaysUntilNoticeDeadline and the cancellation window all moved an evening early.
+        // American evening, so a contract ending 31 December read as Expired from 6 PM Central (CST
+        // is UTC-6; an hour later on CDT), and DaysToEnd, DaysUntilNoticeDeadline and the
+        // cancellation window all moved an evening early.
         // ONE cross join, so every column in a row answers on the same day.
         expect(flat).toContain('CROSS JOIN [__mj_BizAppsCommon].[fnBusinessToday]() AS bt');
         expect(flat).not.toContain('GETUTCDATE');
@@ -173,7 +142,7 @@ describe('the view derives State, and the migration says what we think it says',
          * The Renewals page's notice pills, the dashboard's notice tile and the left-nav badge used to
          * compare `RenewalNoticeDeadline` against `CAST(GETUTCDATE() AS date)` — the server's UTC day,
          * already tomorrow all American evening — while this view judged the same deadline on
-         * `bt.Today`, so from 7 PM Central a row the view said had notice time left was missing from
+         * `bt.Today`, so from 6 PM Central a row the view said had notice time left was missing from
          * the pill (bc-aidp-next-golive#168). They now read `DaysUntilNoticeDeadline >= 0` / `< 0` /
          * `BETWEEN 0 AND n` instead, which cannot disagree with the view because the view computed it.
          *
@@ -195,9 +164,10 @@ describe('the view derives State, and the migration says what we think it says',
     it('keeps IsAwaitingDocument narrowed to the Executed Agreement category', () => {
         // Item 16 (V202609010100) was silently reverted by V202609202354, which re-created the view
         // without the File/FileCategory joins — any linked file cleared the flag again. Nothing
-        // caught it: the two tests that guard this rule pin themselves to the migration that SEEDS
-        // the category row, not to the newest definer of the view. Asserted here, where "newest
-        // definer" is resolved, so the next re-creation that drops it fails.
+        // caught it: the two tests that guarded this rule pinned themselves to the migration that
+        // SEEDS the category row, not to the newest definer of the view, so they described the
+        // 1 September file straight through the day the regression shipped. All three now resolve
+        // the newest definer through the same helper, so the next re-creation that drops it fails.
         expect(flat).toContain("fc.Name = 'Executed Agreement'");
         expect(flat).toContain('JOIN [${mjSchema}].[FileCategory] fc');
     });
@@ -232,5 +202,46 @@ describe('the view derives State, and the migration says what we think it says',
         // derivation reappears, this fails. `contract-state.ts` is a value list, not a rule.
         const module = readFileSync(fileURLToPath(new URL('../contract-state.ts', import.meta.url)), 'utf8');
         expect(module).not.toMatch(/GETUTCDATE|function DeriveContractState|function StateSQL/);
+    });
+});
+
+/**
+ * THE STRIPPER ITSELF, because every assertion above is only as good as it is.
+ *
+ * `sqlCode` was `t.replace(/^\s*--.*$/gm, '')` — WHOLE-LINE comments only — and a TRAILING inline
+ * comment walked through it in both directions. Measured against this very migration before the fix:
+ * appending `-- was CAST(GETUTCDATE() AS date)` to a correct `Expired` branch failed
+ * `not.toContain('GETUTCDATE')` (1 failed / 12 passed), and replacing the category predicate with
+ * `AND 1 = 1 -- dropped, was: fc.Name = 'Executed Agreement'` kept the whole file green (13 passed)
+ * with the gate gone from the executable SQL. The second is the regression the guard exists for,
+ * passing.
+ *
+ * So the four cases below are the contract, not decoration: each one is a mutation the old helper
+ * let through.
+ */
+describe('sqlCode — prose can neither satisfy nor defeat an assertion', () => {
+    it('strips a TRAILING inline comment, not only a whole-line one', () => {
+        const line = "        WHEN g.EndDate < bt.Today THEN 'Expired' -- was CAST(GETUTCDATE() AS date)";
+        expect(sqlCode(line)).not.toContain('GETUTCDATE');
+        expect(squash(sqlCode(line))).toBe("WHEN g.EndDate < bt.Today THEN 'Expired'");
+    });
+
+    it('a required predicate quoted in a trailing comment does not satisfy a presence check', () => {
+        const line = "                   AND 1 = 1 -- dropped, was: fc.Name = 'Executed Agreement'";
+        expect(squash(sqlCode(line))).not.toContain("fc.Name = 'Executed Agreement'");
+        expect(squash(sqlCode(line))).toBe('AND 1 = 1');
+    });
+
+    it('strips block comments too, in both directions', () => {
+        const banned = 'SELECT 1 /* the old view used CAST(GETUTCDATE() AS date) */ AS x';
+        expect(sqlCode(banned)).not.toContain('GETUTCDATE');
+        const claimed = "AND 1 = 1 /* was: fc.Name = 'Executed Agreement' */";
+        expect(squash(sqlCode(claimed))).not.toContain("fc.Name = 'Executed Agreement'");
+    });
+
+    it('does not glue the tokens either side of a stripped comment together', () => {
+        // Replacing with '' rather than ' ' would turn this into `ab` and invent a predicate.
+        expect(squash(sqlCode('a--c\nb'))).toBe('a b');
+        expect(squash(sqlCode('a/* c */b'))).toBe('a b');
     });
 });
