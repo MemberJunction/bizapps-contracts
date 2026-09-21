@@ -44,7 +44,7 @@ import { HierarchyTreeComponent, type HierarchyTreeConfig, type HierarchyNodeEve
 import { RelatedChipsComponent, type BizAppsRelatedLink } from '@mj-biz-apps/common-ng';
 import { ContractEntity, type ContractRenewalField, type ContractState } from '@mj-biz-apps/contracts-entities';
 import { MJC_ENTITIES, MJC_FOREIGN_ENTITIES } from '../data/entity-names';
-import { DateAsInput, InputAsDate, type ContractDateField } from './contract-dates';
+import { DateAsInput, DateAsText, InputAsDate, type ContractDateField } from './contract-dates';
 
 const COLLAPSE_SETTING = 'mj.identityHeader.collapsed.contract';
 
@@ -153,15 +153,15 @@ function chipClassFor(state: ContractState): string {
                     </div>
                     <div class="mjc-hero__stat">
                         <span class="mjc-hero__stat-label">Executed</span>
-                        <span class="mjc-hero__stat-val">{{ (Record.ExecutedDate | date: 'd MMM y') || '—' }}</span>
+                        <span class="mjc-hero__stat-val">{{ DateText(Record.ExecutedDate) }}</span>
                     </div>
                     <div class="mjc-hero__stat">
                         <span class="mjc-hero__stat-label">Effective</span>
-                        <span class="mjc-hero__stat-val">{{ (Record.EffectiveDate | date: 'd MMM y') || '—' }}</span>
+                        <span class="mjc-hero__stat-val">{{ DateText(Record.EffectiveDate) }}</span>
                     </div>
                     <div class="mjc-hero__stat">
                         <span class="mjc-hero__stat-label">Term ends</span>
-                        <span class="mjc-hero__stat-val">{{ (Record.EndDate | date: 'd MMM y') || '—' }}</span>
+                        <span class="mjc-hero__stat-val">{{ DateText(Record.EndDate) }}</span>
                     </div>
                     <div class="mjc-hero__stat">
                         <span class="mjc-hero__stat-label">Agreement</span>
@@ -307,6 +307,16 @@ function chipClassFor(state: ContractState): string {
     `],
 })
 export class MJCContractHeroPanel extends BaseFormPanel<ContractEntity> {
+
+    /**
+     * A stored `DATE` column rendered from its UTC parts (bc-aidp-next-golive#168).
+     *
+     * A field rather than a method so the template binds the shared implementation directly: the
+     * defect this replaces was a second, local-zone rendering of the same column, and a wrapper
+     * method is where a second one grows back. See `contract-dates.ts` for why the date PIPE cannot
+     * be used on a calendar day, and why a `DATETIMEOFFSET` must not come through here.
+     */
+    public DateText = DateAsText;
 
     public Collapsed = false;
 
@@ -543,7 +553,7 @@ export class MJCContractHeroPanel extends BaseFormPanel<ContractEntity> {
                             Written notice we must give the customer before a renewal price change.
                         </div>
                         @if (NoticeDeadline) {
-                            <div class="mjc-hint">deadline: {{ NoticeDeadline | date: 'd MMM y' }}</div>
+                            <div class="mjc-hint">deadline: {{ DateText(NoticeDeadline) }}</div>
                         }
                     </div>
                     <div class="mjc-field">
@@ -578,6 +588,16 @@ export class MJCContractHeroPanel extends BaseFormPanel<ContractEntity> {
 })
 export class MJCContractRenewalPanel extends BaseFormPanel<ContractEntity> implements DoCheck {
     private readonly cdr = inject(ChangeDetectorRef);
+
+    /**
+     * A stored `DATE` column rendered from its UTC parts (bc-aidp-next-golive#168).
+     *
+     * A field rather than a method so the template binds the shared implementation directly: the
+     * defect this replaces was a second, local-zone rendering of the same column, and a wrapper
+     * method is where a second one grows back. See `contract-dates.ts` for why the date PIPE cannot
+     * be used on a calendar day, and why a `DATETIMEOFFSET` must not come through here.
+     */
+    public DateText = DateAsText;
 
     /**
      * Seed the four fields from the Contract Type whenever the type changes on an UNSAVED contract
@@ -742,7 +762,7 @@ export class MJCContractRenewalPanel extends BaseFormPanel<ContractEntity> imple
                             <input type="date" [ngModel]="AsInput(Record.ExecutedDate)"
                                    (ngModelChange)="SetDate('ExecutedDate', $event)" aria-label="Executed date" />
                         } @else {
-                            <div class="mjc-val">{{ (Record.ExecutedDate | date: 'd MMM y') || '—' }}</div>
+                            <div class="mjc-val">{{ DateText(Record.ExecutedDate) }}</div>
                         }
                     </div>
                     <div class="mjc-field">
@@ -751,7 +771,7 @@ export class MJCContractRenewalPanel extends BaseFormPanel<ContractEntity> imple
                             <input type="date" [ngModel]="AsInput(Record.EffectiveDate)"
                                    (ngModelChange)="SetDate('EffectiveDate', $event)" aria-label="Effective date" />
                         } @else {
-                            <div class="mjc-val">{{ (Record.EffectiveDate | date: 'd MMM y') || '—' }}</div>
+                            <div class="mjc-val">{{ DateText(Record.EffectiveDate) }}</div>
                         }
                     </div>
                     <div class="mjc-field">
@@ -760,7 +780,7 @@ export class MJCContractRenewalPanel extends BaseFormPanel<ContractEntity> imple
                             <input type="date" [ngModel]="AsInput(Record.EndDate)"
                                    (ngModelChange)="SetDate('EndDate', $event)" aria-label="End date" />
                         } @else {
-                            <div class="mjc-val">{{ (Record.EndDate | date: 'd MMM y') || '—' }}</div>
+                            <div class="mjc-val">{{ DateText(Record.EndDate) }}</div>
                         }
                     </div>
                     <div class="mjc-field">
@@ -769,7 +789,7 @@ export class MJCContractRenewalPanel extends BaseFormPanel<ContractEntity> imple
                             <input type="date" [ngModel]="AsInput(Record.TerminatedDate)"
                                    (ngModelChange)="SetDate('TerminatedDate', $event)" aria-label="Terminated date" />
                         } @else {
-                            <div class="mjc-val" [class.mjc-val--ro]="!Record.TerminatedDate">{{ (Record.TerminatedDate | date: 'd MMM y') || '—' }}</div>
+                            <div class="mjc-val" [class.mjc-val--ro]="!Record.TerminatedDate">{{ DateText(Record.TerminatedDate) }}</div>
                         }
                         <div class="mjc-hint">Setting this marks the contract Terminated from this date.</div>
                     </div>
@@ -780,6 +800,16 @@ export class MJCContractRenewalPanel extends BaseFormPanel<ContractEntity> imple
     `,
 })
 export class MJCContractDatesPanel extends BaseFormPanel<ContractEntity> {
+    /**
+     * A stored `DATE` column rendered from its UTC parts (bc-aidp-next-golive#168).
+     *
+     * A field rather than a method so the template binds the shared implementation directly: the
+     * defect this replaces was a second, local-zone rendering of the same column, and a wrapper
+     * method is where a second one grows back. See `contract-dates.ts` for why the date PIPE cannot
+     * be used on a calendar day, and why a `DATETIMEOFFSET` must not come through here.
+     */
+    public DateText = DateAsText;
+
     /** `<input type="date">` needs `yyyy-MM-dd`; the entity hands back a Date or an ISO string. */
     public AsInput(v: Date | string | null | undefined): string {
         return DateAsInput(v);

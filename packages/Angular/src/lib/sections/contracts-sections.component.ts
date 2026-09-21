@@ -44,6 +44,7 @@ import {
 } from './section-nav.model';
 import { MJC_ENTITIES } from '../data/entity-names';
 import { ScopedRunView } from '../data/provider';
+import { NoticeWindowWithin } from '../data/business-day';
 
 import {
     MJCAllContractsPageComponent,
@@ -363,11 +364,11 @@ export class ContractsSectionResource extends MJCSectionBaseComponent {
         };
 
         const [renewals, awaiting, modified] = await Promise.all([
-            count(
-                `State IN ('Active','Executed') AND RenewalNoticeDeadline IS NOT NULL ` +
-                    `AND RenewalNoticeDeadline >= CAST(GETUTCDATE() AS date) ` +
-                    `AND RenewalNoticeDeadline <= DATEADD(day, 120, CAST(GETUTCDATE() AS date))`,
-            ),
+            // The view's own day-count, so the badge counts the same rows the Renewals page then
+            // shows (bc-aidp-next-golive#168). On `CAST(GETUTCDATE() AS date)` the badge lost a
+            // contract every American evening while the page it links to still listed it, because
+            // `vwContracts` judges the deadline on `bt.Today` and this judged it on the UTC day.
+            count(`State IN ('Active','Executed') AND ${NoticeWindowWithin(120)}`),
             count('IsAwaitingDocument = 1'),
             count('HasModifications = 1'),
         ]);
