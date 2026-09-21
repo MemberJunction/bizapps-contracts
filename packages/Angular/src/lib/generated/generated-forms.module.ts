@@ -15,22 +15,18 @@ import { EntityViewerModule } from '@memberjunction/ng-entity-viewer';
 import { LinkDirectivesModule } from '@memberjunction/ng-link-directives';
 
 // Import Generated Components
+import { mjBizAppsContractsContractFormComponent } from "./Entities/mjBizAppsContractsContract/mjbizappscontractscontract.form.component";
+import { mjBizAppsContractsContractTemplateFormComponent } from "./Entities/mjBizAppsContractsContractTemplate/mjbizappscontractscontracttemplate.form.component";
 import { mjBizAppsContractsContractTemplateModificationFormComponent } from "./Entities/mjBizAppsContractsContractTemplateModification/mjbizappscontractscontracttemplatemodification.form.component";
 import { mjBizAppsContractsContractTemplateProvisionFormComponent } from "./Entities/mjBizAppsContractsContractTemplateProvision/mjbizappscontractscontracttemplateprovision.form.component";
 import { mjBizAppsContractsContractTemplateTypeFormComponent } from "./Entities/mjBizAppsContractsContractTemplateType/mjbizappscontractscontracttemplatetype.form.component";
-import { mjBizAppsContractsContractTemplateFormComponent } from "./Entities/mjBizAppsContractsContractTemplate/mjbizappscontractscontracttemplate.form.component";
 import { mjBizAppsContractsContractTypeFormComponent } from "./Entities/mjBizAppsContractsContractType/mjbizappscontractscontracttype.form.component";
-import { mjBizAppsContractsContractFormComponent } from "./Entities/mjBizAppsContractsContract/mjbizappscontractscontract.form.component";
    
 
 @NgModule({
 declarations: [
-    mjBizAppsContractsContractTemplateModificationFormComponent,
-    mjBizAppsContractsContractTemplateProvisionFormComponent,
-    mjBizAppsContractsContractTemplateTypeFormComponent,
-    mjBizAppsContractsContractTemplateFormComponent,
-    mjBizAppsContractsContractTypeFormComponent,
-    mjBizAppsContractsContractFormComponent],
+    mjBizAppsContractsContractTemplateModificationFormComponent
+],
 imports: [
     CommonModule,
     FormsModule,
@@ -41,7 +37,80 @@ imports: [
 exports: [
 ]
 })
-export class GeneratedForms_SubModule_0 { }
+export class GeneratedForms_SubModule_3 { }
+    
+
+
+@NgModule({
+declarations: [
+    mjBizAppsContractsContractTemplateProvisionFormComponent
+],
+imports: [
+    CommonModule,
+    FormsModule,
+    BaseFormsModule,
+    EntityViewerModule,
+    LinkDirectivesModule
+],
+exports: [
+]
+})
+export class GeneratedForms_SubModule_10 { }
+    
+
+
+@NgModule({
+declarations: [
+    mjBizAppsContractsContractFormComponent
+],
+imports: [
+    CommonModule,
+    FormsModule,
+    BaseFormsModule,
+    EntityViewerModule,
+    LinkDirectivesModule
+],
+exports: [
+]
+})
+export class GeneratedForms_SubModule_21 { }
+    
+
+
+@NgModule({
+declarations: [
+    mjBizAppsContractsContractTemplateFormComponent,
+    mjBizAppsContractsContractTemplateTypeFormComponent
+],
+imports: [
+    CommonModule,
+    FormsModule,
+    BaseFormsModule,
+    EntityViewerModule,
+    LinkDirectivesModule
+],
+exports: [
+]
+})
+export class GeneratedForms_SubModule_27 { }
+    
+
+
+@NgModule({
+declarations: [
+    mjBizAppsContractsContractTypeFormComponent
+],
+imports: [
+    CommonModule,
+    FormsModule,
+    BaseFormsModule,
+    EntityViewerModule,
+    LinkDirectivesModule
+],
+exports: [
+]
+})
+export class GeneratedForms_SubModule_29 { }
     
 
 
@@ -49,7 +118,11 @@ export class GeneratedForms_SubModule_0 { }
 declarations: [
 ],
 imports: [
-    GeneratedForms_SubModule_0
+    GeneratedForms_SubModule_3,
+    GeneratedForms_SubModule_10,
+    GeneratedForms_SubModule_21,
+    GeneratedForms_SubModule_27,
+    GeneratedForms_SubModule_29
 ]
 })
 export class GeneratedFormsModule { }

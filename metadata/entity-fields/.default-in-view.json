@@ -4,23 +4,63 @@
       "Working columns for the Contracts dashboard and lists. CodeGen already defaulted",
       "ContractNumber, State, type, customer, and the two dates. These are the rest an exec scans."
     ],
-    "fields": { "DefaultInView": true },
-    "primaryKey": { "ID": "@lookup:MJ: Entity Fields.Entity=MJ_BizApps_Contracts: Contracts&Name=Company" }
+    "fields": {
+      "DefaultInView": true
+    },
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entity Fields.Entity=MJ_BizApps_Contracts: Contracts&Name=Company"
+    },
+    "sync": {
+      "lastModified": "2026-09-07T21:28:15.140Z",
+      "checksum": "3980a054b5d6fcb2805ae6a0b030e114ef8da0fb49036cc2ea1cd1b3823228cd"
+    }
   },
   {
-    "fields": { "DefaultInView": true },
-    "primaryKey": { "ID": "@lookup:MJ: Entity Fields.Entity=MJ_BizApps_Contracts: Contracts&Name=DaysToEnd" }
+    "fields": {
+      "DefaultInView": true
+    },
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entity Fields.Entity=MJ_BizApps_Contracts: Contracts&Name=DaysToEnd"
+    },
+    "sync": {
+      "lastModified": "2026-09-07T21:28:15.117Z",
+      "checksum": "3980a054b5d6fcb2805ae6a0b030e114ef8da0fb49036cc2ea1cd1b3823228cd"
+    }
   },
   {
-    "fields": { "DefaultInView": true },
-    "primaryKey": { "ID": "@lookup:MJ: Entity Fields.Entity=MJ_BizApps_Contracts: Contracts&Name=AutoRenew" }
+    "fields": {
+      "DefaultInView": true
+    },
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entity Fields.Entity=MJ_BizApps_Contracts: Contracts&Name=AutoRenew"
+    },
+    "sync": {
+      "lastModified": "2026-09-07T21:28:15.166Z",
+      "checksum": "3980a054b5d6fcb2805ae6a0b030e114ef8da0fb49036cc2ea1cd1b3823228cd"
+    }
   },
   {
-    "fields": { "DefaultInView": true },
-    "primaryKey": { "ID": "@lookup:MJ: Entity Fields.Entity=MJ_BizApps_Contracts: Contracts&Name=IsAwaitingDocument" }
+    "fields": {
+      "DefaultInView": true
+    },
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entity Fields.Entity=MJ_BizApps_Contracts: Contracts&Name=IsAwaitingDocument"
+    },
+    "sync": {
+      "lastModified": "2026-09-07T21:28:15.189Z",
+      "checksum": "3980a054b5d6fcb2805ae6a0b030e114ef8da0fb49036cc2ea1cd1b3823228cd"
+    }
   },
   {
-    "fields": { "DefaultInView": true },
-    "primaryKey": { "ID": "@lookup:MJ: Entity Fields.Entity=MJ_BizApps_Contracts: Contracts&Name=PrimaryContactPerson" }
+    "fields": {
+      "DefaultInView": true
+    },
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entity Fields.Entity=MJ_BizApps_Contracts: Contracts&Name=PrimaryContactPerson"
+    },
+    "sync": {
+      "lastModified": "2026-09-07T21:28:15.208Z",
+      "checksum": "3980a054b5d6fcb2805ae6a0b030e114ef8da0fb49036cc2ea1cd1b3823228cd"
+    }
   }
 ]
