@@ -18,6 +18,7 @@ export class mjBizAppsContractsContractTemplateFormComponent extends BaseFormCom
         this.initSections([
             { sectionKey: 'templateDetails', sectionName: 'Template Details', isExpanded: true },
             { sectionKey: 'lifecycleAndAccess', sectionName: 'Lifecycle and Access', isExpanded: true },
+            { sectionKey: 'details', sectionName: 'Details', isExpanded: true },
             { sectionKey: 'systemMetadata', sectionName: 'System Metadata', isExpanded: false },
             { sectionKey: 'mJBizAppsContractsContractTemplateProvisions', sectionName: 'Provisions', isExpanded: false },
             { sectionKey: 'mJBizAppsContractsContracts', sectionName: 'Contracts', isExpanded: false }

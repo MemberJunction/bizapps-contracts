@@ -1,0 +1,19 @@
+[
+  {
+    "fields": {
+      "MLModelID": "C1A02E75-4C6E-49B0-96F3-79D1A8E24011",
+      "RecordProcessID": "C1A02E75-4C6E-49B0-96F3-79D1A8E24050",
+      "TargetEntityID": "5DEB0B11-ED6C-48B3-9200-F4441396C5E2",
+      "TargetColumn": "PredictedNonRenewalRisk",
+      "Mode": "Scheduled",
+      "SkipEmbeddings": false
+    },
+    "primaryKey": {
+      "ID": "C1A02E75-4C6E-49B0-96F3-79D1A8E24060"
+    },
+    "sync": {
+      "lastModified": "2026-09-20T23:04:02.701Z",
+      "checksum": "2b9db3e235a2c85edbfa78039685802c21fd96e3b48008bfd27229f8df59eeb2"
+    }
+  }
+]
