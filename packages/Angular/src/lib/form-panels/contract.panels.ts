@@ -44,6 +44,7 @@ import { HierarchyTreeComponent, type HierarchyTreeConfig, type HierarchyNodeEve
 import { RelatedChipsComponent, type BizAppsRelatedLink } from '@mj-biz-apps/common-ng';
 import { ContractEntity, type ContractRenewalField, type ContractState } from '@mj-biz-apps/contracts-entities';
 import { MJC_ENTITIES, MJC_FOREIGN_ENTITIES } from '../data/entity-names';
+import { DateAsInput, InputAsDate, type ContractDateField } from './contract-dates';
 
 const COLLAPSE_SETTING = 'mj.identityHeader.collapsed.contract';
 
@@ -781,13 +782,12 @@ export class MJCContractRenewalPanel extends BaseFormPanel<ContractEntity> imple
 export class MJCContractDatesPanel extends BaseFormPanel<ContractEntity> {
     /** `<input type="date">` needs `yyyy-MM-dd`; the entity hands back a Date or an ISO string. */
     public AsInput(v: Date | string | null | undefined): string {
-        if (!v) return '';
-        const d = v instanceof Date ? v : new Date(String(v));
-        return Number.isNaN(d.getTime()) ? '' : d.toISOString().slice(0, 10);
+        return DateAsInput(v);
     }
 
-    public SetDate(field: 'ExecutedDate' | 'EffectiveDate' | 'EndDate' | 'TerminatedDate', value: string): void {
-        (this.Record as unknown as Record<string, unknown>)[field] = value ? new Date(value + 'T00:00:00Z') : null;
+    /** UTC midnight of the picked day: the shape a DATE column round-trips as. */
+    public SetDate(field: ContractDateField, value: string): void {
+        (this.Record as unknown as Record<string, unknown>)[field] = InputAsDate(value);
     }
 
     /* EndsInText removed with the hint it fed (issue #28 item 20): the countdown is stated once, in

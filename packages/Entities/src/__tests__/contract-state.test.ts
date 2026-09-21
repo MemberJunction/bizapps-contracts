@@ -33,7 +33,15 @@ import { CONTRACT_STATES, type ContractState } from '../contract-state.js';
  * plain sort is a real ordering rather than a hopeful one.
  */
 const MIGRATIONS_DIR = fileURLToPath(new URL('../../../../migrations/', import.meta.url));
-const DEFINES_VIEW = /CREATE\s+OR\s+ALTER\s+VIEW\s+\[\$\{flyway:defaultSchema\}\]\.\[vwContracts\]/i;
+/**
+ * `CREATE VIEW` AND `CREATE OR ALTER VIEW`, because both spellings define it.
+ *
+ * This pattern matched only the second, and on 2026-09-20 the staleness it exists to prevent
+ * happened for a THIRD time: `V202609202354` re-created `vwContracts` with `DROP VIEW` +
+ * `CREATE VIEW`, so it was invisible here and the whole suite quietly went back to describing the
+ * 1 September migration — a file the database no longer runs last.
+ */
+const DEFINES_VIEW = /CREATE\s+(?:OR\s+ALTER\s+)?VIEW\s+\[\$\{flyway:defaultSchema\}\]\.\[vwContracts\]/i;
 const definers = readdirSync(MIGRATIONS_DIR)
     .filter((f) => f.endsWith('.sql'))
     .sort()
@@ -52,6 +60,8 @@ const flat = squash(sql);
  *
  * The predicates are matched against the migration text with whitespace normalised, so a reformat of
  * the view does not fail this — but a changed comparison operator does, which is the point. The
+ * boundaries are compared against `bt.Today`, the BUSINESS day (bc-aidp-next-golive#168), not against
+ * the server's UTC day. The
  * termination and expiry boundaries are `<` (not `<=`) because a period ending on a date runs through
  * the END of that date: an agreement "terminating on 31 December" is in force all of 31 December. The
  * effective boundary is `<=` for the mirror-image reason — a contract effective today is in force
@@ -64,7 +74,7 @@ const RULE: ReadonlyArray<{ state: ContractState; because: string; predicate: st
         // `<=`, not `<` — contracts#28 item 13. Terminated means terminated FROM that date, which is
         // what the Dates tab has always told the user. Its neighbour `Expired` stays `<` on purpose:
         // an END date is the last day the agreement covers, a TERMINATED date is the day it stops.
-        predicate: "g.TerminatedDate IS NOT NULL AND g.TerminatedDate <= CAST(GETUTCDATE() AS date) THEN 'Terminated'",
+        predicate: "g.TerminatedDate IS NOT NULL AND g.TerminatedDate <= bt.Today THEN 'Terminated'",
     },
     {
         state: 'Superseded',
@@ -74,12 +84,12 @@ const RULE: ReadonlyArray<{ state: ContractState; because: string; predicate: st
     {
         state: 'Expired',
         because: 'the term ran out on its own',
-        predicate: "g.EndDate IS NOT NULL AND g.EndDate < CAST(GETUTCDATE() AS date) THEN 'Expired'",
+        predicate: "g.EndDate IS NOT NULL AND g.EndDate < bt.Today THEN 'Expired'",
     },
     {
         state: 'Active',
         because: 'started, not ended, not replaced',
-        predicate: "g.EffectiveDate IS NOT NULL AND g.EffectiveDate <= CAST(GETUTCDATE() AS date) THEN 'Active'",
+        predicate: "g.EffectiveDate IS NOT NULL AND g.EffectiveDate <= bt.Today THEN 'Active'",
     },
     {
         state: 'Executed',
@@ -111,6 +121,28 @@ describe('the view derives State, and the migration says what we think it says',
             .map((m) => m[1] ?? m[2])
             .filter((v) => (CONTRACT_STATES as readonly string[]).includes(v));
         expect([...new Set(emitted)].sort()).toEqual([...CONTRACT_STATES].sort());
+    });
+
+    it('takes "today" from the business zone, joined once, and never from the UTC clock', () => {
+        // bc-aidp-next-golive#168: the server's UTC calendar day is already tomorrow for the whole
+        // American evening, so a contract ending 31 December read as Expired at 7 PM Central, and
+        // DaysToEnd, DaysUntilNoticeDeadline and the cancellation window all moved an evening early.
+        // ONE cross join, so every column in a row answers on the same day.
+        expect(flat).toContain('CROSS JOIN [__mj_BizAppsCommon].[fnBusinessToday]() AS bt');
+        expect(flat).not.toContain('GETUTCDATE');
+        expect(flat).toContain('DATEDIFF(day, bt.Today, g.EndDate)');
+        expect(flat).toContain('bt.Today >= DATEADD(day, -g.CancellationWindowDays, g.EndDate)');
+        expect(flat).toContain('bt.Today <= g.EndDate');
+    });
+
+    it('keeps IsAwaitingDocument narrowed to the Executed Agreement category', () => {
+        // Item 16 (V202609010100) was silently reverted by V202609202354, which re-created the view
+        // without the File/FileCategory joins — any linked file cleared the flag again. Nothing
+        // caught it: the two tests that guard this rule pin themselves to the migration that SEEDS
+        // the category row, not to the newest definer of the view. Asserted here, where "newest
+        // definer" is resolved, so the next re-creation that drops it fails.
+        expect(flat).toContain("fc.Name = 'Executed Agreement'");
+        expect(flat).toContain('JOIN [${mjSchema}].[FileCategory] fc');
     });
 
     it('derives State in the VIEW and nowhere else', () => {
