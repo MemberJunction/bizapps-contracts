@@ -8,12 +8,20 @@ on:
       - 'pnpm-lock.yaml'
       - 'pnpm-workspace.yaml'
       - 'packages/**'
+      # The guards over vwContracts read migrations/ — a migration-only change is
+      # EXACTLY the shape of #59, which reverted issue #28 item 16. Without this the
+      # unit step below cannot run on the change it most needs to see.
+      - 'migrations/**'
+      # ...and on the workflow itself, or a change to this file ships untested.
+      - '.github/workflows/build.yml'
   pull_request:
     branches: [next]
     paths:
       - 'pnpm-lock.yaml'
       - 'pnpm-workspace.yaml'
       - 'packages/**'
+      - 'migrations/**'
+      - '.github/workflows/build.yml'
 
 concurrency:
   group: build-${{ github.ref }}
