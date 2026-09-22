@@ -46,3 +46,20 @@ jobs:
 
       - name: Build all packages
         run: pnpm run build:packages
+
+      # Unit tests. Until this step existed, NO workflow in this repo ran a test —
+      # 350 of them, including the guards over vwContracts, were green only on
+      # whoever's laptop last ran them. That is how issue #28 item 16 was reverted
+      # in #59 and stayed reverted: the test watching it went green against a
+      # migration the database no longer runs last, and nothing was executing it
+      # anyway.
+      #
+      # `test:unit` is the ROOT vitest run, not `pnpm test`. The root config's
+      # include (packages/*/src/**/*.test.ts) collects all 26 files across
+      # CoreEntitiesServer, Entities and IntegrationTests, whereas the turbo `test`
+      # task fails on contracts-integration-tests — its per-package vitest finds no
+      # files and exits 1. That is tracked separately; it is a developer-facing
+      # break in `pnpm test`, not a gap in what CI covers.
+      - name: Unit tests
+        if: always()
+        run: pnpm run test:unit
