@@ -39,6 +39,7 @@
 import { Metadata, type IMetadataProvider } from '@memberjunction/core';
 import { MJC_ENTITIES, MJC_FOREIGN_ENTITIES } from './entity-names';
 import { ScopedRunView } from './provider';
+import { BUSINESS_TODAY_SQL } from './business-day';
 
 /**
  * The task type sales raises on Close-Won for finance to work through.
@@ -105,9 +106,23 @@ export async function BuildOpenTaskFilters(
 
     return {
         HasOpenTask: exists(''),
-        // Date, not datetime: "overdue" is a whole-day judgement, and comparing against the current
-        // instant would call a task due later today overdue all morning.
-        HasOverdueTask: exists(' AND t.DueAt < CAST(GETUTCDATE() AS date)'),
+        /*
+         * Date, not datetime: "overdue" is a whole-day judgement, and comparing against the current
+         * instant would call a task due later today overdue all morning.
+         *
+         * And the BUSINESS day, not the server's UTC day (bc-aidp-next-golive#168). `Task.DueAt` is
+         * written as UTC MIDNIGHT of a calendar day — bizapps-sales asserts it carries no time of
+         * day, precisely so "due today" cannot depend on the reader's zone — so this is a comparison
+         * between calendar days and the only open question is which day is today. On the UTC day
+         * every task due today read as overdue from 6 PM Central, in the same dashboard tile whose
+         * sibling counts come from `vwContracts` on `bt.Today`.
+         *
+         * `DueAt` is the one column here with no business-day day-count to filter on: it belongs to
+         * another app's view and is reached through the `EXISTS` above. So "today" is resolved in
+         * SQL, from the same function the view joins — see `BUSINESS_TODAY_SQL` for why not on the
+         * client.
+         */
+        HasOverdueTask: exists(` AND t.DueAt < ${BUSINESS_TODAY_SQL}`),
     };
 }
 

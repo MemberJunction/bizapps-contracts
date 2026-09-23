@@ -51,6 +51,7 @@ import { StatRowComponent, StatTileComponent, type StatTileTone } from '@mj-biz-
 import { MJC_ENTITIES, MJC_FOREIGN_ENTITIES, MJC_QUERIES, MJC_QUERY_CATEGORY } from '../data/entity-names';
 import { ScopedRunView } from '../data/provider';
 import { BuildOpenTaskFilters } from '../data/task-filters';
+import { NOTICE_WINDOW_PASSED, NoticeWindowWithin } from '../data/business-day';
 
 /**
  * Where a tile click goes. `Preset` names a filter pill on the destination page, because a tile that
@@ -433,16 +434,13 @@ export class MJCContractsDashboardPageComponent extends BaseDashboard {
     ): Promise<void> {
         const tile = this.tile('notice-deadlines');
         const live = `State IN ('Active','Executed')`;
+        // Both counts on the view's own `DaysUntilNoticeDeadline` (bc-aidp-next-golive#168), which is
+        // derived from `bt.Today`. On `CAST(GETUTCDATE() AS date)` this tile moved a deadline out of
+        // "upcoming" and into "missed" an evening before the record itself agreed — and the tile links
+        // straight to the pill that was answering the other way.
         const [upcoming, missed] = await Promise.all([
-            count(
-                'Notice deadlines',
-                `${live} AND RenewalNoticeDeadline BETWEEN CAST(GETUTCDATE() AS date) ` +
-                    `AND DATEADD(day, 60, CAST(GETUTCDATE() AS date))`,
-            ),
-            count(
-                'Missed deadlines',
-                `State = 'Active' AND RenewalNoticeDeadline < CAST(GETUTCDATE() AS date)`,
-            ),
+            count('Notice deadlines', `${live} AND ${NoticeWindowWithin(60)}`),
+            count('Missed deadlines', `State = 'Active' AND ${NOTICE_WINDOW_PASSED}`),
         ]);
         tile.Count = upcoming;
         tile.Detail = missed ? `${missed} missed` : null;

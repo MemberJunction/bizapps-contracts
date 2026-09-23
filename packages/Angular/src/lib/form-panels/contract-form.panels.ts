@@ -35,6 +35,7 @@ import {
     type DealOption,
 } from '@mj-biz-apps/contracts-entities';
 import { MJC_ENTITIES, MJC_FOREIGN_ENTITIES } from '../data/entity-names';
+import { DateAsText } from './contract-dates';
 
 const E = MJC_ENTITIES.Contract;
 
@@ -90,10 +91,16 @@ const FIELD_STYLES = `
     .mjc-fg .mj-forms-field--editing:hover { margin: 0; padding: 0; }
 `;
 
-function dateLabel(d: Date | string | null | undefined): string {
-    if (!d) return '—';
-    return new Date(d).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
-}
+/**
+ * One rendering of a stored calendar day, shared with the hero and the Dates tab.
+ *
+ * This function had the zone right — `timeZone: 'UTC'` on a UTC-midnight `DATE` is exactly the
+ * doctrine — and got the PARSE wrong in a narrower way: `new Date('2026-09-30T23:00:00-05:00')` is
+ * 1 October in UTC, so an offset-bearing stored string re-based onto the following day. `DateAsText`
+ * takes such a string as written. Kept as a name because the Overview template and three panels bind
+ * `dateLabel` directly.
+ */
+const dateLabel = DateAsText;
 
 function endsInText(days: number | null | undefined): string {
     if (days == null) return '';
@@ -332,7 +339,9 @@ export class MJCContractOverviewPanel extends BaseFormPanel<ContractEntity> {
     public get NoticeClock(): string {
         const d = this.Record?.RenewalNoticeDeadline;
         if (!d) return 'None';
-        const days = daysUntil(d);
+        const days = noticeDays(this.Record);
+        // The deadline is set but the derived count is absent — a row read without the wrapper view's
+        // columns. Print the date rather than guess a countdown from a day this panel does not know.
         if (days == null) return dateLabel(d);
         if (days < 0) return `${Math.abs(days)}d past`;
         if (days === 0) return 'Today';
@@ -341,7 +350,7 @@ export class MJCContractOverviewPanel extends BaseFormPanel<ContractEntity> {
     public get NoticeTone(): 'success' | 'warning' | 'muted' {
         const d = this.Record?.RenewalNoticeDeadline;
         if (!d) return 'muted';
-        const days = daysUntil(d);
+        const days = noticeDays(this.Record);
         if (days != null && days <= 30) return 'warning';
         return 'muted';
     }
@@ -369,7 +378,7 @@ export class MJCContractOverviewPanel extends BaseFormPanel<ContractEntity> {
         } else if (this.State === 'Active' && end != null && end <= 120) {
             out.push(`${termEndsText(end)}.`);
         }
-        const notice = daysUntil(this.Record.RenewalNoticeDeadline);
+        const notice = noticeDays(this.Record);
         if (notice != null && notice < 0) {
             out.push('Renewal notice deadline has already passed.');
         } else if (notice != null && notice <= 30) {
@@ -386,7 +395,7 @@ export class MJCContractOverviewPanel extends BaseFormPanel<ContractEntity> {
     public get NextMove(): string | null {
         if (this.Record?.IsAwaitingDocument) return 'Attach the executed agreement.';
         if (this.Record?.IsInCancellationWindow) return 'Cancellation window is open. Confirm whether the customer is renewing.';
-        const notice = daysUntil(this.Record?.RenewalNoticeDeadline);
+        const notice = noticeDays(this.Record);
         if (notice != null && notice <= 30) {
             return `Send the renewal notice. Deadline ${dateLabel(this.Record?.RenewalNoticeDeadline)}.`;
         }
@@ -422,16 +431,24 @@ export class MJCContractOverviewPanel extends BaseFormPanel<ContractEntity> {
     }
 }
 
-function daysUntil(d: Date | string | null | undefined): number | null {
-    if (!d) return null;
-    const iso = d instanceof Date
-        ? `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`
-        : String(d).slice(0, 10);
-    const t = Date.parse(`${iso}T00:00:00Z`);
-    if (!Number.isFinite(t)) return null;
-    const now = new Date();
-    const today = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
-    return Math.round((t - today) / 86_400_000);
+/**
+ * Days until the renewal-notice deadline, TAKEN FROM THE VIEW (bc-aidp-next-golive#168).
+ *
+ * This used to be `daysUntil(Record.RenewalNoticeDeadline)`, a local re-derivation that read the
+ * stored day from UTC parts — right — and then took "today" from the SERVER'S UTC clock, which is
+ * already tomorrow for the whole American evening. `vwContracts` derives `DaysToEnd` and
+ * `DaysUntilNoticeDeadline` from `bt.Today`, the BUSINESS day, so from 6 PM Central `NoticeClock`,
+ * `NoticeTone`, `Health` and `NextMove` were one day ahead of the `DaysToEnd` printed beside them on
+ * the same card — and `NextMove`'s `notice <= 30` cutoff fired a day early.
+ *
+ * REPLACED RATHER THAN CORRECTED. Reading the business zone on the client would make the two agree
+ * only while a browser clock and a cached engine setting agreed with the database. The view already
+ * computed the answer, in the same row, from the same `bt.Today` as everything else the card prints;
+ * the second implementation was the defect, not its anchor. `DaysToEnd` was always read this way,
+ * three lines above, which is why the two disagreed at all.
+ */
+function noticeDays(record: ContractEntity | null | undefined): number | null {
+    return record?.DaysUntilNoticeDeadline ?? null;
 }
 
 /* ── Field sections ───────────────────────────────────────────────────────── */

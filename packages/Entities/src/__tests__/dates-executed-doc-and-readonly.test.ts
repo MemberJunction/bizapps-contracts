@@ -12,13 +12,26 @@
  * item 12 against the source text, which is exactly the sort of assertion that fails the moment the
  * behaviour is delivered by a different, equally correct implementation.
  *
- * WHAT IS STILL WORTH HAVING HERE about item 13 is narrower: item 16's migration re-creates the whole
- * view, so it must carry item 13's boundary forward rather than reverting it. Two files editing the
- * same predicate is how one silently wins, and the later migration is the one that does.
+ * WHAT IS STILL WORTH HAVING HERE about item 13 is narrower: whichever migration defines the view
+ * LAST re-creates the whole thing, so it must carry item 13's boundary forward rather than reverting
+ * it. Two files editing the same predicate is how one silently wins, and the later migration is the
+ * one that does.
+ *
+ * ⚠ WHICH FILE THAT IS MUST BE RESOLVED, AND THIS FILE USED TO PIN IT. The seed marker below finds
+ * the migration that SEEDS the category row — V202609010100 — which is right for the seed and wrong
+ * for the view: `V202609202354` re-created the view and dropped item 16's category gate, and
+ * `V202609211200` re-created it again onto the business day, while every view assertion here carried
+ * on reading the 1 September file and passing. A guard whose whole subject is "the later migration
+ * is the one that decides" was watching a superseded one — the same trap `contract-state.test.ts`
+ * fell into three times.
+ *
+ * So the two subjects are now resolved separately and named separately. SEED assertions read the
+ * seeding migration; VIEW assertions read `newestViewDefiner()`, the shared resolver.
  */
 import { readFileSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
+import { newestViewDefiner } from './helpers/view-definer.js';
 
 const root = (p: string) => fileURLToPath(new URL('../../../../' + p, import.meta.url));
 const strip = (t: string) => t.replace(/\/\*[\s\S]*?\*\//g, '').replace(/<!--[\s\S]*?-->/g, '');
@@ -26,13 +39,20 @@ const strip = (t: string) => t.replace(/\/\*[\s\S]*?\*\//g, '').replace(/<!--[\s
 const PANELS = strip(readFileSync(root('packages/Angular/src/lib/form-panels/contract.panels.ts'), 'utf8'));
 const FORM_FIELDS_RAW = readFileSync(root('packages/Angular/src/lib/form-panels/contract-form.panels.ts'), 'utf8');
 
-/** SQL with `--` line comments removed. Item 16's migration header discusses both date boundaries at
- *  length, in order to explain why a file about executed documents sets the Terminated predicate at
- *  all — so an absence check against the raw text reports the explanation as the defect. */
-const sqlCode = (t: string) => t.replace(/^\s*--.*$/gm, '');
+/**
+ * THE NEWEST DEFINER OF `vwContracts` — `.flat` is its SQL with both comment forms stripped and
+ * whitespace normalised.
+ *
+ * Comments stripped because the #168 header discusses both date boundaries, and the category gate,
+ * at length in order to explain itself — so an absence check against raw text reports the
+ * explanation as the defect, and a presence check is satisfied by the prose describing a predicate
+ * that is no longer there.
+ */
+const VIEW = newestViewDefiner(root('migrations'), 'vwContracts');
 
 /**
- * The item-16 migration, identified by the one thing only IT contains.
+ * The migration that SEEDS the category row, identified by the one thing only IT contains. This is
+ * the right subject for the seed assertions and the wrong one for the view — see the header.
  *
  * ⚠ THIS USED TO FLAKE, and the failure mode is worth stating because the obvious fix does not fix
  * it. The helper matched `fc.Name = 'Executed Agreement'` and returned the FIRST hit from an
@@ -44,8 +64,8 @@ const sqlCode = (t: string) => t.replace(/^\s*--.*$/gm, '');
  * SORTING WOULD NOT HAVE FIXED IT EITHER, only hidden it: `.sort().pop()` would silently re-target
  * the moment a third migration touched the view, which is exactly what happened to
  * `contract-state.test.ts`. So the match is on the category SEED — the `INSERT INTO … FileCategory`
- * that creates the row — which item 16 owns and item 13's view rewrite does not carry. Exactly one
- * file can match, and the count is asserted rather than assumed.
+ * that creates the row — which item 16 owns and no view rewrite carries. Exactly one file can match,
+ * and the count is asserted rather than assumed.
  */
 const MIGRATION_MARKER = 'INSERT INTO [${mjSchema}].[FileCategory]';
 const migrationFiles = (): string[] => {
@@ -69,13 +89,14 @@ describe('item 16 — only the executed agreement clears the flag', () => {
     });
 
     it('the view requires the file to carry the category', () => {
-        const m = migration();
-        expect(m).not.toBe('');
-        expect(m).toContain('[FileCategory]');
-        expect(m).toContain("fc.Name = 'Executed Agreement'");
+        // AGAINST THE NEWEST DEFINER, not the seeding migration. This assertion read V202609010100
+        // straight through V202609202354 dropping the category gate — it was green for the whole
+        // day the bug shipped, describing a file the database no longer ran last.
+        expect(VIEW.flat).toContain('[FileCategory]');
+        expect(VIEW.flat).toContain("fc.Name = 'Executed Agreement'");
         // The link and file must still be joined — the category alone proves nothing about THIS record.
-        expect(m).toContain('[FileEntityRecordLink]');
-        expect(m).toContain('f.ID = fl.FileID');
+        expect(VIEW.flat).toContain('[FileEntityRecordLink]');
+        expect(VIEW.flat).toContain('f.ID = fl.FileID');
     });
 
     it('seeds the category idempotently, by name', () => {
@@ -85,36 +106,51 @@ describe('item 16 — only the executed agreement clears the flag', () => {
     });
 
     it('resolves both lookups by name, never a hardcoded id', () => {
-        const m = migration();
-        expect(m).toContain("e.Name = 'MJ_BizApps_Contracts: Contracts'");
-        // NEWID() for the seeded row is fine; a literal UUID anywhere else is not.
-        expect(m.replace(/NEWID\(\)/g, '')).not.toMatch(/'[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-/);
+        // The Entity lookup is in the VIEW, so it is asserted against the newest definer.
+        expect(VIEW.flat).toContain("e.Name = 'MJ_BizApps_Contracts: Contracts'");
+        // NEWID() for the seeded row is fine; a literal UUID anywhere else is not. Against the RAW
+        // text of both files, deliberately: a hardcoded id is no more acceptable in a comment that
+        // invites the next author to paste it than it is in the SQL, and stripping comments here
+        // would only make this absence check weaker.
+        const noNewId = (t: string) => t.replace(/NEWID\(\)/g, '');
+        expect(noNewId(migration())).not.toMatch(/'[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-/);
+        expect(noNewId(readFileSync(root('migrations/' + VIEW.file), 'utf8')))
+            .not.toMatch(/'[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-/);
     });
 
     it('leaves the type gate alone — a Payment Link never awaits paper', () => {
-        expect(migration()).toContain('ct.RequiresExecutedDocument = 1');
+        expect(VIEW.flat).toContain('ct.RequiresExecutedDocument = 1');
     });
 
     it('carries item 13\u2019s Terminated boundary forward rather than reverting it', () => {
         /*
          * THE DIRECTION OF THIS CHECK IS THE POINT, and it is the opposite of what it once was.
          *
-         * Item 13 made Terminated inclusive (`<=`) in V202608300100. This migration sorts LATER and
-         * re-creates the whole view, because CREATE OR ALTER offers no way to edit one branch — so
-         * "leave that predicate to its owner" is not available here. Leaving it as written would
-         * quietly revert item 13 on every database that applied both, in a file whose subject is
-         * something else entirely. The later migration is the one that decides, so it has to decide
-         * correctly.
+         * Item 13 made Terminated inclusive (`<=`) in V202608300100. Every migration that sorts
+         * LATER re-creates the whole view, because CREATE OR ALTER offers no way to edit one branch —
+         * so "leave that predicate to its owner" is not available to any of them. Leaving it as
+         * written would quietly revert item 13 on every database that applied both, in a file whose
+         * subject is something else entirely. The later migration is the one that decides, so it has
+         * to decide correctly.
+         *
+         * WHICH IS WHY THE SUBJECT IS THE NEWEST DEFINER AND NOT ITEM 16'S FILE. Pinned to the seed
+         * migration this read V202609010100 for ever: it would have gone on passing about the
+         * 1 September boundary no matter what V202609202354 or V202609211200 did to the branch,
+         * which is the failure this test is describing, committed in the test that describes it.
          *
          * Expired stays `<`, which is not an inconsistency: an End Date is the last day the agreement
-         * covers, a Terminated Date is the day it stops.
+         * covers, a Terminated Date is the day it stops. Both boundaries are now compared against
+         * `bt.Today`, the business day (bc-aidp-next-golive#168), rather than the server's UTC day —
+         * the operators are what this pins, and they are unchanged.
          *
-         * Checked against the SQL rather than the file text, because the header discusses both
-         * boundaries in prose in order to explain exactly this.
+         * Checked against the SQL rather than the file text, because every one of those headers
+         * discusses both boundaries in prose in order to explain exactly this.
          */
-        expect(sqlCode(migration())).toContain('g.TerminatedDate <= CAST(GETUTCDATE() AS date)');
-        expect(sqlCode(migration())).not.toContain('g.TerminatedDate < CAST(GETUTCDATE() AS date)');
-        expect(sqlCode(migration())).toContain('g.EndDate < CAST(GETUTCDATE() AS date)');
+        expect(VIEW.flat).toContain('g.TerminatedDate <= bt.Today');
+        expect(VIEW.flat).not.toContain('g.TerminatedDate < bt.Today');
+        expect(VIEW.flat).toContain('g.EndDate < bt.Today');
+        // And no second clock left behind in the branch this is about.
+        expect(VIEW.flat).not.toContain('g.TerminatedDate <= CAST(GETUTCDATE() AS date)');
     });
 });
 

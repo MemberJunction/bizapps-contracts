@@ -146,6 +146,9 @@ importers:
 
   packages/Angular:
     dependencies:
+      '@mj-biz-apps/common-entities':
+        specifier: ^5.43.0
+        version: 5.44.0(@memberjunction/core@6.1.0-edge.4)(@memberjunction/global@6.1.0-edge.4)
       '@mj-biz-apps/common-ng':
         specifier: ^5.44.0
         version: 5.44.0(7e227a6dd4b07de95f74c795187a54f9)
@@ -159,12 +162,15 @@ importers:
       '@angular/compiler-cli':
         specifier: 21.1.3
         version: 21.1.3(@angular/compiler@21.1.3)(typescript@5.9.3)
+      '@types/node':
+        specifier: ^22.10.0
+        version: 22.20.1
       typescript:
         specifier: ^5.9.3
         version: 5.9.3
       vitest:
         specifier: ^4.0.18
-        version: 4.1.11(@types/node@25.9.5)(jsdom@26.1.0)
+        version: 4.1.11(@types/node@22.20.1)(jsdom@26.1.0)
 
   packages/CoreEntitiesServer:
     dependencies:
