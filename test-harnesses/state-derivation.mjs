@@ -34,10 +34,19 @@
  * say", so the save path would add number minting and audit rows — and audit rows would then block the
  * cleanup DELETE behind a foreign key.
  *
- * Date arithmetic is done in SQL against `GETUTCDATE()` so that "today" means the same thing to the
- * fixture and to the view. Computing it in Node would introduce the machine's timezone into a
- * comparison the view makes in UTC — which is the exact class of bug that made a stored `date` render
- * as the previous day in the UI.
+ * Date arithmetic is done IN SQL, against the same `[__mj_BizAppsCommon].[fnBusinessToday]()` the view
+ * joins, so that "today" means the same thing to the fixture and to the view. Computing it in Node
+ * would introduce the machine's timezone into a comparison the view does not make — which is the
+ * exact class of bug that made a stored `date` render as the previous day in the UI.
+ *
+ * IT USED TO ANCHOR ON `CAST(GETUTCDATE() AS date)`, AND `V202609211200` BROKE THAT (#168). The view
+ * now judges every boundary on `bt.Today` — the calendar day in the BUSINESS zone — while
+ * `GETUTCDATE()` is the server's UTC day, which is already TOMORROW for the whole American evening.
+ * A fixture placed at "UTC today" is therefore at `bt.Today + 1` all evening, so `terminated TODAY`
+ * arrived as a future termination and read Active, `term ends TODAY` read Active-but-for-the-wrong-
+ * reason, and `effective TODAY` read Executed: three or more fixtures failing every evening on a
+ * correct view, which is how a harness stops being believed. Anchoring on the same function the view
+ * anchors on makes the fixtures say what they mean at every hour.
  *
  * Usage:  npm run test:state
  * Exit:   0 all fixtures correct · 1 a fixture disagrees · 2 bootstrap failure
@@ -117,6 +126,30 @@ try {
         process.exit(2);
     }
 
+    // The fixtures and the view must anchor on the SAME day. Without this the INSERT below fails with
+    // "invalid object name", which reads as a harness bug rather than as a database missing
+    // bizapps-common's business-time-zone migration — the same message V202609211200 guards against.
+    const fn = await pool.request()
+        .query(`SELECT OBJECT_ID('[__mj_BizAppsCommon].[fnBusinessToday]', 'IF') AS ObjectID`);
+    if (!fn.recordset[0]?.ObjectID) {
+        console.error(
+            'BOOTSTRAP: [__mj_BizAppsCommon].[fnBusinessToday]() is absent. Apply bizapps-common\'s ' +
+            'business-time-zone migration to this database first — vwContracts joins it (V202609211200).',
+        );
+        process.exit(2);
+    }
+
+    // Reported once, because a fixture that disagrees is read very differently depending on which day
+    // the view thinks it is: a run in the American evening has bt.Today one behind the UTC day.
+    const bt = await pool.request().query(`
+        SELECT CONVERT(varchar(10), b.[Today], 23) AS BusinessToday, b.SqlZone AS Zone,
+               CONVERT(varchar(10), CAST(GETUTCDATE() AS date), 23) AS UtcToday
+          FROM [__mj_BizAppsCommon].[fnBusinessToday]() b`);
+    const { BusinessToday, Zone, UtcToday } = bt.recordset[0] ?? {};
+    console.log(
+        `Business day: ${BusinessToday} (${Zone})${BusinessToday === UtcToday ? '' : ` — the UTC day is ${UtcToday}`}`,
+    );
+
     for (const [i, f] of FIXTURES.entries()) {
         // ExecutedDate is always set and in the past so 'Executed' is reachable; CK_Contract_Dates
         // only requires EndDate >= EffectiveDate.
@@ -124,16 +157,20 @@ try {
             .input('num', `${token}-${i}`).input('type', TypeID).input('co', CompanyID).input('org', OrgID)
             .query(`
             DECLARE @id uniqueidentifier = NEWID();
+            -- The BUSINESS day, read from the function the view itself joins (#168). Read ONCE into a
+            -- variable so every column of a fixture is placed relative to the same day even if the
+            -- run straddles midnight in the business zone.
+            DECLARE @today date = (SELECT TOP 1 b.[Today] FROM [__mj_BizAppsCommon].[fnBusinessToday]() b);
             INSERT INTO [${schema}].[Contract]
                 (ID, ContractNumber, ContractTypeID, CompanyID, CustomerOrganizationID,
                  AutoRenew, HasModifications, ExecutedDate, EffectiveDate, EndDate, TerminatedDate,
                  SupersededByContractID)
             VALUES
                 (@id, @num, @type, @co, @org, 0, 0,
-                 DATEADD(day, -300, CAST(GETUTCDATE() AS date)),
-                 DATEADD(day, ${f.effective}, CAST(GETUTCDATE() AS date)),
-                 DATEADD(day, ${f.end}, CAST(GETUTCDATE() AS date)),
-                 ${f.terminated === null ? 'NULL' : `DATEADD(day, ${f.terminated}, CAST(GETUTCDATE() AS date))`},
+                 DATEADD(day, -300, @today),
+                 DATEADD(day, ${f.effective}, @today),
+                 DATEADD(day, ${f.end}, @today),
+                 ${f.terminated === null ? 'NULL' : `DATEADD(day, ${f.terminated}, @today)`},
                  ${f.superseded ? `(SELECT TOP 1 ID FROM [${schema}].[Contract] WHERE ContractNumber <> @num)` : 'NULL'});
             SELECT v.[State] AS SqlState, v.[NonRenewalOutcome] AS SqlOutcome
               FROM [${schema}].[vwContracts] v WHERE v.ID = @id;`);

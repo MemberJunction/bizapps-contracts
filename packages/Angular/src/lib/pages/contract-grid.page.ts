@@ -30,6 +30,7 @@ import { BaseFormsModule } from '@memberjunction/ng-base-forms';
 import { MJC_ENTITIES } from '../data/entity-names';
 import { ScopedRunView } from '../data/provider';
 import { BuildOpenTaskFilters } from '../data/task-filters';
+import { NOTICE_WINDOW_OPEN, NOTICE_WINDOW_PASSED } from '../data/business-day';
 import { MJCFkNavigateDirective } from '../directives/fk-navigate.directive';
 
 /** One filter pill: a label, the SQL it contributes, and a live count. */
@@ -475,13 +476,20 @@ export class MJCRenewalsPageComponent extends MJCContractGridPageBase {
             {
                 Id: 'notice-open',
                 Label: 'Notice window open',
-                Filter: 'RenewalNoticeDeadline IS NOT NULL AND RenewalNoticeDeadline >= CAST(GETUTCDATE() AS date)',
+                // THE VIEW'S OWN DAY-COUNT, like `next120` above it (bc-aidp-next-golive#168).
+                // This compared the deadline against `CAST(GETUTCDATE() AS date)` — the server's UTC
+                // day, already tomorrow for the whole American evening — so from 6 PM Central the pill
+                // dropped a contract whose record still said there was notice time left.
+                // `DaysUntilNoticeDeadline` is derived from `bt.Today` in the same row, so the pill
+                // and the row it hides can no longer disagree. NULL (no end date or no notice period)
+                // fails the comparison, which is the `IS NOT NULL` this used to spell out.
+                Filter: NOTICE_WINDOW_OPEN,
                 Hint: 'We can still give notice in time',
             },
             {
                 Id: 'notice-missed',
                 Label: 'Notice window passed',
-                Filter: 'RenewalNoticeDeadline IS NOT NULL AND RenewalNoticeDeadline < CAST(GETUTCDATE() AS date)',
+                Filter: NOTICE_WINDOW_PASSED,
                 Hint: 'The deadline to give notice has gone by — surfaced rather than hidden',
             },
             { Id: 'auto', Label: 'Auto-renewing', Filter: 'AutoRenew = 1', Hint: 'Renews unless someone acts' },

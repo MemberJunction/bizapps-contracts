@@ -19,6 +19,7 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { EXECUTED_AGREEMENT_FILE_CATEGORY } from '../executed-agreement.js';
+import { newestViewDefiner } from './helpers/view-definer.js';
 
 const root = (p: string) => fileURLToPath(new URL('../../../../' + p, import.meta.url));
 const strip = (t: string) => t.replace(/\/\*[\s\S]*?\*\//g, '').replace(/<!--[\s\S]*?-->/g, '');
@@ -28,11 +29,20 @@ const PUBLIC_API = readFileSync(root('packages/Angular/src/public-api.ts'), 'utf
 const ENTITY_NAMES = readFileSync(root('packages/Angular/src/lib/data/entity-names.ts'), 'utf8');
 
 /**
- * The item-16 migration, identified by the category SEED — the one thing only it contains (see the
- * flake note in dates-executed-doc-and-readonly.test.ts for why the match is on the INSERT and not on
- * the view predicate, which a later view rewrite would also carry).
+ * The two subjects, resolved separately, because they are two different files and stopped being the
+ * same one on 2026-09-20.
+ *
+ * The SEED is identified by the category INSERT — the one thing only item 16's migration contains
+ * (see the flake note in dates-executed-doc-and-readonly.test.ts for why the match is on the INSERT
+ * and not on the view predicate, which a later view rewrite would also carry).
+ *
+ * The VIEW is whatever migration defines `vwContracts` LAST, through the shared resolver. It has to
+ * be resolved rather than pinned for the reason this whole helper exists: `V202609202354` re-created
+ * the view without the category gate and `V202609211200` re-created it again, so "the migration that
+ * seeds the row" has not been the migration that matches on it for some time.
  */
 const MIGRATION_MARKER = 'INSERT INTO [${mjSchema}].[FileCategory]';
+const VIEW = newestViewDefiner(fileURLToPath(new URL('../../../../migrations/', import.meta.url)), 'vwContracts');
 const migration = (): string => {
     const dir = root('migrations');
     const found = readdirSync(dir)
@@ -50,7 +60,10 @@ describe('one spelling of the category name', () => {
     });
 
     it('and the name the view resolves on', () => {
-        expect(migration()).toContain(`fc.Name = '${EXECUTED_AGREEMENT_FILE_CATEGORY}'`);
+        // THE NEWEST DEFINER, not the seeding migration. Pinned to the seed this read V202609010100
+        // for ever and stayed green through V202609202354 dropping the predicate altogether — the
+        // same trap `dates-executed-doc-and-readonly.test.ts` was in, and the third copy of it.
+        expect(VIEW.flat).toContain(`fc.Name = '${EXECUTED_AGREEMENT_FILE_CATEGORY}'`);
     });
 
     it('the panel looks the category up BY NAME through the constant, never a literal or an id', () => {
