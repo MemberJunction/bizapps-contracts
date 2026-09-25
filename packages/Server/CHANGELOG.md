@@ -1,5 +1,14 @@
 # @mj-biz-apps/contracts-server
 
+## 0.7.1
+
+### Patch Changes
+
+- Updated dependencies [b561a29]
+  - @mj-biz-apps/contracts-core-entities-server@0.7.1
+  - @mj-biz-apps/contracts-actions@0.7.1
+  - @mj-biz-apps/contracts-entities@0.7.1
+
 ## 0.7.0
 
 ### Patch Changes
