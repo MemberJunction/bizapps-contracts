@@ -1,5 +1,7 @@
 # @mj-biz-apps/contracts-actions
 
+## 0.7.1
+
 ## 0.7.0
 
 ## 0.6.0
