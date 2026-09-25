@@ -17,8 +17,48 @@ import {
     ValidationResult,
 } from '@memberjunction/core';
 import { RegisterClass, UUIDsEqual } from '@memberjunction/global';
-import { ContractEntity, IsSameContractLevel } from '@mj-biz-apps/contracts-entities';
+import {
+    ContractEntity,
+    CurrentTemplateFilter,
+    CurrentTemplateOrderBy,
+    IsSameContractLevel,
+    MayWriteDefaultTemplate,
+} from '@mj-biz-apps/contracts-entities';
 import { GuardedDelete, plural } from './delete-guard.js';
+
+/**
+ * The template a contract being CREATED should carry when its creator named none, or null to leave
+ * the field alone (golive #269).
+ *
+ * WHY THE SERVER DEFAULTS AT ALL. #218 put this default in the Agreement panel, so a contract made
+ * anywhere else — Closed Won in sales, an import, a script — reached `ValidateAsync` with no
+ * template, and every Order Form or Payment Link among them was refused by the `TemplateRequired`
+ * rule. Defaulting here gives every creation path the same starting value as the form.
+ *
+ * Same decisions as the panel, read from the same place: {@link MayWriteDefaultTemplate} says the
+ * field may be written, `TemplateRequired` says the type wants a template, and the caller's query
+ * uses `CurrentTemplateFilter` / `CurrentTemplateOrderBy`. With no persisted default to revisit,
+ * "ours" never applies, so only an empty field on an unsaved contract qualifies — a value any caller
+ * supplied is never replaced.
+ *
+ * NO CANDIDATE IS NOT AN ERROR HERE. It returns null, the field stays empty, and `ValidateAsync`
+ * refuses the save with the type's own message — the same outcome as before this default existed.
+ *
+ * Takes its two reads as callbacks so a unit test can assert which of them run without a provider.
+ * The type is read only when the field is writable, so a saved contract pays nothing.
+ */
+export async function ResolveServerDefaultTemplate(
+    state: { isSaved: boolean; contractTypeID: string | null | undefined; currentTemplateID: string | null | undefined },
+    readTemplateRequired: () => Promise<boolean>,
+    readCurrentTemplateID: () => Promise<string | null>,
+): Promise<string | null> {
+    if (!(state.contractTypeID ?? '').trim()) return null;
+    if (!MayWriteDefaultTemplate({ isSaved: state.isSaved, currentTemplateID: state.currentTemplateID, lastDefaultedID: null })) {
+        return null;
+    }
+    if (!(await readTemplateRequired())) return null;
+    return (await readCurrentTemplateID()) ?? null;
+}
 
 /**
  * Whether a foreign key is being CHOSEN right now, as opposed to merely being present.
@@ -66,7 +106,8 @@ const UUID_SHAPE = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}
 @RegisterClass(BaseEntity, 'MJ_BizApps_Contracts: Contracts')
 export class ContractEntityServer extends ContractEntity {
     /**
-     * Mint `ContractNumber` on first save, then persist.
+     * Mint `ContractNumber` on first save, default an empty `ContractTemplateID` when the type requires
+     * one (see {@link ResolveServerDefaultTemplate}), then persist.
      *
      * WHY THE NUMBER IS MINTED HERE and not defaulted in SQL. It comes from a singleton counter that
      * has to be taken under a lock inside the save's own transaction, so a rollback releases the
@@ -94,6 +135,16 @@ export class ContractEntityServer extends ContractEntity {
                 // validates below, and on an unsaved record a system-assigned number is
                 // indistinguishable from a hand-typed one by shape alone.
                 this.NumberWasSystemAssigned = true;
+            }
+            // Before `super.Save()`, because that is where `ValidateAsync` runs and refuses a missing
+            // template on a type that requires one.
+            const template = await ResolveServerDefaultTemplate(
+                { isSaved: this.IsSaved, contractTypeID: this.ContractTypeID, currentTemplateID: this.ContractTemplateID },
+                async () => !!(await this.typeRule())?.TemplateRequired,
+                () => this.currentTemplateID(),
+            );
+            if (template) {
+                this.ContractTemplateID = template;
             }
             return await super.Save();
         } catch (err) {
@@ -745,6 +796,31 @@ export class ContractEntityServer extends ContractEntity {
      * database on the next validation because a new entity instance is what a new save uses.
      */
     private cachedTypeRule: ContractTypeRule | null | undefined = undefined;
+
+    /**
+     * The newest Published, usable template — the query the Agreement panel runs, on the server.
+     *
+     * A failed read is logged and returns null rather than throwing: the field stays empty and
+     * `ValidateAsync` refuses the save with the type's own message, which names what the user must do.
+     */
+    private async currentTemplateID(): Promise<string | null> {
+        const result = await this.RunViewProviderToUse.RunView<{ ID: string }>(
+            {
+                EntityName: 'MJ_BizApps_Contracts: Contract Templates',
+                ExtraFilter: CurrentTemplateFilter,
+                OrderBy: CurrentTemplateOrderBy,
+                Fields: ['ID'],
+                MaxRows: 1,
+                ResultType: 'simple',
+            },
+            this.ContextCurrentUser,
+        );
+        if (!result?.Success) {
+            LogError(`ContractEntityServer could not read the current contract template: ${result?.ErrorMessage ?? 'unknown error'}`);
+            return null;
+        }
+        return result.Results?.[0]?.ID ?? null;
+    }
 
 
     /**
