@@ -8,6 +8,12 @@ on:
       - 'pnpm-lock.yaml'
       - 'pnpm-workspace.yaml'
       - 'packages/**'
+      # package.json affects resolution (overrides, deps), like pnpm-workspace.yaml.
+      - 'package.json'
+      # Every package tsconfig extends a root tsconfig, and turbo.json defines the
+      # build graph and its hashing: both change build output.
+      - 'tsconfig.*.json'
+      - 'turbo.json'
       # The guards over vwContracts read migrations/ — a migration-only change is
       # EXACTLY the shape of #59, which reverted issue #28 item 16. Without this the
       # unit step below cannot run on the change it most needs to see.
@@ -20,6 +26,9 @@ on:
       - 'pnpm-lock.yaml'
       - 'pnpm-workspace.yaml'
       - 'packages/**'
+      - 'package.json'
+      - 'tsconfig.*.json'
+      - 'turbo.json'
       - 'migrations/**'
       - '.github/workflows/build.yml'
 
