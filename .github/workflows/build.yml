@@ -18,6 +18,15 @@ on:
       # EXACTLY the shape of #59, which reverted issue #28 item 16. Without this the
       # unit step below cannot run on the change it most needs to see.
       - 'migrations/**'
+      # The root vitest config decides which test files the unit step collects, and
+      # tests under packages/ read metadata/ files: either can change test outcomes.
+      - 'vitest.config.ts'
+      - 'metadata/**'
+      # .npmrc sets install behavior (auto-install-peers=false), and the build runs
+      # these two check scripts before installing.
+      - '.npmrc'
+      - '.github/scripts/validate-package-repository.sh'
+      - '.github/scripts/validate-package-files.sh'
       # ...and on the workflow itself, or a change to this file ships untested.
       - '.github/workflows/build.yml'
   pull_request:
@@ -30,6 +39,11 @@ on:
       - 'tsconfig.*.json'
       - 'turbo.json'
       - 'migrations/**'
+      - 'vitest.config.ts'
+      - 'metadata/**'
+      - '.npmrc'
+      - '.github/scripts/validate-package-repository.sh'
+      - '.github/scripts/validate-package-files.sh'
       - '.github/workflows/build.yml'
 
 concurrency:
