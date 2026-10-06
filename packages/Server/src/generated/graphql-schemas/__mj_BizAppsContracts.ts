@@ -800,6 +800,18 @@ export class mjBizAppsContractsContractType_ {
     @Field() 
     _mj__UpdatedAt: Date;
         
+    @Field(() => Boolean, {nullable: true, description: `Seeds Contract.AutoRenew when a new contract picks this type. NULL means the type has no opinion and the contract is left alone — which is why this is nullable where the contract's own column is not. Copied once, on an unsaved contract; never consulted afterwards and never enforced.`}) 
+    DefaultAutoRenew?: boolean;
+        
+    @Field(() => Int, {nullable: true, description: `Seeds Contract.RenewalNoticeDays — the notice WE owe the customer before a renewal price change. NULL means no default. A starting point for whoever reads the paper, not a term of any agreement.`}) 
+    DefaultRenewalNoticeDays?: number;
+        
+    @Field(() => Int, {nullable: true, description: `Seeds Contract.CancellationWindowDays — the notice the CUSTOMER owes us to cancel. Deliberately a separate default from the renewal notice even where a type sets them equal: one obligation is ours and the other theirs, and a single default would hide that.`}) 
+    DefaultCancellationWindowDays?: number;
+        
+    @Field(() => Float, {nullable: true, description: `Seeds Contract.AnnualIncreasePercent — the year-over-year uplift this kind of agreement usually carries. NULL means no default. Same precision as the column it seeds, so a legal default can never seed an unsaveable contract.`}) 
+    DefaultAnnualIncreasePercent?: number;
+        
     @Field(() => [String], { nullable: true, description: `Field-level security: when non-null, the fields on this entity the calling user may read. Any other field arriving as null was withheld by the server rather than genuinely empty. Null for callers with no field restrictions.` })
     ReadableFields___?: string[];
         
@@ -834,6 +846,18 @@ export class CreatemjBizAppsContractsContractTypeInput {
     @Field(() => Boolean, { nullable: true })
     TemplateRequired?: boolean;
 
+    @Field(() => Boolean, { nullable: true })
+    DefaultAutoRenew: boolean | null;
+
+    @Field(() => Int, { nullable: true })
+    DefaultRenewalNoticeDays: number | null;
+
+    @Field(() => Int, { nullable: true })
+    DefaultCancellationWindowDays: number | null;
+
+    @Field(() => Float, { nullable: true })
+    DefaultAnnualIncreasePercent: number | null;
+
     @Field(() => RestoreContextInput, { nullable: true })
     RestoreContext___?: RestoreContextInput;
 }
@@ -867,6 +891,18 @@ export class UpdatemjBizAppsContractsContractTypeInput {
 
     @Field(() => Boolean, { nullable: true })
     TemplateRequired?: boolean;
+
+    @Field(() => Boolean, { nullable: true })
+    DefaultAutoRenew?: boolean | null;
+
+    @Field(() => Int, { nullable: true })
+    DefaultRenewalNoticeDays?: number | null;
+
+    @Field(() => Int, { nullable: true })
+    DefaultCancellationWindowDays?: number | null;
+
+    @Field(() => Float, { nullable: true })
+    DefaultAnnualIncreasePercent?: number | null;
 
     @Field(() => [KeyValuePairInput], { nullable: true })
     OldValues___?: KeyValuePairInput[];
@@ -1076,7 +1112,7 @@ export class mjBizAppsContractsContract_ {
     CustomerOrganization?: string;
         
     @Field({nullable: true}) 
-    @MaxLength(100)
+    @MaxLength(201)
     PrimaryContactPerson?: string;
         
     @Field({nullable: true}) 
