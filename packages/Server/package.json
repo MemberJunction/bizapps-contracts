@@ -22,10 +22,10 @@
     "class-validator": "^0.14.3"
   },
   "peerDependencies": {
-    "@memberjunction/core": "~6.1.4",
-    "@memberjunction/global": "~6.1.4",
-    "@memberjunction/server": "~6.1.4",
-    "@memberjunction/sqlserver-dataprovider": "~6.1.4"
+    "@memberjunction/core": "~6.1.5",
+    "@memberjunction/global": "~6.1.5",
+    "@memberjunction/server": "~6.1.5",
+    "@memberjunction/sqlserver-dataprovider": "~6.1.5"
   },
   "devDependencies": {
     "typescript": "^5.9.3"
