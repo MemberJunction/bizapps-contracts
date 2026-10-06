@@ -1,5 +1,11 @@
 # @mj-biz-apps/contracts-actions
 
+## 0.7.2
+
+### Patch Changes
+
+- 9906d08: Builds against MemberJunction 6.1.5, the 6.1 LTS line AIDP Next runs, and regenerates from a database built from migrations. Contract Type gets back its four renewal defaults (`DefaultAutoRenew`, `DefaultRenewalNoticeDays`, `DefaultCancellationWindowDays`, `DefaultAnnualIncreasePercent`) in the entity class, GraphQL types and form, and `PrimaryContactPerson` widens to 201 characters to match the view.
+
 ## 0.7.1
 
 ## 0.7.0
