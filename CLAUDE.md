@@ -83,7 +83,7 @@ The consequence, because it fails quietly: a `metadata/` edit that a host needs 
 it merges. Nothing in CI detects a pending metadata change with no migration behind it — the app
 installs cleanly either way — so it is done only when a release carries it.
 
-The full release-time process is in the [Release Metadata Migrations Guide](https://github.com/MemberJunction/MJ/blob/next/guides/RELEASE_METADATA_MIGRATIONS_GUIDE.md).
+The model, and the Open App steps that differ from core (`--schema`, the `${mjSchema}` substitution): [Release Metadata Migrations Guide](https://github.com/MemberJunction/MJ/blob/next/guides/RELEASE_METADATA_MIGRATIONS_GUIDE.md).
 
 The review test: *if a colleague pulls this branch onto a database that already has last week's
 schema and runs `pnpm run mj:migrate`, do they get exactly the schema this branch describes?*
