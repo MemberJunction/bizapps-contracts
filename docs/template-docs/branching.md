@@ -40,7 +40,7 @@ feature branch ──PR──▶ next ──(Version Packages PR)──▶ main 
    GitHub App token, so its checks run). It carries the bump, the CHANGELOGs,
    `mj-app.json`'s version and range, and a refreshed `pnpm-lock.yaml`.
    **That PR is the release** — there is no hand-opened `next` → `main` PR.
-2. PRs into `main` run `release-readiness.yml` (the six `rr:` checks) and
+2. PRs into `main` run `release-readiness.yml` (the `rr:` checks) and
    `build.yml`. Review and merge when you are ready to release.
 3. The push to `main` runs `publish.yml`: validate → build → `changeset publish`
    (every package whose version is not already on the registry) → tag `vX.Y.Z`
