@@ -1,66 +1,56 @@
 name: Build All Packages
 
+permissions:
+  contents: read
+
 on:
   workflow_dispatch:
   push:
     branches: [next]
     paths:
       - 'pnpm-lock.yaml'
-      - 'pnpm-workspace.yaml'
       - 'packages/**'
-      # package.json affects resolution (overrides, deps), like pnpm-workspace.yaml.
-      - 'package.json'
-      # Every package tsconfig extends a root tsconfig, and turbo.json defines the
-      # build graph and its hashing: both change build output.
-      - 'tsconfig.*.json'
-      - 'turbo.json'
-      # The guards over vwContracts read migrations/ — a migration-only change is
-      # EXACTLY the shape of #59, which reverted issue #28 item 16. Without this the
-      # unit step below cannot run on the change it most needs to see.
-      - 'migrations/**'
-      # The root vitest config decides which test files the unit step collects, and
-      # tests under packages/ read metadata/ files: either can change test outcomes.
-      - 'vitest.config.ts'
-      - 'metadata/**'
-      # .npmrc sets install behavior (auto-install-peers=false), and the build runs
-      # these two check scripts before installing.
-      - '.npmrc'
-      - '.github/scripts/validate-package-repository.sh'
-      - '.github/scripts/validate-package-files.sh'
-      # ...and on the workflow itself, or a change to this file ships untested.
-      - '.github/workflows/build.yml'
   pull_request:
-    branches: [next]
-    paths:
-      - 'pnpm-lock.yaml'
-      - 'pnpm-workspace.yaml'
-      - 'packages/**'
-      - 'package.json'
-      - 'tsconfig.*.json'
-      - 'turbo.json'
-      - 'migrations/**'
-      - 'vitest.config.ts'
-      - 'metadata/**'
-      - '.npmrc'
-      - '.github/scripts/validate-package-repository.sh'
-      - '.github/scripts/validate-package-files.sh'
-      - '.github/workflows/build.yml'
+    # `ready_for_review` is NOT in the default type set (opened/synchronize/reopened),
+    # and the job below skips while the PR is a draft — without it, marking a PR ready
+    # would not re-trigger anything and the check would never report.
+    types: [opened, synchronize, reopened, ready_for_review]
+    # `main` included, and NO `paths` filter on the PR side. This context is required on
+    # `main`, and a workflow filtered out at the `on:` level creates no check run at all —
+    # a required context would then sit Pending forever. The release PR is also the one
+    # merge that most needs a build: it is what publishes to npm.
+    branches: [next, main]
 
 concurrency:
   group: build-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  build-only:
+  build:
+    # One condition, one exclusion, and the `push` arm has to come first: on a push
+    # `github.event.pull_request` is null, so a bare draft comparison would skip the job on
+    # every push to `next`.
+    #
+    #   * drafts — they DO fire opened/synchronize, so without this a draft burns a full run
+    #     on every push; the `ready_for_review` trigger above brings the check back.
+    #
+    # The Version Packages PR used to be excluded here too, on the reasoning that it only
+    # refreshed a lockfile nobody needed verified yet. It is now based on `main` and IS the
+    # release PR, so this is precisely the build that must not be skipped: the first place
+    # the refreshed lockfile meets --frozen-lockfile.
+    #
+    # A job skipped by `if:` still reports a conclusion, which satisfies a required check —
+    # unlike a workflow filtered out at the `on:` level, which creates no check run at all.
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
       # Must precede setup-node: `cache: 'pnpm'` needs pnpm already on PATH.
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4.3.0
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 24
           cache: 'pnpm'
@@ -69,8 +59,18 @@ jobs:
       - name: Validate repository.url in packages
         run: ./.github/scripts/validate-package-repository.sh
 
-      - name: Validate packages restrict what they ship
-        run: ./.github/scripts/validate-package-files.sh
+      # Runs on every PR, not only at publish. validate-package-lock-case.sh is a release gate, so
+      # a bug in the GATE would otherwise be discovered during a release — the one-level-up form of
+      # the failure it exists to prevent, and exactly what happened: it could not detect a mis-cased
+      # path at all. These fixtures drive the real script against throwaway repos, including the
+      # mis-cased cases that fail without the fix.
+      - name: CI guard script tests
+        run: ./.github/scripts/__tests__/validate-package-lock-case.test.sh
+
+      # Specs for the migration guards (and any repo-specific *.spec.mjs placed next to them).
+      # Plain node:test, no dependencies, so it runs before the install.
+      - name: CI guard specs
+        run: node --test .github/scripts/__tests__/*.spec.mjs
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -78,19 +78,11 @@ jobs:
       - name: Build all packages
         run: pnpm run build:packages
 
-      # Unit tests. Until this step existed, NO workflow in this repo ran a test —
-      # 350 of them, including the guards over vwContracts, were green only on
-      # whoever's laptop last ran them. That is how issue #28 item 16 was reverted
-      # in #59 and stayed reverted: the test watching it went green against a
-      # migration the database no longer runs last, and nothing was executing it
-      # anyway.
-      #
-      # `test:unit` is the ROOT vitest run, not `pnpm test`. The root config's
-      # include (packages/*/src/**/*.test.ts) collects all 26 files across
-      # CoreEntitiesServer, Entities and IntegrationTests, whereas the turbo `test`
-      # task fails on contracts-integration-tests — its per-package vitest finds no
-      # files and exits 1. That is tracked separately; it is a developer-facing
-      # break in `pnpm test`, not a gap in what CI covers.
-      - name: Unit tests
-        if: always()
-        run: pnpm run test:unit
+      # Runs even when the build failed (but not when the run was cancelled), so one run reports
+      # both the build error and any test failures. A failed step still fails the job, so the
+      # required `build` check blocks exactly as before. The repo's own `test` script: per-package
+      # turbo or a root `vitest run`, whichever really runs the suite. Packages that still echo a
+      # stub pass, so green means "nothing that has tests is failing", not "tested".
+      - name: Run tests
+        if: ${{ !cancelled() }}
+        run: pnpm run test
