@@ -1,5 +1,8 @@
 # Build state — contracts v2
 
+> **Historical.** Written during the v2 build in August 2026 and no longer maintained. The code,
+> [`docs/ERD.md`](../docs/ERD.md) and [`docs/database-migrations.md`](../docs/database-migrations.md) describe the current app.
+
 **Purpose:** this file is the durable memory of the build. It survives context compaction, agent
 handoff and machine restarts. **Update it at every phase boundary**, not just at the end.
 

@@ -1,5 +1,8 @@
 # `bizapps-contracts` — ERD (planned schema)
 
+> **Historical.** Written during the v2 build in August 2026 and no longer maintained. The code,
+> [`docs/ERD.md`](../docs/ERD.md) and [`docs/database-migrations.md`](../docs/database-migrations.md) describe the current app.
+
 > **This is the schema to BUILD. Nothing here exists yet.** The v1 schema (10 tables,
 > `migrations/B202608040001`) is **retired in full** — a clean-sheet replacement, per Amith's direction
 > in the 2026-08-16 planning meeting: *"throw away everything that's in there, let's start from scratch,

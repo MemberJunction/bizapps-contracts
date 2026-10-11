@@ -7,10 +7,6 @@
 // NOT put credentials here. Most settings have sensible package defaults; this
 // file only declares what is specific to this app's directory structure.
 //
-// TODO(template): everywhere you see "sample" or "@mj-biz-apps", replace with
-// your app's schema name and npm scope. The full rename checklist lives in
-// docs/template-docs/getting-started.md.
-//
 module.exports = {
   // ==========================================================================
   // CodeGen output — REQUIRED
@@ -107,8 +103,7 @@ module.exports = {
   // CodeGen writes the SQL it executed into ./migrations/codegen/. After a
   // schema/metadata change you fold that SQL into a proper V*__ migration file
   // and commit it TOGETHER with the regenerated code — that is the convention
-  // that keeps clean installs reproducible. See
-  // docs/codegen-and-metadata-migrations.md.
+  // that keeps clean installs reproducible. See docs/database-migrations.md.
   SQLOutput: {
     enabled: true,
     folderPath: './migrations/codegen/',

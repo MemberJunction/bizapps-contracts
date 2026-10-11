@@ -20,7 +20,7 @@ Nothing needs adding to the MJ worktree, and nothing needs adding to mjdev. `mj 
 config with cosmiconfig `search()` from `process.cwd()`, which walks **up** — so run from this repo
 and it finds *this repo's* `mj.config.cjs`, never MJ's. MJ's own docs (`guides/INTEGRATION_TESTING_QUICKSTART.md`)
 say "the repo root `mj.config.cjs`" throughout, meaning **MJ's** root; that phrasing has already
-convinced one agent the wiring was impossible from here. It is not — line 100 of our config is the wiring:
+convinced one agent the wiring was impossible from here. It is not — `testing.checkModules` in our config is the wiring:
 
 ```js
 testing: {
@@ -34,20 +34,26 @@ appended to whatever the config lists. `bizapps-orders` uses the identical arran
 ## Running
 
 ```bash
+# Build first: the runner imports this package and the two entity packages through their dist/.
+pnpm run build:packages
+
 # The fast inner loop. Boots the provider directly, no metadata, stack traces on failure.
 # contracts-world COMMITS a portfolio (CTR-WORLD) so Explorer has rows; the other bundles roll back.
-node test-harnesses/integration.mjs                       # every bundle (world first)
+pnpm run test:integration                                 # every bundle (world first)
 node test-harnesses/integration.mjs contracts-world        # seed visible contracts
 node test-harnesses/integration.mjs contracts-graph-save   # one bundle
 node test-harnesses/integration.mjs contracts-graph-save.GS3  # one check
 ```
+
+`pnpm run test:integration` is the root script for `node test-harnesses/integration.mjs`.
 
 Needs a working database and the instance `.env` (found by `test-harnesses/load-env.mjs`, which
 walks up rather than counting directories — both the 6.x parent-workspace and the legacy nested
 topology resolve).
 
 `TypeError: provider.QuoteSchemaAndView is not a function` on startup is **benign, pre-existing
-bootstrap noise** — observed, not suppressed. See `test-harnesses/parent-requirement.mjs:16`.
+bootstrap noise** — observed, not suppressed. See the "OBSERVED, NOT SUPPRESSED" note in the header
+of `test-harnesses/parent-requirement.mjs`.
 
 ### The recorded path (`mj test`) is not usable from this repo yet
 
@@ -61,7 +67,7 @@ own published testing packages and cannot resolve this private one, so every bun
 with `Unknown integration check bundle`:
 
 ```bash
-MJ_INTEGRATION_TEST=1 ./node_modules/.bin/mj test suite --name "BizApps Contracts Integration"
+MJ_INTEGRATION_TEST=1 pnpm exec mj test suite --name "BizApps Contracts Integration"
 ```
 
 ## Current state
@@ -73,7 +79,7 @@ tested machinery the rebuild deleted and stay gone.
 | Bundle | Covers |
 |---|---|
 | `contracts-world` | COMMITS CTR-WORLD: a published template, four customers, and a contract in every derived `State`, with relative dates and minted `CTR-` numbers |
-| `contracts-graph-save` | header + modifications atomicity, rollback on invalid, `HasModifications` monotonic, type/template rules — the D-15 acceptance test |
+| `contracts-graph-save` | header + modifications atomicity, rollback on invalid, `HasModifications` monotonic, duplicate provisions, type/template rules — the D-15 acceptance test |
 | `contracts-numbering` | `ContractNumber` CTR sequence, uniqueness under concurrency, reserved `CTR-` namespace |
 | `contracts-provisions` | seed completeness incl. text, natural order via `ProvisionSortKey` (`1.9` before `1.10`) |
 | `contracts-watchlist` | derived column **values** (`IsAwaitingDocument`, `DaysToEnd`, `RenewalNoticeDeadline`, `IsInCancellationWindow`, `State`). `IsChangeOrder` was removed from the view — W8 asserts `ParentContractID` instead |
@@ -125,9 +131,9 @@ package, *before ever reaching the registry*. That reads like "this repo can't s
 it is why the seam was reported missing when it had been wired all along.
 
 Only import what this repo declares. `bootstrap-lite` merely preloads MJ **core** class
-registrations and nothing here touches a core subclass — `parent-requirement.mjs:54` already
-documents the same conclusion. What actually matters is importing the packages whose subclasses carry
-the invariants under test:
+registrations and nothing here touches a core subclass — the comment above the package imports in
+`test-harnesses/parent-requirement.mjs` already documents the same conclusion. What actually matters
+is importing the packages whose subclasses carry the invariants under test:
 
 ```js
 await import('@mj-biz-apps/contracts-entities');

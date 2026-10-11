@@ -1,5 +1,8 @@
 # Design plan — Contracts obligation command center
 
+> **Historical.** An exploration that was not built. The dashboard that shipped is
+> `packages/Angular/src/lib/pages/contracts-dashboard.page.ts`.
+
 **Locked direction:** Sales-A-shaped command center, no money (plan §1).
 **Charts, not ARR.** Counts, calendars, and mix — paper / notice / ending / state.
 

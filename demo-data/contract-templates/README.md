@@ -21,10 +21,11 @@ The capture that shipped parses the page's HTML, joins inline tags so links insi
 
 ## Adding the NEXT version
 
-Two files, same shape as what is here. `directoryOrder` in `metadata/.mj-sync.json` sequences them:
-template types → templates → provisions. A new agreement is a **new template row**, never an edit to
-this one — signed contracts reference this version, and rewriting it would silently change what they
-say they incorporate.
+Two files, same shape as what is here. `directoryOrder` in `demo-data/.mj-sync.json` pushes
+templates before provisions; template types are vocabulary in `metadata/contract-template-types/`,
+which an install already has. A new agreement is a **new template row**, never an edit to this one —
+signed contracts reference this version, and rewriting it would silently change what they say they
+incorporate.
 
 **`.contract-templates.json`** — one record per MA VERSION, ever. A version is never edited in place;
 a new agreement means a new row, and the old one stays because signed contracts still reference it.
@@ -40,48 +41,60 @@ a new agreement means a new row, and the old one stays because signed contracts 
       "SourceURL": "https://…/master-agreement-2026-01-01.pdf",
       "Description": "The standard terms every Order Form and Payment Link incorporates from 2026-01-01."
     },
-    "primaryKey": { "ID": "33333333-0000-4000-8000-000000003001" }
+    "primaryKey": { "ID": "33333333-0000-4000-8000-000000003002" }
   }
 ]
 ```
 
-`SourceURL` is **NOT NULL** on purpose (ERD): a template version nobody can open is a row that claims
-to be the standard terms and cannot prove it. Use the dated URL, not a "current" link that changes
-underneath the record.
+`…3001` and `…4001`–`…4071` are taken by the 2026-02-02 version; reusing one would overwrite it.
 
-**`.contract-provisions.json`** — one record per numbered clause, `@parent`-referenced to its template
-so the file carries no copy of the template's id:
+`SourceURL` is nullable (baseline, `ContractTemplate`). The rule is "a URL or an attached document",
+and a document cannot attach to a row that does not exist yet, so the column cannot require it.
+Publishing enforces it (`ContractTemplateEntityServer`), and `IsUsable` on `vwContractTemplates`
+shows which versions can be read. Use the dated URL, not a "current" link that changes underneath
+the record.
+
+**`.contract-provisions.json`** — one record per numbered clause, in its own folder, naming its
+template by the template's fixed ID (`@parent:` only resolves inside a parent record's nested
+collection, which a separate folder is not):
 
 ```json
 [
   {
     "fields": {
-      "ContractTemplateID": "@parent:ID",
+      "ContractTemplateID": "33333333-0000-4000-8000-000000003002",
       "ProvisionNumber": "4.2",
       "Title": "Limitation of Liability",
-      "ProvisionText": "The full text of the clause, verbatim.",
-      "Sequence": 12
+      "ProvisionText": "The full text of the clause, verbatim."
     },
-    "primaryKey": { "ID": "33333333-0000-4000-8000-000000004012" }
+    "primaryKey": { "ID": "33333333-0000-4000-8000-000000004072" }
   }
 ]
 ```
 
-Three things that will bite:
+Four things that will bite:
 
-- **`Sequence` is what orders them, not `ProvisionNumber`.** Provision numbers do not sort as text —
-  `'10'` sorts before `'2'`, and real agreements use `4.2.1` forms. The `Provisions` collection
-  maintains `Sequence` gap-free (`{"Field":"Sequence","From":1}`), so set it to the reading order of
-  the document and let the collection renumber after edits.
-- **`ProvisionText` is nullable so an incomplete capture never blocks listing the provisions** — but
-  the seed should be complete. A provision with a number and no text is a picker entry finance cannot
-  read the standard clause from, which is half the point of D-16.
+- **Order comes from `ProvisionNumber`; there is no order column to set.** Provision numbers do not
+  sort as text — `'1.10'` sorts before `'1.9'`, and real agreements use `4.2.1` forms — so the table
+  carries `ProvisionSortKey`, a persisted computed column over `fnProvisionSortKey(ProvisionNumber)`,
+  and the `Provisions` collection orders by it. Nothing can write it; get the numbers right.
+- **`ProvisionText` is required**: `NOT NULL`, and `CK_ContractTemplateProvision_TextNotBlank` refuses
+  text that is empty once spaces are trimmed. A partial capture cannot be pushed.
+- **Push the template as `Draft` with all its provisions, then publish.** Once a version is
+  `Published`, `trg_ContractTemplateProvision_Immutability` refuses any provision added to it and any
+  change to a clause's number, title or text. A re-push of identical values still passes.
 - **Fixed UUIDs, never `NEWID()`.** A re-push against a rebuilt database must UPDATE these rows rather
   than mint a second set. The blocks reserved here: templates `…3xxx`, provisions `…4xxx`.
 
 ## Entering it by hand instead
 
 If there is no machine-readable source, item 7's registry UI is the sanctioned path — the template form
-with its Provisions editor writes through the **same** collection this seed does, so a list typed once
-in the UI is indistinguishable from a seeded one. `mj sync pull --dir metadata` then captures it back
-into these files, which is the cheapest way to produce them.
+lists provisions in MJ's stock related-entity grid, and a provision added there is the same
+`ContractTemplateProvision` row this seed writes, so a list typed once in the UI is indistinguishable
+from a seeded one. A pull then captures it back into these files, which is the cheapest way to
+produce them:
+
+```bash
+pnpm exec mj sync pull --entity "MJ_BizApps_Contracts: Contract Templates" --target-dir demo-data/contract-templates
+pnpm exec mj sync pull --entity "MJ_BizApps_Contracts: Contract Template Provisions" --target-dir demo-data/contract-provisions
+```

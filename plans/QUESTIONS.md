@@ -1,5 +1,8 @@
 # Open questions — answer-first
 
+> **Historical.** Written during the v2 build in August 2026 and no longer maintained. The code,
+> [`docs/ERD.md`](../docs/ERD.md) and [`docs/database-migrations.md`](../docs/database-migrations.md) describe the current app.
+
 Convention (PLANNING-SYSTEM.md §7): every entry **leads with the action already taken**, so work never
 stalls waiting for a reply. The question is supporting information. `⏸ HOLD` only where a decision is
 expensive to reverse.
