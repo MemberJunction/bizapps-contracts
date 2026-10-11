@@ -19,12 +19,16 @@
     "@mj-biz-apps/contracts-entities": "^0.7.2"
   },
   "peerDependencies": {
-    "@memberjunction/core": "~6.1.5",
-    "@memberjunction/core-entities": "~6.1.5",
-    "@memberjunction/global": "~6.1.5",
-    "@memberjunction/sqlserver-dataprovider": "~6.1.5"
+    "@memberjunction/core": "^6.1.5",
+    "@memberjunction/core-entities": "^6.1.5",
+    "@memberjunction/global": "^6.1.5",
+    "@memberjunction/sqlserver-dataprovider": "^6.1.5"
   },
   "devDependencies": {
+    "@memberjunction/core": "^6.1.5",
+    "@memberjunction/core-entities": "^6.1.5",
+    "@memberjunction/global": "^6.1.5",
+    "@memberjunction/sqlserver-dataprovider": "^6.1.5",
     "typescript": "^5.9.3",
     "vitest": "^4.0.18"
   },

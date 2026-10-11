@@ -23,10 +23,11 @@ on:
       - 'vitest.config.ts'
       - 'metadata/**'
       # .npmrc sets install behavior (auto-install-peers=false), and the build runs
-      # these two check scripts before installing.
+      # these three check scripts before installing.
       - '.npmrc'
       - '.github/scripts/validate-package-repository.sh'
       - '.github/scripts/validate-package-files.sh'
+      - '.github/scripts/check-dependency-model.mjs'
       # ...and on the workflow itself, or a change to this file ships untested.
       - '.github/workflows/build.yml'
   pull_request:
@@ -44,6 +45,7 @@ on:
       - '.npmrc'
       - '.github/scripts/validate-package-repository.sh'
       - '.github/scripts/validate-package-files.sh'
+      - '.github/scripts/check-dependency-model.mjs'
       - '.github/workflows/build.yml'
 
 concurrency:
@@ -65,6 +67,14 @@ jobs:
           node-version: 24
           cache: 'pnpm'
           cache-dependency-path: 'pnpm-lock.yaml'
+
+      # A host installs one copy of MemberJunction and of each Open App. @memberjunction/* (or another
+      # app's @mj-biz-apps/*) in `dependencies`, or a `~`/exact peer range, gives it a second copy and
+      # splits the class-factory registry. Needs only Node.
+      - name: Dependency model (MJ and sibling apps are caret peers)
+        run: |
+          node ./.github/scripts/check-dependency-model.mjs --self-test
+          node ./.github/scripts/check-dependency-model.mjs
 
       - name: Validate repository.url in packages
         run: ./.github/scripts/validate-package-repository.sh
