@@ -1,5 +1,16 @@
 # @mj-biz-apps/contracts-core-entities-server
 
+## 0.7.3
+
+### Patch Changes
+
+- c699079: MemberJunction and other BizApps packages are peer dependencies with caret ranges (`^6.1.5` for
+  MemberJunction; `common-entities` and `common-ng` move from `dependencies` to `^5.x` peers), so a
+  6.2 host keeps one copy of each instead of installing a second tree. MemberJunction
+  devDependencies and the root `pnpm.overrides` use the same `^6.1.5` floor. Adds `check-dependency-model` to CI.
+- Updated dependencies [c699079]
+  - @mj-biz-apps/contracts-entities@0.7.3
+
 ## 0.7.2
 
 ### Patch Changes
