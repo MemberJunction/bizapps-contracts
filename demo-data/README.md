@@ -1,7 +1,8 @@
 # `demo-data/` — sample records for demos and manual exploration
 
-**Not shipped.** This directory is deliberately OUTSIDE `metadata/`, so `mj sync push --dir metadata`
-(what an install runs) never touches it. Pushing it is an explicit, separate act:
+**Not shipped.** An install applies migrations and nothing else. `metadata/` reaches a host inside
+the `V…__Metadata_Sync.sql` migration generated at release; nothing carries this directory there.
+It reaches a database only when someone pushes it:
 
 ```bash
 pnpm run demo:load          # = mj sync push --dir demo-data
@@ -12,28 +13,22 @@ DOTENV_CONFIG_PATH=../mj/.env pnpm exec mj sync push --dir demo-data --format=js
 
 Push order is fixed by `.mj-sync.json` → `directoryOrder`: the template and its provisions first,
 then the companies, organisations, contracts and modifications that cite them. Every record is
-keyed by a fixed UUID, so a re-push **updates** rather than duplicating.
+keyed by a fixed UUID, so a re-push **updates** rather than duplicating. The records look up contract
+types and template types by name, so the vocabulary `metadata/` ships must already be in the
+database.
 
-## What is in here, and the one part that is real
+## What is in here
 
-`companies/`, `organizations/`, `contracts/` and `modifications/` are **invented** — made-up
-organisations with made-up fees, safe to publish and safe to demo.
+`organizations/`, `contracts/` and `modifications/` are **invented** — made-up organisations with
+made-up fees, safe to publish and safe to demo. `companies/` holds one record, the company on our
+side of every demo agreement, under its real name.
 
-`contract-templates/` and `contract-provisions/` are **not invented**. They are Blue Cypress's
-actual Master Services Agreement, 2026-02-02 edition — 71 provisions carrying their verbatim text,
-captured from the dated public URL the agreement is published at.
+`contract-templates/` and `contract-provisions/` are **not invented**: a real Master Services
+Agreement, 2026-02-02 edition — 71 provisions carrying their verbatim text, captured from the dated
+public URL it is published at ([`contract-templates/README.md`](contract-templates/README.md)).
 
-**They moved here from `metadata/` on 2026-08-24, and that was a correctness fix rather than
-housekeeping.** `metadata/` is what an install seeds, and it ships inside
-`V202608240300__…__Metadata_Sync.sql` — so every consumer of this app was receiving one company's
-contract terms as though they were reference data. Contract *types* and template *types* are
-genuine vocabulary and stay in `metadata/`; a specific company's agreement text never was.
-
-It also makes this directory self-contained, which it previously was not: `contracts/` and
-`modifications/` cite the template by `VersionLabel=2026-02-02` and its provisions by number, so
-pushing `demo-data/` only worked because `metadata/` happened to be shipping the agreement. Now the
-push order (`.mj-sync.json` → `directoryOrder`) puts the template and its provisions first, and
-nothing outside this folder is required.
+Why that agreement lives here and not in `metadata/`:
+[`docs/database-migrations.md`](../docs/database-migrations.md), on what `metadata/` may contain.
 
 ## Why metadata sync rather than a script
 
@@ -45,12 +40,13 @@ The CLI already does all of it correctly.
 
 Records are keyed by fixed UUIDs, so re-pushing UPDATES rather than duplicating.
 
-## The one honest compromise
+## The one compromise
 
-`ContractNumber` is normally minted by `ContractEntityServer` from the `ContractSequence` counter, under
-a lock. That subclass is **not loaded in the CLI's process**, so these records carry explicit
-`CTR-9000xx` numbers — a deliberately separate block from the real sequence, so demo rows can never
-collide with contracts the app mints.
+`ContractNumber` is normally minted by `ContractEntityServer`, which calls
+`spAssignNextContractNumber` to take the next value of the `seq_ContractNumber` database SEQUENCE.
+That subclass is **not loaded in the CLI's process**, so these records carry explicit `CTR-9000xx`
+numbers — a deliberately separate block from the real sequence, so demo rows can never collide with
+contracts the app mints.
 
 That does mean **this data does not exercise the numbering path.** Creating a contract through the UI
 does, and that is where numbering should be demonstrated.
