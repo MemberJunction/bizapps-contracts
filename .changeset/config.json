@@ -5,7 +5,7 @@
   "fixed": [["@mj-biz-apps/contracts-*"]],
   "linked": [],
   "access": "public",
-  "baseBranch": "main",
+  "baseBranch": "next",
   "updateInternalDependencies": "patch",
   "_ignoreNote": "The 'ignore' list is empty on purpose. It used to read [\"mj_*\"], a glob left over from the scaffold template that matches none of this repo's packages (they are all @mj-biz-apps/contracts-*). Changesets treats an ignore entry that resolves to nothing as a configuration ERROR, so every 'changeset status' and 'changeset version' run failed before it read a single changeset.",
   "ignore": []
