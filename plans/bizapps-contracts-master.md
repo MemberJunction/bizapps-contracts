@@ -1,5 +1,8 @@
 # BizApps Contracts — master plan
 
+> **Historical.** Written during the v2 build in August 2026 and no longer maintained. The code,
+> [`docs/ERD.md`](../docs/ERD.md) and [`docs/database-migrations.md`](../docs/database-migrations.md) describe the current app.
+
 > **This is the app's source of truth**, kept in-repo alongside the code it governs (the same convention
 > `bizapps-orders` follows).
 >

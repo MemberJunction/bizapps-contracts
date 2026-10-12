@@ -12,6 +12,9 @@ metadata/**/.backups/
 report.html
 report.json
 
+# Local nit log (CLAUDE.md, "Filing issues"): nits go here, not to GitHub, and are never committed
+BUGS.md
+
 # These are some examples of commonly ignored file patterns.
 # You should customize this list as applicable to your project.
 # Learn more about .gitignore:
