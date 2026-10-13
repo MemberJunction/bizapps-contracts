@@ -30,6 +30,12 @@
       "says the agreement's terms live in the Master Agreement it references, and a contract whose terms",
       "are entirely in a template it need not cite has no stated terms at all. Corrected here.",
       "",
+      "  Statement of Work  TemplateRequired = 0. SOWs have standard language but no versioned template",
+      "                (ruled 2026-08-18, see its Description), so an SOW carries no ContractTemplateID.",
+      "                It previously carried 1, which refused every SOW on an install with no Published",
+      "                template and, once a Master Agreement was published, had the server default attach",
+      "                that MA to every SOW (#95).",
+      "",
       "NOTE — R-5's live test is now gone. Retiring these two was deliberately doubling as the real-world",
       "test of the Inactive-selection rule (a retired type still referenced by existing contracts). With",
       "both Active, nothing exercises that path against real data; R-5's coverage is unit-level only until",
@@ -67,7 +73,7 @@
       "Status": "Active",
       "MustBeRoot": true,
       "MustBeChild": false,
-      "TemplateRequired": true
+      "TemplateRequired": false
     },
     "primaryKey": {
       "ID": "33333333-0000-4000-8000-000000001002"

@@ -22,16 +22,14 @@ dot-prefixed `.json` files are records (`filePattern: **/.*.json`), so don't par
 | `entity-fields` | `MJ: Entity Fields` |
 | `entity-relationships` | `MJ: Entity Relationships` |
 | `entity-settings` | `MJ: Entity Settings` |
-| `ml-model-scoring-bindings` | `MJ: ML Model Scoring Bindings` |
-| `ml-models` | `MJ: ML Models` |
-| `ml-training-pipelines` | `MJ: ML Training Pipelines` |
 | `queries` | `MJ: Queries` |
 | `query-categories` | `MJ: Query Categories` |
-| `record-processes` | `MJ: Record Processes` |
 | `schema-info` | `MJ: Schema Info` — no records; see [`schema-info/README.md`](schema-info/README.md) |
 | `user-views` | `MJ: User Views` |
 
 ## What belongs here, and what does not
 
 What `metadata/` may contain, and why the sample agreement lives in `demo-data/` instead:
-[`docs/database-migrations.md`](../docs/database-migrations.md).
+[`docs/database-migrations.md`](../docs/database-migrations.md). The predictive-scoring bench (the
+training pipeline, its model versions, the scoring record process and its binding) lives in
+`demo-data/` for the same reason: its fitted statistics come from one dataset (issue #89).
