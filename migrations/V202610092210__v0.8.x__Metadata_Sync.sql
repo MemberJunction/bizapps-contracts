@@ -28,7 +28,22 @@
 -- each one is a core procedure call, plus one field description that names `__mj.Company`
 -- (written `${mjSchema}.Company` in the baseline too). The query's SQL names this app's view as
 -- `[__mj_BizAppsContracts].vwContracts`; that one literal becomes `[${flyway:defaultSchema}]`, so
--- the stored query follows the schema the app is installed under. No statement was otherwise edited.
+-- the stored query follows the schema the app is installed under.
+--
+-- GUARDED CREATES: the seven create calls (category, query, parameter, two fields, query entity,
+-- user view) each run only when the record is absent. These records have shipped in metadata/
+-- since 0.5.0, so any database that ran `mj sync push` already holds them, and MJ's create
+-- procedures do a bare insert when given an ID; unguarded, the upgrade stops on the primary key.
+-- This is not a re-run guard: the migration still runs once, in order. It guards against the
+-- same rows arriving by the other supported path. The query's children are matched on ID or on
+-- their natural key (query + name, query + entity), since on a pushed database the server's
+-- query-extraction pipeline wrote them with its own IDs.
+--
+-- VIRTUAL FIELD LOOKUPS: five Contracts fields (State, IsAwaitingDocument, DaysToEnd,
+-- RenewalNoticeDeadline, IsInCancellationWindow) are registered by V202608240200 with generated
+-- IDs, and metadata/ addresses them by `@lookup` on entity and name. The logger resolved that
+-- lookup to the capture database's IDs, which exist nowhere else, so those updates select the ID
+-- by entity and name instead. No statement was otherwise edited.
 -- =============================================================================================
 
 -- SQL Logging Session
@@ -3222,8 +3237,10 @@ SET
   @AutoUpdateExtendedType_13aa73a3e832 = 1
 SET
   @IsComputed_13aa73a3e832 = 0
-SET
-  @ID_13aa73a3e832 = '158C433E-F36B-1410-8358-00FC9DDB422D' EXEC [${mjSchema}].spUpdateEntityField @DisplayName = @DisplayName_13aa73a3e832,
+SELECT
+  @ID_13aa73a3e832 = [ID] FROM [${mjSchema}].[EntityField]
+  WHERE [EntityID] = (SELECT [ID] FROM [${mjSchema}].[Entity] WHERE [Name] = N'MJ_BizApps_Contracts: Contracts') AND [Name] = N'DaysToEnd'
+EXEC [${mjSchema}].spUpdateEntityField @DisplayName = @DisplayName_13aa73a3e832,
   @Description = @Description_13aa73a3e832,
   @Description_Clear = 1,
   @AutoUpdateDescription = @AutoUpdateDescription_13aa73a3e832,
@@ -3620,8 +3637,10 @@ SET
   @AutoUpdateExtendedType_a2df3cb6994d = 1
 SET
   @IsComputed_a2df3cb6994d = 0
-SET
-  @ID_a2df3cb6994d = '118C433E-F36B-1410-8358-00FC9DDB422D' EXEC [${mjSchema}].spUpdateEntityField @DisplayName = @DisplayName_a2df3cb6994d,
+SELECT
+  @ID_a2df3cb6994d = [ID] FROM [${mjSchema}].[EntityField]
+  WHERE [EntityID] = (SELECT [ID] FROM [${mjSchema}].[Entity] WHERE [Name] = N'MJ_BizApps_Contracts: Contracts') AND [Name] = N'IsAwaitingDocument'
+EXEC [${mjSchema}].spUpdateEntityField @DisplayName = @DisplayName_a2df3cb6994d,
   @Description = @Description_a2df3cb6994d,
   @Description_Clear = 1,
   @AutoUpdateDescription = @AutoUpdateDescription_a2df3cb6994d,
@@ -4017,8 +4036,10 @@ SET
   @AutoUpdateExtendedType_20932574819f = 1
 SET
   @IsComputed_20932574819f = 0
-SET
-  @ID_20932574819f = '0D8C433E-F36B-1410-8358-00FC9DDB422D' EXEC [${mjSchema}].spUpdateEntityField @DisplayName = @DisplayName_20932574819f,
+SELECT
+  @ID_20932574819f = [ID] FROM [${mjSchema}].[EntityField]
+  WHERE [EntityID] = (SELECT [ID] FROM [${mjSchema}].[Entity] WHERE [Name] = N'MJ_BizApps_Contracts: Contracts') AND [Name] = N'State'
+EXEC [${mjSchema}].spUpdateEntityField @DisplayName = @DisplayName_20932574819f,
   @Description = @Description_20932574819f,
   @Description_Clear = 1,
   @AutoUpdateDescription = @AutoUpdateDescription_20932574819f,
@@ -4215,8 +4236,10 @@ SET
   @AutoUpdateExtendedType_a2df3cb6994d = 1
 SET
   @IsComputed_a2df3cb6994d = 0
-SET
-  @ID_a2df3cb6994d = '118C433E-F36B-1410-8358-00FC9DDB422D' EXEC [${mjSchema}].spUpdateEntityField @DisplayName = @DisplayName_a2df3cb6994d,
+SELECT
+  @ID_a2df3cb6994d = [ID] FROM [${mjSchema}].[EntityField]
+  WHERE [EntityID] = (SELECT [ID] FROM [${mjSchema}].[Entity] WHERE [Name] = N'MJ_BizApps_Contracts: Contracts') AND [Name] = N'IsAwaitingDocument'
+EXEC [${mjSchema}].spUpdateEntityField @DisplayName = @DisplayName_a2df3cb6994d,
   @Description = @Description_a2df3cb6994d,
   @Description_Clear = 1,
   @AutoUpdateDescription = @AutoUpdateDescription_a2df3cb6994d,
@@ -4413,8 +4436,10 @@ SET
   @AutoUpdateExtendedType_13aa73a3e832 = 1
 SET
   @IsComputed_13aa73a3e832 = 0
-SET
-  @ID_13aa73a3e832 = '158C433E-F36B-1410-8358-00FC9DDB422D' EXEC [${mjSchema}].spUpdateEntityField @DisplayName = @DisplayName_13aa73a3e832,
+SELECT
+  @ID_13aa73a3e832 = [ID] FROM [${mjSchema}].[EntityField]
+  WHERE [EntityID] = (SELECT [ID] FROM [${mjSchema}].[Entity] WHERE [Name] = N'MJ_BizApps_Contracts: Contracts') AND [Name] = N'DaysToEnd'
+EXEC [${mjSchema}].spUpdateEntityField @DisplayName = @DisplayName_13aa73a3e832,
   @Description = @Description_13aa73a3e832,
   @Description_Clear = 1,
   @AutoUpdateDescription = @AutoUpdateDescription_13aa73a3e832,
@@ -4611,8 +4636,10 @@ SET
   @AutoUpdateExtendedType_eff4170f0fd1 = 1
 SET
   @IsComputed_eff4170f0fd1 = 0
-SET
-  @ID_eff4170f0fd1 = '198C433E-F36B-1410-8358-00FC9DDB422D' EXEC [${mjSchema}].spUpdateEntityField @DisplayName = @DisplayName_eff4170f0fd1,
+SELECT
+  @ID_eff4170f0fd1 = [ID] FROM [${mjSchema}].[EntityField]
+  WHERE [EntityID] = (SELECT [ID] FROM [${mjSchema}].[Entity] WHERE [Name] = N'MJ_BizApps_Contracts: Contracts') AND [Name] = N'RenewalNoticeDeadline'
+EXEC [${mjSchema}].spUpdateEntityField @DisplayName = @DisplayName_eff4170f0fd1,
   @Description = @Description_eff4170f0fd1,
   @Description_Clear = 1,
   @AutoUpdateDescription = @AutoUpdateDescription_eff4170f0fd1,
@@ -4809,8 +4836,10 @@ SET
   @AutoUpdateExtendedType_3a0cfd364cb0 = 1
 SET
   @IsComputed_3a0cfd364cb0 = 0
-SET
-  @ID_3a0cfd364cb0 = '1D8C433E-F36B-1410-8358-00FC9DDB422D' EXEC [${mjSchema}].spUpdateEntityField @DisplayName = @DisplayName_3a0cfd364cb0,
+SELECT
+  @ID_3a0cfd364cb0 = [ID] FROM [${mjSchema}].[EntityField]
+  WHERE [EntityID] = (SELECT [ID] FROM [${mjSchema}].[Entity] WHERE [Name] = N'MJ_BizApps_Contracts: Contracts') AND [Name] = N'IsInCancellationWindow'
+EXEC [${mjSchema}].spUpdateEntityField @DisplayName = @DisplayName_3a0cfd364cb0,
   @Description = @Description_3a0cfd364cb0,
   @Description_Clear = 1,
   @AutoUpdateDescription = @AutoUpdateDescription_3a0cfd364cb0,
@@ -5374,6 +5403,8 @@ SET
   @DefaultCacheEnabled_67eed53f0f80 = 0
 SET
   @CacheInheritanceEnabled_67eed53f0f80 = 1
+
+IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[QueryCategory] WHERE [ID] = @ID_67eed53f0f80)
 EXEC [${mjSchema}].spCreateQueryCategory @ID = @ID_67eed53f0f80,
   @Name = @Name_67eed53f0f80,
   @ParentID = @ParentID_67eed53f0f80,
@@ -5504,6 +5535,8 @@ SET
   @Reusable_a3ac463e54b5 = 0
 SET
   @IsMaterialized_a3ac463e54b5 = 0
+
+IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[Query] WHERE [ID] = @ID_a3ac463e54b5)
 EXEC [${mjSchema}].spCreateQuery @ID = @ID_a3ac463e54b5,
   @Name = @Name_a3ac463e54b5,
   @CategoryID = @CategoryID_a3ac463e54b5,
@@ -5564,7 +5597,9 @@ SET
 SET
   @SampleValue_66ccd7b9f6a5 = N'Value1,Value2'
 SET
-  @DetectionMethod_66ccd7b9f6a5 = N'AI' EXEC [${mjSchema}].spCreateQueryParameter @ID = @ID_66ccd7b9f6a5,
+  @DetectionMethod_66ccd7b9f6a5 = N'AI'
+IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[QueryParameter] WHERE [ID] = @ID_66ccd7b9f6a5 OR ([QueryID] = @QueryID_66ccd7b9f6a5 AND [Name] = @Name_66ccd7b9f6a5))
+EXEC [${mjSchema}].spCreateQueryParameter @ID = @ID_66ccd7b9f6a5,
   @QueryID = @QueryID_66ccd7b9f6a5,
   @Name = @Name_66ccd7b9f6a5,
   @Type = @Type_66ccd7b9f6a5,
@@ -5616,7 +5651,9 @@ SET
 SET
   @IsSummary_adf1a0a4fded = 0
 SET
-  @DetectionMethod_adf1a0a4fded = N'Manual' EXEC [${mjSchema}].spCreateQueryField @ID = @ID_adf1a0a4fded,
+  @DetectionMethod_adf1a0a4fded = N'Manual'
+IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[QueryField] WHERE [ID] = @ID_adf1a0a4fded OR ([QueryID] = @QueryID_adf1a0a4fded AND [Name] = @Name_adf1a0a4fded))
+EXEC [${mjSchema}].spCreateQueryField @ID = @ID_adf1a0a4fded,
   @QueryID = @QueryID_adf1a0a4fded,
   @Name = @Name_adf1a0a4fded,
   @Description = @Description_adf1a0a4fded,
@@ -5674,7 +5711,9 @@ SET
 SET
   @IsSummary_f5e974578116 = 0
 SET
-  @DetectionMethod_f5e974578116 = N'Manual' EXEC [${mjSchema}].spCreateQueryField @ID = @ID_f5e974578116,
+  @DetectionMethod_f5e974578116 = N'Manual'
+IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[QueryField] WHERE [ID] = @ID_f5e974578116 OR ([QueryID] = @QueryID_f5e974578116 AND [Name] = @Name_f5e974578116))
+EXEC [${mjSchema}].spCreateQueryField @ID = @ID_f5e974578116,
   @QueryID = @QueryID_f5e974578116,
   @Name = @Name_f5e974578116,
   @Description = @Description_f5e974578116,
@@ -5713,6 +5752,8 @@ SET
   @DetectionMethod_a0a9ecc71164 = N'AI'
 SET
   @AutoDetectConfidenceScore_a0a9ecc71164 = 1
+
+IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[QueryEntity] WHERE [ID] = @ID_a0a9ecc71164 OR ([QueryID] = @QueryID_a0a9ecc71164 AND [EntityID] = @EntityID_a0a9ecc71164))
 EXEC [${mjSchema}].spCreateQueryEntity @ID = @ID_a0a9ecc71164,
   @QueryID = @QueryID_a0a9ecc71164,
   @EntityID = @EntityID_a0a9ecc71164,
@@ -5770,6 +5811,8 @@ SET
   @WhereClause_856a987a0283 = N''
 SET
   @CustomWhereClause_856a987a0283 = 0
+
+IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[UserView] WHERE [ID] = @ID_856a987a0283)
 EXEC [${mjSchema}].spCreateUserView @ID = @ID_856a987a0283,
   @UserID = @UserID_856a987a0283,
   @EntityID = @EntityID_856a987a0283,

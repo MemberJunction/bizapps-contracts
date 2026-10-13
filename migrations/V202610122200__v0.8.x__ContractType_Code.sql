@@ -7,7 +7,8 @@
 -- names "Order Form", and renaming that type in Configuration stops Closed Won
 -- from creating contracts, with nothing pointing at the rename as the cause.
 --
--- Code is the identifier a caller holds instead: UPPER_SNAKE, unique, required,
+-- Code is the identifier a caller holds instead: unique, required, written in
+-- UPPER_SNAKE for the shipped types (nothing enforces the format),
 -- and never derived from the Name again after this migration sets it. A label
 -- can change freely; the Code is what other apps and metadata reference. This
 -- is the shape bizapps-tasks gave TaskType.Code.
@@ -21,9 +22,12 @@
 --
 -- THE SHIPPED TYPES ARE SET BY ID, not by name, so a host that has already
 -- renamed one still gets the intended code. Every other row (a type a host
--- created itself) takes its Name in UPPER_SNAKE. If two such names collapse to
--- the same code, UQ_ContractType_Code fails this migration and names the
--- duplicate; rename one type and rerun.
+-- created itself) takes its Name trimmed, uppercased, spaces turned to
+-- underscores and cut to 50 characters. Other punctuation is kept, so
+-- "Non-Disclosure (NDA)" becomes NON-DISCLOSURE_(NDA); a host can edit the
+-- code afterwards. If two such names collapse to the same code,
+-- UQ_ContractType_Code fails this migration and names the duplicate; rename
+-- one type and rerun.
 -- =============================================================================
 
 ALTER TABLE [${flyway:defaultSchema}].[ContractType] ADD
