@@ -12,6 +12,7 @@ import {
     type DatabaseProviderBase,
     type EntityDeleteOptions,
     LogError,
+    type PlatformSQL,
     ValidationErrorInfo,
     ValidationErrorType,
     ValidationResult,
@@ -102,6 +103,26 @@ const RETIRED = 'Inactive';
 
 /** Guards an ID before it is interpolated into the R-3 lineage walk. */
 const UUID_SHAPE = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
+
+/**
+ * The call that mints a contract number, one form per database.
+ *
+ * SQL Server: `spAssignNextContractNumber` is a procedure with one OUTPUT parameter, which only a
+ * T-SQL batch can read — DECLARE, EXEC … OUTPUT, SELECT.
+ *
+ * PostgreSQL: a function of the same name, taking nothing and returning the formatted number, ships
+ * in the PostgreSQL baseline (`migrations-pg/`). A PostgreSQL function is called from a SELECT, so
+ * the call shape differs even though the object and its contract do not. The schema is unquoted and
+ * the function name quoted, the converter's convention: it folds the schema to lowercase and keeps
+ * object names' case. The alias is quoted so the row key keeps its case instead of folding to
+ * `contractnumber`.
+ */
+export const ASSIGN_CONTRACT_NUMBER_SQL: PlatformSQL = {
+    default: `DECLARE @contractNumber NVARCHAR(50);
+             EXEC __mj_BizAppsContracts.spAssignNextContractNumber @ContractNumber = @contractNumber OUTPUT;
+             SELECT @contractNumber AS ContractNumber;`,
+    postgresql: `SELECT __mj_BizAppsContracts."spAssignNextContractNumber"() AS "ContractNumber";`,
+};
 
 @RegisterClass(BaseEntity, 'MJ_BizApps_Contracts: Contracts')
 export class ContractEntityServer extends ContractEntity {
@@ -969,13 +990,15 @@ export class ContractEntityServer extends ContractEntity {
      *
      * So the lock stays in the database, in a DATABASE OBJECT rather than a TypeScript string.
      * `spAssignNextContractNumber` (V202608192200) holds the `HOLDLOCK, UPDLOCK` and the format; this
-     * method is one dialect-free `EXEC`. That is accounting's pattern, adopted rather than invented —
+     * method is one call. That is accounting's pattern, adopted rather than invented —
      * `SequenceService.ts` there keeps `spAssignNextJournalEntryNumber` at DB level for the same
      * stated reason. Orders still inlines the same UPDATE in four places, which is what this stops
      * doing.
      *
-     * It also makes the PostgreSQL port a database exercise: write a PG function with this name and
-     * signature and no application code changes.
+     * The PostgreSQL port keeps the name and the contract but not the call: a procedure's OUTPUT
+     * parameter is read through a T-SQL batch, and a PostgreSQL function through a SELECT. So the
+     * provider picks the form (`ASSIGN_CONTRACT_NUMBER_SQL`, resolved by `PlatformKey`) — sending the
+     * T-SQL batch to PostgreSQL is what failed every new contract's save there (#88).
      *
      * `isMutation: true` matters and was missing while this was inline: MJ's SQL-statement logging
      * uses it to know a statement CHANGED data, which is what lets a logging session capture the
@@ -987,10 +1010,8 @@ export class ContractEntityServer extends ContractEntity {
      */
     private async assignContractNumber(): Promise<string> {
         const rows = await this.db.ExecuteSQL<{ ContractNumber: string }>(
-            `DECLARE @contractNumber NVARCHAR(50);
-             EXEC __mj_BizAppsContracts.spAssignNextContractNumber @ContractNumber = @contractNumber OUTPUT;
-             SELECT @contractNumber AS ContractNumber;`,
-            // No parameters: the sproc takes only an OUTPUT, declared in the batch above. Accounting
+            this.db.ResolveSQL(ASSIGN_CONTRACT_NUMBER_SQL),
+            // No parameters: the sproc takes only an OUTPUT, declared in the batch. Accounting
             // passes an OBJECT here because its sprocs take inputs and `ExecuteSQL` binds objects BY
             // NAME while an array binds positionally as @p0 — worth knowing before adding a parameter
             // to this call, and worth noting that the object form needs the SQLServerDataProvider type
