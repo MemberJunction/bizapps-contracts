@@ -25,6 +25,7 @@
 import { type BaseEntity, LogError, LogStatus, type UserInfo } from '@memberjunction/core';
 import type { mjBizAppsOrdersSubscriptionEntity } from '@mj-biz-apps/orders-entities';
 
+export const E_CONTRACT = 'MJ_BizApps_Contracts: Contracts';
 export const E_CONTRACT_ORDER = 'MJ_BizApps_Contracts: Contract Orders';
 export const E_ORDER_LINE = 'MJ_BizApps_Orders: Order Lines';
 export const E_SUBSCRIPTION = 'MJ_BizApps_Orders: Subscriptions';
@@ -115,6 +116,66 @@ export async function ApplyContractRenewalTerms(
     return outcome;
 }
 
+/** What one sweep did across every linked contract. */
+export interface RenewalTermsSweepOutcome {
+    Contracts: number;
+    Updated: number;
+    Unchanged: number;
+    Failed: Array<{ ContractNumber: string; SubscriptionNumber: string; Message: string }>;
+}
+
+/**
+ * Re-apply every linked contract's terms (c77.4). Orders creates a subscription when the order is
+ * booked, usually after the link was written, so the copy at link time finds nothing and the
+ * subscription would otherwise wait for someone to edit the contract. Run daily, ahead of the renewal
+ * pass. Safe to repeat: a subscription already carrying the terms is not saved.
+ *
+ * One contract failing to load its subscriptions stops the sweep rather than skipping it, for the
+ * same reason a single copy throws: a quiet skip would read as "nothing to do".
+ */
+export async function SweepContractRenewalTerms(
+    provider: RenewalTermsProvider,
+    user: UserInfo | undefined,
+): Promise<RenewalTermsSweepOutcome> {
+    const sweep: RenewalTermsSweepOutcome = { Contracts: 0, Updated: 0, Unchanged: 0, Failed: [] };
+
+    const contractIDs = [...new Set(await ids(provider, E_CONTRACT_ORDER, '', 'ContractID', user))];
+    if (contractIDs.length === 0) return sweep;
+
+    const contracts = await provider.RunView<{
+        ID: string;
+        ContractNumber: string | null;
+        AnnualIncreasePercent: number | null;
+        CarryDiscountOnRenewal: boolean;
+    }>(
+        {
+            EntityName: E_CONTRACT,
+            ExtraFilter: `ID IN (${quoted(contractIDs)})`,
+            Fields: ['ID', 'ContractNumber', 'AnnualIncreasePercent', 'CarryDiscountOnRenewal'],
+            ResultType: 'simple',
+        },
+        user,
+    );
+    if (!contracts.Success) {
+        throw new Error(`Could not read the linked contracts: ${contracts.ErrorMessage}`);
+    }
+
+    for (const row of contracts.Results) {
+        const terms: ContractRenewalTerms = {
+            ContractID: row.ID,
+            ContractNumber: row.ContractNumber,
+            AnnualIncreasePercent: row.AnnualIncreasePercent == null ? null : Number(row.AnnualIncreasePercent),
+            CarryDiscountOnRenewal: !!row.CarryDiscountOnRenewal,
+        };
+        const outcome = await ApplyContractRenewalTerms(provider, terms, user);
+        sweep.Contracts++;
+        sweep.Updated += outcome.Updated.length;
+        sweep.Unchanged += outcome.Unchanged;
+        for (const f of outcome.Failed) sweep.Failed.push({ ContractNumber: label(terms), ...f });
+    }
+    return sweep;
+}
+
 /** One sentence for a log line or a caller's message. */
 export function DescribeRenewalTermsOutcome(terms: ContractRenewalTerms, outcome: RenewalTermsOutcome): string {
     const parts = [`Contract ${label(terms)}: ${outcome.Updated.length} subscription(s) updated, ${outcome.Unchanged} already current`];
@@ -140,7 +201,7 @@ async function ids(
     user: UserInfo | undefined,
 ): Promise<string[]> {
     const result = await provider.RunView<Record<string, string>>(
-        { EntityName: entityName, ExtraFilter: filter, Fields: [field], ResultType: 'simple' },
+        { EntityName: entityName, ExtraFilter: filter || undefined, Fields: [field], ResultType: 'simple' },
         user,
     );
     if (!result.Success) {

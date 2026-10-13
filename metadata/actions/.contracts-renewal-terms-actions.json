@@ -1,0 +1,23 @@
+[
+  {
+    "_comments": [
+      "Issue #77, c77.4: Orders creates a subscription when its order is booked, usually after the order",
+      "was linked to the contract, so the copy at link time finds nothing. This re-applies every linked",
+      "contract's terms. Idempotent: a subscription already carrying the terms is not saved."
+    ],
+    "fields": {
+      "Name": "Sweep Contract Renewal Terms",
+      "CategoryID": "@lookup:MJ: Action Categories.Name=Contracts",
+      "Description": "Copy every linked contract's annual increase (when stated) and carry-discount flag to the subscriptions its orders created. Subscriptions already carrying the terms are left alone.",
+      "Type": "Custom",
+      "DriverClass": "Contracts.SweepRenewalTerms",
+      "IconClass": "fa-solid fa-arrows-rotate",
+      "UserPrompt": "Copy contract renewal terms to the subscriptions of their linked orders.",
+      "CodeApprovalStatus": "Approved",
+      "Status": "Active"
+    },
+    "primaryKey": {
+      "ID": "B8818305-AB67-4BDC-BDA3-7539F009DB1C"
+    }
+  }
+]

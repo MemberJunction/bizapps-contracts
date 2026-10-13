@@ -16,12 +16,11 @@ import { RegisterClass } from '@memberjunction/global';
 import { mjBizAppsContractsContractOrderEntity } from '@mj-biz-apps/contracts-entities';
 import {
     ApplyContractRenewalTerms,
+    E_CONTRACT,
     type ContractRenewalTerms,
     type RenewalTermsOutcome,
     ReportRenewalTermsOutcome,
 } from './renewal-terms.js';
-
-const E_CONTRACT = 'MJ_BizApps_Contracts: Contracts';
 
 @RegisterClass(BaseEntity, 'MJ_BizApps_Contracts: Contract Orders')
 export class ContractOrderEntityServer extends mjBizAppsContractsContractOrderEntity {

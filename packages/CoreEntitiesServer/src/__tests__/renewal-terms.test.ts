@@ -8,10 +8,12 @@ import { describe, expect, it } from 'vitest';
 import {
     ApplyContractRenewalTerms,
     type ContractRenewalTerms,
+    E_CONTRACT,
     E_CONTRACT_ORDER,
     E_ORDER_LINE,
     E_SUBSCRIPTION,
     type RenewalTermsProvider,
+    SweepContractRenewalTerms,
 } from '../renewal-terms.js';
 
 type SubRow = {
@@ -24,6 +26,7 @@ type SubRow = {
 };
 
 function makeWorld(opts: {
+    contracts?: Array<{ ID: string; ContractNumber: string; AnnualIncreasePercent: number | null; CarryDiscountOnRenewal: boolean }>;
     links: Array<{ ContractID: string; OrderID: string }>;
     lines: Array<{ ID: string; OrderHeaderID: string }>;
     subs: SubRow[];
@@ -56,14 +59,19 @@ function makeWorld(opts: {
     };
 
     const inList = (filter: string, column: string): string[] => {
-        const m = new RegExp(`${column}(?:=| IN \\()([^)]*)`).exec(filter);
+        const m = new RegExp(`(?:^|\\s)${column}(?:=| IN \\()([^)]*)`).exec(filter ?? '');
         return (m?.[1] ?? '').split(',').map((v) => v.replace(/'/g, '').trim()).filter(Boolean);
     };
 
     const provider = {
         async RunView(params: { EntityName: string; ExtraFilter: string }) {
             switch (params.EntityName) {
+                case E_CONTRACT: {
+                    const ids = inList(params.ExtraFilter, 'ID');
+                    return { Success: true, Results: (opts.contracts ?? []).filter((c) => ids.includes(c.ID)) };
+                }
                 case E_CONTRACT_ORDER: {
+                    if (!params.ExtraFilter) return { Success: true, Results: opts.links };
                     const ids = inList(params.ExtraFilter, 'ContractID');
                     return { Success: true, Results: opts.links.filter((l) => ids.includes(l.ContractID)) };
                 }
@@ -172,5 +180,44 @@ describe('ApplyContractRenewalTerms', () => {
     it('throws when a lookup fails, rather than reporting nothing to copy', async () => {
         const provider = { async RunView() { return { Success: false, ErrorMessage: 'boom', Results: [] }; } } as unknown as RenewalTermsProvider;
         await expect(ApplyContractRenewalTerms(provider, TERMS(), undefined)).rejects.toThrow(/boom/);
+    });
+});
+
+describe('SweepContractRenewalTerms', () => {
+    const world = () =>
+        makeWorld({
+            contracts: [
+                { ID: 'C-1', ContractNumber: 'CTR-0001', AnnualIncreasePercent: 6, CarryDiscountOnRenewal: false },
+                { ID: 'C-2', ContractNumber: 'CTR-0002', AnnualIncreasePercent: null, CarryDiscountOnRenewal: true },
+            ],
+            links: [
+                { ContractID: 'C-1', OrderID: 'O-1' },
+                { ContractID: 'C-2', OrderID: 'O-2' },
+            ],
+            lines: [
+                { ID: 'L-1', OrderHeaderID: 'O-1' },
+                { ID: 'L-2', OrderHeaderID: 'O-2' },
+            ],
+            subs: [
+                { ID: 'S-1', SubscriptionNumber: 'SUB-1', OrderLineID: 'L-1', RenewalIncreasePercent: null, CarryDiscountOnRenewal: false },
+                { ID: 'S-2', SubscriptionNumber: 'SUB-2', OrderLineID: 'L-2', RenewalIncreasePercent: 3, CarryDiscountOnRenewal: false },
+            ],
+        });
+
+    it('applies each linked contract to its own orders\' subscriptions', async () => {
+        const { provider, saves } = world();
+        const sweep = await SweepContractRenewalTerms(provider, undefined);
+        expect(sweep).toMatchObject({ Contracts: 2, Updated: 2, Unchanged: 0, Failed: [] });
+        expect(saves).toEqual([
+            { SubscriptionNumber: 'SUB-1', RenewalIncreasePercent: 6, CarryDiscountOnRenewal: false },
+            { SubscriptionNumber: 'SUB-2', RenewalIncreasePercent: 3, CarryDiscountOnRenewal: true },
+        ]);
+    });
+
+    it('does nothing when no contract is linked to an order', async () => {
+        const { provider, saves } = makeWorld({ links: [], lines: [], subs: [] });
+        const sweep = await SweepContractRenewalTerms(provider, undefined);
+        expect(sweep).toEqual({ Contracts: 0, Updated: 0, Unchanged: 0, Failed: [] });
+        expect(saves).toEqual([]);
     });
 });

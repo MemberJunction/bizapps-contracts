@@ -1,0 +1,16 @@
+[
+  {
+    "_comments": [
+      "The Contracts action category, so actions resolve their parent by @lookup on Name. Fixed UUID so a",
+      "re-push against a rebuilt database updates this row rather than creating a second 'Contracts'."
+    ],
+    "fields": {
+      "Name": "Contracts",
+      "Description": "Actions belonging to the BizApps Contracts app.",
+      "Status": "Active"
+    },
+    "primaryKey": {
+      "ID": "F7307A18-6C08-4EF6-97A1-D4F568868D36"
+    }
+  }
+]

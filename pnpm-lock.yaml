@@ -301,6 +301,12 @@ importers:
         specifier: ^0.14.3
         version: 0.14.4
     devDependencies:
+      '@memberjunction/actions':
+        specifier: ^6.1.5
+        version: 6.1.5
+      '@memberjunction/actions-base':
+        specifier: ^6.1.5
+        version: 6.1.5
       '@memberjunction/core':
         specifier: ^6.1.5
         version: 6.1.5
