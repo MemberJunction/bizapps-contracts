@@ -187,20 +187,24 @@ The **Awaiting documents** worklist is a filter on that derived flag. It is not 
 | `PredictedRenewalRiskBand` | `Low` · `Medium` · `High` · `Critical` (`CK_Contract_PredictedRenewalRiskBand`). The column description sets the bands at under 20%, 20–50%, 50–80% and 80% or more |
 | `PredictedRenewalScoredAt` | When the contract was last scored |
 
-No code in this repo writes them. MJ Predictive Studio metadata in `metadata/` is set up to:
+No code in this repo writes them. MJ Predictive Studio records in `demo-data/` (opt-in, never shipped) are set up to:
 
 - **Train** — `ml-training-pipelines/` holds the classification pipeline "Predict Contract Non-Renewal
   Risk" over Contracts, and `ml-models/` three model versions from it. The label is `NonRenewalOutcome`;
   the models' features are the seven other engineered columns plus `AnnualIncreasePercent`,
   `CancellationWindowDays`, `RenewalNoticeDays` and `ContractType`. `State`, `EndDate`,
   `TerminatedDate` and the supersession columns are denied as leakage.
-- **Score** — `record-processes/` and `ml-model-scoring-bindings/` hold a record process that scores
-  contracts whose outcome is still open (`NonRenewalOutcome IS NULL`) on the 1st of each month (UTC)
-  or on demand, mapping the scorer's `score`, `band` and `scoredAt` to the three columns.
+- **Score** — `record-processes/` and `ml-model-scoring-bindings/` hold a record process that, once
+  enabled, scores contracts whose outcome is still open (`NonRenewalOutcome IS NULL`) on the 1st of
+  each month (UTC) or on demand, mapping the scorer's `score`, `band` and `scoredAt` to the three
+  columns. It is pushed `Disabled` with its schedule off; enable it only after training a model with
+  an artifact (a run against a model with none fails every contract, MemberJunction/MJ#4829).
 
 The label and features are derived columns on `vwContracts` ([`docs/ERD.md`](docs/ERD.md) §4). The
-pipeline and its models are in `Draft` status, and no migration ships this metadata yet, so a host
-installed from migrations has the columns and nothing that fills them (issue #80).
+pipeline and its models are in `Draft` status. None of it ships to hosts (issue #89): the models'
+fitted preprocessing and feature importance come from one dataset, and they carry no trained artifact.
+A host installed from migrations has the columns, and each organisation trains and schedules its own
+model.
 
 ---
 
