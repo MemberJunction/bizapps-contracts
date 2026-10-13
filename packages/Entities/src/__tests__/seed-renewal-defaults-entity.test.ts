@@ -135,6 +135,28 @@ describe('seeding from the selected type', () => {
         expect(self.reads).toEqual([]);
     });
 
+    it('fills only what a non-form caller left unset, in the documented order (#97)', async () => {
+        const self = stub({ typeID: TYPE_A, rows: TYPES });
+        const contract = self as unknown as ContractEntity;
+
+        // A server-side create: the caller states AutoRenew = No and a cancellation window, and has
+        // nothing to say about the notice period or the uplift.
+        self.values.AutoRenew = false;
+        contract.MarkRenewalFieldEdited('AutoRenew');
+        self.values.CancellationWindowDays = 15;
+        contract.MarkRenewalFieldEdited('CancellationWindowDays');
+
+        await seed(self);
+
+        // Type A's Yes and 30 days lose to the caller; its 60 days fill the gap; it has no uplift.
+        expect(self.values).toEqual({
+            AutoRenew: false,
+            RenewalNoticeDays: 60,
+            CancellationWindowDays: 15,
+            AnnualIncreasePercent: null,
+        });
+    });
+
     it('leaves the fields alone when the type row cannot be found', async () => {
         const self = stub({ typeID: TYPE_A, rows: TYPES });
         await seed(self);
