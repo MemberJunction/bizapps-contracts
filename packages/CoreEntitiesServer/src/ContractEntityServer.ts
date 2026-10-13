@@ -43,7 +43,8 @@ import { GuardedDelete, plural } from './delete-guard.js';
  * supplied is never replaced.
  *
  * NO CANDIDATE IS NOT AN ERROR HERE. It returns null, the field stays empty, and `ValidateAsync`
- * refuses the save with the type's own message — the same outcome as before this default existed.
+ * refuses the save — the same outcome as before this default existed, with a message
+ * ({@link TemplateRequiredMessage}) that says no usable template exists rather than asking for a choice.
  *
  * Takes its two reads as callbacks so a unit test can assert which of them run without a provider.
  * The type is read only when the field is writable, so a saved contract pays nothing.
@@ -59,6 +60,31 @@ export async function ResolveServerDefaultTemplate(
     }
     if (!(await readTemplateRequired())) return null;
     return (await readCurrentTemplateID()) ?? null;
+}
+
+/**
+ * The R-4 refusal for a contract whose type requires a template and carries none.
+ *
+ * WHY TWO MESSAGES. A fresh install ships no template — `metadata/` carries template TYPES, never one
+ * organisation's agreement (docs/database-migrations.md) — so until someone publishes one, every
+ * contract of a template-requiring type is refused, including one created by another app with no form
+ * to choose from. "Choose the template" names a choice that does not exist; the message has to say
+ * what to set up instead (#95).
+ *
+ * `usableTemplateExists` is the same question the server default asks: is there a Published template
+ * with a document or source URL.
+ */
+export function TemplateRequiredMessage(typeName: string, usableTemplateExists: boolean): string {
+    if (usableTemplateExists) {
+        return (
+            `A ${typeName} must reference the agreement version it incorporates. Choose the template ` +
+            `whose standard terms this contract is written against.`
+        );
+    }
+    return (
+        `A ${typeName} must reference the agreement version it incorporates, and no Published template ` +
+        `with a document or source URL exists yet. Publish one under Templates, then save again.`
+    );
 }
 
 /**
@@ -334,13 +360,14 @@ export class ContractEntityServer extends ContractEntity {
             // R-4 — DOES THIS TYPE NEED ITS OWN PAPER. A separate axis from placement: a type could
             // want any combination, which is why `TemplateRequired` is its own column rather than
             // inferred from the flags above.
+            //
+            // The current-template read runs only on this refusal path, so a save that passes pays nothing.
             if (rule?.TemplateRequired && !this.ContractTemplateID) {
                 result.Success = false;
                 result.Errors.push(
                     new ValidationErrorInfo(
                         'ContractTemplateID',
-                        `A ${rule.Name} must reference the agreement version it incorporates. Choose the template ` +
-                            `whose standard terms this contract is written against.`,
+                        TemplateRequiredMessage(rule.Name, !!(await this.currentTemplateID())),
                         this.ContractTemplateID,
                         ValidationErrorType.Failure,
                     ),

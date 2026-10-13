@@ -249,6 +249,13 @@ template or provision is seeded: those are demo data, loaded only by `pnpm run d
 `demo-data/`. [`docs/database-migrations.md`](docs/database-migrations.md) explains what `metadata/`
 holds and what `demo-data/` holds.
 
+**Before the first Order Form or Payment Link, publish a template.** Both types require the contract to
+reference the agreement version it incorporates, and a new contract takes the newest Published
+template that has a document or source URL. With none, every save of those types is refused, including
+contracts other apps create, such as bizapps-sales at Closed Won. Create the template under
+**Templates**, attach the document or record its URL, and set it to Published. For a demo database,
+`pnpm run demo:load` loads a published one.
+
 Metadata added to `metadata/` after that migration — the dashboard's special-terms query, the
 watchlist view, entity settings and the renewal-risk ML rows — reaches a host only when a release
 regenerates the metadata-sync migration. Issue #80 tracks it.
