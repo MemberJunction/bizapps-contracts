@@ -77,7 +77,7 @@ seq_ContractNumber   SQL sequence behind CTR-000001 (not a table)
 | Table | What it is |
 |---|---|
 | **Contract** | The agreement. Counterparty organisation, which of our companies is party to it, the dates, the renewal terms *as the paper states them*, lineage to what it amends or what replaced it, and a [renewal-risk prediction](#predicted-renewal-risk) |
-| **ContractType** | Order Form · Statement of Work · Payment Link · Change Order. Carries rules — `RequiresExecutedDocument`, `MustBeRoot` / `MustBeChild` (where in the tree a contract may sit), `TemplateRequired` — and four renewal defaults that pre-fill a new contract |
+| **ContractType** | Order Form · Statement of Work · Payment Link · Change Order. Carries rules — `RequiresExecutedDocument`, `MustBeRoot` / `MustBeChild` (where in the tree a contract may sit), `TemplateRequired` — and four renewal defaults that pre-fill a new contract. The form applies them; code that creates a contract calls `SeedRenewalDefaultsFromType()` itself (see its JSDoc for the order) |
 | **ContractTemplate** | One **dated version** of a standard-terms document — a Master Agreement. Never edited in place: signed contracts reference it |
 | **ContractTemplateProvision** | One numbered clause of one version, **with its text** |
 | **ContractTemplateModification** | *This contract deviates from that provision, and here is the negotiated language.* The point of the app |
