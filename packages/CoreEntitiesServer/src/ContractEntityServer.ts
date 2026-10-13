@@ -124,6 +124,72 @@ export const ASSIGN_CONTRACT_NUMBER_SQL: PlatformSQL = {
     postgresql: `SELECT __mj_BizAppsContracts."spAssignNextContractNumber"() AS "ContractNumber";`,
 };
 
+/**
+ * The R-3 cycle probe: walk up `column` from `startID` and return the chain if it reaches `selfID`.
+ *
+ * Same walk on both databases; PostgreSQL needs `WITH RECURSIVE`, `||` for concatenation, `LIMIT 1`
+ * and quoted identifiers (the converter quotes table and column names). The aliases are quoted so the
+ * row keys stay `Chain` and `Depth` instead of folding to lowercase.
+ *
+ * Callers check both IDs against `UUID_SHAPE` first; `column` comes from a fixed internal list.
+ */
+export function lineageProbeSQL(
+    column: 'ParentContractID' | 'SupersededByContractID',
+    startID: string,
+    selfID: string,
+): PlatformSQL {
+    return {
+        default: `WITH lineage AS (
+                 SELECT [ID], [${column}], 1 AS Depth,
+                        CAST([ContractNumber] AS NVARCHAR(MAX)) AS Chain
+                   FROM __mj_BizAppsContracts.[Contract]
+                  WHERE [ID] = '${startID}'
+                 UNION ALL
+                 SELECT c.[ID], c.[${column}], l.Depth + 1,
+                        CAST(l.Chain + N' -> ' + c.[ContractNumber] AS NVARCHAR(MAX))
+                   FROM __mj_BizAppsContracts.[Contract] c
+                   JOIN lineage l ON c.[ID] = l.[${column}]
+                  WHERE l.Depth < 50
+             )
+             SELECT TOP 1 Chain, Depth FROM lineage WHERE [ID] = '${selfID}' ORDER BY Depth;`,
+        postgresql: `WITH RECURSIVE lineage AS (
+                 SELECT "ID", "${column}", 1 AS "Depth",
+                        "ContractNumber"::text AS "Chain"
+                   FROM __mj_BizAppsContracts."Contract"
+                  WHERE "ID" = '${startID}'
+                 UNION ALL
+                 SELECT c."ID", c."${column}", l."Depth" + 1,
+                        l."Chain" || ' -> ' || c."ContractNumber"
+                   FROM __mj_BizAppsContracts."Contract" c
+                   JOIN lineage l ON c."ID" = l."${column}"
+                  WHERE l."Depth" < 50
+             )
+             SELECT "Chain", "Depth" FROM lineage WHERE "ID" = '${selfID}' ORDER BY "Depth" LIMIT 1;`,
+    };
+}
+
+/**
+ * The R-4 count: how many of `contractID`'s modifications cite a provision of `templateID`.
+ *
+ * A `RunView` cannot replace this: the modifications view carries no template column, so the filter
+ * needs a subquery, and that subquery would be dialect-specific too. `COUNT(*)` comes back as a
+ * string from the PostgreSQL driver (it is a bigint), which the caller's `Number()` handles.
+ *
+ * Callers check both IDs against `UUID_SHAPE` first.
+ */
+export function modificationsAgainstTemplateSQL(contractID: string, templateID: string): PlatformSQL {
+    return {
+        default: `SELECT COUNT(*) AS Hits
+               FROM __mj_BizAppsContracts.[ContractTemplateModification] m
+               JOIN __mj_BizAppsContracts.[ContractTemplateProvision] p ON p.[ID] = m.[ContractTemplateProvisionID]
+              WHERE m.[ContractID] = '${contractID}' AND p.[ContractTemplateID] = '${templateID}';`,
+        postgresql: `SELECT COUNT(*) AS "Hits"
+               FROM __mj_BizAppsContracts."ContractTemplateModification" m
+               JOIN __mj_BizAppsContracts."ContractTemplateProvision" p ON p."ID" = m."ContractTemplateProvisionID"
+              WHERE m."ContractID" = '${contractID}' AND p."ContractTemplateID" = '${templateID}';`,
+    };
+}
+
 @RegisterClass(BaseEntity, 'MJ_BizApps_Contracts: Contracts')
 export class ContractEntityServer extends ContractEntity {
     /**
@@ -722,19 +788,7 @@ export class ContractEntityServer extends ContractEntity {
             throw new Error(`Refusing to walk the ${column} lineage: '${startID}' or '${this.ID}' is not a UUID.`);
         }
         const rows = await this.db.ExecuteSQL<{ Chain: string; Depth: number }>(
-            `WITH lineage AS (
-                 SELECT [ID], [${column}], 1 AS Depth,
-                        CAST([ContractNumber] AS NVARCHAR(MAX)) AS Chain
-                   FROM __mj_BizAppsContracts.[Contract]
-                  WHERE [ID] = '${startID}'
-                 UNION ALL
-                 SELECT c.[ID], c.[${column}], l.Depth + 1,
-                        CAST(l.Chain + N' -> ' + c.[ContractNumber] AS NVARCHAR(MAX))
-                   FROM __mj_BizAppsContracts.[Contract] c
-                   JOIN lineage l ON c.[ID] = l.[${column}]
-                  WHERE l.Depth < 50
-             )
-             SELECT TOP 1 Chain, Depth FROM lineage WHERE [ID] = '${this.ID}' ORDER BY Depth;`,
+            this.db.ResolveSQL(lineageProbeSQL(column, startID, this.ID)),
             undefined,
             { isMutation: false, description: `R-3 ${column} cycle probe` },
             this.ContextCurrentUser,
@@ -966,11 +1020,8 @@ export class ContractEntityServer extends ContractEntity {
         if (!UUID_SHAPE.test(templateID) || !UUID_SHAPE.test(this.ID)) {
             throw new Error(`Refusing to count modifications: '${templateID}' or '${this.ID}' is not a UUID.`);
         }
-        const rows = await this.db.ExecuteSQL<{ Hits: number }>(
-            `SELECT COUNT(*) AS Hits
-               FROM __mj_BizAppsContracts.[ContractTemplateModification] m
-               JOIN __mj_BizAppsContracts.[ContractTemplateProvision] p ON p.[ID] = m.[ContractTemplateProvisionID]
-              WHERE m.[ContractID] = '${this.ID}' AND p.[ContractTemplateID] = '${templateID}';`,
+        const rows = await this.db.ExecuteSQL<{ Hits: number | string }>(
+            this.db.ResolveSQL(modificationsAgainstTemplateSQL(this.ID, templateID)),
             undefined,
             { isMutation: false, description: 'R-4 modifications-against-template count' },
             this.ContextCurrentUser,
