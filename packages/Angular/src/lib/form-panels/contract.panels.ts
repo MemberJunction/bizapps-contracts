@@ -580,6 +580,20 @@ export class MJCContractHeroPanel extends BaseFormPanel<ContractEntity> {
                         } @else {
                             <div class="mjc-val">{{ Percent(Record.AnnualIncreasePercent) }}</div>
                         }
+                        <div class="mjc-hint">Copied to the subscriptions of linked orders.</div>
+                    </div>
+                    <div class="mjc-field">
+                        <label>Discount continues at renewal</label>
+                        @if (EditMode) {
+                            <select [ngModel]="Record.CarryDiscountOnRenewal" (ngModelChange)="SetCarryDiscount($event)"
+                                    aria-label="Does a first-term discount continue at renewal?">
+                                <option [ngValue]="true">Yes</option>
+                                <option [ngValue]="false">No</option>
+                            </select>
+                        } @else {
+                            <div class="mjc-val">{{ Record.CarryDiscountOnRenewal ? 'Yes' : 'No' }}</div>
+                        }
+                        <div class="mjc-hint">No means a first-term discount lapses at renewal.</div>
                     </div>
                 </div>
 
@@ -676,10 +690,12 @@ export class MJCContractRenewalPanel extends BaseFormPanel<ContractEntity> imple
      * AUTO-RENEWS IS ONE OF THE TERMS, and leaving it out of the condition is why the empty state
      * used to contradict the screen: `AutoRenew = Yes` with blank day counts showed "No renewal terms
      * recorded" directly beneath a field reading Yes. Auto-renewal is the most consequential renewal
-     * term there is, so the panel is only empty when it is No AND all three numbers are absent.
+     * term there is, so the panel is only empty when it is No, no discount continues, AND all three
+     * numbers are absent.
      */
     public get NoTermsRecorded(): boolean {
         return !this.Record?.AutoRenew &&
+            !this.Record?.CarryDiscountOnRenewal &&
             this.Record?.RenewalNoticeDays == null &&
             this.Record?.CancellationWindowDays == null &&
             this.Record?.AnnualIncreasePercent == null;
@@ -696,6 +712,14 @@ export class MJCContractRenewalPanel extends BaseFormPanel<ContractEntity> imple
         // explicitly rather than inferred from the entity's dirty state: `AutoRenew` starts at No, so a
         // deliberate No is byte-identical to a field nobody has touched.
         this.Record?.MarkRenewalFieldEdited(field);
+    }
+
+    /**
+     * The carry-discount flag has no contract-type default, so unlike `Set` there is no seeding to
+     * protect from a later type change.
+     */
+    public SetCarryDiscount(value: boolean): void {
+        if (this.Record) this.Record.CarryDiscountOnRenewal = value;
     }
 
     /** The authoritative view column — unlike State, nobody wants this tracking a half-typed edit. */

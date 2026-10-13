@@ -22,13 +22,15 @@
     "@memberjunction/core": "^6.1.5",
     "@memberjunction/core-entities": "^6.1.5",
     "@memberjunction/global": "^6.1.5",
-    "@memberjunction/sqlserver-dataprovider": "^6.1.5"
+    "@memberjunction/sqlserver-dataprovider": "^6.1.5",
+    "@mj-biz-apps/orders-entities": "^5.28.0"
   },
   "devDependencies": {
     "@memberjunction/core": "^6.1.5",
     "@memberjunction/core-entities": "^6.1.5",
     "@memberjunction/global": "^6.1.5",
     "@memberjunction/sqlserver-dataprovider": "^6.1.5",
+    "@mj-biz-apps/orders-entities": "5.29.0",
     "typescript": "^5.9.3",
     "vitest": "^4.0.18"
   },

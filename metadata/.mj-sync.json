@@ -33,6 +33,9 @@
     "                            @lookup:MJ: Entity Relationships rows, which CodeGen mints when it",
     "                            registers the entities — so these can only resolve once every entity",
     "                            on both sides of every relationship exists.",
+    "  action-categories       — the Contracts category. MUST precede actions, which @lookup it by name",
+    "  actions                 — the renewal terms sweep (issue #77)",
+    "  scheduled-jobs          — runs the sweep daily; its Configuration names the action's ID",
     "  applications            — the nav row; independent, but conventionally last (orders does the same)",
     "",
     "contract-templates and contract-provisions are wired but hold NO records yet: item 4's Master",
@@ -54,6 +57,9 @@
     "queries",
     "entity-relationships",
     "user-views",
+    "action-categories",
+    "actions",
+    "scheduled-jobs",
     "applications"
   ],
   "sqlLogging": {
