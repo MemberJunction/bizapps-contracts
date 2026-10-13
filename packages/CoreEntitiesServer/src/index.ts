@@ -18,6 +18,7 @@
  * **Zero remote operations.**
  */
 import { LoadContractEntityServer } from './ContractEntityServer.js';
+import { LoadContractOrderEntityServer } from './ContractOrderEntityServer.js';
 import { LoadContractTemplateEntityServer } from './ContractTemplateEntityServer.js';
 import { LoadContractTemplateProvisionEntityServer } from './ContractTemplateProvisionEntityServer.js';
 import { LoadContractTypeEntityServers } from './ContractTypeEntityServers.js';
@@ -26,6 +27,8 @@ import { LoadContractTemplateModificationEntityServer } from './ContractTemplate
 import { LoadSupersedeOperation } from './SupersedeOperation.js';
 
 export { ContractEntityServer, IsNewlySelected, LoadContractEntityServer } from './ContractEntityServer.js';
+export { ContractOrderEntityServer, LoadContractOrderEntityServer } from './ContractOrderEntityServer.js';
+export * from './renewal-terms.js';
 export {
     ContractTemplateModificationEntityServer,
     LoadContractTemplateModificationEntityServer,
@@ -49,6 +52,8 @@ export * from './delete-guard.js';
  */
 export function LoadMjBizappsContractsEntitiesServer(): void {
     LoadContractEntityServer();
+    // Copies the contract's renewal terms to a newly linked order's subscriptions (issue #77).
+    LoadContractOrderEntityServer();
     LoadSupersedeOperation();
     LoadContractTemplateModificationEntityServer();
     // R-8's delete guards. These have NO Validate/Save rules at all, so a dropped registration is

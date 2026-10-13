@@ -30,6 +30,7 @@ import { LoadMjBizappsContractsEntitiesServer } from '../index.js';
 /** Every entity whose SERVER-side implementation differs from the shared one. */
 const SERVER_OVERRIDES: ReadonlyArray<{ entity: string; className: string; why: string }> = [
     { entity: 'MJ_BizApps_Contracts: Contracts', className: 'ContractEntityServer', why: 'number minting, HasModifications EXISTS, retired-type check, delete guard' },
+    { entity: 'MJ_BizApps_Contracts: Contract Orders', className: 'ContractOrderEntityServer', why: 'copies the contract renewal terms to a newly linked order\'s subscriptions' },
     { entity: 'MJ_BizApps_Contracts: Contract Template Modifications', className: 'ContractTemplateModificationEntityServer', why: 'provision/template consistency, parent flag' },
     { entity: 'MJ_BizApps_Contracts: Contract Templates', className: 'ContractTemplateEntityServer', why: 'R-8 delete guard ONLY — a lost registration is silent' },
     { entity: 'MJ_BizApps_Contracts: Contract Template Provisions', className: 'ContractTemplateProvisionEntityServer', why: 'R-8 delete guard ONLY — a lost registration is silent' },
