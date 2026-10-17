@@ -1,5 +1,14 @@
 # @mj-biz-apps/contracts-actions
 
+## 0.8.0
+
+### Minor Changes
+
+- 9b55b2c: Contract types get a required, unique `Code` (for example `ORDER_FORM`) that other apps use to find
+  a type instead of its display name, so renaming a type no longer breaks callers. The migration sets
+  codes for the four shipped types by ID and derives the rest from each type's name.
+- 847e292: The provision guard trigger refuses an edit or delete of a clause on a published template with its own message (50102, 50101) instead of SQL Server error 3915, "Cannot use the ROLLBACK statement within an INSERT-EXEC statement". Migration only; no schema or metadata change.
+
 ## 0.7.3
 
 ### Patch Changes
