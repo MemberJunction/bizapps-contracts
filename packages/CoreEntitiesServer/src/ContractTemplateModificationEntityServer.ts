@@ -14,6 +14,7 @@ import {
     type DatabaseProviderBase,
     LogError,
     Metadata,
+    type PlatformSQL,
     ValidationErrorInfo,
     ValidationErrorType,
     ValidationResult,
@@ -23,6 +24,69 @@ import { ContractEntity, ContractTemplateModificationEntity } from '@mj-biz-apps
 
 /** Guards an ID before it is interpolated into the ancestor walk. */
 const UUID_SHAPE = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
+
+/**
+ * The provision's template against the templates on the contract's ancestor chain, one form per
+ * database.
+ *
+ * PostgreSQL needs `WITH RECURSIVE` and quoted identifiers. Its aliases are quoted too: unquoted,
+ * `InTree` would come back as `intree`, the caller's `row.InTree === 1` would never hold, and every
+ * modification under a templated tree would be refused.
+ *
+ * Callers check both IDs against `UUID_SHAPE` first.
+ */
+export function provisionTemplateCheckSQL(contractID: string, provisionID: string): PlatformSQL {
+    return {
+        default: `WITH ancestry AS (
+                 SELECT [ID], [ParentContractID], [ContractTemplateID], 1 AS Depth
+                   FROM __mj_BizAppsContracts.[Contract]
+                  WHERE [ID] = '${contractID}'
+                 UNION ALL
+                 SELECT c.[ID], c.[ParentContractID], c.[ContractTemplateID], a.Depth + 1
+                   FROM __mj_BizAppsContracts.[Contract] c
+                   JOIN ancestry a ON c.[ID] = a.[ParentContractID]
+                  WHERE a.Depth < 50
+             ),
+             tmpl AS (
+                 SELECT DISTINCT t.[ID], t.[Name]
+                   FROM ancestry a
+                   JOIN __mj_BizAppsContracts.[ContractTemplate] t ON t.[ID] = a.[ContractTemplateID]
+             )
+             SELECT
+                 CAST(pt.[ID] AS NVARCHAR(36))                                   AS ProvisionTemplateID,
+                 pt.[Name]                                                       AS ProvisionTemplate,
+                 (SELECT STRING_AGG(x.[Name], N', ') FROM tmpl x)                AS AncestorTemplates,
+                 CASE WHEN EXISTS (SELECT 1 FROM tmpl x WHERE x.[ID] = pt.[ID])
+                      THEN 1 ELSE 0 END                                          AS InTree
+               FROM __mj_BizAppsContracts.[ContractTemplateProvision] p
+               JOIN __mj_BizAppsContracts.[ContractTemplate] pt ON pt.[ID] = p.[ContractTemplateID]
+              WHERE p.[ID] = '${provisionID}';`,
+        postgresql: `WITH RECURSIVE ancestry AS (
+                 SELECT "ID", "ParentContractID", "ContractTemplateID", 1 AS "Depth"
+                   FROM __mj_BizAppsContracts."Contract"
+                  WHERE "ID" = '${contractID}'
+                 UNION ALL
+                 SELECT c."ID", c."ParentContractID", c."ContractTemplateID", a."Depth" + 1
+                   FROM __mj_BizAppsContracts."Contract" c
+                   JOIN ancestry a ON c."ID" = a."ParentContractID"
+                  WHERE a."Depth" < 50
+             ),
+             tmpl AS (
+                 SELECT DISTINCT t."ID", t."Name"
+                   FROM ancestry a
+                   JOIN __mj_BizAppsContracts."ContractTemplate" t ON t."ID" = a."ContractTemplateID"
+             )
+             SELECT
+                 pt."ID"::text                                                   AS "ProvisionTemplateID",
+                 pt."Name"                                                       AS "ProvisionTemplate",
+                 (SELECT STRING_AGG(x."Name", ', ') FROM tmpl x)                 AS "AncestorTemplates",
+                 CASE WHEN EXISTS (SELECT 1 FROM tmpl x WHERE x."ID" = pt."ID")
+                      THEN 1 ELSE 0 END                                          AS "InTree"
+               FROM __mj_BizAppsContracts."ContractTemplateProvision" p
+               JOIN __mj_BizAppsContracts."ContractTemplate" pt ON pt."ID" = p."ContractTemplateID"
+              WHERE p."ID" = '${provisionID}';`,
+    };
+}
 
 /*
  * EXTENDS THE SHARED SUBCLASS, not the generated one. It used to extend the generated class directly,
@@ -233,30 +297,7 @@ export class ContractTemplateModificationEntityServer extends ContractTemplateMo
             AncestorTemplates: string | null;
             InTree: number;
         }>(
-            `WITH ancestry AS (
-                 SELECT [ID], [ParentContractID], [ContractTemplateID], 1 AS Depth
-                   FROM __mj_BizAppsContracts.[Contract]
-                  WHERE [ID] = '${this.ContractID}'
-                 UNION ALL
-                 SELECT c.[ID], c.[ParentContractID], c.[ContractTemplateID], a.Depth + 1
-                   FROM __mj_BizAppsContracts.[Contract] c
-                   JOIN ancestry a ON c.[ID] = a.[ParentContractID]
-                  WHERE a.Depth < 50
-             ),
-             tmpl AS (
-                 SELECT DISTINCT t.[ID], t.[Name]
-                   FROM ancestry a
-                   JOIN __mj_BizAppsContracts.[ContractTemplate] t ON t.[ID] = a.[ContractTemplateID]
-             )
-             SELECT
-                 CAST(pt.[ID] AS NVARCHAR(36))                                   AS ProvisionTemplateID,
-                 pt.[Name]                                                       AS ProvisionTemplate,
-                 (SELECT STRING_AGG(x.[Name], N', ') FROM tmpl x)                AS AncestorTemplates,
-                 CASE WHEN EXISTS (SELECT 1 FROM tmpl x WHERE x.[ID] = pt.[ID])
-                      THEN 1 ELSE 0 END                                          AS InTree
-               FROM __mj_BizAppsContracts.[ContractTemplateProvision] p
-               JOIN __mj_BizAppsContracts.[ContractTemplate] pt ON pt.[ID] = p.[ContractTemplateID]
-              WHERE p.[ID] = '${this.ContractTemplateProvisionID}';`,
+            this.db.ResolveSQL(provisionTemplateCheckSQL(this.ContractID, this.ContractTemplateProvisionID)),
             undefined,
             { isMutation: false, description: 'R-4 provision-in-ancestor-templates check' },
             this.ContextCurrentUser,

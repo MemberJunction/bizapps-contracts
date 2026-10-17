@@ -10,7 +10,7 @@
  * saved contract, or one whose field is already filled, must not pay for either query.
  */
 import { describe, expect, it, vi } from 'vitest';
-import { ResolveServerDefaultTemplate } from '../ContractEntityServer.js';
+import { ResolveServerDefaultTemplate, TemplateRequiredMessage } from '../ContractEntityServer.js';
 
 const TYPE = 'A1B2C3D4-0000-4000-8000-000000000001';
 const CURRENT = 'A1B2C3D4-0000-4000-8000-0000000000AA';
@@ -98,5 +98,21 @@ describe('ResolveServerDefaultTemplate', () => {
             r.current,
         );
         expect(id).toBeNull();
+    });
+});
+
+describe('TemplateRequiredMessage', () => {
+    it('asks for a choice when a usable Published template exists', () => {
+        const msg = TemplateRequiredMessage('Order Form', true);
+        expect(msg).toContain('Choose the template');
+        expect(msg).not.toContain('Publish one');
+    });
+
+    it('names the missing setup on a fresh install with no usable Published template (#95)', () => {
+        const msg = TemplateRequiredMessage('Order Form', false);
+        expect(msg).toContain('A Order Form must reference');
+        expect(msg).toContain('no Published template with a document or source URL exists yet');
+        expect(msg).toContain('Publish one under Templates');
+        expect(msg).not.toContain('Choose the template');
     });
 });

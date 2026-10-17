@@ -12,12 +12,14 @@ import {
     type NamedCheck,
 } from '@memberjunction/testing-integration/registry';
 import {
+    CONTRACTS_SCHEMA,
     E_PROVISION,
     E_TEMPLATE,
     FindId,
     FindRows,
     Quote,
     ResolveContractsFixture,
+    TxOne,
 } from '../fixture.js';
 
 type Ctx = IntegrationCheckContext;
@@ -105,6 +107,40 @@ export const ProvisionsChecks: NamedCheck[] = [
             Assert(blank.length === 0, `P5 MSA has ${blank.length} provisions with no text`);
         },
     },
+    {
+        Id: 'contracts-provisions.P6',
+        Name: 'P6 — editing a published provision through INSERT-EXEC returns 50102, not 3915',
+        RequiresMutation: true,
+        Fn: async (ctx: Ctx) => {
+            const f = await ResolveContractsFixture(ctx);
+            const provisionID = await unreferencedProvision(ctx, f.TemplateID);
+            const result = await refusalThroughInsertExec(
+                ctx,
+                `UPDATE [${CONTRACTS_SCHEMA}].[ContractTemplateProvision] SET [Title] = [Title] + N'' (edited)'' WHERE [ID] = ''${provisionID}''`,
+            );
+            Assert(
+                result.ErrorNumber === 50102,
+                `P6 expected the guard's 50102, got ${result.ErrorNumber}: ${result.ErrorMessage}`,
+            );
+        },
+    },
+    {
+        Id: 'contracts-provisions.P7',
+        Name: 'P7 — deleting a published provision through INSERT-EXEC returns 50101, not 3915',
+        RequiresMutation: true,
+        Fn: async (ctx: Ctx) => {
+            const f = await ResolveContractsFixture(ctx);
+            const provisionID = await unreferencedProvision(ctx, f.TemplateID);
+            const result = await refusalThroughInsertExec(
+                ctx,
+                `DELETE FROM [${CONTRACTS_SCHEMA}].[ContractTemplateProvision] WHERE [ID] = ''${provisionID}''`,
+            );
+            Assert(
+                result.ErrorNumber === 50101,
+                `P7 expected the guard's 50101, got ${result.ErrorNumber}: ${result.ErrorMessage}`,
+            );
+        },
+    },
 ];
 
 async function loadProvisions(ctx: Ctx, templateID: string): Promise<ProvisionRow[]> {
@@ -114,6 +150,51 @@ async function loadProvisions(ctx: Ctx, templateID: string): Promise<ProvisionRo
         `ContractTemplateID = '${templateID}'`,
         ['ID', 'ProvisionNumber', 'Title', 'ProvisionText', 'ProvisionSortKey'],
         'ProvisionSortKey ASC, ProvisionNumber ASC',
+    );
+}
+
+/** A provision on the template that no modification points at, so a DELETE reaches the trigger. */
+async function unreferencedProvision(ctx: Ctx, templateID: string): Promise<string> {
+    const row = await TxOne<{ ID: string }>(
+        ctx,
+        `SELECT TOP 1 p.[ID]
+           FROM [${CONTRACTS_SCHEMA}].[ContractTemplateProvision] p
+          WHERE p.[ContractTemplateID] = '${templateID}'
+            AND NOT EXISTS (SELECT 1 FROM [${CONTRACTS_SCHEMA}].[ContractTemplateModification] m
+                             WHERE m.[ContractTemplateProvisionID] = p.[ID])
+          ORDER BY p.[ProvisionSortKey]`,
+    );
+    return row.ID;
+}
+
+/**
+ * Run a write the way MJ's provider runs spUpdate and spDelete: inside `INSERT INTO @t EXEC`.
+ * SQL Server forbids ROLLBACK anywhere in an INSERT-EXEC, so a guard trigger that issues one
+ * fails with 3915 and the rule's own error never surfaces. The entity subclass refuses these
+ * writes before they reach SQL, which is why the check goes around it.
+ *
+ * Self-contained: the batch opens and rolls back its own transaction, so nothing persists
+ * whether the trigger refuses or not, and returns ErrorNumber 0 when nothing refused.
+ * `dynamicSql` is a T-SQL string literal body, so its own quotes are already doubled.
+ */
+async function refusalThroughInsertExec(
+    ctx: Ctx,
+    dynamicSql: string,
+): Promise<{ ErrorNumber: number; ErrorMessage: string | null }> {
+    return TxOne<{ ErrorNumber: number; ErrorMessage: string | null }>(
+        ctx,
+        `SET NOCOUNT ON;
+         DECLARE @ResultTable TABLE ([Done] INT);
+         BEGIN TRY
+             BEGIN TRANSACTION;
+             INSERT INTO @ResultTable EXEC sp_executesql N'${dynamicSql}; SELECT 1;';
+             ROLLBACK TRANSACTION;
+             SELECT 0 AS ErrorNumber, CAST(NULL AS NVARCHAR(4000)) AS ErrorMessage;
+         END TRY
+         BEGIN CATCH
+             IF @@TRANCOUNT > 0 ROLLBACK TRANSACTION;
+             SELECT ERROR_NUMBER() AS ErrorNumber, ERROR_MESSAGE() AS ErrorMessage;
+         END CATCH`,
     );
 }
 
