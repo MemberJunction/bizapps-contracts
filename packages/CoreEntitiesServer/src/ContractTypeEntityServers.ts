@@ -18,8 +18,8 @@
 import { BaseEntity, type EntityDeleteOptions } from '@memberjunction/core';
 import { RegisterClass } from '@memberjunction/global';
 import {
-    mjBizAppsContractsContractTemplateTypeEntity,
-    mjBizAppsContractsContractTypeEntity,
+    ContractTemplateTypeEntity,
+    ContractTypeEntity,
 } from '@mj-biz-apps/contracts-entities';
 import { GuardedDelete, plural } from './delete-guard.js';
 
@@ -27,7 +27,7 @@ import { GuardedDelete, plural } from './delete-guard.js';
 const RETIRE_INSTEAD = `Retiring is what you want: set Status to Inactive, which stops it being offered for new records and leaves the existing ones working.`;
 
 @RegisterClass(BaseEntity, 'MJ_BizApps_Contracts: Contract Types')
-export class ContractTypeEntityServer extends mjBizAppsContractsContractTypeEntity {
+export class ContractTypeEntityServer extends ContractTypeEntity {
     public override async Delete(options?: EntityDeleteOptions): Promise<boolean> {
         return GuardedDelete(
             this,
@@ -46,7 +46,7 @@ export class ContractTypeEntityServer extends mjBizAppsContractsContractTypeEnti
 }
 
 @RegisterClass(BaseEntity, 'MJ_BizApps_Contracts: Contract Template Types')
-export class ContractTemplateTypeEntityServer extends mjBizAppsContractsContractTemplateTypeEntity {
+export class ContractTemplateTypeEntityServer extends ContractTemplateTypeEntity {
     public override async Delete(options?: EntityDeleteOptions): Promise<boolean> {
         return GuardedDelete(
             this,
