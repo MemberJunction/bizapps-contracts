@@ -1,0 +1,34 @@
+name: Repo checks
+
+# Guards specific to this repo. They live here, not in build.yml or changes.yml, because those and
+# the other release workflows are copied byte-for-byte from the reference repo (bizapps-issues) and
+# must stay identical across the open apps. The dependency-model check ran inside this repo's
+# build.yml before the release-pipeline port.
+on:
+  pull_request:
+    branches: [next, main]
+    types: [opened, synchronize, reopened, ready_for_review]
+
+permissions:
+  contents: read
+
+jobs:
+  repo-guards:
+    name: 'repo: guards'
+    if: github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 24
+
+      # A host installs one copy of MemberJunction and of each Open App: @memberjunction/* and other
+      # apps' @mj-biz-apps/* packages are caret peers, never `dependencies`, or the host gets a second
+      # copy and a split class-factory registry. Self-test first, so a pass means the check can fail.
+      - name: Dependency model (MJ and sibling apps are caret peers)
+        run: |
+          node ./.github/scripts/check-dependency-model.mjs --self-test
+          node ./.github/scripts/check-dependency-model.mjs

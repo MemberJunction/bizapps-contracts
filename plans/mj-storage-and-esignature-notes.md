@@ -1,5 +1,8 @@
 # MJ Storage and MJ eSignature — what they are and what we get for free
 
+> **Historical.** Research notes written during the v2 build in August 2026 against MJ 5 and not
+> re-checked against MJ 6.1. Verify any capability here against MJ's current source before relying on it.
+
 > **Purpose:** contracts is mostly a documents app, so what MJ already does with documents decides
 > how much we build. This is a capability write-up so the plan can lean on it correctly.
 >

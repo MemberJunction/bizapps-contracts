@@ -60,9 +60,10 @@ genuinely need all of them.
 
 Newer MJ core entities are named with an `MJ: ` prefix
 (`'MJ: AI Agent Runs'`, not `'AI Agent Runs'`); older ones aren't. Verify
-names in the generated `entity_subclasses.ts` (the `@RegisterClass` JSDoc
-shows each entity's exact name). Your own app's entities get YOUR schema
-prefix (this template: `Sample App: `) via `SchemaInfo.EntityNamePrefix` +
+names in the generated entity files (`generated/entities/<schema>.ts`; each
+class's JSDoc opens with the entity's exact name). This app's entities carry
+the prefix `MJ_BizApps_Contracts: ` (`'MJ_BizApps_Contracts: Contracts'`) via
+`SchemaInfo.EntityNamePrefix` (registered by the baseline migration) +
 `mj.config.cjs` `NameRulesBySchema` — that's what prevents cross-app
 collisions.
 

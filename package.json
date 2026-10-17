@@ -3,13 +3,12 @@
   "version": "0.1.0",
   "private": true,
   "license": "BUSL-1.1",
-  "description": "Template repository for MemberJunction Open Apps - clone, rename, fill in. See README.md and docs/.",
+  "description": "BizApps Contracts - customer agreement records (executed documents, standard agreement versions, negotiated provisions, renewal and notice terms) built on MemberJunction",
   "workspaces": [
     "packages/*"
   ],
   "scripts": {
     "prebuild": "node -e \"try { require.resolve('turbo') } catch (e) { console.error('\\n[ERROR] Dependencies not installed. Run: pnpm install\\n'); process.exit(1); }\"",
-    "init": "node scripts/init-template.mjs",
     "build": "pnpm run build:stream",
     "build:stream": "turbo --log-order=stream build",
     "build:packages": "turbo --log-order=stream build --filter=\"@mj-biz-apps/contracts-*\"",
@@ -20,10 +19,7 @@
     "demo:load": "mj sync push --dir demo-data",
     "change": "changeset",
     "version": "changeset version",
-    "version:ci": "changeset version && node ci/sync-mj-app-version.mjs && pnpm install --lockfile-only",
-    "commitpush": "node ci/commit_push.mjs",
-    "mergemain": "node ci/merge_main.mjs",
-    "mergemain:update-lock": "node ci/merge_main_and_update_lock.mjs",
+    "version:prepare": "changeset version && node ci/sync-mj-app-version.mjs && pnpm install --lockfile-only",
     "test:unit": "vitest run",
     "test:state": "node test-harnesses/state-derivation.mjs",
     "test:integration": "node test-harnesses/integration.mjs",

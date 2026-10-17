@@ -11,7 +11,8 @@
  *   contracts-world        CW1        commit CTR-WORLD (template, customers, a portfolio of every State)
  *   contracts-graph-save   GS1–GS11   header + modifications atomicity, flag invariant, type rules — D-15
  *   contracts-numbering    N1–N5      ContractNumber CTR sequence, uniqueness, reserved namespace
- *   contracts-provisions   P1–P5      seed completeness incl. text, natural order via ProvisionSortKey
+ *   contracts-provisions   P1–P7      seed completeness incl. text, natural order via ProvisionSortKey,
+ *                                    published-provision guard errors through INSERT-EXEC
  *   contracts-watchlist    W1–W8      derived column VALUES (awaiting document, days to end, notice, state)
  *
  * WHY BUNDLE IDS ARE PREFIXED `contracts-`. The registry is a `BaseSingleton` keyed on check id and

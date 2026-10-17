@@ -1,5 +1,8 @@
 # Backend requirements — validation we need to add
 
+> **Historical.** Written during the v2 build in August 2026 and no longer maintained. The code,
+> [`docs/ERD.md`](../docs/ERD.md) and [`docs/database-migrations.md`](../docs/database-migrations.md) describe the current app.
+
 **Status:** plan, nothing implemented. Branch `build/backend-requirements`.
 **Audit basis:** every rule ERD §7.1 promises was verified present in code on 2026-08-20, including
 the one most likely to have been aspirational (`ContractTemplateModificationEntityServer` forcing the

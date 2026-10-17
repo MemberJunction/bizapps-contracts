@@ -303,6 +303,11 @@ export const mjBizAppsContractsContractTypeSchema = z.object({
         * * Display Name: Default Annual Increase Percent
         * * SQL Data Type: decimal(7, 4)
         * * Description: Seeds Contract.AnnualIncreasePercent — the year-over-year uplift this kind of agreement usually carries. NULL means no default. Same precision as the column it seeds, so a legal default can never seed an unsaveable contract.`),
+    Code: z.string().describe(`
+        * * Field Name: Code
+        * * Display Name: Code
+        * * SQL Data Type: nvarchar(50)
+        * * Description: Stable machine code other apps and metadata use to find this type (for example ORDER_FORM). Unique. Unlike Name, it is not a label: renaming the type leaves the Code alone, and changing the Code breaks every caller that names it.`),
 });
 
 export type mjBizAppsContractsContractTypeEntityType = z.infer<typeof mjBizAppsContractsContractTypeSchema>;
@@ -1238,6 +1243,9 @@ export class mjBizAppsContractsContractTypeEntity extends BaseEntity<mjBizAppsCo
 
     /**
     * Validate() method override for MJ_BizApps_Contracts: Contract Types entity. This is an auto-generated method that invokes the generated validators for this entity for the following fields:
+    * * DefaultAnnualIncreasePercent: Default annual increase percentage must be zero or greater.
+    * * DefaultCancellationWindowDays: Default cancellation window days must be zero or a positive number if provided.
+    * * DefaultRenewalNoticeDays: Default renewal notice days cannot be negative if specified.
     * * Table-Level: An entity cannot be designated as both a root and a child at the same time.
     * @public
     * @method
@@ -1245,10 +1253,64 @@ export class mjBizAppsContractsContractTypeEntity extends BaseEntity<mjBizAppsCo
     */
     public override Validate(): ValidationResult {
         const result = super.Validate();
+        this.ValidateDefaultAnnualIncreasePercentGreaterThanOrEqualToZero(result);
+        this.ValidateDefaultCancellationWindowDaysGreaterOrEqualToZero(result);
+        this.ValidateDefaultRenewalNoticeDaysMin(result);
         this.ValidateRootAndChildExclusivity(result);
         result.Success = result.Success && (result.Errors.length === 0);
 
         return result;
+    }
+
+    /**
+    * Default annual increase percentage must be zero or greater.
+    * @param result - the ValidationResult object to add any errors or warnings to
+    * @public
+    * @method
+    */
+    public ValidateDefaultAnnualIncreasePercentGreaterThanOrEqualToZero(result: ValidationResult) {
+    	if (this.DefaultAnnualIncreasePercent != null && this.DefaultAnnualIncreasePercent < 0) {
+    		result.Errors.push(new ValidationErrorInfo(
+    			"DefaultAnnualIncreasePercent",
+    			"Default annual increase percentage must be greater than or equal to 0.",
+    			this.DefaultAnnualIncreasePercent,
+    			ValidationErrorType.Failure
+    		));
+    	}
+    }
+
+    /**
+    * Default cancellation window days must be zero or a positive number if provided.
+    * @param result - the ValidationResult object to add any errors or warnings to
+    * @public
+    * @method
+    */
+    public ValidateDefaultCancellationWindowDaysGreaterOrEqualToZero(result: ValidationResult) {
+    	if (this.DefaultCancellationWindowDays != null && this.DefaultCancellationWindowDays < 0) {
+    		result.Errors.push(new ValidationErrorInfo(
+    			"DefaultCancellationWindowDays",
+    			"Default cancellation window days must be greater than or equal to 0.",
+    			this.DefaultCancellationWindowDays,
+    			ValidationErrorType.Failure
+    		));
+    	}
+    }
+
+    /**
+    * Default renewal notice days cannot be negative if specified.
+    * @param result - the ValidationResult object to add any errors or warnings to
+    * @public
+    * @method
+    */
+    public ValidateDefaultRenewalNoticeDaysMin(result: ValidationResult) {
+    	if (this.DefaultRenewalNoticeDays != null && this.DefaultRenewalNoticeDays < 0) {
+    		result.Errors.push(new ValidationErrorInfo(
+    			"DefaultRenewalNoticeDays",
+    			"Default renewal notice days must be greater than or equal to 0.",
+    			this.DefaultRenewalNoticeDays,
+    			ValidationErrorType.Failure
+    		));
+    	}
     }
 
     /**
@@ -1449,6 +1511,19 @@ export class mjBizAppsContractsContractTypeEntity extends BaseEntity<mjBizAppsCo
     }
     set DefaultAnnualIncreasePercent(value: number | null) {
         this.Set('DefaultAnnualIncreasePercent', value);
+    }
+
+    /**
+    * * Field Name: Code
+    * * Display Name: Code
+    * * SQL Data Type: nvarchar(50)
+    * * Description: Stable machine code other apps and metadata use to find this type (for example ORDER_FORM). Unique. Unlike Name, it is not a label: renaming the type leaves the Code alone, and changing the Code breaks every caller that names it.
+    */
+    get Code(): string {
+        return this.Get('Code');
+    }
+    set Code(value: string) {
+        this.Set('Code', value);
     }
 }
 
