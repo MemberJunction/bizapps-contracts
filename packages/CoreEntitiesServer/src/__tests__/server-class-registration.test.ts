@@ -19,13 +19,21 @@
  * behaving normally. That is the definition of a silent regression, and the anti-tree-shake anchors in
  * `index.ts` are what this file is really checking.
  */
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { BaseEntity } from '@memberjunction/core';
 import { MJGlobal } from '@memberjunction/global';
+import {
+    ContractTemplateTypeEntity,
+    ContractTypeEntity,
+} from '@mj-biz-apps/contracts-entities';
 
 // Import for SIDE EFFECT — this is what fires the decorators, exactly as the server bootstrap does.
 import '../index.js';
-import { LoadMjBizappsContractsEntitiesServer } from '../index.js';
+import {
+    ContractTemplateTypeEntityServer,
+    ContractTypeEntityServer,
+    LoadMjBizappsContractsEntitiesServer,
+} from '../index.js';
 
 /** Every entity whose SERVER-side implementation differs from the shared one. */
 const SERVER_OVERRIDES: ReadonlyArray<{ entity: string; className: string; why: string }> = [
@@ -57,6 +65,48 @@ describe('the server resolves its own subclass for every entity that has one', (
             expect(registration!.SubClass.name).toBe(className);
         });
     }
+});
+
+describe('every server subclass extends the shared subclass in a single linear inheritance chain', () => {
+    it('ContractTypeEntityServer extends ContractTypeEntity and ContractTemplateTypeEntityServer extends ContractTemplateTypeEntity', () => {
+        expect(ContractTypeEntityServer.prototype).toBeInstanceOf(ContractTypeEntity);
+        expect(ContractTemplateTypeEntityServer.prototype).toBeInstanceOf(ContractTemplateTypeEntity);
+    });
+
+    for (const { entity, className } of SERVER_OVERRIDES) {
+        it(`${entity} has no unrelated sibling registrations in ClassFactory`, () => {
+            const factory = MJGlobal.Instance.ClassFactory;
+            const winner = resolve(entity)?.SubClass;
+            expect(winner?.name).toBe(className);
+            const all = factory.GetAllRegistrations(BaseEntity, entity);
+            expect(all.length).toBeGreaterThanOrEqual(2);
+            for (const reg of all) {
+                const isLinear = reg.SubClass === winner || winner!.prototype instanceof reg.SubClass;
+                expect(
+                    isLinear,
+                    `Expected ${reg.SubClass.name} to be an ancestor of ${className} for '${entity}'`
+                ).toBe(true);
+            }
+        });
+    }
+
+    it('emits zero ClassFactory.Register unrelated-class warnings when registering ContractTypeEntityServer and ContractTemplateTypeEntityServer', () => {
+        const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        try {
+            const factory = MJGlobal.Instance.ClassFactory;
+            factory.Register(BaseEntity, ContractTypeEntity, 'MJ_BizApps_Contracts: Contract Types');
+            factory.Register(BaseEntity, ContractTypeEntityServer, 'MJ_BizApps_Contracts: Contract Types');
+            factory.Register(BaseEntity, ContractTemplateTypeEntity, 'MJ_BizApps_Contracts: Contract Template Types');
+            factory.Register(BaseEntity, ContractTemplateTypeEntityServer, 'MJ_BizApps_Contracts: Contract Template Types');
+
+            const collisionWarnings = warnSpy.mock.calls
+                .map((args) => String(args[0] ?? ''))
+                .filter((msg) => msg.includes('ClassFactory.Register') && msg.includes('unrelated class'));
+            expect(collisionWarnings).toEqual([]);
+        } finally {
+            warnSpy.mockRestore();
+        }
+    });
 });
 
 describe('the anti-tree-shake anchors cover every server subclass', () => {
