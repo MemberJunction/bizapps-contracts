@@ -374,6 +374,21 @@ export class ContractEntity extends mjBizAppsContractsContractEntity {
      * Returns whether anything was written, so a caller can skip a redundant change-detection pass.
      * Safe to call repeatedly with the same type: the computed seed is empty when the fields already
      * hold their targets.
+     *
+     * CALLERS OTHER THAN THE FORM (#97). Nothing seeds at save time, so a contract created in code —
+     * a route, an action, an agent, an import — gets its type's defaults only if the creator calls
+     * this. The order is:
+     *
+     *   1. set `ContractTypeID` and every renewal field the creator has a value for;
+     *   2. `MarkRenewalFieldEdited()` for each of those fields — including `AutoRenew` whenever the
+     *      creator states it, because a stated No looks exactly like the starting value;
+     *   3. `SeedRenewalDefaultsFromType()`, which fills only the fields left unmarked;
+     *   4. `Save()`.
+     *
+     * Seeding inside `ContractEntityServer.Save()` instead would look simpler and is wrong: a form save
+     * reaches the server as a fresh object built from the submitted values, without the form's list of
+     * edited fields, so the server would refill a field the user cleared on purpose and turn a chosen
+     * No into the type's Yes.
      */
     public async SeedRenewalDefaultsFromType(): Promise<boolean> {
         if (this.IsSaved) return false;

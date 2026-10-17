@@ -114,13 +114,13 @@ consumer's database. So the test for anything added there is not "is it correct?
 
 - **`metadata/`, the install seed:** structural metadata and configuration (`entities`,
   `entity-fields`, `entity-relationships`, `entity-settings`, `applications`, `queries`,
-  `query-categories`, `user-views`, `record-processes`, `ml-models`, `ml-training-pipelines`,
-  `ml-model-scoring-bindings`) and genuine vocabulary: contract types, template types.
+  `query-categories`, `user-views`) and genuine vocabulary: contract types, template types.
   `schema-info` holds no records; the baseline registers the schema.
 - **`demo-data/`, never shipped:** any particular organisation's records, *including their
   agreement text*. It holds invented organisations, contracts and modifications, the selling
-  company they are written against, and one real agreement, and is pushed only on request
-  (`pnpm run demo:load`).
+  company they are written against, one real agreement, and the predictive-scoring bench
+  (training pipeline, model versions, scoring record process and binding), and is pushed only on
+  request (`pnpm run demo:load`).
 
 **A KIND of contract is vocabulary; a particular company's AGREEMENT is content.** This was got
 wrong once: `metadata/contract-templates/` and `metadata/contract-provisions/` carried one
@@ -128,12 +128,16 @@ company's actual Master Services Agreement — 71 verbatim provisions — so the
 seeded that company's contract terms into every install as reference data. They moved to
 `demo-data/` on 2026-08-24. `plans/QUESTIONS.md` Q-5 (historical) records the ruling.
 
+**A model is fitted to one organisation's data.** The ML models' fitted preprocessing and feature
+importance are statistics from the dataset they were trained on, and a scheduled record process
+against a model with no artifact fails every record it touches. So the predictive-scoring bench
+lives in `demo-data/`, with its record process `Disabled` and its schedule off (issue #89).
+
 ### What a host has today
 
 The only `Metadata_Sync` migration, `V202608240300`, carries `metadata/` as of 2026-08-24:
 contract types, template types, entity/field/relationship metadata and the application row.
-Folders added since (`entity-settings`, `queries`, `query-categories`, `user-views`,
-`record-processes`, the three `ml-*` folders) and later edits to `entities` and `entity-fields`
+Folders added since (`entity-settings`, `queries`, `query-categories`, `user-views`) and later edits to `entities` and `entity-fields`
 reach a database only through `mj sync push`, so a host installed from migrations alone runs
 without them until a release regenerates the file. Issue #80 tracks this. Nothing in CI detects
 the gap.

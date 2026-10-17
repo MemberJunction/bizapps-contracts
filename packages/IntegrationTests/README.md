@@ -81,7 +81,7 @@ tested machinery the rebuild deleted and stay gone.
 | `contracts-world` | COMMITS CTR-WORLD: a published template, four customers, and a contract in every derived `State`, with relative dates and minted `CTR-` numbers |
 | `contracts-graph-save` | header + modifications atomicity, rollback on invalid, `HasModifications` monotonic, duplicate provisions, type/template rules — the D-15 acceptance test |
 | `contracts-numbering` | `ContractNumber` CTR sequence, uniqueness under concurrency, reserved `CTR-` namespace |
-| `contracts-provisions` | seed completeness incl. text, natural order via `ProvisionSortKey` (`1.9` before `1.10`) |
+| `contracts-provisions` | seed completeness incl. text, natural order via `ProvisionSortKey` (`1.9` before `1.10`); the published-provision guard returns its own error, not 3915, when reached through INSERT-EXEC |
 | `contracts-watchlist` | derived column **values** (`IsAwaitingDocument`, `DaysToEnd`, `RenewalNoticeDeadline`, `IsInCancellationWindow`, `State`). `IsChangeOrder` was removed from the view — W8 asserts `ParentContractID` instead |
 
 `contracts-world` is the only bundle that leaves rows. Re-running it updates dates so the watchlist does not drift. The rest wrap each check in a provider transaction and roll it back.
