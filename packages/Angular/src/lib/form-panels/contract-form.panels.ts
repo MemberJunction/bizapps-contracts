@@ -23,14 +23,11 @@ import { MJAlertComponent, MJButtonDirective, MJComboboxComponent } from '@membe
 import type { AfterDataLoadEventArgs } from '@memberjunction/ng-entity-viewer';
 import {
     ContractEntity,
-    CurrentTemplateFilter,
-    CurrentTemplateOrderBy,
     DealIDClause,
     DealOptionLabel,
     DealSearchClause,
-    MayWriteDefaultTemplate,
-    ShouldDefaultTemplate,
-    ShouldWithdrawDefaultTemplate,
+    DecideTemplateDefault,
+    ReadCurrentTemplateID,
     type ContractState,
     type DealOption,
 } from '@mj-biz-apps/contracts-entities';
@@ -367,7 +364,7 @@ export class MJCContractOverviewPanel extends BaseFormPanel<ContractEntity> {
         const out: string[] = [];
         if (!this.Record) return out;
         if (this.Record.IsAwaitingDocument) {
-            out.push('Executed agreement not attached.');
+            out.push('No linked file is marked as the executed agreement.');
         }
         if (this.Record.IsInCancellationWindow) {
             out.push('Cancellation window is open.');
@@ -393,7 +390,8 @@ export class MJCContractOverviewPanel extends BaseFormPanel<ContractEntity> {
         return out;
     }
     public get NextMove(): string | null {
-        if (this.Record?.IsAwaitingDocument) return 'Attach the executed agreement.';
+        // #117: attaching alone does not clear it; the file has to be marked.
+        if (this.Record?.IsAwaitingDocument) return 'Attach the signed PDF and mark it as the executed agreement.';
         if (this.Record?.IsInCancellationWindow) return 'Cancellation window is open. Confirm whether the customer is renewing.';
         const notice = noticeDays(this.Record);
         if (notice != null && notice <= 30) {
@@ -525,46 +523,43 @@ export class MJCContractAgreementPanel extends BaseFormPanel<ContractEntity> imp
     }
 
     /**
+     * Incremented by every `defaultTemplate()` call, so a call can tell it has been superseded (#153).
+     * Two type changes in quick succession start two calls; whichever read finishes last must not
+     * decide for a type the contract no longer has.
+     */
+    private defaultSeq = 0;
+
+    /**
      * Put the current standard-terms version in the field, if we are allowed to.
      *
-     * THE CHEAP HALF OF THE RULE RUNS FIRST. `RecordWantsDefaultTemplate` needs no database, and it
-     * is false for every saved contract — so opening an existing agreement costs no extra query at
-     * all, and the full rule is still evaluated in one place, on `ShouldDefaultTemplate`, before
-     * anything is written.
+     * The rule is `DecideTemplateDefault`. It runs the cheap half first (`MayWriteDefaultTemplate`
+     * needs no database and is false for every saved contract), so opening an existing agreement
+     * costs no query. A call that a later type change, or a move to another record, has superseded
+     * writes nothing.
      */
     private async defaultTemplate(): Promise<void> {
         const record = this.Record;
         if (!record) return;
 
-        const state = {
-            isSaved: record.IsSaved,
-            currentTemplateID: record.ContractTemplateID,
-            lastDefaultedID: this.lastDefaultedID,
-        };
-        if (!MayWriteDefaultTemplate(state)) return;
+        const seq = ++this.defaultSeq;
+        const isCurrent = () => seq === this.defaultSeq && this.Record === record;
+        const typeID = record.ContractTypeID;
 
-        const templateRequired = await this.typeRequiresTemplate(record.ContractTypeID);
-        // A type we could not READ decides nothing in either direction — see typeRequiresTemplate.
-        if (templateRequired === null) return;
+        const decision = await DecideTemplateDefault(
+            { isSaved: record.IsSaved, currentTemplateID: record.ContractTemplateID, lastDefaultedID: this.lastDefaultedID },
+            () => this.typeRequiresTemplate(typeID),
+            () => this.currentTemplateID(),
+            isCurrent,
+        );
+        if (!isCurrent() || decision.Action === 'none') return;
 
-        // A DEFAULT LEAVES WITH THE TYPE THAT SUPPLIED IT. Checked BEFORE the default, because the
-        // two are mutually exclusive and this is the branch the first cut of this panel missed: it
-        // stopped at `!ShouldDefaultTemplate` and left an Order Form's template sitting on a Change
-        // Order, which saved without complaint.
-        if (ShouldWithdrawDefaultTemplate({ ...state, templateRequired })) {
+        if (decision.Action === 'withdraw') {
             record.ContractTemplateID = null;
             this.lastDefaultedID = null;
-            this.cdr.detectChanges();
-            return;
+        } else {
+            record.ContractTemplateID = decision.TemplateID;
+            this.lastDefaultedID = decision.TemplateID;
         }
-
-        if (!ShouldDefaultTemplate({ ...state, templateRequired })) return;
-
-        const templateID = await this.currentTemplateID();
-        if (!templateID) return;
-
-        record.ContractTemplateID = templateID;
-        this.lastDefaultedID = templateID;
         // The FK editor reads its value off the record every pass and resolves the name it shows
         // asynchronously, so the label catches up on its own once this pass has run.
         this.cdr.detectChanges();
@@ -608,7 +603,7 @@ export class MJCContractAgreementPanel extends BaseFormPanel<ContractEntity> imp
     }
 
     /**
-     * The newest Published, usable template — the one a new contract should start on.
+     * The newest Published, usable template of a current type — the one a new contract should start on.
      *
      * A FAILED OR EMPTY READ IS SILENT, and deliberately so. This is a convenience: the field stays
      * empty, the picker still works, and the server still refuses a save with no template when the
@@ -618,20 +613,8 @@ export class MJCContractAgreementPanel extends BaseFormPanel<ContractEntity> imp
      */
     private async currentTemplateID(): Promise<string | null> {
         const { ScopedRunView } = await import('../data/provider');
-        const rv = ScopedRunView(this.FormComponent?.ProviderToUse);
-        try {
-            const r = await rv.RunView<{ ID: string }>({
-                EntityName: MJC_ENTITIES.ContractTemplate,
-                Fields: ['ID'],
-                ExtraFilter: CurrentTemplateFilter,
-                OrderBy: CurrentTemplateOrderBy,
-                MaxRows: 1,
-                ResultType: 'simple',
-            });
-            return r?.Success ? (r.Results?.[0]?.ID ?? null) : null;
-        } catch {
-            return null;
-        }
+        const read = await ReadCurrentTemplateID(ScopedRunView(this.FormComponent?.ProviderToUse));
+        return read.TemplateID;
     }
 }
 
@@ -733,7 +716,7 @@ export class MJCContractNotesPanel extends BaseFormPanel<ContractEntity> {
         <mj-collapsible-panel SectionKey="origin" SectionName="Provenance" Icon="fa-solid fa-diagram-project"
             [Form]="FormComponent" [FormContext]="FormContext">
             <div class="mjc-fields-grid">
-                @if (EditMode && ShowLookup) {
+                @if (LookupShown) {
                     <div class="mjc-fg mjc-fg--span">
                         <!-- Mirrors mj-form-field's own markup (mj-forms-field / -label / -control) so this
                              reads as an ordinary form line. It cannot BE an mj-form-field: that binds ONE
@@ -865,6 +848,13 @@ export class MJCContractProvenanceFieldsPanel extends BaseFormPanel<ContractEnti
      * item 23).
      */
     private loadedFor: string | null = null;
+    /**
+     * Whether the picker has been synced since the form last entered edit mode (#148).
+     *
+     * Cancel reverts the record in place, keeping its ID, so `loadedFor` alone kept the cancelled
+     * pick and dropped the lock. Re-syncing on each entry into edit mode reads the reverted pair.
+     */
+    private syncedThisEdit = false;
     private searchTimer: ReturnType<typeof setTimeout> | null = null;
 
     /**
@@ -889,17 +879,31 @@ export class MJCContractProvenanceFieldsPanel extends BaseFormPanel<ContractEnti
      * provenance would never read them, `syncFromRecord()` would never run, and `Locked` would never
      * become true — the guard silently absent on exactly the records it exists to protect.
      *
-     * Keyed on the record so navigating the form to another contract re-syncs and reloads.
+     * Keyed on the record so navigating the form to another contract re-syncs and reloads, and
+     * re-run on each entry into edit mode so a cancelled edit's pick and unlock do not survive (#148).
      */
     public get ShowLookup(): boolean {
         if (!this.DealLookupAvailable) return false;
         const key = this.Record?.ID ?? 'new';
-        if (this.loadedFor !== key) {
+        if (this.loadedFor !== key || !this.syncedThisEdit) {
             this.loadedFor = key;
+            this.syncedThisEdit = true;
             this.syncFromRecord();
             void this.load('');
         }
         return true;
+    }
+
+    /**
+     * The template's gate: edit mode and a lookup to show. Read on every pass, in and out of edit
+     * mode, so leaving edit mode (Save or Cancel) is seen and the next entry re-syncs (#148).
+     */
+    public get LookupShown(): boolean {
+        if (!this.EditMode) {
+            this.syncedThisEdit = false;
+            return false;
+        }
+        return this.ShowLookup;
     }
 
     /** The candidate deals. Loaded by {@link ShowLookup}; this is a plain read. */

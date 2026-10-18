@@ -1,7 +1,7 @@
 [
   {
     "fields": {
-      "ContractNumber": "CTR-900001",
+      "ContractNumber": "DEMO-0001",
       "ContractTypeID": "@lookup:MJ_BizApps_Contracts: Contract Types.Name=Order Form",
       "CompanyID": "a0000000-0000-4000-8000-000000000001",
       "CustomerOrganizationID": "b0000000-0000-4000-8000-000000000001",
@@ -24,11 +24,12 @@
       "Eight demo contracts, chosen so every derived State and every worklist has content — see",
       "demo-data/README.md for the row-by-row rationale.",
       "",
-      "ContractNumber is set EXPLICITLY here, in a CTR-9000xx block that the real sequence will never",
-      "reach. Normally ContractEntityServer mints it from the ContractSequence counter under a lock,",
-      "but that subclass is not loaded in the CLI process that runs metadata sync. So this data does",
-      "NOT exercise the numbering path — creating a contract through the UI does, and that is where",
-      "numbering should be demonstrated.",
+      "ContractNumber is set EXPLICITLY here, as DEMO-000n. Normally ContractEntityServer mints it from",
+      "the seq_ContractNumber sequence, but that subclass is not loaded in the CLI process that runs",
+      "metadata sync. The numbers stay outside the CTR-<digits> shape on purpose: ContractEntity refuses",
+      "a hand-typed CTR-<digits> on a new record, because it could collide with a number the sequence has",
+      "not reached yet (issue #140). So this data does NOT exercise the numbering path — creating a",
+      "contract through the UI does, and that is where numbering should be demonstrated.",
       "",
       "Dates are ABSOLUTE because a metadata file cannot compute one, and they were chosen around",
       "2026-08-19. Read much later, the derived states drift: Executed becomes Active, Active becomes",
@@ -41,7 +42,7 @@
   },
   {
     "fields": {
-      "ContractNumber": "CTR-900002",
+      "ContractNumber": "DEMO-0002",
       "ContractTypeID": "@lookup:MJ_BizApps_Contracts: Contract Types.Name=Order Form",
       "CompanyID": "a0000000-0000-4000-8000-000000000001",
       "CustomerOrganizationID": "b0000000-0000-4000-8000-000000000002",
@@ -67,7 +68,7 @@
   },
   {
     "fields": {
-      "ContractNumber": "CTR-900003",
+      "ContractNumber": "DEMO-0003",
       "ContractTypeID": "@lookup:MJ_BizApps_Contracts: Contract Types.Name=Order Form",
       "CompanyID": "a0000000-0000-4000-8000-000000000001",
       "CustomerOrganizationID": "b0000000-0000-4000-8000-000000000003",
@@ -93,7 +94,7 @@
   },
   {
     "fields": {
-      "ContractNumber": "CTR-900004",
+      "ContractNumber": "DEMO-0004",
       "ContractTypeID": "@lookup:MJ_BizApps_Contracts: Contract Types.Name=Statement of Work",
       "CompanyID": "a0000000-0000-4000-8000-000000000001",
       "CustomerOrganizationID": "b0000000-0000-4000-8000-000000000004",
@@ -117,7 +118,7 @@
   },
   {
     "fields": {
-      "ContractNumber": "CTR-900005",
+      "ContractNumber": "DEMO-0005",
       "ContractTypeID": "@lookup:MJ_BizApps_Contracts: Contract Types.Name=Payment Link",
       "CompanyID": "a0000000-0000-4000-8000-000000000001",
       "CustomerOrganizationID": "b0000000-0000-4000-8000-000000000001",
@@ -139,7 +140,7 @@
   },
   {
     "fields": {
-      "ContractNumber": "CTR-900006",
+      "ContractNumber": "DEMO-0006",
       "ContractTypeID": "@lookup:MJ_BizApps_Contracts: Contract Types.Name=Order Form",
       "CompanyID": "a0000000-0000-4000-8000-000000000001",
       "CustomerOrganizationID": "b0000000-0000-4000-8000-000000000002",
@@ -165,7 +166,7 @@
   },
   {
     "fields": {
-      "ContractNumber": "CTR-900007",
+      "ContractNumber": "DEMO-0007",
       "ContractTypeID": "@lookup:MJ_BizApps_Contracts: Contract Types.Name=Order Form",
       "CompanyID": "a0000000-0000-4000-8000-000000000001",
       "CustomerOrganizationID": "b0000000-0000-4000-8000-000000000003",
@@ -187,7 +188,7 @@
   },
   {
     "fields": {
-      "ContractNumber": "CTR-900008",
+      "ContractNumber": "DEMO-0008",
       "ContractTypeID": "@lookup:MJ_BizApps_Contracts: Contract Types.Name=Change Order",
       "CompanyID": "a0000000-0000-4000-8000-000000000001",
       "CustomerOrganizationID": "b0000000-0000-4000-8000-000000000001",

@@ -63,18 +63,18 @@ export function provisionTemplateCheckSQL(contractID: string, provisionID: strin
               WHERE p.[ID] = '${provisionID}';`,
         postgresql: `WITH RECURSIVE ancestry AS (
                  SELECT "ID", "ParentContractID", "ContractTemplateID", 1 AS "Depth"
-                   FROM __mj_BizAppsContracts."Contract"
+                   FROM __mj_bizappscontracts."Contract"
                   WHERE "ID" = '${contractID}'
                  UNION ALL
                  SELECT c."ID", c."ParentContractID", c."ContractTemplateID", a."Depth" + 1
-                   FROM __mj_BizAppsContracts."Contract" c
+                   FROM __mj_bizappscontracts."Contract" c
                    JOIN ancestry a ON c."ID" = a."ParentContractID"
                   WHERE a."Depth" < 50
              ),
              tmpl AS (
                  SELECT DISTINCT t."ID", t."Name"
                    FROM ancestry a
-                   JOIN __mj_BizAppsContracts."ContractTemplate" t ON t."ID" = a."ContractTemplateID"
+                   JOIN __mj_bizappscontracts."ContractTemplate" t ON t."ID" = a."ContractTemplateID"
              )
              SELECT
                  pt."ID"::text                                                   AS "ProvisionTemplateID",
@@ -82,8 +82,8 @@ export function provisionTemplateCheckSQL(contractID: string, provisionID: strin
                  (SELECT STRING_AGG(x."Name", ', ') FROM tmpl x)                 AS "AncestorTemplates",
                  CASE WHEN EXISTS (SELECT 1 FROM tmpl x WHERE x."ID" = pt."ID")
                       THEN 1 ELSE 0 END                                          AS "InTree"
-               FROM __mj_BizAppsContracts."ContractTemplateProvision" p
-               JOIN __mj_BizAppsContracts."ContractTemplate" pt ON pt."ID" = p."ContractTemplateID"
+               FROM __mj_bizappscontracts."ContractTemplateProvision" p
+               JOIN __mj_bizappscontracts."ContractTemplate" pt ON pt."ID" = p."ContractTemplateID"
               WHERE p."ID" = '${provisionID}';`,
     };
 }

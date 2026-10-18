@@ -52,9 +52,10 @@ Records are keyed by fixed UUIDs, so re-pushing UPDATES rather than duplicating.
 
 `ContractNumber` is normally minted by `ContractEntityServer`, which calls
 `spAssignNextContractNumber` to take the next value of the `seq_ContractNumber` database SEQUENCE.
-That subclass is **not loaded in the CLI's process**, so these records carry explicit `CTR-9000xx`
-numbers — a deliberately separate block from the real sequence, so demo rows can never collide with
-contracts the app mints.
+That subclass is **not loaded in the CLI's process**, so these records carry explicit `DEMO-000n`
+numbers. They stay outside the `CTR-<digits>` shape the sequence mints: `ContractEntity` refuses a
+hand-typed `CTR-<digits>` on a new record, since it could collide with a number the sequence has
+not reached yet, so a `CTR-` demo number would fail the push and roll it back (issue #140).
 
 That does mean **this data does not exercise the numbering path.** Creating a contract through the UI
 does, and that is where numbering should be demonstrated.
@@ -65,14 +66,14 @@ The set is chosen so every derived `State` and every worklist has content:
 
 | Contract | State it derives | What it demonstrates |
 |---|---|---|
-| `CTR-900001` Northwind | `Active` | The ordinary case, **plus two modifications** — the point of the app |
-| `CTR-900002` Cascadia | `Active` | Notice window already **passed** while the contract runs on |
-| `CTR-900003` Meridian | `Executed` | **R-19**: signed, starts next month. Used to read as `Draft` |
-| `CTR-900004` Harbor Point | `Active` | **Awaiting document** — executed, never filed |
-| `CTR-900005` Northwind | `Active` | A **Payment Link**: nobody signs, so it never reports as awaiting paper |
-| `CTR-900006` Cascadia | `Expired` | Term ran out, not renewed |
-| `CTR-900007` Meridian | `Draft` | Being prepared — a task, not a wait |
-| `CTR-900008` Northwind | `Active` | A **Change Order** naming `CTR-900001` as parent — populates lineage |
+| `DEMO-0001` Northwind | `Active` | The ordinary case, **plus two modifications** — the point of the app |
+| `DEMO-0002` Cascadia | `Active` | Notice window already **passed** while the contract runs on |
+| `DEMO-0003` Meridian | `Executed` | **R-19**: signed, starts next month. Used to read as `Draft` |
+| `DEMO-0004` Harbor Point | `Active` | **Awaiting document** — executed, never filed |
+| `DEMO-0005` Northwind | `Active` | A **Payment Link**: nobody signs, so it never reports as awaiting paper |
+| `DEMO-0006` Cascadia | `Expired` | Term ran out, not renewed |
+| `DEMO-0007` Meridian | `Draft` | Being prepared — a task, not a wait |
+| `DEMO-0008` Northwind | `Active` | A **Change Order** naming `DEMO-0001` as parent — populates lineage |
 
 Dates are absolute rather than relative-to-today, because a metadata file cannot compute. They were
 chosen around **2026-08-19**; if you are reading this much later, the derived states will have drifted

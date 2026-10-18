@@ -23,7 +23,7 @@ describe('contract-number SQL — one form per database', () => {
 
     it('PostgreSQL calls the function from a SELECT, with no T-SQL in it', () => {
         const sql = resolveFor('postgresql');
-        expect(sql).toBe(`SELECT __mj_BizAppsContracts."spAssignNextContractNumber"() AS "ContractNumber";`);
+        expect(sql).toBe(`SELECT __mj_bizappscontracts."spAssignNextContractNumber"() AS "ContractNumber";`);
         expect(sql).not.toMatch(/DECLARE|EXEC|@/);
     });
 

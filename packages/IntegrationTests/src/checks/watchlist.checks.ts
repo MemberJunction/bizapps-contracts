@@ -14,7 +14,7 @@ import {
     type IntegrationCheckContext,
     type NamedCheck,
 } from '@memberjunction/testing-integration/registry';
-import { E_CONTRACT, FindRows, Quote, ResolveContractsFixture, WORLD_NOTE } from '../fixture.js';
+import { E_CONTRACT, FindRows, Quote, ResolveContractsFixture, TxOne, WORLD_NOTE } from '../fixture.js';
 
 type Ctx = IntegrationCheckContext;
 
@@ -57,13 +57,13 @@ export const WatchlistChecks: NamedCheck[] = [
     },
     {
         Id: 'contracts-watchlist.W3',
-        Name: 'W3 — DaysToEnd equals DATEDIFF(day, UTC today, EndDate)',
+        Name: 'W3 — DaysToEnd equals DATEDIFF(day, business today, EndDate)',
         RequiresMutation: true,
         Fn: async (ctx: Ctx) => {
             const row = await load(ctx, WORLD_NOTE.activeMsa);
             Assert(row.EndDate != null, 'active-msa has no EndDate');
             Assert(row.DaysToEnd != null, 'active-msa has no DaysToEnd');
-            const expected = diffDays(ymd(new Date())!, ymd(row.EndDate)!);
+            const expected = diffDays(await businessToday(ctx), ymd(row.EndDate)!);
             AssertEqual(
                 Number(row.DaysToEnd),
                 expected,
@@ -128,7 +128,7 @@ export const WatchlistChecks: NamedCheck[] = [
             const row = await load(ctx, WORLD_NOTE.noticePassed);
             AssertEqual(row.State, 'Active', 'notice-passed should still be Active');
             Assert(row.RenewalNoticeDeadline != null, 'notice-passed has no deadline');
-            Assert(ymd(row.RenewalNoticeDeadline)! < ymd(new Date())!, 'notice-passed deadline should already have elapsed');
+            Assert(ymd(row.RenewalNoticeDeadline)! < (await businessToday(ctx)), 'notice-passed deadline should already have elapsed');
             Assert(Number(row.DaysToEnd) > 0, 'notice-passed should still have days left on the term');
         },
     },
@@ -169,6 +169,20 @@ async function load(ctx: Ctx, notes: string): Promise<WatchRow> {
     );
     Assert(rows.length === 1, `watchlist: expected one row for ${notes}, found ${rows.length}. Run contracts-world first.`);
     return rows[0];
+}
+
+/**
+ * The day vwContracts counts from: bizapps-common's business day, not the UTC date. The two differ
+ * for part of every day wherever the business time zone is not UTC, so a check that compares
+ * against the UTC date fails a correct view for those hours (#127). Read through the provider so it
+ * sees the same connection as the view.
+ */
+async function businessToday(ctx: Ctx): Promise<string> {
+    const row = await TxOne<{ Today: string }>(
+        ctx,
+        `SELECT CONVERT(VARCHAR(10), b.[Today], 23) AS Today FROM [__mj_BizAppsCommon].[fnBusinessToday]() b`,
+    );
+    return row.Today;
 }
 
 function ymd(value: Date | string | null | undefined): string | null {
