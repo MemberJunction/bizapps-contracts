@@ -27,12 +27,19 @@ the lockfile. Skip it and `--frozen-lockfile` fails on every branch afterwards.
 
 ### 2. `release-readiness.yml` — on any PR to `main` (i.e. the Version Packages PR)
 
-Six `rr:` checks. Among them, sharing one implementation (`ci/check-bump-level.sh`):
-no changesets may still be pending, and a release carrying migrations must be at
-least a minor. Both are properties of the *release*, not of any one PR — which is
-why they are not enforced per feature PR: changesets aggregate, so one minor
-already in the window covers the release. Label a PR `bump-level-exempt` for a
-migration that genuinely is not a feature.
+Seven `rr:` checks. Among them: no changesets may still be pending (`rr:
+changesets`), and a release carrying migrations or metadata must be at least a
+minor (`rr: minor bump`, `ci/check-bump-level.sh`). The bump check judges the
+*release*, comparing the last tag with HEAD, and reads no label.
+
+The same minor rule is also enforced per feature PR, on purpose and more
+strictly: the `migration changeset` job in `changes.yml`
+(`.github/scripts/check-migration-changeset.sh`) refuses a PR into `next` that
+changes `migrations/` or seeded `metadata/` without a minor or major changeset.
+The one exception is a PR that only reverts unreleased migration or metadata
+work: a maintainer (Maintain or Admin role) can add the
+`migration-changeset-exempt` label, which that door check honours and the
+release checks ignore.
 
 ### 3. `publish.yml` — on push to `main`
 

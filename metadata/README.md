@@ -3,8 +3,11 @@
 MJ metadata authored as files and pushed with `pnpm exec mj sync push --dir metadata` — the dev-time
 source of truth. A host never runs that push: an install applies migrations only, and `metadata/`
 reaches a host inside the `V…__Metadata_Sync.sql` migration generated at release.
-`V202608240300__v0.1.x__Metadata_Sync.sql` is the only one so far. Issue #80 tracks the drift: metadata
-added since then that no migration ships yet, and folders `directoryOrder` does not list.
+Two have shipped, `V202608240300__v0.1.x__Metadata_Sync.sql` and
+`V202610092210__v0.8.x__Metadata_Sync.sql`; changes made since the second wait for the next one
+(issue #112). `rr: metadata shipped` fails a release PR while a substantive change here has no
+Metadata_Sync behind it. [`docs/database-migrations.md`](../docs/database-migrations.md#what-a-host-has-today)
+lists what each carries.
 
 **How to format and write metadata records:** MJ's
 [MetadataSync README](https://github.com/MemberJunction/MJ/blob/next/packages/MetadataSync/README.md).

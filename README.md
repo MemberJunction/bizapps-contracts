@@ -107,7 +107,8 @@ marked as the executed agreement), `DaysToEnd`, `RenewalNoticeDeadline` and `IsI
 plus the renewal-risk model's label and features: `NonRenewalOutcome`, `TermLengthDays`,
 `DaysUntilNoticeDeadline`, `HasModificationsFlag`, `AutoRenewFlag`, `HasParentContract`,
 `HasCancellationWindow` and `HasAnnualIncrease`. "Today" in these columns is the **business day** from
-bizapps-common's `fnBusinessToday()`, not the server's UTC date. Definitions:
+bizapps-common's `fnBusinessToday()`, not the server's UTC date; until the instance sets
+`BizApps.BusinessTimeZone`, the business day is the UTC day ([install](#install)). Definitions:
 [`docs/ERD.md`](docs/ERD.md) §4.
 
 ---
@@ -260,9 +261,18 @@ contracts other apps create, such as bizapps-sales at Closed Won. Create the tem
 **Templates**, attach the document or record its URL, and set it to Published. For a demo database,
 `pnpm run demo:load` loads a published one.
 
-Metadata added to `metadata/` after that migration — the dashboard's special-terms query, the
-watchlist view, entity settings and the renewal-risk ML rows — reaches a host only when a release
-regenerates the metadata-sync migration. Issue #80 tracks it.
+**Set the business time zone.** `vwContracts` reads "today" from bizapps-common's
+`fnBusinessToday()`, which uses the `BizApps.BusinessTimeZone` instance configuration. It ships
+empty, and empty means UTC: on a US host a contract then reads Expired from the evening of its end
+date. Set the row's value to the business's zone, for example
+`{"iana":"America/Chicago","sql":"Central Standard Time"}`.
+
+`metadata/` changes after that migration reach a host only through a later Metadata_Sync.
+`V202610092210__…__Metadata_Sync.sql` carries the dashboard's special-terms query, the watchlist view
+and the entity and field settings changed since the first one. Two later changes, Statement of Work no
+longer requiring a template and the contract-type codes, wait for the next one (issue #112). The
+renewal-risk ML rows (training pipeline, models, scoring binding, record process) are not shipped:
+they are demo data in `demo-data/`, loaded only by `pnpm run demo:load`.
 
 ---
 

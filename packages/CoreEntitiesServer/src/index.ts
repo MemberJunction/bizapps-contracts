@@ -11,11 +11,11 @@
  * HARD dependency pinned to the same version (all app packages version together via changesets
  * `fixed`); every @memberjunction/* package is a PEER (^X.Y.Z).
  *
- * TWO SUBCLASSES, and that is the whole server surface. v1 had nine of these plus ContractsEngine,
- * ChildCollection, BillingDraft and seven remote operations — the billing engine wholesale. v2 is a
- * record-keeping app and MJ 6's graph save replaced the composition machinery, so what is left is
- * the contract number (needs a lock) and two modification invariants (need cross-entity reads).
- * **Zero remote operations.**
+ * A SMALL SERVER SURFACE. v1 had nine server subclasses plus ContractsEngine, ChildCollection,
+ * BillingDraft and seven remote operations — the billing engine wholesale. v2 is a record-keeping app
+ * and MJ 6's graph save replaced the composition machinery, so what is left is the server subclasses
+ * loaded below (the contract number, server-side defaults, and the rules that need cross-entity
+ * reads) and ONE remote operation, `Contracts.Supersede` (`SupersedeOperation.ts`).
  */
 import { LoadContractEntityServer } from './ContractEntityServer.js';
 import { LoadContractTemplateEntityServer } from './ContractTemplateEntityServer.js';

@@ -182,7 +182,7 @@ The four `IN (…)` constraints do **not** become validators: CodeGen renders th
 value lists — filed as [MJ#3969](https://github.com/MemberJunction/MJ/issues/3969). The shared
 `ContractType`, `ContractTemplateType` and `ContractTemplate` subclasses check their `Status` lists
 themselves (`value-list-validation.ts`). Nothing checks `PredictedRenewalRiskBand` before SQL Server
-does, and no migration ships its value list yet (issue #80).
+does; its value list ships in `V202610092200__…__Risk_band_value_list.sql`.
 
 ### 3.2 Unique — 6
 
@@ -213,8 +213,8 @@ additionally creates an `IDX_AUTO_MJ_FKEY_*` index on every foreign key column.
 
 **"Today" is the business day:** `bt.Today` from bizapps-common's
 `[__mj_BizAppsCommon].[fnBusinessToday]()` — the calendar day in the time zone of the instance's
-`BizApps.BusinessTimeZone` setting — cross-joined once per query, so every column in a row uses the
-same day.
+`BizApps.BusinessTimeZone` setting, or the UTC day while that setting is empty (its shipped
+state) — cross-joined once per query, so every column in a row uses the same day.
 
 | Column | Derived from |
 |---|---|

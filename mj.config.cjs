@@ -28,7 +28,8 @@ module.exports = {
     { type: 'GraphQLServer', directory: './packages/Server/src/generated' },
     { type: 'ActionSubclasses', directory: './packages/Actions/src/generated' },
     { type: 'EntitySubclasses', directory: './packages/Entities/src/generated' },
-    // Typed client shells for the Remote Operations declared in metadata/remote-operations/. They
+    // Typed client shells for any MJ: Remote Operations rows in this app's scope (none today:
+    // Contracts.Supersede is registered in code, CoreEntitiesServer/src/SupersedeOperation.ts). They
     // land in the BROWSER-SAFE Entities package on purpose: the UI imports the CONTRACT (typed input,
     // typed output, the operation key) without pulling in the server engine that implements it.
     // Without this entry the metadata rows exist and the operations run, but every caller has to

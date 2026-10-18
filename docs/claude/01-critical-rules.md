@@ -74,3 +74,9 @@ tests broken for other reasons are yours to fix. Report pass/fail/skip counts.
   breaks every install). Additive-only within a published major version.
 - **Migrations run once, in order** — no idempotency guards; MJ metadata rows
   go in `metadata/`, never in migration SQL ([doc 5](05-codegen-and-migrations.md)).
+- **No soft keys** — every reference, cross-app included, is a real FK. The
+  only reference without one is the RecordID half of a polymorphic
+  EntityID/RecordID pair, whose target table is not known ahead of time
+  (`CreatingEntityID`/`CreatingRecordID` on `Contract`). Never add a bare UUID
+  column in place of an FK, whatever the reason
+  ([migrations doc](../database-migrations.md#cross-app-reference-hardness)).
