@@ -222,10 +222,10 @@ export class ContractEntityServer extends ContractEntity {
      * Mint `ContractNumber` on first save, default an empty `ContractTemplateID` when the type requires
      * one (see {@link ResolveServerDefaultTemplate}), then persist.
      *
-     * WHY THE NUMBER IS MINTED HERE and not defaulted in SQL. It comes from a singleton counter that
-     * has to be taken under a lock inside the save's own transaction, so a rollback releases the
-     * number instead of burning it. A column default cannot do that, and a client cannot be trusted
-     * with it.
+     * WHY THE NUMBER IS MINTED HERE and not defaulted in SQL. It comes from the `seq_ContractNumber`
+     * sequence through `spAssignNextContractNumber` (see {@link assignContractNumber}), and a column
+     * default cannot be used: it stops spCreateContract from compiling (MJ#4000). A client cannot be
+     * trusted with it.
      *
      * Contracts needs no `SkipRelatedCollections` dance, unlike orders: nothing here prepares child
      * rows before the graph executor runs, so the plain save carries `Modifications` with it.
@@ -234,7 +234,7 @@ export class ContractEntityServer extends ContractEntity {
         try {
             // MINT WHENEVER THE INCOMING VALUE IS ABSENT, and treat blank as absent.
             //
-            // The column is NULLABLE as of V202608211200 — MJ cannot express "NOT NULL, assigned by the
+            // The column is NULLABLE (baseline) — MJ cannot express "NOT NULL, assigned by the
             // server on insert" (MJ#4001), and both workarounds broke creation: a DB DEFAULT stops
             // spCreateContract from compiling (MJ#4000), and marking the field read-only drops it from
             // the insert payload entirely. So the database no longer holds this invariant and THIS LINE
@@ -301,7 +301,7 @@ export class ContractEntityServer extends ContractEntity {
      * column whose values INVERT the rule when read in the wrong order is a column that will
      * eventually be read in the wrong order. Now two booleans, mutually exclusive by
      * `CK_ContractType_RootOrChild`, and "both false" means unrestricted — a real and in fact majority
-     * state (V202608200300).
+     * state.
      *
      * Both placement directions are enforced, because a rule that only ever checks one of them is half
      * decoration: `MustBeChild` refuses a missing parent (a change order that amends nothing would
@@ -329,7 +329,7 @@ export class ContractEntityServer extends ContractEntity {
             const rule = await this.typeRule();
 
             // R-4 — WHERE IN THE TREE this type may sit. Two booleans replacing the three-state
-            // `ParentStatusRequirement` string (V202608200300). Both false = unrestricted, which is what
+            // `ParentStatusRequirement` string. Both false = unrestricted, which is what
             // two of the four seeded types want, and the CHECK guarantees they are never both true.
             if (rule?.MustBeChild && !this.ParentContractID) {
                 result.Success = false;
@@ -977,7 +977,7 @@ export class ContractEntityServer extends ContractEntity {
             );
         }
 
-        // V202608200900 — and the version must be PUBLISHED. A draft is still being authored: its
+        // And the version must be PUBLISHED. A draft is still being authored: its
         // provisions can be added to, edited and removed freely, so a contract pointing at one would
         // have its standard terms change underneath it. This is the other half of what makes the
         // publication freeze meaningful — the freeze protects referenced versions, and this ensures a
@@ -1066,11 +1066,11 @@ export class ContractEntityServer extends ContractEntity {
      * number, and the collision would surface later as a unique-index violation on the insert rather
      * than as a serialised wait.
      *
-     * So the lock stays in the database, in a DATABASE OBJECT rather than a TypeScript string.
-     * `spAssignNextContractNumber` (V202608192200) holds the `HOLDLOCK, UPDLOCK` and the format; this
-     * method is one call. That is accounting's pattern, adopted rather than invented —
-     * `SequenceService.ts` there keeps `spAssignNextJournalEntryNumber` at DB level for the same
-     * stated reason. Orders still inlines the same UPDATE in four places, which is what this stops
+     * So the numbering stays in the database, in a DATABASE OBJECT rather than a TypeScript string.
+     * `spAssignNextContractNumber` takes `NEXT VALUE FOR seq_ContractNumber`, which is atomic and needs
+     * no lock, and applies the format; this method is one call. That is accounting's pattern, adopted
+     * rather than invented — `SequenceService.ts` there keeps `spAssignNextJournalEntryNumber` at DB
+     * level for the same stated reason. Orders still inlines the same UPDATE in four places, which is what this stops
      * doing.
      *
      * The PostgreSQL port keeps the name and the contract but not the call: a procedure's OUTPUT
@@ -1082,9 +1082,8 @@ export class ContractEntityServer extends ContractEntity {
      * uses it to know a statement CHANGED data, which is what lets a logging session capture the
      * mutation. `description` names the operation in that log.
      *
-     * ⚠ NOT gap-free. On a standalone save the number is consumed before the row's own transaction
-     * opens, so a later failure has already spent it; inside a graph save a rollback releases it. The
-     * unique index is the real guard.
+     * ⚠ NOT gap-free. A sequence value is spent when it is taken, and a rollback does not return it,
+     * so a save that fails after minting leaves a gap. The unique index is the real guard.
      */
     private async assignContractNumber(): Promise<string> {
         const rows = await this.db.ExecuteSQL<{ ContractNumber: string }>(
@@ -1103,7 +1102,7 @@ export class ContractEntityServer extends ContractEntity {
         if (!assigned) {
             throw new Error(
                 `Could not obtain the next contract number — spAssignNextContractNumber returned nothing. ` +
-                    `The number comes from the schema-owned SQL sequence seq_ContractNumber (V202608200200); ` +
+                    `The number comes from the schema-owned SQL sequence seq_ContractNumber; ` +
                     `check that the sequence and the procedure both exist in __mj_BizAppsContracts.`,
             );
         }

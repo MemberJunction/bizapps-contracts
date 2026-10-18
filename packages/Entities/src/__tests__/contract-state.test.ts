@@ -11,7 +11,7 @@
  * something these tests do not describe, this fails; and it costs no database.
  *
  * What these tests CANNOT do is prove the SQL evaluates the way we read it. That needs a database and
- * lives in `test-harnesses/state-equivalence.mjs`, whose fixtures assert the answers a person wrote
+ * lives in `test-harnesses/state-derivation.mjs`, whose fixtures assert the answers a person wrote
  * down against the deployed view.
  */
 import { describe, expect, it } from 'vitest';

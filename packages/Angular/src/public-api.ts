@@ -10,7 +10,6 @@
  *   src/lib/generated/    — CodeGen Angular output (one form per entity; do not edit)
  *   src/lib/form-panels/  — BaseFormPanel contributions (plan §6.4) — our UX, layered onto the
  *                           GENERATED forms rather than replacing them
- *   src/lib/custom/       — the few bespoke components (the modification editor, §6.4 / D-22)
  *   src/lib/pages/        — BaseResourceComponent surfaces the nav points at (list, watchlist, …)
  *
  * THE V2 SHAPE, AND WHY IT IS SMALLER THAN V1'S. v1 replaced the generated Contract form with a
