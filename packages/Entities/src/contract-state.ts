@@ -24,7 +24,7 @@
  * `npx vitest run` cannot cover its semantics. Two things stand in for it. `contract-state.test.ts`
  * asserts the committed migration's `CASE` matches the branches and precedence THIS TEST declares —
  * an expectation owned by the test, checked against the single implementation, so it is not two
- * implementations agreeing with each other. And `test-harnesses/state-equivalence.mjs` runs fixtures
+ * implementations agreeing with each other. And `test-harnesses/state-derivation.mjs` runs fixtures
  * covering every state and the termination boundary through the deployed view and asserts the answers
  * a person wrote down.
  *

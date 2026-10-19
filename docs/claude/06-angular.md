@@ -32,6 +32,12 @@
 - Any `BaseResourceComponent` subclass MUST call `this.NotifyLoadComplete()`
   when its initial load finishes — or the app loading screen hangs forever on
   direct-URL navigation. (`BaseDashboard` handles it for you.)
+- Call base lifecycle hooks plainly — `super.ngOnDestroy()`, never
+  `super.ngOnDestroy?.()`. The optional-call form type-checks and builds, but
+  esbuild emits a bundle that fails to parse ("'super' keyword unexpected
+  here"), so every `@RegisterClass` in the package silently fails to register
+  and Explorer shows no Contracts nav tab. Nothing in the build catches it;
+  see `contracts-sections.component.ts`.
 
 ## Custom entity forms
 

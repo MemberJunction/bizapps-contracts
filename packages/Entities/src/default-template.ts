@@ -137,10 +137,11 @@ export function MayWriteDefaultTemplate(state: TemplateDefaultState): boolean {
  * ONLY OUR OWN DEFAULT IS WITHDRAWN. A template the user picked by hand stays, exactly as it stays
  * through a default; `holdsOurDefault` is the single comparison both directions read.
  *
- * Clearing the type entirely withdraws it too, and that is deliberate: the caller reports a type it
- * genuinely could not find as `templateRequired = false`, and a contract with no type has nothing
- * asserting that those standard terms apply. A type it could not READ is a different answer, and the
- * caller must not translate that into `false` — see the panel's `typeRequiresTemplate`.
+ * Clearing the type entirely withdraws it too, and that is deliberate: the caller reports an empty
+ * type as `templateRequired = false`, and a contract with no type has nothing asserting that those
+ * standard terms apply. A type ID the caller could not read, or that matches no row, is a different
+ * answer: the caller reports it as `null` and does nothing, so it never reaches this function — see
+ * the panel's `typeRequiresTemplate`.
  */
 export function ShouldWithdrawDefaultTemplate(state: TemplateDefaultState & { templateRequired: boolean }): boolean {
     if (state.templateRequired) return false;

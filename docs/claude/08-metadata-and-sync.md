@@ -16,8 +16,7 @@ what may go in `metadata/` (versus `demo-data/`) and how it reaches a host
   first push. Re-pushing is safe (upsert semantics).
 - List folders in the root `metadata/.mj-sync.json` `directoryOrder` so
   dependencies push in order; an unlisted folder is pushed after the listed
-  ones, in alphabetical order. (Issue #80: `record-processes` and the `ml-*`
-  folders are not listed yet.)
+  ones, in alphabetical order.
 - **Externalize complex JSON values** with `@file:` references
   (`"FieldSchema": "@file:schemas/api-key.schema.json"`) instead of escaped
   JSON strings; keep them in typed subfolders (`schemas/`, `templates/`).

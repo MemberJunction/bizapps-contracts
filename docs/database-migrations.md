@@ -114,13 +114,13 @@ consumer's database. So the test for anything added there is not "is it correct?
 
 - **`metadata/`, the install seed:** structural metadata and configuration (`entities`,
   `entity-fields`, `entity-relationships`, `entity-settings`, `applications`, `queries`,
-  `query-categories`, `user-views`, `record-processes`, `ml-models`, `ml-training-pipelines`,
-  `ml-model-scoring-bindings`) and genuine vocabulary: contract types, template types.
+  `query-categories`, `user-views`) and genuine vocabulary: contract types, template types.
   `schema-info` holds no records; the baseline registers the schema.
 - **`demo-data/`, never shipped:** any particular organisation's records, *including their
   agreement text*. It holds invented organisations, contracts and modifications, the selling
-  company they are written against, and one real agreement, and is pushed only on request
-  (`pnpm run demo:load`).
+  company they are written against, one real agreement, and the predictive-scoring bench
+  (training pipeline, model versions, scoring record process and binding), and is pushed only on
+  request (`pnpm run demo:load`).
 
 **A KIND of contract is vocabulary; a particular company's AGREEMENT is content.** This was got
 wrong once: `metadata/contract-templates/` and `metadata/contract-provisions/` carried one
@@ -128,24 +128,37 @@ company's actual Master Services Agreement — 71 verbatim provisions — so the
 seeded that company's contract terms into every install as reference data. They moved to
 `demo-data/` on 2026-08-24. `plans/QUESTIONS.md` Q-5 (historical) records the ruling.
 
+**A model is fitted to one organisation's data.** The ML models' fitted preprocessing and feature
+importance are statistics from the dataset they were trained on, and a scheduled record process
+against a model with no artifact fails every record it touches. So the predictive-scoring bench
+lives in `demo-data/`, with its record process `Disabled` and its schedule off (issue #89).
+
 ### What a host has today
 
-The only `Metadata_Sync` migration, `V202608240300`, carries `metadata/` as of 2026-08-24:
-contract types, template types, entity/field/relationship metadata and the application row.
-Folders added since (`entity-settings`, `queries`, `query-categories`, `user-views`,
-`record-processes`, the three `ml-*` folders) and later edits to `entities` and `entity-fields`
-reach a database only through `mj sync push`, so a host installed from migrations alone runs
-without them until a release regenerates the file. Issue #80 tracks this. Nothing in CI detects
-the gap.
+Two `Metadata_Sync` migrations ship:
 
-One consequence to check at that regeneration. The dashboard's "Clients with special terms" tile
-runs the Contracts Special Terms query, which no migration carries yet, so on such a host it
-renders a dash. Grep the regenerated file for `spCreateQueryParameter` and `CompanyIDs`:
-`metadata/` deliberately does not declare that parameter row — the server's query-extraction
-pipeline creates it during the push, and the capture picks it up only because SQL logging records
-the server's writes as well as the sync's. If the call is absent, the query ships without its
-parameter and the tile still renders a dash, because the parameter processor rejects an
-undeclared parameter.
+- `V202608240300` carries `metadata/` as of 2026-08-24: contract types, template types,
+  entity/field/relationship metadata and the application row.
+- `V202610092210` carries what changed after it: the Contracts query category, the Contracts
+  Special Terms query with its `CompanyIDs` parameter, the shared "Contracts: Watchlist" view, and
+  entity, field and entity-setting changes (form sections, the Default Contract Terms category,
+  display names, search flags).
+
+Still pending: Statement of Work's `TemplateRequired: false` and the contract-type seed codes are in
+`metadata/` but in no Metadata_Sync yet (issue #112). Left out on purpose: the predictive-scoring
+records (record process, training pipeline, models, scoring binding) live in `demo-data/` and are
+never shipped (issue #89).
+
+`rr: metadata shipped` (`ci/check-metadata-shipped.sh`) fails a release PR while any substantive
+`metadata/` change since the last tag has no Metadata_Sync behind it. A feature PR may still merge
+metadata first.
+
+When generating a Metadata_Sync that carries a query, check its parameters. `metadata/`
+deliberately does not declare the Special Terms query's `CompanyIDs` parameter row: the server's
+query-extraction pipeline creates it during the push, and the capture picks it up only because SQL
+logging records the server's writes as well as the sync's. `V202610092210` carries it (grep for
+`spCreateQueryParameter`). Without it, the dashboard's "Clients with special terms" tile renders a
+dash, because the parameter processor rejects an undeclared parameter.
 
 ## The train
 
@@ -160,6 +173,10 @@ undeclared parameter.
 | `V202609140100__…__Contract_type_renewal_defaults.sql` | four renewal-default columns on `ContractType`, copied onto a new contract when its type is picked, + capture |
 | `V202609202354__…__Predictive_Contract_Renewal_Fields.sql` | prediction write-back columns on `Contract` and engineered feature columns in `vwContracts`, + capture |
 | `V202609211200__…__vwContracts_business_today.sql` | `vwContracts` compares dates against the business day from bizapps-common's `fnBusinessToday()` instead of the UTC day; restores the executed-agreement rule `V202609202354` dropped |
+| `V202610092200__…__Risk_band_value_list.sql` | the `PredictedRenewalRiskBand` value list (Low, Medium, High, Critical) CodeGen derives from its check constraint; capture only, no schema change |
+| `V202610092210__…__Metadata_Sync.sql` | `metadata/` changes since `V202608240300` (see above) |
+| `V202610121200__…__Provision_guard_throws_without_rollback.sql` | the published-provision guard trigger refuses with `THROW` alone, so MJ's save and delete see the rule instead of error 3915 |
+| `V202610122200__…__ContractType_Code.sql` | a required, unique `Code` on `ContractType`, set by ID for the shipped types, + capture |
 
 **Why `V202608240100`–`0300` were not folded into the baseline.** The
 [flatten](#the-2026-08-23-flatten) folded in everything it could; these three are a genuine
@@ -196,8 +213,10 @@ References into an upstream app are **hard, nullable FKs** — not soft UUID col
 in dependency order, so the target table exists when the FK is created, and MJ's Open App no-break
 policy (`packages/OpenApp/PUBLISH_NO_BREAK_POLICY.md`) is written for cross-app FKs.
 
-A reference is soft **only** when the target app is genuinely absent from the chain — never as a
-workaround for a tooling defect.
+Every reference is a real FK. There are no soft keys. The one exception is a polymorphic
+EntityID/RecordID pair, whose target table is not known ahead of time: the EntityID half has an FK
+to `__mj.Entity`, and the RecordID half cannot have one. Here that is `CreatingEntityID`/
+`CreatingRecordID` on `Contract`, the same shape as `__mj.TagLink`'s TargetEntityID/TargetRecordID.
 
 ## Verification
 

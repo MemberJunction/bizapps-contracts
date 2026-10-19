@@ -27,6 +27,14 @@ side of every demo agreement, under its real name.
 Agreement, 2026-02-02 edition — 71 provisions carrying their verbatim text, captured from the dated
 public URL it is published at ([`contract-templates/README.md`](contract-templates/README.md)).
 
+`ml-training-pipelines/`, `ml-models/`, `record-processes/` and `ml-model-scoring-bindings/` are
+the **predictive-scoring bench**: the "Predict Contract Non-Renewal Risk" pipeline, three model
+versions fitted on bench data, and the record process and binding that write a score back to
+`Contract`. They live here because a fitted model belongs to the data it was fitted on (issue #89).
+The models have no trained artifact, so the record process is pushed `Disabled` with its schedule
+off: a scheduled run against a model with no artifact fails every contract (MemberJunction/MJ#4829).
+Train a model in Predictive Studio before enabling it.
+
 Why that agreement lives here and not in `metadata/`:
 [`docs/database-migrations.md`](../docs/database-migrations.md), on what `metadata/` may contain.
 

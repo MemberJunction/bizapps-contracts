@@ -91,10 +91,11 @@ in [`docs/database-migrations.md`](docs/database-migrations.md) (start with
 Read [§ What `metadata/` may contain](docs/database-migrations.md#what-metadata-may-contain--vocabulary-never-one-organisations-content)
 before adding anything there.
 
-The consequence, because it fails quietly: a `metadata/` edit that a host needs is not "done" when
-it merges. Nothing in CI detects a pending metadata change with no migration behind it — the app
-installs cleanly either way — so it is done only when a release carries it. Today the one shipped
-`V202608240300__…__Metadata_Sync.sql` lags `metadata/` (issue #80).
+The consequence: a `metadata/` edit that a host needs is not "done" when it merges — it is done
+only when a release carries it. A feature PR may still merge metadata before its Metadata_Sync is
+written; `rr: metadata shipped` (`ci/check-metadata-shipped.sh`, in `release-readiness.yml`) then
+fails the release PR while any substantive `metadata/` change since the last tag has no
+Metadata_Sync migration behind it.
 
 The model, and the Open App steps that differ from core (`--schema`, the `${mjSchema}` substitution): [Release Metadata Migrations Guide](https://github.com/MemberJunction/MJ/blob/next/guides/RELEASE_METADATA_MIGRATIONS_GUIDE.md).
 
