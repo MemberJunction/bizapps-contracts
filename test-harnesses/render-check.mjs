@@ -22,9 +22,31 @@
  *   node test-harnesses/render-check.mjs
  *
  * Drives SYSTEM Chrome (`channel: 'chrome'`) so no Playwright browser download is needed.
+ *
+ * Playwright is not a dependency of this repo (see above). The script loads `playwright` from
+ * wherever Node resolves it, or from PLAYWRIGHT_MODULE (a path to a Playwright install's
+ * `index.mjs`, or its package directory) when it is installed elsewhere.
  */
-import { chromium } from '/Users/marcelotorres/MJDev/instances/contracts-mj6/node_modules/.pnpm/playwright@1.58.1/node_modules/playwright/index.mjs';
 import fs from 'fs';
+import path from 'path';
+import { pathToFileURL } from 'url';
+
+async function loadPlaywright() {
+  const override = process.env.PLAYWRIGHT_MODULE;
+  if (override) {
+    const file = fs.existsSync(override) && fs.statSync(override).isDirectory() ? path.join(override, 'index.mjs') : override;
+    return import(pathToFileURL(path.resolve(file)).href);
+  }
+  try {
+    return await import('playwright');
+  } catch (e) {
+    if (e?.code !== 'ERR_MODULE_NOT_FOUND') throw e;
+    console.error('render-check: Playwright not found. Install it where Node can resolve it, or set');
+    console.error('PLAYWRIGHT_MODULE to a Playwright install (e.g. .../node_modules/playwright).');
+    process.exit(1);
+  }
+}
+const { chromium } = await loadPlaywright();
 const URL = fs.readFileSync('/tmp/mjcurl.txt', 'utf8').trim();
 const shot = (p, n) => p.screenshot({ path: `/tmp/mjj-${n}.png`, fullPage: false }).catch(() => {});
 const errors = [];
@@ -51,7 +73,7 @@ try {
   await page.waitForTimeout(9000);
   await shot(page, '02-list');
   t = await txt();
-  const nums = (t.match(/CTR-9000\d\d/g) || []);
+  const nums = (t.match(/DEMO-000\d/g) || []);
   step('list shows contract rows', nums.length >= 3, `${new Set(nums).size} distinct numbers`);
   const names = ['Northwind Association','Cascadia Health Society','Meridian Credit Union'].filter(n=>t.includes(n));
   step('grid shows NAMES not UUIDs (D-23)', names.length >= 2, names.join(', '));
@@ -71,7 +93,7 @@ try {
   await shot(page, '04-awaiting');
   t = await txt();
   step('awaiting-documents page renders', /awaiting|Payment Links never appear/i.test(t));
-  step('Payment Link is EXCLUDED from awaiting', !t.includes('CTR-900005'), t.includes('CTR-900005') ? 'CTR-900005 wrongly listed' : 'correctly absent');
+  step('Payment Link is EXCLUDED from awaiting', !t.includes('DEMO-0005'), t.includes('DEMO-0005') ? 'DEMO-0005 wrongly listed' : 'correctly absent');
 
   // Modifications
   await page.getByText('Modifications', { exact: true }).first().click({ timeout: 20000 }).catch(() => {});

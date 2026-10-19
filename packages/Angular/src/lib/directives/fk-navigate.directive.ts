@@ -28,9 +28,9 @@
  *
  * @module @mj-biz-apps/contracts-ng
  */
-import { AfterViewInit, Directive, OnDestroy, inject } from '@angular/core';
+import { AfterViewInit, Directive, EventEmitter, OnDestroy, Output, inject } from '@angular/core';
 import { CompositeKey } from '@memberjunction/core';
-import { ExplorerEntityDataGridComponent } from '@memberjunction/ng-base-forms';
+import { ExplorerEntityDataGridComponent, type RecordNavigationEvent } from '@memberjunction/ng-base-forms';
 import { NavigationService } from '@memberjunction/ng-shared';
 import { AmbientMetadata } from '../data/provider';
 
@@ -47,6 +47,13 @@ export class MJCFkNavigateDirective implements AfterViewInit, OnDestroy {
      * how a build breaks the first time the hoisting changes. `unsubscribe()` is all we use.
      */
     private sub: { unsubscribe(): void } | null = null;
+
+    /**
+     * Bound by a grid inside a form panel, which navigates through its host form
+     * (`(FkNavigate)="FormComponent.OnFormNavigate($event)"`), as panels do. When nothing is bound,
+     * pages navigate through `NavigationService` (#136).
+     */
+    @Output() public readonly FkNavigate = new EventEmitter<RecordNavigationEvent>();
 
     /**
      * Subscribe after the view exists, because `innerGrid` is a `@ViewChild` on the wrapper and is
@@ -84,7 +91,12 @@ export class MJCFkNavigateDirective implements AfterViewInit, OnDestroy {
         if (!entity) return;
 
         const pkField = entity.PrimaryKeys?.[0]?.Name ?? 'ID';
-        this.navigation.OpenEntityRecord(entity.Name, CompositeKey.FromKeyValuePair(pkField, e.recordId));
+        const key = CompositeKey.FromKeyValuePair(pkField, e.recordId);
+        if (this.FkNavigate.observed) {
+            this.FkNavigate.emit({ Kind: 'record', EntityName: entity.Name, PrimaryKey: key });
+            return;
+        }
+        this.navigation.OpenEntityRecord(entity.Name, key);
     }
 
     public ngOnDestroy(): void {

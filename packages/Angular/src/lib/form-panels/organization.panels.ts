@@ -14,6 +14,7 @@ import { BaseFormPanel, BaseFormsModule } from '@memberjunction/ng-base-forms';
 import type { AfterDataLoadEventArgs } from '@memberjunction/ng-entity-viewer';
 import type { BaseEntity, RunViewParams } from '@memberjunction/core';
 import { MJC_ENTITIES, MJC_FOREIGN_ENTITIES } from '../data/entity-names';
+import { MJCFkNavigateDirective } from '../directives/fk-navigate.directive';
 
 const SECTION_KEY = 'agreements';
 
@@ -33,7 +34,7 @@ const SECTION_KEY = 'agreements';
 @Component({
     selector: 'mjc-organization-agreements-panel',
     standalone: true,
-    imports: [CommonModule, BaseFormsModule],
+    imports: [CommonModule, BaseFormsModule, MJCFkNavigateDirective],
     template: `
         <mj-collapsible-panel
             SectionKey="agreements"
@@ -44,12 +45,14 @@ const SECTION_KEY = 'agreements';
             [FormContext]="FormContext"
             [DefaultExpanded]="false">
             @if (Record.IsSaved) {
-                <mj-explorer-entity-data-grid
+                <!-- mjcFkNavigate: the grid wrapper drops ForeignKeyClick (plans/WORKAROUNDS.md W-1, #136). -->
+                <mj-explorer-entity-data-grid mjcFkNavigate
                     [Params]="Params"
                     [NewRecordValues]="NewValues"
                     [AllowLoad]="FormComponent.IsSectionExpanded(SectionKey)"
                     [ShowToolbar]="true"
                     (Navigate)="FormComponent.OnFormNavigate($event)"
+                    (FkNavigate)="FormComponent.OnFormNavigate($event)"
                     (AfterDataLoad)="OnDataLoad($event)">
                 </mj-explorer-entity-data-grid>
             }

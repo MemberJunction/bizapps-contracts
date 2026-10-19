@@ -13,8 +13,9 @@ An entry leaves this file only when the workaround is *removed*, not when it sto
 
 **Carried by:** `packages/Angular/src/lib/directives/fk-navigate.directive.ts`, applied to the
 `<mj-explorer-entity-data-grid>` grids in four pages: `lib/pages/contract-grid.page.ts`,
-`templates.page.ts`, `modifications.page.ts` and `configuration.page.ts`. The grid in
-`lib/form-panels/organization.panels.ts` does not carry it.
+`templates.page.ts`, `modifications.page.ts` and `configuration.page.ts`, and in the Agreements
+panel on the Organization form, `lib/form-panels/organization.panels.ts` (#136), which binds the
+directive's `FkNavigate` output so it navigates through its host form.
 
 **What breaks without it.** Nothing errors — that is the problem. `mj-entity-data-grid` renders
 every FK cell as a blue underlined anchor (`.cell-fk-link`), hit-tests the click, and emits
@@ -28,7 +29,8 @@ wrapper-hosted grid is inert while still *looking* clickable.
 every app that uses it, not just ours. No upstream issue is filed yet.
 
 **How to delete this workaround.** When the wrapper exposes `ForeignKeyClick`: delete the directive,
-drop `mjcFkNavigate` + the import from the four pages, and bind `(ForeignKeyClick)` instead. The
+drop `mjcFkNavigate` + the import from the four pages and the Organization panel, and bind
+`(ForeignKeyClick)` instead. The
 directive deliberately uses MJ's public API (the wrapper's public `innerGrid` ViewChild and the inner
 component's own `@Output`) rather than re-reading the DOM `data-*` attributes, so behaviour is
 identical either way.
