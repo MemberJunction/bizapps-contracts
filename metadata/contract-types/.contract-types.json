@@ -74,7 +74,7 @@
     "fields": {
       "Name": "Statement of Work",
       "Code": "STATEMENT_OF_WORK",
-      "Description": "Scoped services with a defined end. Amith, 2026-08-18: SOWs have standard language but no versioned template — so an SOW contract may have no ContractTemplateID, and that is not a gap to fill. Paper is still expected.",
+      "Description": "Scoped services with a defined end. Ruled 2026-08-18: SOWs have standard language but no versioned template — so an SOW contract may have no ContractTemplateID, and that is not a gap to fill. Paper is still expected.",
       "RequiresExecutedDocument": true,
       "Status": "Active",
       "MustBeRoot": true,

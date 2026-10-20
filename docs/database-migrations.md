@@ -135,7 +135,7 @@ lives in `demo-data/`, with its record process `Disabled` and its schedule off (
 
 ### What a host has today
 
-Two `Metadata_Sync` migrations ship:
+Three `Metadata_Sync` migrations ship:
 
 - `V202608240300` carries `metadata/` as of 2026-08-24: contract types, template types,
   entity/field/relationship metadata and the application row.
@@ -144,8 +144,11 @@ Two `Metadata_Sync` migrations ship:
   entity, field and entity-setting changes (form sections, the Default Contract Terms category,
   display names, search flags).
 
-Still pending: Statement of Work's `TemplateRequired: false` and the contract-type seed codes are in
-`metadata/` but in no Metadata_Sync yet (issue #112). Left out on purpose: the predictive-scoring
+- `V202610200101` carries the two records changed after `V202610092210` was captured: Statement
+  of Work's `TemplateRequired: false`, and `ContractType.Code` with `ExtendedType` and `CodeType`
+  cleared (issue #112). The contract-type seed codes needed no sync: `V202610122200` sets them.
+
+Left out on purpose: the predictive-scoring
 records (record process, training pipeline, models, scoring binding) live in `demo-data/` and are
 never shipped (issue #89).
 
@@ -177,6 +180,7 @@ dash, because the parameter processor rejects an undeclared parameter.
 | `V202610092210__…__Metadata_Sync.sql` | `metadata/` changes since `V202608240300` (see above) |
 | `V202610121200__…__Provision_guard_throws_without_rollback.sql` | the published-provision guard trigger refuses with `THROW` alone, so MJ's save and delete see the rule instead of error 3915 |
 | `V202610122200__…__ContractType_Code.sql` | a required, unique `Code` on `ContractType`, set by ID for the shipped types, + capture |
+| `V202610200101__…__Metadata_Sync.sql` | the two `metadata/` records changed after `V202610092210` (see above) |
 
 **Why `V202608240100`–`0300` were not folded into the baseline.** The
 [flatten](#the-2026-08-23-flatten) folded in everything it could; these three are a genuine
