@@ -1,5 +1,32 @@
 # @mj-biz-apps/contracts-core-entities-server
 
+## 0.8.0
+
+### Minor Changes
+
+- 9b55b2c: Contract types get a required, unique `Code` (for example `ORDER_FORM`) that other apps use to find
+  a type instead of its display name, so renaming a type no longer breaks callers. The migration sets
+  codes for the four shipped types by ID and derives the rest from each type's name.
+- 258633f: A contract refused for having no template now says when no Published template with a document or URL exists, and to publish one under Templates. Statement of Work no longer requires a template (`TemplateRequired = false`), so the server default stops attaching the Master Agreement to SOWs. The README install section states that a template must be published before the first Order Form or Payment Link.
+- 2b3665c: Requires MemberJunction 6.1.6 or a later 6.x release: every `@memberjunction/*` range, the `@memberjunction/core` and `@memberjunction/global` overrides, and `mj-app.json`'s `mjVersionRange` (`>=6.1.6 <7.0.0`) move from 6.1.5 to 6.1.6.
+- 847e292: The provision guard trigger refuses an edit or delete of a clause on a published template with its own message (50102, 50101) instead of SQL Server error 3915, "Cannot use the ROLLBACK statement within an INSERT-EXEC statement". Migration only; no schema or metadata change.
+
+### Patch Changes
+
+- e7ea038: The error raised when no contract number can be obtained no longer names a migration that is not in the repo; it names the `seq_ContractNumber` sequence and the procedure to check.
+- 161cffc: Contract numbering sends PostgreSQL a SELECT of the numbering function instead of the SQL Server T-SQL batch, so new contracts can be saved on a PostgreSQL host once the PostgreSQL baseline ships.
+- 3412dd9: The parent/successor cycle check, the template-clearing modification count and the modification template-ancestry check send PostgreSQL its own SQL instead of SQL Server T-SQL, so the saves that run them work on a PostgreSQL host once the PostgreSQL baseline ships.
+- Updated dependencies [f924d46]
+- Updated dependencies [9b55b2c]
+- Updated dependencies [7112e5f]
+- Updated dependencies [2183a14]
+- Updated dependencies [2b3665c]
+- Updated dependencies [85be635]
+- Updated dependencies [63373c5]
+- Updated dependencies [48cc26e]
+- Updated dependencies [847e292]
+  - @mj-biz-apps/contracts-entities@0.8.0
+
 ## 0.7.3
 
 ### Patch Changes

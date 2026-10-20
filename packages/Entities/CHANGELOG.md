@@ -1,5 +1,22 @@
 # @mj-biz-apps/contracts-entities
 
+## 0.8.0
+
+### Minor Changes
+
+- f924d46: The seeded contract types carry their `Code` in `metadata/`, and the Contract Type form shows `Code`
+  under Contract Type Details.
+- 9b55b2c: Contract types get a required, unique `Code` (for example `ORDER_FORM`) that other apps use to find
+  a type instead of its display name, so renaming a type no longer breaks callers. The migration sets
+  codes for the four shipped types by ID and derives the rest from each type's name.
+- 7112e5f: A host installed from migrations now matches one that also ran `mj sync push` and CodeGen. Two migrations: the Predicted Renewal Risk Band value list (Low, Medium, High, Critical) that CodeGen derives from the column's check constraint, and a Metadata_Sync carrying the metadata changed since the last one: the Contracts Special Terms query and its category, the Contracts: Watchlist view, and the Contract Type form's Default Contract Terms section and field settings. The predictive-scoring records (record process, training pipeline, models, scoring binding) are not included.
+- 2183a14: A host installed from migrations now matches `metadata/` again. A second v0.8 Metadata_Sync, with its PostgreSQL counterpart, ships Statement of Work's `TemplateRequired = false` and clears `ExtendedType` and `CodeType` on `ContractType.Code`. Statement of Work's description no longer names a person.
+- 2b3665c: Requires MemberJunction 6.1.6 or a later 6.x release: every `@memberjunction/*` range, the `@memberjunction/core` and `@memberjunction/global` overrides, and `mj-app.json`'s `mjVersionRange` (`>=6.1.6 <7.0.0`) move from 6.1.5 to 6.1.6.
+- 85be635: Adds the PostgreSQL baseline (`migrations-pg/B202609211300__v0.7.x__Baseline.pg.sql`), covering every T-SQL migration through v0.7.x, so the app can install on a PostgreSQL host.
+- 63373c5: Adds the PostgreSQL counterparts of the four v0.8.x migrations (the Predicted Renewal Risk Band value list, the v0.8 Metadata_Sync, the provision guard fix and `ContractType.Code`), so a PostgreSQL host installs the same release as a SQL Server one.
+- 48cc26e: Move the predictive-scoring bench (training pipeline, model versions, scoring record process and binding) from `metadata/` to `demo-data/`, so the install seed no longer carries models fitted on one dataset. The record process is now pushed `Disabled` with its schedule off.
+- 847e292: The provision guard trigger refuses an edit or delete of a clause on a published template with its own message (50102, 50101) instead of SQL Server error 3915, "Cannot use the ROLLBACK statement within an INSERT-EXEC statement". Migration only; no schema or metadata change.
+
 ## 0.7.3
 
 ### Patch Changes
