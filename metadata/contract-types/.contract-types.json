@@ -11,6 +11,10 @@
       "                           is the honest default and what two of these four want.",
       "  TemplateRequired         whether a contract of this type must carry its own ContractTemplateID.",
       "",
+      "Code is the identifier other apps use to find a type (bizapps-sales' close-won policy names",
+      "ORDER_FORM). It is not a label: renaming a type leaves its Code alone. V202610122200 set these",
+      "four by ID on every existing database; they are repeated here so a push states the same value.",
+      "",
       "MustBeRoot/MustBeChild REPLACED the three-state ParentStatusRequirement string (V202608200300,",
       "ruled by Marcelo 2026-08-20): a column whose values invert the rule when read in the wrong order",
       "is a column that will eventually be read in the wrong order.",
@@ -30,6 +34,12 @@
       "says the agreement's terms live in the Master Agreement it references, and a contract whose terms",
       "are entirely in a template it need not cite has no stated terms at all. Corrected here.",
       "",
+      "  Statement of Work  TemplateRequired = 0. SOWs have standard language but no versioned template",
+      "                (ruled 2026-08-18, see its Description), so an SOW carries no ContractTemplateID.",
+      "                It previously carried 1, which refused every SOW on an install with no Published",
+      "                template and, once a Master Agreement was published, had the server default attach",
+      "                that MA to every SOW (#95).",
+      "",
       "NOTE — R-5's live test is now gone. Retiring these two was deliberately doubling as the real-world",
       "test of the Inactive-selection rule (a retired type still referenced by existing contracts). With",
       "both Active, nothing exercises that path against real data; R-5's coverage is unit-level only until",
@@ -44,6 +54,7 @@
     ],
     "fields": {
       "Name": "Order Form",
+      "Code": "ORDER_FORM",
       "Description": "The commercial document a customer signs to buy — the ordinary agreement. Sits beneath a Master Agreement whose provisions it incorporates by reference, which is why the Order Form carries the ContractTemplateID rather than the MA carrying anything about it — hence TemplateRequired = 1. Signed paper is expected (RequiresExecutedDocument = 1), so it appears on the Awaiting-documents worklist until the executed file is registered. Reinstated Active 2026-08-20 (Marcelo), reversing the R-4 retirement.",
       "RequiresExecutedDocument": true,
       "Status": "Active",
@@ -62,12 +73,13 @@
   {
     "fields": {
       "Name": "Statement of Work",
-      "Description": "Scoped services with a defined end. Amith, 2026-08-18: SOWs have standard language but no versioned template — so an SOW contract may have no ContractTemplateID, and that is not a gap to fill. Paper is still expected.",
+      "Code": "STATEMENT_OF_WORK",
+      "Description": "Scoped services with a defined end. Ruled 2026-08-18: SOWs have standard language but no versioned template — so an SOW contract may have no ContractTemplateID, and that is not a gap to fill. Paper is still expected.",
       "RequiresExecutedDocument": true,
       "Status": "Active",
       "MustBeRoot": true,
       "MustBeChild": false,
-      "TemplateRequired": true
+      "TemplateRequired": false
     },
     "primaryKey": {
       "ID": "33333333-0000-4000-8000-000000001002"
@@ -80,6 +92,7 @@
   {
     "fields": {
       "Name": "Payment Link",
+      "Code": "PAYMENT_LINK",
       "Description": "The sub-$10k self-serve case: finance sends a HubSpot payment link that references the Master Agreement, and nobody signs anything. There is an implied contract, so it IS a contract — it carries a ContractTemplateID (TemplateRequired = 1, because the MA it incorporates is the only thing stating the terms) and no document. This is the one type where RequiresExecutedDocument is false, and the reason that column exists at all: it is what keeps a Payment Link OFF the Awaiting-documents worklist instead of sitting there forever waiting on paper that will never arrive. Reinstated Active 2026-08-20 (Marcelo), reversing the R-4 retirement; final shape pending Andrew's confirmation.",
       "RequiresExecutedDocument": false,
       "Status": "Active",
@@ -98,6 +111,7 @@
   {
     "fields": {
       "Name": "Change Order",
+      "Code": "CHANGE_ORDER",
       "Description": "Amends an existing agreement rather than replacing it: signed paper of its own, its own dates, and a ParentContractID naming what it changes. MustBeChild = 1 is what enforces that parent — the server subclass reads that flag, where it once compared this row's NAME to the string 'Change Order' and silently stopped working if anyone renamed it. It carries no template of its own (TemplateRequired = 0); a modification recorded on a change order may cite any provision of a template at or above it in the tree.",
       "RequiresExecutedDocument": true,
       "Status": "Active",

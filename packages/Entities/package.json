@@ -1,6 +1,6 @@
 {
   "name": "@mj-biz-apps/contracts-entities",
-  "version": "0.7.3",
+  "version": "0.8.0",
   "type": "module",
   "description": "Generated entity subclasses for the app schema. TODO(template): rename package + description.",
   "main": "dist/index.js",
@@ -18,12 +18,12 @@
     "zod": "^3.25.76"
   },
   "peerDependencies": {
-    "@memberjunction/core": "^6.1.5",
-    "@memberjunction/global": "^6.1.5"
+    "@memberjunction/core": "^6.1.6",
+    "@memberjunction/global": "^6.1.6"
   },
   "devDependencies": {
-    "@memberjunction/core": "^6.1.5",
-    "@memberjunction/global": "^6.1.5",
+    "@memberjunction/core": "^6.1.6",
+    "@memberjunction/global": "^6.1.6",
     "typescript": "^5.9.3",
     "vitest": "^4.0.18"
   },
