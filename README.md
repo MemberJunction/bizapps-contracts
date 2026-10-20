@@ -24,7 +24,7 @@
 
 <p align="center">
   <img alt="Status" src="https://img.shields.io/badge/Status-Pre--release-orange?style=flat-square" />
-  <img alt="MJ Version" src="https://img.shields.io/badge/MemberJunction-%3E%3D6.1.5%20%3C7.0.0-blue?style=flat-square" />
+  <img alt="MJ Version" src="https://img.shields.io/badge/MemberJunction-%3E%3D6.1.6%20%3C7.0.0-blue?style=flat-square" />
   <img alt="Angular" src="https://img.shields.io/badge/Angular-21-DD0031?style=flat-square&logo=angular&logoColor=white" />
   <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-5.9-3178C6?style=flat-square&logo=typescript&logoColor=white" />
   <img alt="SQL Server" src="https://img.shields.io/badge/SQL%20Server-2019%2B-CC2927?style=flat-square&logo=microsoftsqlserver&logoColor=white" />
@@ -227,7 +227,7 @@ model.
 
 ## Install
 
-`mj-app.json` declares MemberJunction `>=6.1.5 <7.0.0` and two other BizApps:
+`mj-app.json` declares MemberJunction `>=6.1.6 <7.0.0` and two other BizApps:
 
 | App | Range | What contracts uses |
 |---|---|---|
@@ -281,7 +281,7 @@ they are demo data in `demo-data/`, loaded only by `pnpm run demo:load`.
 ### Setup
 
 **Prerequisites:** Node.js 18 or later (`engines`; CI uses 24) · pnpm 10.33.0 (`packageManager`) ·
-SQL Server with MemberJunction `>=6.1.5 <7.0.0`, then bizapps-common (5.43.0 or later, below 6.0.0)
+SQL Server with MemberJunction `>=6.1.6 <7.0.0`, then bizapps-common (5.43.0 or later, below 6.0.0)
 and bizapps-tasks `>=1.4.0 <2.0.0` migrated into the same database.
 
 **Configuration.** Connection settings come from a gitignored `.env`, never from `mj.config.cjs`:
