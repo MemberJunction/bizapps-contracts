@@ -35,6 +35,7 @@ import {
     type DealOption,
 } from '@mj-biz-apps/contracts-entities';
 import { MJC_ENTITIES, MJC_FOREIGN_ENTITIES } from '../data/entity-names';
+import { PartyFieldComponent, type PartyKind } from '@mj-biz-apps/common-ng';
 import { DateAsText } from './contract-dates';
 
 const E = MJC_ENTITIES.Contract;
@@ -69,6 +70,8 @@ interface ContractFieldSpec {
      * SUCCESSOR — editing it here would set the opposite direction from the Re-papering panel.
      */
     readOnly?: boolean;
+    /** A Person/Organization FK: rendered with common's search-as-you-type picker (golive #372). */
+    kind?: PartyKind;
 }
 
 const FIELD_STYLES = `
@@ -647,7 +650,7 @@ export class MJCContractAgreementPanel extends BaseFormPanel<ContractEntity> imp
     selector: 'mjc-contract-parties-panel',
     standalone: true,
     encapsulation: ViewEncapsulation.None,
-    imports: [CommonModule, BaseFormsModule],
+    imports: [CommonModule, BaseFormsModule, PartyFieldComponent],
     styles: [FIELD_STYLES],
     template: `
         <mj-collapsible-panel SectionKey="parties" SectionName="Parties" Icon="fa-solid fa-building"
@@ -655,10 +658,16 @@ export class MJCContractAgreementPanel extends BaseFormPanel<ContractEntity> imp
             <div class="mjc-fields-grid">
                 @for (f of Fields; track f.name) {
                     <div class="mjc-fg" [class.mjc-fg--span]="f.span">
-                        <mj-form-field [Record]="Record" [ShowLabel]="true" [FieldName]="f.name" [Type]="f.type"
-                            [EditMode]="f.readOnly ? false : EditMode" [FormContext]="FormContext"
-                            [LinkType]="f.link ?? 'None'"
-                            (Navigate)="FormComponent.OnFormNavigate($event)"></mj-form-field>
+                        @if (f.kind) {
+                            <bizapps-party-field [Record]="Record" [FieldName]="f.name" [Kind]="f.kind"
+                                [EditMode]="EditMode" [FormContext]="FormContext"
+                                (Navigate)="FormComponent.OnFormNavigate($event)"></bizapps-party-field>
+                        } @else {
+                            <mj-form-field [Record]="Record" [ShowLabel]="true" [FieldName]="f.name" [Type]="f.type"
+                                [EditMode]="f.readOnly ? false : EditMode" [FormContext]="FormContext"
+                                [LinkType]="f.link ?? 'None'"
+                                (Navigate)="FormComponent.OnFormNavigate($event)"></mj-form-field>
+                        }
                     </div>
                 }
             </div>
@@ -673,8 +682,8 @@ export class MJCContractPartiesPanel extends BaseFormPanel<ContractEntity> {
      * do nothing — Overview's customer/contact buttons already go through this path.
      */
     public readonly Fields: ContractFieldSpec[] = [
-        { name: 'CustomerOrganizationID', type: 'textbox', link: 'Record' },
-        { name: 'PrimaryContactPersonID', type: 'textbox', link: 'Record' },
+        { name: 'CustomerOrganizationID', type: 'textbox', link: 'Record', kind: 'Organization' },
+        { name: 'PrimaryContactPersonID', type: 'textbox', link: 'Record', kind: 'Person' },
         { name: 'CompanyID', type: 'textbox', link: 'Record' },
     ];
 }
