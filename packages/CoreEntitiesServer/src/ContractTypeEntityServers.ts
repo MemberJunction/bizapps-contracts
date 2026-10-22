@@ -18,13 +18,14 @@
  * same key, so if both extended the generated class they would be SIBLINGS: the winner would not
  * inherit the loser, it would replace it, and `ContractTypeEntity.Validate` -- the whole reason that
  * class exists, running `ValidateValueLists` for a CHECK constraint `BaseEntity` cannot see
- * (MJ#3969) -- would simply not run on the server. It did not, until this commit. MJAPI had been
- * printing the collision at every boot.
+ * (MJ#3969) -- would simply not run on the server, and for a while it did not. MJAPI printed the
+ * collision at every boot until the chain was corrected.
  *
  * Nothing failed loudly, which is why it lasted: the database still refuses a bad `Status`, at the
  * very end, as a constraint violation naming no field -- exactly the round trip the shared subclass
- * was written to prevent. `server-extends-shared.test.ts` now asserts the chain for all six entities
- * rather than for the two that were wrong.
+ * was written to prevent. The chain itself is already correct on `next`; what this adds is
+ * `server-extends-shared.test.ts`, which asserts it for all six entities rather than for the two
+ * that happened to be wrong.
  *
  * @module @mj-biz-apps/contracts-core-entities-server
  */
