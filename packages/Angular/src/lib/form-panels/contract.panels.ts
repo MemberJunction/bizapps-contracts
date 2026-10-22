@@ -210,6 +210,11 @@ function chipClassFor(state: ContractState): string {
             border-radius: var(--mj-radius-xl, 16px);
             box-shadow: var(--mj-shadow-md, 0 4px 16px rgba(0, 0, 0, .08));
             position: relative; overflow: hidden;
+            /* Never shrinks: MJ mounts this panel through display:contents hosts, so this div is a
+               flex item in the form's fixed-height column, out of reach of MJ's no-shrink rule. With
+               overflow hidden its minimum height is 0, and tall panels below would clip it to its
+               title row (bc-aidp-next-golive#287). */
+            flex-shrink: 0;
         }
         .mjc-hero::before {
             content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3.5px;

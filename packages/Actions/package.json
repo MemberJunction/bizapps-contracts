@@ -1,6 +1,6 @@
 {
   "name": "@mj-biz-apps/contracts-actions",
-  "version": "0.7.1",
+  "version": "0.8.0",
   "type": "module",
   "description": "MJ Actions exposed by this app (generated subclasses + hand-written actions). TODO(template): rename.",
   "main": "dist/index.js",
@@ -18,13 +18,18 @@
     "zod": "^3.25.76"
   },
   "peerDependencies": {
-    "@memberjunction/actions": "^6.1.0-edge.4",
-    "@memberjunction/actions-base": "^6.1.0-edge.4",
-    "@memberjunction/core": "^6.1.0-edge.4",
-    "@memberjunction/core-entities": "^6.1.0-edge.4",
-    "@memberjunction/global": "^6.1.0-edge.4"
+    "@memberjunction/actions": "^6.1.6",
+    "@memberjunction/actions-base": "^6.1.6",
+    "@memberjunction/core": "^6.1.6",
+    "@memberjunction/core-entities": "^6.1.6",
+    "@memberjunction/global": "^6.1.6"
   },
   "devDependencies": {
+    "@memberjunction/actions": "^6.1.6",
+    "@memberjunction/actions-base": "^6.1.6",
+    "@memberjunction/core": "^6.1.6",
+    "@memberjunction/core-entities": "^6.1.6",
+    "@memberjunction/global": "^6.1.6",
     "typescript": "^5.9.3"
   },
   "files": [

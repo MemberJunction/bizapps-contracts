@@ -62,13 +62,21 @@ reads). Key convention: `mj.<feature>.<prefName>`, JSON-serialized, with a
 auth-provider tokens and truly throwaway state.
 
 ## Always run and update unit tests
-Modifying a package means running that package's tests before you're done
-(`cd packages/X && npm run test`). Tests broken by your change are yours to
-update; tests broken for other reasons are yours to fix. Report pass/fail/skip
-counts honestly.
+Modifying a package means running the tests before you're done
+(`pnpm run build:packages`, then `pnpm run test:unit` — what CI runs; see
+[doc 9](09-testing.md)). Tests broken by your change are yours to update;
+tests broken for other reasons are yours to fix. Report pass/fail/skip counts.
 
-## App-repo additions (this template's own rules)
+## App-repo additions (this repo's own rules)
 - **Never edit `src/generated/`** — CodeGen overwrites it; commit regenerated
   code together with its migration.
 - **Never edit an applied migration** — add a new `V*` file (checksum drift
   breaks every install). Additive-only within a published major version.
+- **Migrations run once, in order** — no idempotency guards; MJ metadata rows
+  go in `metadata/`, never in migration SQL ([doc 5](05-codegen-and-migrations.md)).
+- **No soft keys** — every reference, cross-app included, is a real FK. The
+  only reference without one is the RecordID half of a polymorphic
+  EntityID/RecordID pair, whose target table is not known ahead of time
+  (`CreatingEntityID`/`CreatingRecordID` on `Contract`). Never add a bare UUID
+  column in place of an FK, whatever the reason
+  ([migrations doc](../database-migrations.md#cross-app-reference-hardness)).

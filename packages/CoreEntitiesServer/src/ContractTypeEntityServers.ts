@@ -30,7 +30,10 @@
  */
 import { BaseEntity, type EntityDeleteOptions } from '@memberjunction/core';
 import { RegisterClass } from '@memberjunction/global';
-import { ContractTemplateTypeEntity, ContractTypeEntity } from '@mj-biz-apps/contracts-entities';
+import {
+    ContractTemplateTypeEntity,
+    ContractTypeEntity,
+} from '@mj-biz-apps/contracts-entities';
 import { GuardedDelete, plural } from './delete-guard.js';
 
 /** How to retire instead of deleting — the same advice in both messages, written once. */

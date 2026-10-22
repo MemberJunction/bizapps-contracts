@@ -9,7 +9,7 @@
  *   src/*.ts — hand-written shared subclasses carrying the rules that must run in BOTH places
  *     (plan §6.3): validation the browser can preflight and the server enforces.
  *
- * PEER DEPENDENCIES (docs/template-docs/versioning-and-peer-deps.md): @memberjunction/core + global
+ * PEER DEPENDENCIES (CLAUDE.md, "MemberJunction versions"): @memberjunction/core + global
  * are PEERS (^X.Y.Z), never hard deps — exactly one copy of each may exist in a host process; a
  * second copy splits MJ's class factory and silently breaks registration.
  *

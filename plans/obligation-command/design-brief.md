@@ -1,5 +1,8 @@
 # Design brief — Contracts obligation dashboard
 
+> **Historical.** An exploration that was not built. The dashboard that shipped is
+> `packages/Angular/src/lib/pages/contracts-dashboard.page.ts`.
+
 **Status:** exploration. Pairs with `bizapps-sales/plans/pipeline-command-center/`.
 
 ## Architecture (already correct)

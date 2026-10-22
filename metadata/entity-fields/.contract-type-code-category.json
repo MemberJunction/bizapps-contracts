@@ -1,0 +1,23 @@
+[
+  {
+    "_comments": [
+      "Which SECTION of the generated Contract Type form ContractType.Code appears in: with Name and",
+      "Status under 'Contract Type Details'. Stated here for the same reason as",
+      ".default-contract-terms-category.json: CodeGen's AI categorisation does not reliably assign a",
+      "Category to a new field, and an uncategorised field renders in a generic Details block.",
+      "",
+      "ExtendedType and CodeType are cleared on purpose. CodeGen's AI pass reads the field name 'Code'",
+      "as source code and sets ExtendedType = 'Code', which renders a short UPPER_SNAKE identifier in",
+      "a code editor. It is a plain text field."
+    ],
+    "fields": {
+      "Category": "Contract Type Details",
+      "GeneratedFormSection": "Category",
+      "ExtendedType": null,
+      "CodeType": null
+    },
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entity Fields.Entity=MJ_BizApps_Contracts: Contract Types&Name=Code"
+    }
+  }
+]

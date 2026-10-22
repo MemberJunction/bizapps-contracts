@@ -7,10 +7,6 @@
 // NOT put credentials here. Most settings have sensible package defaults; this
 // file only declares what is specific to this app's directory structure.
 //
-// TODO(template): everywhere you see "sample" or "@mj-biz-apps", replace with
-// your app's schema name and npm scope. The full rename checklist lives in
-// docs/template-docs/getting-started.md.
-//
 module.exports = {
   // ==========================================================================
   // CodeGen output — REQUIRED
@@ -32,7 +28,8 @@ module.exports = {
     { type: 'GraphQLServer', directory: './packages/Server/src/generated' },
     { type: 'ActionSubclasses', directory: './packages/Actions/src/generated' },
     { type: 'EntitySubclasses', directory: './packages/Entities/src/generated' },
-    // Typed client shells for the Remote Operations declared in metadata/remote-operations/. They
+    // Typed client shells for any MJ: Remote Operations rows in this app's scope (none today:
+    // Contracts.Supersede is registered in code, CoreEntitiesServer/src/SupersedeOperation.ts). They
     // land in the BROWSER-SAFE Entities package on purpose: the UI imports the CONTRACT (typed input,
     // typed output, the operation key) without pulling in the server engine that implements it.
     // Without this entry the metadata rows exist and the operations run, but every caller has to
@@ -107,8 +104,7 @@ module.exports = {
   // CodeGen writes the SQL it executed into ./migrations/codegen/. After a
   // schema/metadata change you fold that SQL into a proper V*__ migration file
   // and commit it TOGETHER with the regenerated code — that is the convention
-  // that keeps clean installs reproducible. See
-  // docs/codegen-and-metadata-migrations.md.
+  // that keeps clean installs reproducible. See docs/database-migrations.md.
   SQLOutput: {
     enabled: true,
     folderPath: './migrations/codegen/',
