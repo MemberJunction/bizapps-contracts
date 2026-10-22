@@ -197,7 +197,7 @@ function termEndsText(days: number | null | undefined): string {
                                 <div class="l">Customer</div>
                                 <div class="v">
                                     @if (Record.CustomerOrganizationID && CustomerName) {
-                                        <button type="button" class="mjc-ov-link" [mjRecordLink]="Record" FieldName="CustomerOrganizationID" [HandleClick]="false" (click)="OpenCustomer($event)">{{ CustomerName }}</button>
+                                        <button type="button" class="mjc-ov-link" (click)="OpenCustomer($event)">{{ CustomerName }}</button>
                                     } @else { {{ CustomerName || '—' }} }
                                 </div>
                             </div>
@@ -205,7 +205,7 @@ function termEndsText(days: number | null | undefined): string {
                                 <div class="l">Contact</div>
                                 <div class="v">
                                     @if (Record.PrimaryContactPersonID && ContactName) {
-                                        <button type="button" class="mjc-ov-link" [mjRecordLink]="Record" FieldName="PrimaryContactPersonID" [HandleClick]="false" (click)="OpenContact($event)">{{ ContactName }}</button>
+                                        <button type="button" class="mjc-ov-link" (click)="OpenContact($event)">{{ ContactName }}</button>
                                     } @else { {{ ContactName || '—' }} }
                                 </div>
                             </div>
@@ -225,7 +225,7 @@ function termEndsText(days: number | null | undefined): string {
                                 <div><div class="l">Created from</div>
                                     <div class="v">
                                         @if (CanOpenSource) {
-                                            <button type="button" class="mjc-ov-link" [mjRecordLink]="Record" FieldName="CreatingRecordID" [EntityName]="Record.CreatingEntity" [RecordID]="Record.CreatingRecordID" [DisplayName]="SourceLabel" [HandleClick]="false" (click)="OpenSource($event)">{{ SourceLabel }}</button>
+                                            <button type="button" class="mjc-ov-link" (click)="OpenSource($event)">{{ SourceLabel }}</button>
                                         } @else { {{ SourceLabel }} }
                                     </div>
                                 </div>

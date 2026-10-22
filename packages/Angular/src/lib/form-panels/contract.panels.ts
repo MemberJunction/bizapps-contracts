@@ -138,7 +138,7 @@ function chipClassFor(state: ContractState): string {
                     <div class="mjc-hero__stat">
                         <span class="mjc-hero__stat-label">Customer</span>
                         @if (Record.CustomerOrganizationID && CustomerName) {
-                            <button type="button" class="mjc-hero__stat-val is-link" [mjRecordLink]="Record" FieldName="CustomerOrganizationID" [HandleClick]="false" (click)="OpenCustomer($event)">{{ CustomerName }}</button>
+                            <button type="button" class="mjc-hero__stat-val is-link" (click)="OpenCustomer($event)">{{ CustomerName }}</button>
                         } @else {
                             <span class="mjc-hero__stat-val">{{ CustomerName || '—' }}</span>
                         }
@@ -146,7 +146,7 @@ function chipClassFor(state: ContractState): string {
                     <div class="mjc-hero__stat">
                         <span class="mjc-hero__stat-label">Contact</span>
                         @if (Record.PrimaryContactPersonID && ContactName) {
-                            <button type="button" class="mjc-hero__stat-val is-link" [mjRecordLink]="Record" FieldName="PrimaryContactPersonID" [HandleClick]="false" (click)="OpenContact($event)">{{ ContactName }}</button>
+                            <button type="button" class="mjc-hero__stat-val is-link" (click)="OpenContact($event)">{{ ContactName }}</button>
                         } @else {
                             <span class="mjc-hero__stat-val">{{ ContactName || '—' }}</span>
                         }
