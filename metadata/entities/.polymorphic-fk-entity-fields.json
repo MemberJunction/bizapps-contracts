@@ -10,9 +10,10 @@
       "MJ: Entity Fields": [
         {
           "fields": {
-            "EntityID": "@parent:ID",
-            "Name": "CreatingRecordID",
             "EntityIDFieldName": "CreatingEntityID"
+          },
+          "primaryKey": {
+            "ID": "@lookup:MJ: Entity Fields.EntityID=@lookup:MJ: Entities.Name=MJ_BizApps_Contracts: Contracts&Name=CreatingRecordID"
           }
         }
       ]
