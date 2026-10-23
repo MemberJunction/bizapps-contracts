@@ -1,5 +1,7 @@
 # @mj-biz-apps/contracts-actions
 
+## 0.9.0
+
 ## 0.8.0
 
 ### Minor Changes

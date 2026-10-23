@@ -1,5 +1,18 @@
 # @mj-biz-apps/contracts-ng
 
+## 0.9.0
+
+### Minor Changes
+
+- 86c8079: The Contract form's Customer and Primary Contact lookups use common's fast party picker (`bizapps-party-field`): nothing listed until two characters are typed, then a prefix search on name, email or domain. Requires `@mj-biz-apps/common-ng` 5.56.0 or later.
+
+### Patch Changes
+
+- Updated dependencies [6b08085]
+- Updated dependencies [687d93b]
+- Updated dependencies [9519c4a]
+  - @mj-biz-apps/contracts-entities@0.9.0
+
 ## 0.8.0
 
 ### Minor Changes
