@@ -162,7 +162,7 @@ importers:
   packages/Angular:
     dependencies:
       '@mj-biz-apps/contracts-entities':
-        specifier: ^0.8.0
+        specifier: ^0.9.0
         version: link:../Entities
     devDependencies:
       '@angular/compiler':
@@ -205,8 +205,8 @@ importers:
         specifier: 5.44.0
         version: 5.44.0(@memberjunction/core@6.1.6)(@memberjunction/global@6.1.6)
       '@mj-biz-apps/common-ng':
-        specifier: 5.44.0
-        version: 5.44.0(a76eea793dec4b10a38b6495f29afc9c)
+        specifier: 5.56.0
+        version: 5.56.0(53fc483c891e52ab9fbed5bcf299f43b)
       '@types/node':
         specifier: ^22.10.0
         version: 22.20.1
@@ -220,7 +220,7 @@ importers:
   packages/CoreEntitiesServer:
     dependencies:
       '@mj-biz-apps/contracts-entities':
-        specifier: ^0.8.0
+        specifier: ^0.9.0
         version: link:../Entities
     devDependencies:
       '@memberjunction/core':
@@ -264,10 +264,10 @@ importers:
   packages/IntegrationTests:
     dependencies:
       '@mj-biz-apps/contracts-core-entities-server':
-        specifier: ^0.8.0
+        specifier: ^0.9.0
         version: link:../CoreEntitiesServer
       '@mj-biz-apps/contracts-entities':
-        specifier: ^0.8.0
+        specifier: ^0.9.0
         version: link:../Entities
     devDependencies:
       '@types/node':
@@ -286,13 +286,13 @@ importers:
   packages/Server:
     dependencies:
       '@mj-biz-apps/contracts-actions':
-        specifier: ^0.8.0
+        specifier: ^0.9.0
         version: link:../Actions
       '@mj-biz-apps/contracts-core-entities-server':
-        specifier: ^0.8.0
+        specifier: ^0.9.0
         version: link:../CoreEntitiesServer
       '@mj-biz-apps/contracts-entities':
-        specifier: ^0.8.0
+        specifier: ^0.9.0
         version: link:../Entities
       class-validator:
         specifier: ^0.14.3
@@ -2214,25 +2214,32 @@ packages:
       '@memberjunction/core': ^6.1.6
       '@memberjunction/global': ^6.1.6
 
-  '@mj-biz-apps/common-ng@5.44.0':
-    resolution: {integrity: sha512-YXBGuwUZju0+ouFzAnXLsZqHxLvWgdg+O49IU/4PalSKcDcIfVdeUngvQcTuQrkfjXuqZs89/0AmFxidLZGMwA==}
+  '@mj-biz-apps/common-entities@5.56.0':
+    resolution: {integrity: sha512-fzPvFoD5VDKubpk8hSuNu6eVLR3fMo69v2mgEGZ9iZyOsZ0tpDR+Ayr3/2mcsyndzBMEPsMW66UGYQcRhgrZ+g==}
+    peerDependencies:
+      '@memberjunction/core': ^6.1.6
+      '@memberjunction/global': ^6.1.6
+
+  '@mj-biz-apps/common-ng@5.56.0':
+    resolution: {integrity: sha512-TbC+lmsDgt11B9LIxHOpWLI7bbZfKYGn/7mQoWV/cKG66og2zBnScGUyPMY1NYjF6i/iC4Z5Uxz9fmo4DQW96w==}
     peerDependencies:
       '@angular/animations': 21.1.3
       '@angular/common': 21.1.3
       '@angular/core': 21.1.3
       '@angular/forms': 21.1.3
-      '@memberjunction/actions-base': ^6.1.0-edge.6
+      '@memberjunction/actions-base': ^6.1.6
       '@memberjunction/core': ^6.1.6
-      '@memberjunction/core-entities': ^6.1.0-edge.6
+      '@memberjunction/core-entities': ^6.1.6
       '@memberjunction/global': ^6.1.6
-      '@memberjunction/graphql-dataprovider': ^6.1.0-edge.6
-      '@memberjunction/ng-base-forms': ^6.1.0-edge.6
-      '@memberjunction/ng-entity-viewer': ^6.1.0-edge.6
-      '@memberjunction/ng-graph-view': ^6.1.0-edge.6
-      '@memberjunction/ng-hierarchy-tree': ^6.1.0-edge.6
-      '@memberjunction/ng-link-directives': ^6.1.0-edge.6
-      '@memberjunction/ng-shared': ^6.1.0-edge.6
-      '@memberjunction/ng-ui-components': ^6.1.0-edge.6
+      '@memberjunction/graphql-dataprovider': ^6.1.6
+      '@memberjunction/ng-base-forms': ^6.1.6
+      '@memberjunction/ng-entity-viewer': ^6.1.6
+      '@memberjunction/ng-graph-view': ^6.1.6
+      '@memberjunction/ng-hierarchy-tree': ^6.1.6
+      '@memberjunction/ng-link-directives': ^6.1.6
+      '@memberjunction/ng-shared': ^6.1.6
+      '@memberjunction/ng-ui-components': ^6.1.6
+      rxjs: ^7.8.2
 
   '@modelcontextprotocol/sdk@1.30.0':
     resolution: {integrity: sha512-xKd8OIzlqNzcqcNumGAa6g+PW2kjD5vrpcKOnfldAUPP3j7lnqMPwlTXQm8gF+UwH72z0lqaRbjr9hqGz0eITA==}
@@ -14496,7 +14503,13 @@ snapshots:
       '@memberjunction/global': 6.1.6
       zod: 3.25.76
 
-  '@mj-biz-apps/common-ng@5.44.0(a76eea793dec4b10a38b6495f29afc9c)':
+  '@mj-biz-apps/common-entities@5.56.0(@memberjunction/core@6.1.6)(@memberjunction/global@6.1.6)':
+    dependencies:
+      '@memberjunction/core': 6.1.6
+      '@memberjunction/global': 6.1.6
+      zod: 3.25.76
+
+  '@mj-biz-apps/common-ng@5.56.0(53fc483c891e52ab9fbed5bcf299f43b)':
     dependencies:
       '@angular/common': 21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2)
       '@angular/core': 21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)
@@ -14512,7 +14525,8 @@ snapshots:
       '@memberjunction/ng-link-directives': 6.1.6(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2)(ws@8.21.3)
       '@memberjunction/ng-shared': 6.1.6(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2)(ws@8.21.3)
       '@memberjunction/ng-ui-components': 6.1.6(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(@angular/forms@21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(rxjs@7.8.2)
-      '@mj-biz-apps/common-entities': 5.44.0(@memberjunction/core@6.1.6)(@memberjunction/global@6.1.6)
+      '@mj-biz-apps/common-entities': 5.56.0(@memberjunction/core@6.1.6)(@memberjunction/global@6.1.6)
+      rxjs: 7.8.2
 
   '@modelcontextprotocol/sdk@1.30.0(zod@3.25.76)':
     dependencies:
