@@ -195,12 +195,13 @@ sequence:
 
 ## Install-order dependency
 
-`mj-app.json` declares two app dependencies:
+`mj-app.json` declares three app dependencies:
 
 | app | range | why |
 | --- | --- | --- |
 | `mj-bizapps-common` | `>=5.42.0 <6.0.0` | the baseline's FKs to `__mj_BizAppsCommon.Organization` and `__mj_BizAppsCommon.Person`; `V202609211200` reads `[__mj_BizAppsCommon].[fnBusinessToday]()` |
 | `mj-bizapps-tasks` | `>=1.4.0 <2.0.0` | the dashboard's "To process" tile and the "Has open task" pill read Tasks views at runtime; no migration references Tasks |
+| `mj-bizapps-orders` | `>=5.28.0 <6.0.0` | `V202610122300`'s FK from `ContractOrder` to `__mj_BizAppsOrders.OrderHeader`; the contract's renewal terms are written to Orders subscriptions, whose `RenewalIncreasePercent` and `CarryDiscountOnRenewal` first shipped in 5.28 |
 
 `fnBusinessToday()` first shipped in bizapps-common **5.43.0** (its
 `V202609160900__v5.43.x__Business_Time_Zone` migration). The manifest's floor, 5.42.0, admits a
@@ -208,8 +209,8 @@ release without it; on such a database `V202609211200` fails with a message nami
 function. Apply bizapps-common 5.43.0 or later first.
 
 Beyond those, the migrations touch only MJ core (`__mj.Company`, `__mj.Entity`, …). A clean host
-carrying MJ core + bizapps-common 5.43.0 or later is enough to apply this whole train, which is
-how it is verified.
+carrying MJ core, bizapps-common 5.43.0 or later and bizapps-orders 5.28.0 or later (with the apps
+Orders itself depends on) is enough to apply this whole train, which is how it is verified.
 
 ## Cross-app reference hardness
 
