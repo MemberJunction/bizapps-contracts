@@ -1,5 +1,13 @@
 # @mj-biz-apps/contracts-entities
 
+## 0.9.0
+
+### Minor Changes
+
+- 6b08085: Release seed for 0.9: `V202610230230__v0.9.x__Metadata_Sync.sql` and its PostgreSQL counterpart carry `EntityIDFieldName = 'CreatingEntityID'` on Contracts.CreatingRecordID (the polymorphic foreign key) to hosts, which install by migration and never read `metadata/`.
+- 687d93b: Populate `EntityField.EntityIDFieldName` metadata on polymorphic foreign-key record-ID fields so MemberJunction forms, grids, cards, and detail panels resolve target record names and render smart clickable record links.
+- 9519c4a: `metadata/entities/.polymorphic-fk-entity-fields.json` gives its `MJ: Entity Fields` entry a `primaryKey` lookup (`@lookup:MJ: Entity Fields.EntityID=@lookup:MJ: Entities.Name=MJ_BizApps_Contracts: Contracts&Name=CreatingRecordID`). Without one, `mj sync push` creates a new row, so on a fresh database it tried to insert a second `CreatingRecordID` field and the app's whole metadata push rolled back. Same fix as bizapps-common #366 and bizapps-orders #946.
+
 ## 0.8.0
 
 ### Minor Changes
