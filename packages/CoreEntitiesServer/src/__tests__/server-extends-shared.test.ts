@@ -30,6 +30,9 @@
  * same mistake fails here instead of at a customer's constraint violation.
  */
 import { describe, expect, it } from 'vitest';
+import { readFileSync, readdirSync } from 'node:fs';
+import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { BaseEntity } from '@memberjunction/core';
 import { MJGlobal } from '@memberjunction/global';
 import {
@@ -108,4 +111,55 @@ describe('the value-list validation survives on the server', () => {
             ).toBe(shared.prototype.Validate);
         });
     }
+});
+
+/**
+ * THE LIST ABOVE CANNOT QUIETLY FALL BEHIND THE PACKAGE.
+ *
+ * It is hand-written, and the sibling guard in bizapps-orders (#345) showed what that costs: four
+ * pairs listed while six entities were registered on both sides, so two were unguarded for as long
+ * as they happened to be correct. This list is complete today; this keeps it complete.
+ *
+ * Every `@RegisterClass(BaseEntity, ...)` in this package must be classified, as a pair above or as
+ * one with no shared sibling. A new server entity class fails this until someone says which it is,
+ * which is the decision the drift skipped.
+ */
+describe('every server entity registration is classified', () => {
+    const SRC = fileURLToPath(new URL('..', import.meta.url));
+
+    /** The key each pair above is written with in the source, so the two lists can be compared. */
+    const COVERED: ReadonlySet<string> = new Set(PAIRS.map((p) => `'${p.entity}'`));
+
+    /**
+     * Server classes with NO hand-written shared sibling, for which extending the generated class is
+     * correct. Empty today: every entity class this package registers has a shared counterpart.
+     */
+    const NO_SHARED_SIBLING: ReadonlySet<string> = new Set<string>();
+
+    /** The second argument of every `@RegisterClass(BaseEntity, ...)` in the package, as written. */
+    const registeredKeys = (): string[] => {
+        const keys: string[] = [];
+        for (const file of readdirSync(SRC)) {
+            if (!file.endsWith('.ts')) continue;
+            const text = readFileSync(join(SRC, file), 'utf8');
+            for (const m of text.matchAll(/@RegisterClass\(BaseEntity,\s*([^)]+)\)/g)) {
+                keys.push(m[1].trim());
+            }
+        }
+        return keys;
+    };
+
+    it('names every one of them either as a pair or as having no shared sibling', () => {
+        const unclassified = registeredKeys().filter((k) => !COVERED.has(k) && !NO_SHARED_SIBLING.has(k));
+        expect(
+            unclassified,
+            'these register an entity class on the server and are in neither list. If a hand-written '
+                + 'shared subclass registers for the same key, add the pair; if not, add it to '
+                + 'NO_SHARED_SIBLING with that as the reason.',
+        ).toEqual([]);
+    });
+
+    it('finds the registrations at all, so an empty scan cannot pass this', () => {
+        expect(registeredKeys().length).toBeGreaterThanOrEqual(COVERED.size);
+    });
 });
