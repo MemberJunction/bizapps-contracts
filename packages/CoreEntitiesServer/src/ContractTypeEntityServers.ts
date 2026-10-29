@@ -23,9 +23,10 @@
  *
  * Nothing failed loudly, which is why it lasted: the database still refuses a bad `Status`, at the
  * very end, as a constraint violation naming no field -- exactly the round trip the shared subclass
- * was written to prevent. The chain itself is already correct on `next`; what this adds is
- * `server-extends-shared.test.ts`, which asserts it for all six entities rather than for the two
- * that happened to be wrong.
+ * was written to prevent. The chain itself is already correct on `next`, and
+ * `server-class-registration.test.ts` already asserts it; what `server-extends-shared.test.ts` adds
+ * is that the `Validate` override survives on the resolved class, that the pair list stays complete
+ * as registrations are added, and that the shared side is pinned as well.
  *
  * @module @mj-biz-apps/contracts-core-entities-server
  */

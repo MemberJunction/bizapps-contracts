@@ -2,7 +2,9 @@
  * EVERY SERVER SUBCLASS MUST EXTEND THE SHARED ONE, NOT THE GENERATED ONE.
  *
  * `server-class-registration.test.ts` asserts that the server class WINS the ClassFactory for each
- * entity. It does not ask what winning costs, and for two entities it cost the shared rule.
+ * entity, and it does check the chain: it already loops its own list asserting each winner is linear
+ * with what it beat. What it never asks is what the win COSTS when that chain is broken -- it does
+ * not mention `Validate` anywhere -- and for two entities here the cost was the shared rule itself.
  *
  * `@RegisterClass` resolves last-registered-wins. When the server class and the shared class both
  * register for one key and both extend the GENERATED class, they are siblings rather than a chain —
@@ -26,8 +28,11 @@
  * That sentence is why this file exists: the belief was reasonable and checkable, and nothing
  * checked it.
  *
- * This asserts the CHAIN rather than the two known cases, so a sixth entity added tomorrow with the
- * same mistake fails here instead of at a customer's constraint violation.
+ * So the chain assertion here overlaps the sibling deliberately, and the three things it adds are
+ * the point: that the shared `Validate` override survives on the class the server actually resolves,
+ * that the pair list cannot quietly fall behind the registrations in the package, and that the
+ * shared side's hand-written set is pinned too. A sixth entity added tomorrow with the same mistake
+ * fails here rather than at a customer's constraint violation.
  */
 import { describe, expect, it } from 'vitest';
 import { readFileSync, readdirSync } from 'node:fs';
