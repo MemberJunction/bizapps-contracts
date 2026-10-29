@@ -163,3 +163,47 @@ describe('every server entity registration is classified', () => {
         expect(registeredKeys().length).toBeGreaterThanOrEqual(COVERED.size);
     });
 });
+
+/**
+ * THE OTHER HALF OF THE CLASSIFICATION, WHICH THE BLOCK ABOVE CANNOT SEE.
+ *
+ * `NO_SHARED_SIBLING` is a claim about the SHARED package, and the block above reads only the server
+ * package, so it cannot check that claim. The set is empty today -- every server class here has a
+ * hand-written sibling -- so there is nothing false in it yet. It stops being empty the first time a
+ * server class is added for an entity the shared package does not hand-write, and from that moment a
+ * shared subclass appearing for that key is silently replaced, with every assertion here still green.
+ *
+ * Pinning the shared package's hand-written registrations by file closes that before it opens, and
+ * keeps this suite identical to its counterpart in bizapps-orders, where the set is not empty.
+ */
+describe('the shared package hand-writes exactly the subclasses the pairs assume', () => {
+    const SHARED_SRC = fileURLToPath(new URL('../../../Entities/src', import.meta.url));
+
+    /** Files outside `generated/` that register an entity class. The generated ones are not siblings. */
+    const registeringFiles = (): string[] =>
+        readdirSync(SHARED_SRC)
+            .filter((f) => f.endsWith('.ts'))
+            .filter((f) => /@RegisterClass\(BaseEntity,/.test(readFileSync(join(SHARED_SRC, f), 'utf8')))
+            .sort();
+
+    /** Five files for six pairs: `ContractTypeEntity.ts` registers both of the lookup types. */
+    const EXPECTED = [
+        'ContractEntity.ts',
+        'ContractTemplateEntity.ts',
+        'ContractTemplateModificationEntity.ts',
+        'ContractTemplateProvisionEntity.ts',
+        'ContractTypeEntity.ts',
+    ];
+
+    it('registers from exactly these files, so a new shared subclass forces the pairs to be re-checked', () => {
+        expect(
+            registeringFiles(),
+            'a file added here may have a server class registering the same key. If it does, add the '
+                + 'pair above and take the key out of NO_SHARED_SIBLING; if it does not, add the file here.',
+        ).toEqual(EXPECTED);
+    });
+
+    it('found files at all, so an empty scan cannot pass this', () => {
+        expect(registeringFiles().length).toBeGreaterThan(0);
+    });
+});
