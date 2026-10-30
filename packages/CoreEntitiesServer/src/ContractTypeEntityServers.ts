@@ -13,6 +13,21 @@
  * TWO CLASSES IN ONE FILE, matching `ContractTypeEntity.ts` on the shared side: they are the same rule
  * on the two lookup tables, and splitting them would put four lines in each of two files.
  *
+ * BOTH EXTEND THE SHARED CLASS, NOT THE GENERATED ONE, and that is load-bearing rather than tidy.
+ * `@RegisterClass` resolves last-registered-wins. The shared `ContractTypeEntity` registers for the
+ * same key, so if both extended the generated class they would be SIBLINGS: the winner would not
+ * inherit the loser, it would replace it, and `ContractTypeEntity.Validate` -- the whole reason that
+ * class exists, running `ValidateValueLists` for a CHECK constraint `BaseEntity` cannot see
+ * (MJ#3969) -- would simply not run on the server, and for a while it did not. MJAPI printed the
+ * collision at every boot until the chain was corrected.
+ *
+ * Nothing failed loudly, which is why it lasted: the database still refuses a bad `Status`, at the
+ * very end, as a constraint violation naming no field -- exactly the round trip the shared subclass
+ * was written to prevent. The chain itself is already correct on `next`, and
+ * `server-class-registration.test.ts` already asserts it; what `server-extends-shared.test.ts` adds
+ * is that the `Validate` override survives on the resolved class, that the pair list stays complete
+ * as registrations are added, and that the shared side is pinned as well.
+ *
  * @module @mj-biz-apps/contracts-core-entities-server
  */
 import { BaseEntity, type EntityDeleteOptions } from '@memberjunction/core';
