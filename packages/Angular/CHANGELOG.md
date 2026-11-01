@@ -1,5 +1,11 @@
 # @mj-biz-apps/contracts-ng
 
+## 0.9.1
+
+### Patch Changes
+
+- @mj-biz-apps/contracts-entities@0.9.1
+
 ## 0.9.0
 
 ### Minor Changes
