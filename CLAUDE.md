@@ -72,6 +72,9 @@ immediately by a from-zero diff.
 `ALTER TABLE … ADD`, with their constraints declared inline in that statement. A bad migration in
 your dev database is fixed by rebuilding that database, not by making the script re-runnable.
 Guards add noise and make the PostgreSQL conversion (`mj migrate convert`) harder.
+These rules and the others MJ and every BizApps repo share (CHECK values written for people, a
+`primaryKey` on every metadata record) are in MJ's [Schema and Code Authoring Guide](https://github.com/MemberJunction/MJ/blob/next/guides/SCHEMA_AND_CODE_AUTHORING_GUIDE.md),
+each with its reason.
 
 **MJ metadata rows are never hand-written into a migration.** Anything you would INSERT or UPDATE into an `__mj.*`
 configuration table (`EntitySetting`, `EntityField` settings, `FileCategory`, …) is declarative

@@ -12,8 +12,11 @@ what may go in `metadata/` (versus `demo-data/`) and how it reaches a host
 
 - One subdirectory per entity: `.mj-sync.json` (entity name + push/pull
   options) + `.<records>.json` (array of `{ "fields": {...} }` objects).
-- New records **omit `primaryKey` and `sync`** — mj-sync writes them back on
-  first push. Re-pushing is safe (upsert semantics).
+- **Every record has a `primaryKey`**, nested `relatedEntities` children
+  included: a CLI `uuidgen` UUID for a row the file creates, or an `@lookup`
+  for a row a migration or CodeGen already created. Push creates a new row for
+  any record without one. Never author a `sync` block; push writes it.
+  Re-pushing is safe (upsert semantics).
 - List folders in the root `metadata/.mj-sync.json` `directoryOrder` so
   dependencies push in order; an unlisted folder is pushed after the listed
   ones, in alphabetical order.
