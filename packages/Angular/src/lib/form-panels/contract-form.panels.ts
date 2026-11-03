@@ -22,13 +22,14 @@ import { BaseFormPanel, BaseFormsModule } from '@memberjunction/ng-base-forms';
 import { MJAlertComponent, MJButtonDirective, MJComboboxComponent } from '@memberjunction/ng-ui-components';
 import type { AfterDataLoadEventArgs } from '@memberjunction/ng-entity-viewer';
 import {
+    BuildCurrentTemplateFilter,
     ContractEntity,
-    CurrentTemplateFilter,
     CurrentTemplateOrderBy,
     DealIDClause,
     DealOptionLabel,
     DealSearchClause,
     MayWriteDefaultTemplate,
+    ReadContractTypeByID,
     ShouldDefaultTemplate,
     ShouldWithdrawDefaultTemplate,
     type ContractState,
@@ -546,9 +547,10 @@ export class MJCContractAgreementPanel extends BaseFormPanel<ContractEntity> imp
         };
         if (!MayWriteDefaultTemplate(state)) return;
 
-        const templateRequired = await this.typeRequiresTemplate(record.ContractTypeID);
-        // A type we could not READ decides nothing in either direction — see typeRequiresTemplate.
-        if (templateRequired === null) return;
+        const typeConfig = await this.readTypeTemplateConfig(record.ContractTypeID);
+        // A type we could not READ decides nothing in either direction — see readTypeTemplateConfig.
+        if (typeConfig === null) return;
+        const { templateRequired, contractTemplateTypeID } = typeConfig;
 
         // A DEFAULT LEAVES WITH THE TYPE THAT SUPPLIED IT. Checked BEFORE the default, because the
         // two are mutually exclusive and this is the branch the first cut of this panel missed: it
@@ -563,8 +565,15 @@ export class MJCContractAgreementPanel extends BaseFormPanel<ContractEntity> imp
 
         if (!ShouldDefaultTemplate({ ...state, templateRequired })) return;
 
-        const templateID = await this.currentTemplateID();
-        if (!templateID) return;
+        const templateID = await this.currentTemplateID(contractTemplateTypeID);
+        if (!templateID) {
+            if (this.lastDefaultedID) {
+                record.ContractTemplateID = null;
+                this.lastDefaultedID = null;
+                this.cdr.detectChanges();
+            }
+            return;
+        }
 
         record.ContractTemplateID = templateID;
         this.lastDefaultedID = templateID;
@@ -574,59 +583,59 @@ export class MJCContractAgreementPanel extends BaseFormPanel<ContractEntity> imp
     }
 
     /**
-     * Does the contract's current type say its terms live in a template — `TemplateRequired`?
+     * Read the contract type's `TemplateRequired` flag and `ContractTemplateTypeID` (#114, #150).
      *
-     * READ FROM THE FLAG, NEVER FROM THE TYPE'S NAME. The columns on `ContractType` exist precisely
-     * so no code branches on a name someone can rename; `ContractEntityServer` reads the same flag
+     * READ FROM THE FLAGS, NEVER FROM THE TYPE'S NAME. The columns on `ContractType` exist precisely
+     * so no code branches on a name someone can rename; `ContractEntityServer` reads the same columns
      * to decide whether to REQUIRE the template this defaults.
      *
-     * THREE-WAY, AND THE THIRD CASE IS LOAD-BEARING. `false` now means "this type does not want a
-     * template", which WITHDRAWS one this panel defaulted — so a read that failed must not be folded
-     * into it. It was `boolean` while defaulting was the only outcome, where swallowing a failure as
-     * `false` merely declined to act; under the withdrawal it would quietly take away a default on
-     * the strength of a query that never answered.
+     * Shares `ContractEntity.ReadSelectedContractType()` (#150) so picking a type on a new contract
+     * issues one `RunView` for both renewal-default seeding and template defaulting.
      *
-     *   · `true`  — the type requires a template
-     *   · `false` — the type does not, or there is no type at all: both known answers
-     *   · `null`  — could not tell, and the caller does nothing in either direction
+     * THREE-WAY, AND THE THIRD CASE IS LOAD-BEARING. `templateRequired: false` means "this type does
+     * not want a template", which WITHDRAWS one this panel defaulted — so a read that failed must not
+     * be folded into it.
      */
-    private async typeRequiresTemplate(typeID: string | null | undefined): Promise<boolean | null> {
+    private async readTypeTemplateConfig(
+        typeID: string | null | undefined,
+    ): Promise<{ templateRequired: boolean; contractTemplateTypeID: string | null } | null> {
         const id = (typeID ?? '').trim();
-        if (!id) return false; // no type chosen — a KNOWN answer, and the one that withdraws
+        if (!id) return { templateRequired: false, contractTemplateTypeID: null };
 
-        const { ScopedRunView } = await import('../data/provider');
-        const rv = ScopedRunView(this.FormComponent?.ProviderToUse);
         try {
-            const r = await rv.RunView<{ TemplateRequired: boolean }>({
-                EntityName: MJC_ENTITIES.ContractType,
-                Fields: ['TemplateRequired'],
-                ExtraFilter: `ID = '${id.replace(/'/g, "''")}'`,
-                ResultType: 'simple',
-            });
-            if (r?.Success !== true || r.Results?.[0] === undefined) return null;
-            return r.Results[0].TemplateRequired === true;
+            const record = this.Record;
+            const row =
+                typeof record?.ReadSelectedContractType === 'function'
+                    ? await record.ReadSelectedContractType()
+                    : await ReadContractTypeByID(
+                          (await import('../data/provider')).ScopedRunView(this.FormComponent?.ProviderToUse),
+                          id,
+                      );
+            if (!row) return null;
+            return {
+                templateRequired: row.TemplateRequired === true,
+                contractTemplateTypeID: row.ContractTemplateTypeID ?? null,
+            };
         } catch {
             return null;
         }
     }
 
     /**
-     * The newest Published, usable template — the one a new contract should start on.
+     * The newest Published, usable template matching the type's `ContractTemplateTypeID` (#114).
      *
      * A FAILED OR EMPTY READ IS SILENT, and deliberately so. This is a convenience: the field stays
      * empty, the picker still works, and the server still refuses a save with no template when the
      * type demands one — which is the message the user needs and the one they would already get.
-     * Announcing "could not default a template" on a form nobody has filled in yet reports our own
-     * plumbing as the user's problem.
      */
-    private async currentTemplateID(): Promise<string | null> {
+    private async currentTemplateID(contractTemplateTypeID?: string | null): Promise<string | null> {
         const { ScopedRunView } = await import('../data/provider');
         const rv = ScopedRunView(this.FormComponent?.ProviderToUse);
         try {
             const r = await rv.RunView<{ ID: string }>({
                 EntityName: MJC_ENTITIES.ContractTemplate,
                 Fields: ['ID'],
-                ExtraFilter: CurrentTemplateFilter,
+                ExtraFilter: BuildCurrentTemplateFilter(contractTemplateTypeID),
                 OrderBy: CurrentTemplateOrderBy,
                 MaxRows: 1,
                 ResultType: 'simple',

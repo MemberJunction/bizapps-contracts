@@ -2,7 +2,7 @@
  * The same-level supersession rule — the half that needs no database.
  *
  * A re-papering replaces an agreement with one at the SAME level of the tree: two top-level
- * agreements, or two documents under the same parent. Ruled by Marcelo 2026-08-20, replacing the
+ * agreements, or two documents under the same parent. This replaced the
  * obvious-looking "root only" rule, which is wrong in both directions — it forbids a change order
  * superseding another change order under the same order form (real, and the alternative is deleting
  * history), while still permitting the genuinely meaningless case of a change order claiming to

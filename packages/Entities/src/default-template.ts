@@ -12,20 +12,24 @@
  * test reaches.
  *
  *   · {@link CurrentTemplateFilter}  — WHICH templates may be defaulted at all
+ *   · {@link BuildCurrentTemplateFilter} — scopes `CurrentTemplateFilter` to the `ContractTemplateTypeID`
+ *     named on the selected `ContractType` (#114)
  *   · {@link CurrentTemplateOrderBy} — which of them is "current"
  *   · {@link ShouldDefaultTemplate}  — whether we may write over what is in the field right now
  *   · {@link ShouldWithdrawDefaultTemplate} — whether we must TAKE BACK what we wrote, once the
  *     contract type stops wanting a template at all
  *
- * SCOPING, THE ISSUE'S ONE OPEN DECISION: the newest published usable template wins, REGARDLESS of
- * its template type. Not a simplification — `ContractType` carries no `ContractTemplateTypeID`, so
- * there is nothing in the data to scope by, and of the two seeded template types only Master
- * Agreement has templates behind it (Statement of Work is seeded deliberately unused, because the
- * business does not version its SOW language). Scoping by type would need a schema change and would
- * today narrow a one-element set to itself.
+ * SCOPING BY TEMPLATE TYPE (#114): `ContractType.ContractTemplateTypeID` (nullable FK to
+ * `ContractTemplateType`) names the kind of standard agreement a contract of that type incorporates
+ * by default when `TemplateRequired = 1` (Order Form and Payment Link both point at Master Agreement).
+ * When `ContractType.ContractTemplateTypeID` is set, {@link BuildCurrentTemplateFilter} restricts
+ * candidate templates to that `ContractTemplateTypeID`; when it is null, {@link CurrentTemplateFilter}
+ * falls back to any Published, usable template across all template types.
  *
  * @module @mj-biz-apps/contracts-entities
  */
+
+const UUID_SHAPE = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
 
 /**
  * The templates a contract may be started on — an `ExtraFilter`, not a preference.
@@ -40,6 +44,24 @@
  *     file attached. A contract cannot incorporate terms nobody can open.
  */
 export const CurrentTemplateFilter = `Status = 'Published' AND IsUsable = 1`;
+
+/**
+ * Build the `ExtraFilter` for finding a contract type's default template (#114).
+ *
+ * When the selected `ContractType` specifies a `ContractTemplateTypeID` (e.g., Order Form and
+ * Payment Link -> Master Agreement), only Published, usable templates of that `ContractTemplateType`
+ * are eligible. When `contractTemplateTypeID` is null or empty, falls back to {@link CurrentTemplateFilter}.
+ *
+ * Refuses to interpolate a non-UUID `contractTemplateTypeID` into SQL.
+ */
+export function BuildCurrentTemplateFilter(contractTemplateTypeID?: string | null): string {
+    const id = String(contractTemplateTypeID ?? '').trim();
+    if (!id) return CurrentTemplateFilter;
+    if (!UUID_SHAPE.test(id)) {
+        throw new Error(`Refusing to filter templates by ContractTemplateTypeID: '${id}' is not a UUID.`);
+    }
+    return `${CurrentTemplateFilter} AND ContractTemplateTypeID = '${id}'`;
+}
 
 /**
  * Which published template is the CURRENT one: the most recently introduced.
@@ -122,7 +144,7 @@ export function MayWriteDefaultTemplate(state: TemplateDefaultState): boolean {
 }
 
 /**
- * Take back a template we defaulted, once the type stops wanting one (review of PR #51).
+ * Take back a template we defaulted, once the type stops wanting one.
  *
  * THE BUG THIS EXISTS TO CLOSE. Picking Order Form fills the field in; changing the type to Change
  * Order used to leave it filled, because the defaulting rule saw a type that needs no template and

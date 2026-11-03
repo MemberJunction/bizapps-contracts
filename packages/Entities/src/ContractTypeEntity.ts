@@ -23,12 +23,13 @@
  *
  * @module @mj-biz-apps/contracts-entities
  */
-import { BaseEntity, ValidationResult } from '@memberjunction/core';
+import { BaseEntity, type EntityDeleteOptions, type EntitySaveOptions, ValidationResult } from '@memberjunction/core';
 import { RegisterClass } from '@memberjunction/global';
 import {
     mjBizAppsContractsContractTemplateTypeEntity,
     mjBizAppsContractsContractTypeEntity,
 } from './generated/entity_subclasses';
+import { InvalidateContractTypeCache } from './contract-type-cache';
 import { ValidateValueLists } from './value-list-validation';
 
 /**
@@ -51,6 +52,22 @@ export class ContractTypeEntity extends mjBizAppsContractsContractTypeEntity {
         const result = super.Validate();
         ValidateValueLists(this, result);
         return result;
+    }
+
+    public override async Save(options?: EntitySaveOptions): Promise<boolean> {
+        const saved = await super.Save(options);
+        if (saved) {
+            InvalidateContractTypeCache(this.RunViewProviderToUse, this.ID);
+        }
+        return saved;
+    }
+
+    public override async Delete(options?: EntityDeleteOptions): Promise<boolean> {
+        const deleted = await super.Delete(options);
+        if (deleted) {
+            InvalidateContractTypeCache(this.RunViewProviderToUse, this.ID);
+        }
+        return deleted;
     }
 }
 

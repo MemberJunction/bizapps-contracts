@@ -11,8 +11,8 @@
  *
  * Both came from a deliberate, documented decision — the module argued REPLACE, NOT ADD from the fact
  * that the picker is a single-select. Reversing a decision is exactly the change that a comment
- * survives and the code forgets, so these assertions are written against the BEHAVIOUR Andrew
- * specified ("a contract may supersede many earlier contracts; Link adds"), not against the new code.
+ * survives and the code forgets, so these assertions are written against the required behaviour
+ * ("a contract may supersede many earlier contracts; Link adds"), not against the new code.
  *
  * WHY A FAKE PROVIDER RATHER THAN THE DATABASE. What changed is which records get written, and that is
  * observable without SQL: the fake records every save. The DB tier cannot run here anyway — the local

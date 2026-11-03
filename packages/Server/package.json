@@ -3,7 +3,7 @@
   "name": "@mj-biz-apps/contracts-server",
   "version": "0.9.1",
   "type": "module",
-  "description": "Server bootstrap package - loaded by MJAPI at startup via the manifest's startupExport. TODO(template): rename.",
+  "description": "Server bootstrap package for the MemberJunction Contracts application, loaded by MJAPI at startup via the manifest's startupExport.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {

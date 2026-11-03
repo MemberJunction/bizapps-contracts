@@ -7,7 +7,7 @@
  * 2-to-4-locations-of-similar-logic case the workspace guide says to unify, parameterised by context
  * (Template Method: shared skeleton, overridden hooks).
  *
- * THE GRID IS MJ'S OWN (`mj-explorer-entity-data-grid`), not a bespoke table. D-21 ruled the watchlist
+ * THE GRID IS MJ'S OWN (`mj-explorer-entity-data-grid`), not a bespoke table. D-21 keeps the watchlist
  * deliberately thin — stock grid plus filter pills, no saved views — and D-23 requires selecting the
  * BASE VIEW so foreign keys render as names. Both are satisfied by construction here: `vwContracts` is
  * what the entity's `BaseView` resolves to, and it already carries `ContractType`, `Company`,
@@ -23,14 +23,16 @@
  */
 import { ChangeDetectorRef, Component, OnInit, ViewEncapsulation, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { NavigationService } from '@memberjunction/ng-shared';
-import type { CompositeKey } from '@memberjunction/core';
+import { BaseResourceComponent, NavigationService } from '@memberjunction/ng-shared';
+import { CompositeKey } from '@memberjunction/core';
 import type { RunViewParams } from '@memberjunction/core';
 import { BaseFormsModule } from '@memberjunction/ng-base-forms';
 import { MJC_ENTITIES } from '../data/entity-names';
 import { ScopedRunView } from '../data/provider';
 import { BuildOpenTaskFilters } from '../data/task-filters';
 import { NOTICE_WINDOW_OPEN, NOTICE_WINDOW_PASSED } from '../data/business-day';
+import { ApplyGridPreset, FlushPendingGridPreset } from '../data/grid-preset';
+import { BuildGridAgentContext } from '../data/agent-context';
 import { MJCFkNavigateDirective } from '../directives/fk-navigate.directive';
 
 /** One filter pill: a label, the SQL it contributes, and a live count. */
@@ -55,6 +57,9 @@ export interface MJCFilterPill {
 export abstract class MJCContractGridPageBase implements OnInit {
     protected readonly cdr = inject(ChangeDetectorRef);
     protected readonly navigation = inject(NavigationService);
+
+    /** Set by the hosting section so agent context and client tools attach to the cached resource (#154). */
+    public HostResource: BaseResourceComponent | null = null;
 
 
     /** Pills for this page, in display order. The first is the default. */
@@ -141,6 +146,11 @@ export abstract class MJCContractGridPageBase implements OnInit {
 
     protected abstract get pills(): MJCFilterPill[];
 
+    /** Stable identifier for this grid surface in agent context (#154). */
+    protected get agentPageKey(): string {
+        return 'contracts-grid';
+    }
+
     /**
      * A restriction that applies to EVERY pill on this page — what makes a worklist a worklist.
      *
@@ -169,6 +179,7 @@ export abstract class MJCContractGridPageBase implements OnInit {
     public ngOnInit(): void {
         this.Pills = this.pills;
         this.ActivePillId = this.Pills[0]?.Id ?? null;
+        this.registerAgentClientTools();
         if (!this.applyPendingPreset()) this.rebuild();
         void this.refreshCounts();
     }
@@ -193,15 +204,12 @@ export abstract class MJCContractGridPageBase implements OnInit {
      * is what makes the re-inserted view actually repaint.
      */
     public ApplyPreset(pillId: string | null): void {
-        if (pillId && !this.Pills.some((p) => p.Id === pillId)) {
-            // The pill exists but has not been built yet — a page whose pills depend on an async read
-            // can be navigated to before that read lands. Hold it; `applyPendingPreset` finishes the job.
-            this.pendingPresetId = pillId;
-            return;
+        const next = ApplyGridPreset(this.Pills, this.ActivePillId, pillId);
+        this.pendingPresetId = next.pendingPresetId;
+        this.ActivePillId = next.activePillId;
+        if (next.applied) {
+            this.rebuild();
         }
-        this.pendingPresetId = null;
-        this.ActivePillId = pillId;
-        this.rebuild();
     }
 
     /** Set when a preset arrived before its pill existed. */
@@ -215,12 +223,13 @@ export abstract class MJCContractGridPageBase implements OnInit {
      * twice — `ApplyPreset` rebuilds on its own.
      */
     protected applyPendingPreset(): boolean {
-        if (!this.pendingPresetId) return false;
-        const id = this.pendingPresetId;
-        this.ApplyPreset(id);
-        // `ApplyPreset` re-parks the id when the pill STILL does not exist, in which case nothing
-        // was applied and the caller must do its own rebuild.
-        return this.pendingPresetId !== id;
+        const next = FlushPendingGridPreset(this.Pills, this.ActivePillId, this.pendingPresetId);
+        this.pendingPresetId = next.pendingPresetId;
+        this.ActivePillId = next.activePillId;
+        if (next.applied) {
+            this.rebuild();
+        }
+        return next.applied;
     }
 
     public ApplySearch(text: string): void {
@@ -252,6 +261,7 @@ export abstract class MJCContractGridPageBase implements OnInit {
             ExtraFilter: clauses.join(' AND '),
             OrderBy: this.orderBy,
         };
+        this.publishAgentContext();
         this.cdr.detectChanges();
     }
 
@@ -284,7 +294,92 @@ export abstract class MJCContractGridPageBase implements OnInit {
                 }
             }),
         );
+        this.publishAgentContext();
         this.cdr.detectChanges();
+    }
+
+    /** Re-publish agent context and client tools when this page is shown or reattached (#154). */
+    public PublishAgentState(): void {
+        this.registerAgentClientTools();
+        this.publishAgentContext();
+    }
+
+    protected publishAgentContext(): void {
+        const caller = this.HostResource ?? (this as unknown as BaseResourceComponent);
+        this.navigation.SetAgentContext(
+            caller,
+            BuildGridAgentContext({
+                PageKey: this.agentPageKey,
+                ActivePillId: this.ActivePillId,
+                PendingPresetId: this.pendingPresetId,
+                SearchText: this.SearchText,
+                PageFilter: this.pageFilter,
+                ExtraFilter: typeof this.Params?.ExtraFilter === 'string' ? this.Params.ExtraFilter : '',
+                OrderBy: this.orderBy,
+                Pills: this.Pills,
+            }),
+        );
+    }
+
+    protected registerAgentClientTools(): void {
+        const caller = this.HostResource ?? (this as unknown as BaseResourceComponent);
+        this.navigation.SetAgentClientTools(caller, [
+            {
+                Name: 'SelectContractFilterPill',
+                Description: 'Select a filter pill on the current contracts grid page (or pass null to clear the active pill).',
+                ParameterSchema: {
+                    type: 'object',
+                    properties: { pillId: { type: ['string', 'null'] } },
+                    required: ['pillId'],
+                },
+                Handler: async (params: Record<string, unknown>) => {
+                    const raw = params?.['pillId'];
+                    const pillId = typeof raw === 'string' && raw.trim() ? raw.trim() : null;
+                    this.ApplyPreset(pillId);
+                    return { Success: true, ActivePillId: this.ActivePillId };
+                },
+            },
+            {
+                Name: 'SearchContractsGrid',
+                Description: 'Apply a free-text search across ContractNumber, CustomerOrganization, and ContractType on the current contracts grid.',
+                ParameterSchema: {
+                    type: 'object',
+                    properties: { searchText: { type: 'string' } },
+                    required: ['searchText'],
+                },
+                Handler: async (params: Record<string, unknown>) => {
+                    const searchText = typeof params?.['searchText'] === 'string' ? params['searchText'] : '';
+                    this.ApplySearch(searchText);
+                    return { Success: true, SearchText: this.SearchText };
+                },
+            },
+            {
+                Name: 'OpenContractRecord',
+                Description: 'Open a contract record by ID in Explorer.',
+                ParameterSchema: {
+                    type: 'object',
+                    properties: { contractId: { type: 'string' } },
+                    required: ['contractId'],
+                },
+                Handler: async (params: Record<string, unknown>) => {
+                    const contractId = typeof params?.['contractId'] === 'string' ? params['contractId'].trim() : '';
+                    if (!contractId) {
+                        return { Success: false, ErrorMessage: 'contractId is required.' };
+                    }
+                    this.navigation.OpenEntityRecord(MJC_ENTITIES.Contract, CompositeKey.FromID(contractId));
+                    return { Success: true };
+                },
+            },
+            {
+                Name: 'RefreshContractsGridCounts',
+                Description: 'Refresh the filter-pill badge counts on the current contracts grid.',
+                ParameterSchema: { type: 'object', properties: {} },
+                Handler: async () => {
+                    await this.refreshCounts();
+                    return { Success: true };
+                },
+            },
+        ]);
     }
 }
 
@@ -333,6 +428,10 @@ const GRID_TEMPLATE = `
 })
 export class MJCAllContractsPageComponent extends MJCContractGridPageBase {
     public Intro = 'Every agreement on record. Double-click a row to open it.';
+
+    protected override get agentPageKey(): string {
+        return 'contracts-all';
+    }
 
     /**
      * The "Has open task" pill is added AFTER init, not declared with the others, because its filter
@@ -454,6 +553,10 @@ export class MJCRenewalsPageComponent extends MJCContractGridPageBase {
         'What finance must act on. Sorted by the renewal-notice deadline — the day our chance to act ends, ' +
         'which is earlier than the day the contract does.';
 
+    protected override get agentPageKey(): string {
+        return 'contracts-renewals';
+    }
+
     /** Only live agreements can be renewed or allowed to expire. */
     protected override get pageFilter(): string {
         return `State IN ('Active','Executed')`;
@@ -516,6 +619,10 @@ export class MJCAwaitingDocumentsPageComponent extends MJCContractGridPageBase {
     public Intro =
         'Contracts whose type expects an executed document, with none attached. Payment Links never appear ' +
         'here — their type says no signature was ever expected.';
+
+    protected override get agentPageKey(): string {
+        return 'contracts-awaiting-documents';
+    }
 
     protected override get pageFilter(): string {
         return 'IsAwaitingDocument = 1';
