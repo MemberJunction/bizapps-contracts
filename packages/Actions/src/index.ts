@@ -27,6 +27,11 @@
  * The Load function below is imported by the server bootstrap so bundlers
  * cannot tree-shake the @RegisterClass side effects away.
  */
+import { LoadRecordNonRenewalOutcomesAction } from './record-nonrenewal-outcomes.action.js';
+
+export { RECORD_NON_RENEWAL_OUTCOMES_SQL, RecordNonRenewalOutcomesAction } from './record-nonrenewal-outcomes.action.js';
+
 export function LoadMjBizappsContractsActions(): void {
-    // No-op: importing this module registers the action classes above.
+    // Importing this module registers the action classes; the call keeps bundlers from dropping them.
+    LoadRecordNonRenewalOutcomesAction();
 }

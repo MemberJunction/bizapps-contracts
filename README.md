@@ -104,9 +104,11 @@ term starts — the ordinary case in renewal season — behind the word for "unf
 
 The same view derives `IsAwaitingDocument` (the contract *type* expects paper and no linked file is
 marked as the executed agreement), `DaysToEnd`, `RenewalNoticeDeadline` and `IsInCancellationWindow`,
-plus the renewal-risk model's label and features: `NonRenewalOutcome`, `TermLengthDays`,
-`DaysUntilNoticeDeadline`, `HasModificationsFlag`, `AutoRenewFlag`, `HasParentContract`,
-`HasCancellationWindow` and `HasAnnualIncrease`. "Today" in these columns is the **business day** from
+plus the renewal-risk model's features: `TermLengthDays`, `DaysUntilNoticeDeadline`,
+`HasModificationsFlag`, `AutoRenewFlag`, `HasParentContract`, `HasCancellationWindow` and
+`HasAnnualIncrease`. The model's label, `NonRenewalOutcome`, is a stored column the database records
+when a contract concludes (on save, and hourly for contracts whose end date has passed), so training
+runs over the same rows see the same labels (#159). "Today" in these columns is the **business day** from
 bizapps-common's `fnBusinessToday()`, not the server's UTC date; until the instance sets
 `BizApps.BusinessTimeZone`, the business day is the UTC day ([install](#install)). Definitions:
 [`docs/ERD.md`](docs/ERD.md) §4.
