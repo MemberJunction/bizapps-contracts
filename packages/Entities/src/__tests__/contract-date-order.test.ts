@@ -27,7 +27,7 @@ const MAY = new Date(JUN.getTime() - 31 * DAY);
 
 describe('IsEndBeforeEffective — the constraint, as a predicate', () => {
     it('refuses an end date before the effective date — the case the user hit', () => {
-        // Andrew's repro exactly: Effective 1 Jun 2026, End 1 May 2026.
+        // Effective 1 Jun 2026, End 1 May 2026.
         expect(IsEndBeforeEffective(JUN, MAY)).toBe(true);
     });
 

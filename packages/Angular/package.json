@@ -3,7 +3,7 @@
   "name": "@mj-biz-apps/contracts-ng",
   "version": "0.9.1",
   "type": "module",
-  "description": "Client bootstrap package - Angular components loaded by MJExplorer via the generated open-app bootstrap import. TODO(template): rename.",
+  "description": "Angular client components, pages, and form panels for the MemberJunction Contracts application.",
   "main": "dist/public-api.js",
   "types": "dist/public-api.d.ts",
   "scripts": {

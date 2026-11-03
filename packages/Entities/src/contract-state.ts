@@ -6,7 +6,7 @@
  * agree or lie. It is derived in exactly ONE place — the `CASE` in the app-owned layered base view
  * (`V202608182001`) — and application code READS `contract.State`. It does not re-derive it.
  *
- * WHY THIS FILE NO LONGER CARRIES THE RULE (Marcelo, 2026-08-19). It used to hold
+ * WHY THIS FILE NO LONGER CARRIES THE RULE. It used to hold
  * `DeriveContractState()` for TypeScript and `StateSQL()` to render the same rule as T-SQL, on the
  * reasoning that one module rendering both copies could not drift. That reasoning was wrong, and it
  * failed in the most direct way available: the TypeScript branch for termination was tightened to

@@ -816,6 +816,14 @@ export class mjBizAppsContractsContractType_ {
     @MaxLength(50)
     Code?: string;
         
+    @Field({nullable: true, description: `Which kind of standard agreement (ContractTemplateType) a contract of this type incorporates by default when TemplateRequired = 1. Nullable because types with TemplateRequired = 0 carry no template, and a type that leaves this NULL falls back to the newest Published, usable template across all template types.`}) 
+    @MaxLength(36)
+    ContractTemplateTypeID?: string;
+        
+    @Field({nullable: true}) 
+    @MaxLength(100)
+    ContractTemplateType?: string;
+        
     @Field(() => [String], { nullable: true, description: `Field-level security: when non-null, the fields on this entity the calling user may read. Any other field arriving as null was withheld by the server rather than genuinely empty. Null for callers with no field restrictions.` })
     ReadableFields___?: string[];
         
@@ -865,6 +873,9 @@ export class CreatemjBizAppsContractsContractTypeInput {
     @Field({ nullable: true })
     Code?: string;
 
+    @Field({ nullable: true })
+    ContractTemplateTypeID: string | null;
+
     @Field(() => RestoreContextInput, { nullable: true })
     RestoreContext___?: RestoreContextInput;
 }
@@ -913,6 +924,9 @@ export class UpdatemjBizAppsContractsContractTypeInput {
 
     @Field({ nullable: true })
     Code?: string;
+
+    @Field({ nullable: true })
+    ContractTemplateTypeID?: string | null;
 
     @Field(() => [KeyValuePairInput], { nullable: true })
     OldValues___?: KeyValuePairInput[];
@@ -1036,7 +1050,7 @@ export class mjBizAppsContractsContract_ {
     @MaxLength(36)
     PrimaryContactPersonID?: string;
         
-    @Field({nullable: true, description: `The agreement version this contract incorporates. Nullable because a contract created automatically at Closed Won has none until finance reads the PDF.`}) 
+    @Field({nullable: true, description: `The agreement version this contract incorporates. Nullable because contract types with TemplateRequired = 0 (such as Change Order and Statement of Work) carry no standard agreement version of their own, and because a newly created contract leaves this empty when no Published, usable template exists yet.`}) 
     @MaxLength(36)
     ContractTemplateID?: string;
         

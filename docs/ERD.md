@@ -7,7 +7,7 @@
 > answers "why".
 >
 > **TAKEN FROM THE FULL MIGRATION CHAIN.** Every table, column, nullability, foreign key, `CHECK` and
-> index below is the end state of `migrations/B202608040001…` through `V202609211200…`, each later
+> index below is the end state of `migrations/B202608040001…` through `V202611021400…`, each later
 > file applied over the earlier ones. Later migrations redefine `vwContracts`; §4 describes the
 > latest definition (`V202609211200`).
 >
@@ -16,7 +16,7 @@
 > migration. A previous revision of this file described the **v1** schema for a day after v1 was
 > retired, and nothing about reading it revealed that — which is why the check exists.
 
-**6 tables** · 8 internal relationships · 4 cross-app foreign keys · 17 CHECK constraints · 6 unique indexes.
+**6 tables** · 9 internal relationships · 4 cross-app foreign keys · 17 CHECK constraints · 7 unique indexes.
 
 Schema: `__mj_BizAppsContracts`. Entity name prefix: `MJ_BizApps_Contracts: `.
 
@@ -57,12 +57,14 @@ erDiagram
     ContractType {
         uuid ID PK
         nvarchar Name "unique"
+        nvarchar Code "unique · stable machine identifier"
         nvarchar Description "nullable"
         bit RequiresExecutedDocument "drives IsAwaitingDocument"
         nvarchar Status "Active or Inactive"
         bit MustBeRoot "this type may not name a parent"
         bit MustBeChild "this type MUST name a parent · change orders"
         bit TemplateRequired "this type must cite a ContractTemplate"
+        uuid ContractTemplateTypeID FK "ContractTemplateType · nullable · default template type when TemplateRequired = 1"
         bit DefaultAutoRenew "nullable · seeds Contract.AutoRenew on a new contract"
         int DefaultRenewalNoticeDays "nullable · seeds Contract.RenewalNoticeDays"
         int DefaultCancellationWindowDays "nullable · seeds Contract.CancellationWindowDays"
@@ -120,6 +122,7 @@ at save time.
 ```mermaid
 erDiagram
     ContractTemplateType ||--o{ ContractTemplate : "ContractTemplateTypeID"
+    ContractTemplateType ||--o{ ContractType : "ContractTemplateTypeID · nullable"
     ContractTemplate ||--o{ ContractTemplateProvision : "ContractTemplateID"
     ContractTemplate ||--o{ Contract : "ContractTemplateID · nullable"
     ContractType ||--o{ Contract : "ContractTypeID"
@@ -134,7 +137,7 @@ erDiagram
     Entity ||--o{ Contract : "CreatingEntityID · __mj"
 ```
 
-**8 internal foreign keys** (the first eight above) and **4 cross-app** (the last four). No FK leaves
+**9 internal foreign keys** (the first nine above) and **4 cross-app** (the last four). No FK leaves
 this schema except those four, and none points into `bizapps-sales` — sales depends on contracts, so
 the deal reference is the soft `CreatingEntityID` + `CreatingRecordID` pair rather than a hard FK.
 
@@ -184,7 +187,7 @@ value lists — filed as [MJ#3969](https://github.com/MemberJunction/MJ/issues/3
 themselves (`value-list-validation.ts`). Nothing checks `PredictedRenewalRiskBand` before SQL Server
 does; its value list ships in `V202610092200__…__Risk_band_value_list.sql`.
 
-### 3.2 Unique — 6
+### 3.2 Unique — 7
 
 | Table | Index | Columns |
 |---|---|---|
@@ -193,6 +196,7 @@ does; its value list ships in `V202610092200__…__Risk_band_value_list.sql`.
 | `ContractTemplateProvision` | `UQ_ContractTemplateProvision_Template_Number` | `ContractTemplateID, ProvisionNumber` |
 | `ContractTemplateModification` | `UQ_ContractTemplateModification_Contract_Provision` | `ContractID, ContractTemplateProvisionID` |
 | `ContractType` | `UQ_ContractType_Name` | `Name` |
+| `ContractType` | `UQ_ContractType_Code` | `Code` |
 | `ContractTemplateType` | `UQ_ContractTemplateType_Name` | `Name` |
 
 `UQ_ContractTemplateModification_Contract_Provision` is the one a user can reach by ordinary use: it

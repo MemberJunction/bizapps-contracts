@@ -40,6 +40,7 @@ export * from './required-field-prose';
 /* The two lookup entities, which exist ONLY to validate their value-list columns — a rule MJ does not
  * yet provide (MJ#3969). Deleted wholesale when it lands; see value-list-validation.ts. */
 export * from './ContractTypeEntity';
+export * from './contract-type-cache';
 export * from './value-list-validation';
 
 /* The lifecycle rule, stated once and rendered two ways (D-19 / R-19). Exported because the UI needs

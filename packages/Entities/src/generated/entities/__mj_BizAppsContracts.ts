@@ -308,6 +308,16 @@ export const mjBizAppsContractsContractTypeSchema = z.object({
         * * Display Name: Code
         * * SQL Data Type: nvarchar(50)
         * * Description: Stable machine code other apps and metadata use to find this type (for example ORDER_FORM). Unique. Unlike Name, it is not a label: renaming the type leaves the Code alone, and changing the Code breaks every caller that names it.`),
+    ContractTemplateTypeID: z.string().nullable().describe(`
+        * * Field Name: ContractTemplateTypeID
+        * * Display Name: Default Template Type
+        * * SQL Data Type: uniqueidentifier
+        * * Related Entity/Foreign Key: MJ_BizApps_Contracts: Contract Template Types (vwContractTemplateTypes.ID)
+        * * Description: Which kind of standard agreement (ContractTemplateType) a contract of this type incorporates by default when TemplateRequired = 1. Nullable because types with TemplateRequired = 0 carry no template, and a type that leaves this NULL falls back to the newest Published, usable template across all template types.`),
+    ContractTemplateType: z.string().nullable().describe(`
+        * * Field Name: ContractTemplateType
+        * * Display Name: Default Template Type Name
+        * * SQL Data Type: nvarchar(100)`),
 });
 
 export type mjBizAppsContractsContractTypeEntityType = z.infer<typeof mjBizAppsContractsContractTypeSchema>;
@@ -354,7 +364,7 @@ export const mjBizAppsContractsContractSchema = z.object({
         * * Display Name: Contract Template
         * * SQL Data Type: uniqueidentifier
         * * Related Entity/Foreign Key: MJ_BizApps_Contracts: Contract Templates (vwContractTemplates.ID)
-        * * Description: The agreement version this contract incorporates. Nullable because a contract created automatically at Closed Won has none until finance reads the PDF.`),
+        * * Description: The agreement version this contract incorporates. Nullable because contract types with TemplateRequired = 0 (such as Change Order and Statement of Work) carry no standard agreement version of their own, and because a newly created contract leaves this empty when no Published, usable template exists yet.`),
     CreatingEntityID: z.string().nullable().describe(`
         * * Field Name: CreatingEntityID
         * * Display Name: Creating Entity
@@ -1525,6 +1535,29 @@ export class mjBizAppsContractsContractTypeEntity extends BaseEntity<mjBizAppsCo
     set Code(value: string) {
         this.Set('Code', value);
     }
+
+    /**
+    * * Field Name: ContractTemplateTypeID
+    * * Display Name: Default Template Type
+    * * SQL Data Type: uniqueidentifier
+    * * Related Entity/Foreign Key: MJ_BizApps_Contracts: Contract Template Types (vwContractTemplateTypes.ID)
+    * * Description: Which kind of standard agreement (ContractTemplateType) a contract of this type incorporates by default when TemplateRequired = 1. Nullable because types with TemplateRequired = 0 carry no template, and a type that leaves this NULL falls back to the newest Published, usable template across all template types.
+    */
+    get ContractTemplateTypeID(): string | null {
+        return this.Get('ContractTemplateTypeID');
+    }
+    set ContractTemplateTypeID(value: string | null) {
+        this.Set('ContractTemplateTypeID', value);
+    }
+
+    /**
+    * * Field Name: ContractTemplateType
+    * * Display Name: Default Template Type Name
+    * * SQL Data Type: nvarchar(100)
+    */
+    get ContractTemplateType(): string | null {
+        return this.Get('ContractTemplateType');
+    }
 }
 
 
@@ -1814,7 +1847,7 @@ export class mjBizAppsContractsContractEntity extends BaseEntity<mjBizAppsContra
     * * Display Name: Contract Template
     * * SQL Data Type: uniqueidentifier
     * * Related Entity/Foreign Key: MJ_BizApps_Contracts: Contract Templates (vwContractTemplates.ID)
-    * * Description: The agreement version this contract incorporates. Nullable because a contract created automatically at Closed Won has none until finance reads the PDF.
+    * * Description: The agreement version this contract incorporates. Nullable because contract types with TemplateRequired = 0 (such as Change Order and Statement of Work) carry no standard agreement version of their own, and because a newly created contract leaves this empty when no Published, usable template exists yet.
     */
     get ContractTemplateID(): string | null {
         return this.Get('ContractTemplateID');

@@ -59,7 +59,7 @@ const VIEW = newestViewDefiner(root('migrations'), 'vwContracts');
  * unsorted `readdirSync` — but item 13's migration carries the whole view, category gate included,
  * so BOTH files match. Directory order is not guaranteed (a plain `grep -l` on this repo already
  * lists them 0200-first), so on CI the helper could read item 13's file and fail the two
- * Terminated-boundary assertions below. Caught in review of PR #36.
+ * Terminated-boundary assertions below.
  *
  * SORTING WOULD NOT HAVE FIXED IT EITHER, only hidden it: `.sort().pop()` would silently re-target
  * the moment a third migration touched the view, which is exactly what happened to
