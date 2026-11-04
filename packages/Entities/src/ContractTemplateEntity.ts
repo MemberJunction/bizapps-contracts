@@ -25,7 +25,14 @@
  *
  * @module @mj-biz-apps/contracts-entities
  */
-import { BaseEntity, ValidationErrorInfo, ValidationErrorType, ValidationResult } from '@memberjunction/core';
+import {
+    BaseEntity,
+    EntityLifecyclePolicyEngine,
+    type IEntityLifecyclePolicy,
+    ValidationErrorInfo,
+    ValidationErrorType,
+    ValidationResult,
+} from '@memberjunction/core';
 import { RegisterClass } from '@memberjunction/global';
 import { mjBizAppsContractsContractTemplateEntity } from './generated/entity_subclasses';
 import { ValidateValueLists } from './value-list-validation';
@@ -34,6 +41,34 @@ import { ValidateValueLists } from './value-list-validation';
 export const TEMPLATE_PUBLISHED = 'Published';
 /** The editable state, and the default for a new version. */
 export const TEMPLATE_DRAFT = 'Draft';
+
+export const CONTRACT_TEMPLATE_ENTITY_NAME = 'MJ_BizApps_Contracts: Contract Templates';
+
+/**
+ * Declarative lifecycle policy for `MJ_BizApps_Contracts: Contract Templates`, enforcing one-way
+ * publication (`Draft -> Published`) via {@link EntityLifecyclePolicyEngine}.
+ */
+export const CONTRACT_TEMPLATE_LIFECYCLE_POLICY: IEntityLifecyclePolicy = {
+    stateMachine: {
+        statusField: 'Status',
+        initialStates: [TEMPLATE_DRAFT, TEMPLATE_PUBLISHED],
+        transitions: [
+            {
+                from: TEMPLATE_DRAFT,
+                to: TEMPLATE_PUBLISHED,
+            },
+        ],
+    },
+};
+
+export function RegisterContractTemplateLifecyclePolicy(): void {
+    EntityLifecyclePolicyEngine?.Instance?.RegisterPolicy(
+        CONTRACT_TEMPLATE_ENTITY_NAME,
+        CONTRACT_TEMPLATE_LIFECYCLE_POLICY,
+    );
+}
+
+RegisterContractTemplateLifecyclePolicy();
 
 @RegisterClass(BaseEntity, 'MJ_BizApps_Contracts: Contract Templates')
 export class ContractTemplateEntity extends mjBizAppsContractsContractTemplateEntity {
@@ -61,6 +96,12 @@ export class ContractTemplateEntity extends mjBizAppsContractsContractTemplateEn
         const now = String(field.Value ?? '');
         if (was !== TEMPLATE_PUBLISHED || now === TEMPLATE_PUBLISHED) return;
 
+        for (let i = result.Errors.length - 1; i >= 0; i--) {
+            const err = result.Errors[i];
+            if (err.Source === 'Status' && err.Message.includes('Invalid state transition')) {
+                result.Errors.splice(i, 1);
+            }
+        }
         result.Success = false;
         result.Errors.push(
             new ValidationErrorInfo(
@@ -80,5 +121,6 @@ export class ContractTemplateEntity extends mjBizAppsContractsContractTemplateEn
  * would silently make publishing reversible, with nothing failing.
  */
 export function LoadContractTemplateEntity(): void {
+    RegisterContractTemplateLifecyclePolicy();
     void ContractTemplateEntity;
 }

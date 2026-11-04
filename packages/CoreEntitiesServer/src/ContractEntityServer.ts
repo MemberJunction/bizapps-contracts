@@ -10,22 +10,31 @@
 import {
     BaseEntity,
     type DatabaseProviderBase,
+    DocumentNumberingEngine,
+    type DocumentSequenceAllocationRequest,
     type EntityDeleteOptions,
+    type IDocumentSequenceStore,
     LogError,
     type PlatformSQL,
+    SqlTableDocumentSequenceStore,
     ValidationErrorInfo,
     ValidationErrorType,
     ValidationResult,
 } from '@memberjunction/core';
 import { RegisterClass, UUIDsEqual } from '@memberjunction/global';
 import {
+    CONTRACT_DOCUMENT_NUMBER_POLICY,
+    CONTRACT_NUMBER_SEQUENCE_KEY,
     ContractEntity,
     CurrentTemplateFilter,
     CurrentTemplateOrderBy,
     IsSameContractLevel,
     MayWriteDefaultTemplate,
+    RegisterContractEntityPolicies,
 } from '@mj-biz-apps/contracts-entities';
 import { GuardedDelete, plural } from './delete-guard.js';
+
+RegisterContractEntityPolicies();
 
 /**
  * The template a contract being CREATED should carry when its creator named none, or null to leave
@@ -149,6 +158,47 @@ export const ASSIGN_CONTRACT_NUMBER_SQL: PlatformSQL = {
              SELECT @contractNumber AS ContractNumber;`,
     postgresql: `SELECT __mj_BizAppsContracts."spAssignNextContractNumber"() AS "ContractNumber";`,
 };
+
+/**
+ * {@link IDocumentSequenceStore} implementation that allocates `MJ_BizApps_Contracts: Contracts.ContractNumber`
+ * via the schema-owned `spAssignNextContractNumber` routine (`ASSIGN_CONTRACT_NUMBER_SQL`) and delegates all
+ * other sequence keys to the fallback {@link IDocumentSequenceStore}.
+ */
+export class ContractStoredProcSequenceStore implements IDocumentSequenceStore {
+    public constructor(
+        private readonly fallbackStore: IDocumentSequenceStore = new SqlTableDocumentSequenceStore(),
+    ) {}
+
+    public async AllocateNext(request: DocumentSequenceAllocationRequest): Promise<number> {
+        if (request.sequenceKey.trim().toLowerCase() !== CONTRACT_NUMBER_SEQUENCE_KEY.toLowerCase()) {
+            return this.fallbackStore.AllocateNext(request);
+        }
+        const rows = await request.provider.ExecuteSQL<{
+            ContractNumber?: string;
+            contractnumber?: string;
+        }>(
+            request.provider.ResolveSQL(ASSIGN_CONTRACT_NUMBER_SQL),
+            undefined,
+            { isMutation: true, description: 'spAssignNextContractNumber' },
+            request.contextUser,
+        );
+
+        const assigned = rows?.[0]?.ContractNumber ?? rows?.[0]?.contractnumber;
+        if (!assigned) {
+            throw new Error(
+                `Could not obtain the next contract number — spAssignNextContractNumber returned nothing. ` +
+                    `The number comes from the schema-owned SQL sequence seq_ContractNumber; ` +
+                    `check that the sequence and the procedure both exist in __mj_BizAppsContracts.`,
+            );
+        }
+        const match = /(\d+)$/.exec(String(assigned).trim());
+        const parsed = match ? Number.parseInt(match[1], 10) : Number(assigned);
+        if (!Number.isFinite(parsed)) {
+            throw new Error(`spAssignNextContractNumber returned an unparseable sequence value '${assigned}'.`);
+        }
+        return parsed;
+    }
+}
 
 /**
  * The R-3 cycle probe: walk up `column` from `startID` and return the chain if it reaches `selfID`.
@@ -1086,31 +1136,38 @@ export class ContractEntityServer extends ContractEntity {
      * so a save that fails after minting leaves a gap. The unique index is the real guard.
      */
     private async assignContractNumber(): Promise<string> {
-        const rows = await this.db.ExecuteSQL<{ ContractNumber: string }>(
-            this.db.ResolveSQL(ASSIGN_CONTRACT_NUMBER_SQL),
-            // No parameters: the sproc takes only an OUTPUT, declared in the batch. Accounting
-            // passes an OBJECT here because its sprocs take inputs and `ExecuteSQL` binds objects BY
-            // NAME while an array binds positionally as @p0 — worth knowing before adding a parameter
-            // to this call, and worth noting that the object form needs the SQLServerDataProvider type
-            // rather than the DatabaseProviderBase one this uses.
-            undefined,
-            { isMutation: true, description: 'spAssignNextContractNumber' },
-            this.ContextCurrentUser,
+        const store = new ContractStoredProcSequenceStore(
+            DocumentNumberingEngine.Instance.GetSequenceStore(),
         );
-
-        const assigned = rows?.[0]?.ContractNumber; 
-        if (!assigned) {
-            throw new Error(
-                `Could not obtain the next contract number — spAssignNextContractNumber returned nothing. ` +
-                    `The number comes from the schema-owned SQL sequence seq_ContractNumber; ` +
-                    `check that the sequence and the procedure both exist in __mj_BizAppsContracts.`,
-            );
-        }
-        return assigned;
+        const now = new Date();
+        const scopeKey = DocumentNumberingEngine.Instance.BuildScopeKey(
+            this,
+            CONTRACT_DOCUMENT_NUMBER_POLICY,
+            this.ContextCurrentUser,
+            now,
+            now.getUTCFullYear(),
+        );
+        const seqValue = await store.AllocateNext({
+            sequenceKey: CONTRACT_NUMBER_SEQUENCE_KEY,
+            scopeKey,
+            startAt: CONTRACT_DOCUMENT_NUMBER_POLICY.startAt ?? 1,
+            incrementBy: CONTRACT_DOCUMENT_NUMBER_POLICY.incrementBy ?? 1,
+            provider: this.db,
+            contextUser: this.ContextCurrentUser,
+        });
+        return DocumentNumberingEngine.Instance.FormatPattern(
+            CONTRACT_DOCUMENT_NUMBER_POLICY,
+            seqValue,
+            this,
+            this.ContextCurrentUser,
+            now,
+            now.getUTCFullYear(),
+        );
     }
 }
 
 /** Anti-tree-shake anchor — see the note in index.ts. */
 export function LoadContractEntityServer(): void {
+    RegisterContractEntityPolicies();
     void ContractEntityServer;
 }
