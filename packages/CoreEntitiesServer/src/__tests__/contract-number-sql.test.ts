@@ -13,9 +13,11 @@ import {
     ProviderBase,
 } from '@memberjunction/core';
 import {
-    ASSIGN_CONTRACT_NUMBER_SQL,
     CONTRACT_DOCUMENT_NUMBER_POLICY,
     CONTRACT_NUMBER_SEQUENCE_KEY,
+} from '@mj-biz-apps/contracts-entities';
+import {
+    ASSIGN_CONTRACT_NUMBER_SQL,
     ContractStoredProcSequenceStore,
 } from '../ContractEntityServer.js';
 

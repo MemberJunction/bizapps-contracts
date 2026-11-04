@@ -84,8 +84,8 @@ export const CONTRACT_LIFECYCLE_POLICY: IEntityLifecyclePolicy = {
 };
 
 export function RegisterContractEntityPolicies(): void {
-    DocumentNumberingEngine.Instance.RegisterPolicy(CONTRACT_ENTITY_NAME, CONTRACT_DOCUMENT_NUMBER_POLICY);
-    EntityLifecyclePolicyEngine.Instance.RegisterPolicy(CONTRACT_ENTITY_NAME, CONTRACT_LIFECYCLE_POLICY);
+    DocumentNumberingEngine?.Instance?.RegisterPolicy(CONTRACT_ENTITY_NAME, CONTRACT_DOCUMENT_NUMBER_POLICY);
+    EntityLifecyclePolicyEngine?.Instance?.RegisterPolicy(CONTRACT_ENTITY_NAME, CONTRACT_LIFECYCLE_POLICY);
 }
 
 RegisterContractEntityPolicies();

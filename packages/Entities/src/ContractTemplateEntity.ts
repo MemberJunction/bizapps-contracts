@@ -62,7 +62,7 @@ export const CONTRACT_TEMPLATE_LIFECYCLE_POLICY: IEntityLifecyclePolicy = {
 };
 
 export function RegisterContractTemplateLifecyclePolicy(): void {
-    EntityLifecyclePolicyEngine.Instance.RegisterPolicy(
+    EntityLifecyclePolicyEngine?.Instance?.RegisterPolicy(
         CONTRACT_TEMPLATE_ENTITY_NAME,
         CONTRACT_TEMPLATE_LIFECYCLE_POLICY,
     );

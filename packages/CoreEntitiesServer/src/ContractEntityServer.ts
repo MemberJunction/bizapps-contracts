@@ -13,7 +13,6 @@ import {
     DocumentNumberingEngine,
     type DocumentSequenceAllocationRequest,
     type EntityDeleteOptions,
-    type IDocumentNumberPolicy,
     type IDocumentSequenceStore,
     LogError,
     type PlatformSQL,
@@ -24,27 +23,18 @@ import {
 } from '@memberjunction/core';
 import { RegisterClass, UUIDsEqual } from '@memberjunction/global';
 import {
+    CONTRACT_DOCUMENT_NUMBER_POLICY,
+    CONTRACT_NUMBER_SEQUENCE_KEY,
     ContractEntity,
     CurrentTemplateFilter,
     CurrentTemplateOrderBy,
     IsSameContractLevel,
     MayWriteDefaultTemplate,
+    RegisterContractEntityPolicies,
 } from '@mj-biz-apps/contracts-entities';
 import { GuardedDelete, plural } from './delete-guard.js';
 
-const CONTRACT_ENTITY_NAME = 'MJ_BizApps_Contracts: Contracts';
-export const CONTRACT_NUMBER_SEQUENCE_KEY = 'MJ_BizApps_Contracts: Contracts.ContractNumber';
-
-export const CONTRACT_DOCUMENT_NUMBER_POLICY: IDocumentNumberPolicy = {
-    targetField: 'ContractNumber',
-    sequenceKey: CONTRACT_NUMBER_SEQUENCE_KEY,
-    pattern: '{PREFIX}-{SEQ:6}',
-    prefix: 'CTR',
-    manualValueMode: 'AllowNonColliding',
-    immutableAfterCreate: true,
-};
-
-DocumentNumberingEngine.Instance.RegisterPolicy(CONTRACT_ENTITY_NAME, CONTRACT_DOCUMENT_NUMBER_POLICY);
+RegisterContractEntityPolicies();
 
 /**
  * The template a contract being CREATED should carry when its creator named none, or null to leave
@@ -1178,6 +1168,6 @@ export class ContractEntityServer extends ContractEntity {
 
 /** Anti-tree-shake anchor — see the note in index.ts. */
 export function LoadContractEntityServer(): void {
-    DocumentNumberingEngine.Instance.RegisterPolicy(CONTRACT_ENTITY_NAME, CONTRACT_DOCUMENT_NUMBER_POLICY);
+    RegisterContractEntityPolicies();
     void ContractEntityServer;
 }
