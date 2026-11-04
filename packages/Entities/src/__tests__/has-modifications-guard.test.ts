@@ -21,6 +21,23 @@
  * if the guard is rewritten.
  */
 import { describe, expect, it } from 'vitest';
+import {
+    DocumentNumberingEngine,
+    type EntityInfo,
+    EntityLifecyclePolicyEngine,
+} from '@memberjunction/core';
+import { ValidationResult } from '@memberjunction/global';
+import {
+    CONTRACT_DOCUMENT_NUMBER_POLICY,
+    CONTRACT_ENTITY_NAME,
+    CONTRACT_LIFECYCLE_POLICY,
+    RegisterContractEntityPolicies,
+} from '../ContractEntity';
+import {
+    CONTRACT_TEMPLATE_ENTITY_NAME,
+    CONTRACT_TEMPLATE_LIFECYCLE_POLICY,
+    RegisterContractTemplateLifecyclePolicy,
+} from '../ContractTemplateEntity';
 
 /** The browser-side verdict, extracted so the decision table is testable without a provider. */
 type Verdict = 'refuse' | 'allow' | 'defer-to-server';
@@ -128,5 +145,133 @@ describe('ContractNumber is suppressed before the first save and enforced after'
             expect(isSuppressed(field, false), `${field} must NOT be suppressed`).toBe(false);
             expect(isSuppressed(field, true), `${field} must NOT be suppressed`).toBe(false);
         }
+    });
+
+    it('registers CONTRACT_DOCUMENT_NUMBER_POLICY on DocumentNumberingEngine for ContractNumber', () => {
+        RegisterContractEntityPolicies();
+        const entityInfo = { Name: CONTRACT_ENTITY_NAME, Settings: [] } as never;
+        const policies = DocumentNumberingEngine.Instance.ResolvePolicies(entityInfo);
+        expect(policies).toContainEqual(CONTRACT_DOCUMENT_NUMBER_POLICY);
+        expect(DocumentNumberingEngine.Instance.WillAutoPopulateOnCreate(entityInfo, 'ContractNumber')).toBe(true);
+        expect(DocumentNumberingEngine.Instance.WillAutoPopulateOnCreate(entityInfo, 'ContractTypeID')).toBe(false);
+
+        const now = new Date('2026-08-21T00:00:00Z');
+        expect(
+            DocumentNumberingEngine.Instance.FormatPattern(
+                CONTRACT_DOCUMENT_NUMBER_POLICY,
+                1,
+                { EntityInfo: entityInfo } as never,
+                undefined,
+                now,
+                2026,
+            ),
+        ).toBe('CTR-000001');
+        expect(
+            DocumentNumberingEngine.Instance.FormatPattern(
+                CONTRACT_DOCUMENT_NUMBER_POLICY,
+                1234567,
+                { EntityInfo: entityInfo } as never,
+                undefined,
+                now,
+                2026,
+            ),
+        ).toBe('CTR-1234567');
+
+        // Rejects manual CTR-#### collisions on unsaved records while allowing custom non-colliding references
+        const collidingResult = new ValidationResult();
+        collidingResult.Success = true;
+        DocumentNumberingEngine.Instance.ValidateAutoNumberFields(
+            {
+                IsSaved: false,
+                EntityInfo: entityInfo,
+                GetFieldByName: (name: string) =>
+                    name === 'ContractNumber' ? { Name: 'ContractNumber', Value: 'CTR-000042', Dirty: true } : null,
+            } as never,
+            collidingResult,
+        );
+        expect(collidingResult.Success).toBe(false);
+
+        const customRefResult = new ValidationResult();
+        customRefResult.Success = true;
+        DocumentNumberingEngine.Instance.ValidateAutoNumberFields(
+            {
+                IsSaved: false,
+                EntityInfo: entityInfo,
+                GetFieldByName: (name: string) =>
+                    name === 'ContractNumber' ? { Name: 'ContractNumber', Value: 'EXT-2026-99', Dirty: true } : null,
+            } as never,
+            customRefResult,
+        );
+        expect(customRefResult.Success).toBe(true);
+    });
+
+    it('registers CONTRACT_LIFECYCLE_POLICY and CONTRACT_TEMPLATE_LIFECYCLE_POLICY on EntityLifecyclePolicyEngine', () => {
+        RegisterContractEntityPolicies();
+        RegisterContractTemplateLifecyclePolicy();
+
+        const contractInfo = { Name: CONTRACT_ENTITY_NAME, Settings: [] } as EntityInfo;
+        expect(EntityLifecyclePolicyEngine.Instance.ResolvePolicy(contractInfo)).toEqual(CONTRACT_LIFECYCLE_POLICY);
+
+        // Terminal states Terminated and Superseded refuse outbound transitions
+        const terminatedTransition = new ValidationResult();
+        terminatedTransition.Success = true;
+        EntityLifecyclePolicyEngine.Instance.ValidateLifecycleOnEntity(
+            {
+                IsSaved: true,
+                Dirty: true,
+                EntityInfo: contractInfo,
+                Fields: [],
+                GetFieldByName: (name: string) =>
+                    name === 'State'
+                        ? { Name: 'State', Dirty: true, OldValue: 'Terminated', Value: 'Active' }
+                        : null,
+            } as never,
+            undefined,
+            terminatedTransition,
+        );
+        expect(terminatedTransition.Success).toBe(false);
+        expect(terminatedTransition.Errors[0]?.Message).toContain("terminal state 'Terminated'");
+
+        // ContractTemplate allows Draft -> Published and refuses Published -> Draft
+        const templateInfo = { Name: CONTRACT_TEMPLATE_ENTITY_NAME, Settings: [] } as EntityInfo;
+        expect(EntityLifecyclePolicyEngine.Instance.ResolvePolicy(templateInfo)).toEqual(
+            CONTRACT_TEMPLATE_LIFECYCLE_POLICY,
+        );
+
+        const publishResult = new ValidationResult();
+        publishResult.Success = true;
+        EntityLifecyclePolicyEngine.Instance.ValidateLifecycleOnEntity(
+            {
+                IsSaved: true,
+                Dirty: true,
+                EntityInfo: templateInfo,
+                Fields: [],
+                GetFieldByName: (name: string) =>
+                    name === 'Status'
+                        ? { Name: 'Status', Dirty: true, OldValue: 'Draft', Value: 'Published' }
+                        : null,
+            } as never,
+            undefined,
+            publishResult,
+        );
+        expect(publishResult.Success).toBe(true);
+
+        const unpublishResult = new ValidationResult();
+        unpublishResult.Success = true;
+        EntityLifecyclePolicyEngine.Instance.ValidateLifecycleOnEntity(
+            {
+                IsSaved: true,
+                Dirty: true,
+                EntityInfo: templateInfo,
+                Fields: [],
+                GetFieldByName: (name: string) =>
+                    name === 'Status'
+                        ? { Name: 'Status', Dirty: true, OldValue: 'Published', Value: 'Draft' }
+                        : null,
+            } as never,
+            undefined,
+            unpublishResult,
+        );
+        expect(unpublishResult.Success).toBe(false);
     });
 });
