@@ -1,7 +1,7 @@
 [
   {
     "_comments": [
-      "Two negotiated deviations on CTR-900001 — what the app exists to record.",
+      "Two negotiated deviations on DEMO-0001 — what the app exists to record.",
       "",
       "Both name a REAL provision of the 2026-02-02 Master Agreement, looked up by provision number, so",
       "the standard clause renders beside the negotiated language exactly as D-16 intends. 9.1 is the",
@@ -12,7 +12,7 @@
       "agreement versions, so keying on the number alone would resolve to whichever row happened to be",
       "found first and could silently attach a modification to the wrong edition's clause.",
       "",
-      "CTR-900001 already carries HasModifications = true. That is not redundant — the flag is asserted by",
+      "DEMO-0001 already carries HasModifications = true. That is not redundant — the flag is asserted by",
       "a person BEFORE the modifications are recorded (its job is to say 'go read the PDF'), and the shared",
       "Validate() enforces only that rows imply the flag, never the reverse."
     ],

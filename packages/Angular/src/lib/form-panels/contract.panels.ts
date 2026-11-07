@@ -108,7 +108,7 @@ function chipClassFor(state: ContractState): string {
                         }
                         @if (IsAwaitingDocument) {
                             <span class="mjc-chip mjc-chip--warn"
-                                  title="Executed agreement not attached">
+                                  title="No linked file is marked as the executed agreement. Attach the signed PDF, then mark it in the Executed agreement section.">
                                 <i class="fa-solid fa-file-circle-question" aria-hidden="true"></i> Awaiting document
                             </span>
                         }

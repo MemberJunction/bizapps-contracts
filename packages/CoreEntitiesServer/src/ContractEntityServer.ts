@@ -20,10 +20,10 @@ import {
 import { RegisterClass, UUIDsEqual } from '@memberjunction/global';
 import {
     ContractEntity,
-    CurrentTemplateFilter,
-    CurrentTemplateOrderBy,
     IsSameContractLevel,
     MayWriteDefaultTemplate,
+    ReadCurrentTemplateID,
+    RenewalRiskBandFor,
 } from '@mj-biz-apps/contracts-entities';
 import { GuardedDelete, plural } from './delete-guard.js';
 
@@ -38,9 +38,9 @@ import { GuardedDelete, plural } from './delete-guard.js';
  *
  * Same decisions as the panel, read from the same place: {@link MayWriteDefaultTemplate} says the
  * field may be written, `TemplateRequired` says the type wants a template, and the caller's query
- * uses `CurrentTemplateFilter` / `CurrentTemplateOrderBy`. With no persisted default to revisit,
- * "ours" never applies, so only an empty field on an unsaved contract qualifies — a value any caller
- * supplied is never replaced.
+ * is `ReadCurrentTemplateID`, which skips templates of a retired type (#138). With no persisted
+ * default to revisit, "ours" never applies, so only an empty field on an unsaved contract
+ * qualifies — a value any caller supplied is never replaced.
  *
  * NO CANDIDATE IS NOT AN ERROR HERE. It returns null, the field stays empty, and `ValidateAsync`
  * refuses the save — the same outcome as before this default existed, with a message
@@ -138,16 +138,20 @@ const UUID_SHAPE = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}
  *
  * PostgreSQL: a function of the same name, taking nothing and returning the formatted number, ships
  * in the PostgreSQL baseline (`migrations-pg/`). A PostgreSQL function is called from a SELECT, so
- * the call shape differs even though the object and its contract do not. The schema is unquoted and
- * the function name quoted, the converter's convention: it folds the schema to lowercase and keeps
- * object names' case. The alias is quoted so the row key keeps its case instead of folding to
- * `contractnumber`.
+ * the call shape differs even though the object and its contract do not. The function name and the
+ * alias are quoted so they keep their case (the row key stays `ContractNumber`).
+ *
+ * The schema is written in lowercase, `__mj_bizappscontracts`, the name the PostgreSQL baseline
+ * creates. MJ's PostgreSQL provider runs every query through `AutoQuotePostgreSQLIdentifiers`, which
+ * quotes any mixed-case identifier, so `__mj_BizAppsContracts` would reach PostgreSQL as
+ * `"__mj_BizAppsContracts"` and name a schema that does not exist (#141). A lowercase name is left
+ * alone. Every PostgreSQL form in this package follows the same rule.
  */
 export const ASSIGN_CONTRACT_NUMBER_SQL: PlatformSQL = {
     default: `DECLARE @contractNumber NVARCHAR(50);
              EXEC __mj_BizAppsContracts.spAssignNextContractNumber @ContractNumber = @contractNumber OUTPUT;
              SELECT @contractNumber AS ContractNumber;`,
-    postgresql: `SELECT __mj_BizAppsContracts."spAssignNextContractNumber"() AS "ContractNumber";`,
+    postgresql: `SELECT __mj_bizappscontracts."spAssignNextContractNumber"() AS "ContractNumber";`,
 };
 
 /**
@@ -181,12 +185,12 @@ export function lineageProbeSQL(
         postgresql: `WITH RECURSIVE lineage AS (
                  SELECT "ID", "${column}", 1 AS "Depth",
                         "ContractNumber"::text AS "Chain"
-                   FROM __mj_BizAppsContracts."Contract"
+                   FROM __mj_bizappscontracts."Contract"
                   WHERE "ID" = '${startID}'
                  UNION ALL
                  SELECT c."ID", c."${column}", l."Depth" + 1,
                         l."Chain" || ' -> ' || c."ContractNumber"
-                   FROM __mj_BizAppsContracts."Contract" c
+                   FROM __mj_bizappscontracts."Contract" c
                    JOIN lineage l ON c."ID" = l."${column}"
                   WHERE l."Depth" < 50
              )
@@ -210,8 +214,8 @@ export function modificationsAgainstTemplateSQL(contractID: string, templateID: 
                JOIN __mj_BizAppsContracts.[ContractTemplateProvision] p ON p.[ID] = m.[ContractTemplateProvisionID]
               WHERE m.[ContractID] = '${contractID}' AND p.[ContractTemplateID] = '${templateID}';`,
         postgresql: `SELECT COUNT(*) AS "Hits"
-               FROM __mj_BizAppsContracts."ContractTemplateModification" m
-               JOIN __mj_BizAppsContracts."ContractTemplateProvision" p ON p."ID" = m."ContractTemplateProvisionID"
+               FROM __mj_bizappscontracts."ContractTemplateModification" m
+               JOIN __mj_bizappscontracts."ContractTemplateProvision" p ON p."ID" = m."ContractTemplateProvisionID"
               WHERE m."ContractID" = '${contractID}' AND p."ContractTemplateID" = '${templateID}';`,
     };
 }
@@ -259,10 +263,26 @@ export class ContractEntityServer extends ContractEntity {
             if (template) {
                 this.ContractTemplateID = template;
             }
+            this.deriveRenewalRiskBand();
             return await super.Save();
         } catch (err) {
             LogError(`ContractEntityServer.Save failed for contract ${this.ContractNumber ?? this.ID}: ${err}`);
             throw err;
+        }
+    }
+
+    /**
+     * Set `PredictedRenewalRiskBand` from `PredictedNonRenewalRisk` whenever the risk is written
+     * (issue #125). The scorer returns a probability but no band, so the renewal-risk record process
+     * maps only the probability and the timestamp; this fills the band on the same save. Runs only
+     * when the risk changed (or on a new record), so an ordinary edit never rewrites a stored band.
+     */
+    private deriveRenewalRiskBand(): void {
+        const riskChanged = !this.IsSaved || !!this.GetFieldByName('PredictedNonRenewalRisk')?.Dirty;
+        if (!riskChanged) return;
+        const band = RenewalRiskBandFor(this.PredictedNonRenewalRisk);
+        if (this.PredictedRenewalRiskBand !== band) {
+            this.PredictedRenewalRiskBand = band;
         }
     }
 
@@ -900,28 +920,19 @@ export class ContractEntityServer extends ContractEntity {
     private cachedTypeRule: ContractTypeRule | null | undefined = undefined;
 
     /**
-     * The newest Published, usable template — the query the Agreement panel runs, on the server.
+     * The newest Published, usable template of a current type — the query the Agreement panel runs,
+     * on the server ({@link ReadCurrentTemplateID}). A template whose type is retired is skipped
+     * (#138): `refuseRetiredSelections` would refuse it on this same save.
      *
      * A failed read is logged and returns null rather than throwing: the field stays empty and
      * `ValidateAsync` refuses the save with the type's own message, which names what the user must do.
      */
     private async currentTemplateID(): Promise<string | null> {
-        const result = await this.RunViewProviderToUse.RunView<{ ID: string }>(
-            {
-                EntityName: 'MJ_BizApps_Contracts: Contract Templates',
-                ExtraFilter: CurrentTemplateFilter,
-                OrderBy: CurrentTemplateOrderBy,
-                Fields: ['ID'],
-                MaxRows: 1,
-                ResultType: 'simple',
-            },
-            this.ContextCurrentUser,
-        );
-        if (!result?.Success) {
-            LogError(`ContractEntityServer could not read the current contract template: ${result?.ErrorMessage ?? 'unknown error'}`);
-            return null;
+        const read = await ReadCurrentTemplateID(this.RunViewProviderToUse, this.ContextCurrentUser);
+        if (!read.Success) {
+            LogError(`ContractEntityServer could not read the current contract template: ${read.ErrorMessage ?? 'unknown error'}`);
         }
-        return result.Results?.[0]?.ID ?? null;
+        return read.TemplateID;
     }
 
 

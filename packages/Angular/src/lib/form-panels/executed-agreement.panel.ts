@@ -27,16 +27,28 @@
  * is nothing to restore in practice). After either write the form re-reads the record, because the
  * header chip and the Overview health line read the PERSISTED view column rather than re-deriving it.
  *
+ * ASKED AT ATTACH TIME (#117). Users attached the signed PDF and stopped, leaving the contract
+ * "Awaiting document". The panel listens for a file link to this contract being created or removed
+ * (MJ's Attachments panel saves the `MJ: File Entity Record Links` row in the browser, which raises
+ * MJ's entity event), reloads the list, and, while the contract awaits its document, asks whether
+ * the new file is the executed agreement. Which file to offer is `SuggestExecutedAgreementFile`; a
+ * person still confirms the mark.
+ *
  * @module @mj-biz-apps/contracts-ng
  */
-import { ChangeDetectorRef, Component, ViewEncapsulation, inject } from '@angular/core';
+import { ChangeDetectorRef, Component, ViewEncapsulation, inject, type OnDestroy, type OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { EscapeSQLString, RegisterClassEx } from '@memberjunction/global';
-import { Metadata, type IMetadataProvider, type RunView } from '@memberjunction/core';
+import { EscapeSQLString, MJEventType, MJGlobal, RegisterClassEx, UUIDsEqual, type MJEvent } from '@memberjunction/global';
+import { BaseEntity, Metadata, type BaseEntityEvent, type IMetadataProvider, type RunView } from '@memberjunction/core';
 import type { MJFileEntity } from '@memberjunction/core-entities';
 import { BaseFormPanel, BaseFormsModule } from '@memberjunction/ng-base-forms';
 import { MJAlertComponent, MJButtonDirective, MJRefreshButtonComponent } from '@memberjunction/ng-ui-components';
-import { ContractEntity, EXECUTED_AGREEMENT_FILE_CATEGORY } from '@mj-biz-apps/contracts-entities';
+import {
+    ContractEntity,
+    EXECUTED_AGREEMENT_FILE_CATEGORY,
+    IsExecutedAgreementCategory,
+    SuggestExecutedAgreementFile,
+} from '@mj-biz-apps/contracts-entities';
 import { MJC_ENTITIES, MJC_FOREIGN_ENTITIES } from '../data/entity-names';
 import { ScopedRunView } from '../data/provider';
 
@@ -46,11 +58,6 @@ interface LinkedFile {
     Name: string;
     CategoryName: string | null;
     Entity: MJFileEntity;
-}
-
-/** The view's predicate, in TypeScript: `fc.Name = 'Executed Agreement'` under a case-insensitive collation. */
-function isExecutedAgreementCategory(categoryName: string | null | undefined): boolean {
-    return (categoryName ?? '').trim().toLowerCase() === EXECUTED_AGREEMENT_FILE_CATEGORY.toLowerCase();
 }
 
 @RegisterClassEx(BaseFormPanel, {
@@ -175,6 +182,25 @@ function isExecutedAgreementCategory(categoryName: string | null | undefined): b
                                 read permission on that entity.
                             </div>
                         }
+                        @let suggested = Suggested;
+                        @if (suggested && CanMark) {
+                            <div class="mjc-exec-suggest" role="status">
+                                <span>
+                                    Is <strong>{{ suggested.Name }}</strong> the signed agreement? Marking it clears
+                                    “Awaiting document”.
+                                </span>
+                                <span class="mjc-exec-suggest__actions">
+                                    <button mjButton variant="primary" size="sm" type="button"
+                                            [disabled]="Busy || !CategoryID" (click)="Mark(suggested)">
+                                        Yes, mark it
+                                    </button>
+                                    <button mjButton variant="flat" size="sm" type="button" [disabled]="Busy"
+                                            (click)="Dismiss(suggested)">
+                                        Not this file
+                                    </button>
+                                </span>
+                            </div>
+                        }
                         @if (ActionError) { <mj-alert Variant="error" Size="sm" [Message]="ActionError" /> }
                         @if (ActionOk) { <mj-alert Variant="success" Size="sm" [Message]="ActionOk" /> }
                     }
@@ -189,10 +215,23 @@ function isExecutedAgreementCategory(categoryName: string | null | undefined): b
     `,
     styles: [`
         .mjc-exec-head { display: flex; align-items: center; justify-content: space-between; gap: var(--mj-space-2); }
+        .mjc-exec-suggest {
+            display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--mj-space-2);
+            margin-top: var(--mj-space-2); padding: var(--mj-space-2) var(--mj-space-3);
+            border: 1px solid var(--mj-border-default); border-radius: var(--mj-radius-md);
+            background: var(--mj-bg-surface-sunken);
+        }
+        .mjc-exec-suggest__actions { display: flex; gap: var(--mj-space-2); }
     `],
 })
-export class MJCContractExecutedAgreementPanel extends BaseFormPanel<ContractEntity> {
+export class MJCContractExecutedAgreementPanel extends BaseFormPanel<ContractEntity> implements OnInit, OnDestroy {
     private readonly cdr = inject(ChangeDetectorRef);
+    /** Typed structurally: rxjs is not a declared dependency of this package (see fk-navigate.directive.ts). */
+    private entityEvents: { unsubscribe(): void } | null = null;
+    /** The file whose link to this contract was created most recently in this session (#117). */
+    private justAttachedFileID: string | null = null;
+    /** Files the person answered "Not this file" for, so they are not offered again. */
+    private dismissedIDs: string[] = [];
 
     /** The category's display name, for copy. */
     public readonly CategoryName = EXECUTED_AGREEMENT_FILE_CATEGORY;
@@ -224,9 +263,36 @@ export class MJCContractExecutedAgreementPanel extends BaseFormPanel<ContractEnt
         const id = this.Record?.ID;
         if (id && this.loadedFor !== id) {
             this.loadedFor = id;
+            this.justAttachedFileID = null;
+            this.dismissedIDs = [];
             void this.load();
         }
         return this._files;
+    }
+
+    /** The file to ask about, or null (#117). The rule is `SuggestExecutedAgreementFile`. */
+    public get Suggested(): LinkedFile | null {
+        const id = SuggestExecutedAgreementFile({
+            isAwaitingDocument: this.Record?.IsAwaitingDocument === true,
+            files: this._files,
+            justAttachedFileID: this.justAttachedFileID,
+            dismissedIDs: this.dismissedIDs,
+        });
+        return id ? (this._files.find((f) => f.FileID === id) ?? null) : null;
+    }
+
+    public ngOnInit(): void {
+        this.entityEvents = MJGlobal.Instance.GetEventListener(false).subscribe((e) => this.onEntityEvent(e));
+    }
+
+    public ngOnDestroy(): void {
+        this.entityEvents?.unsubscribe();
+        this.entityEvents = null;
+    }
+
+    /** "Not this file": stop offering it. Marking stays available on its row. */
+    public Dismiss(file: LinkedFile): void {
+        this.dismissedIDs = [...this.dismissedIDs, file.FileID];
     }
 
     /** Read-only while the form is editing or the contract has never been saved — the Re-papering rule. */
@@ -253,7 +319,31 @@ export class MJCContractExecutedAgreementPanel extends BaseFormPanel<ContractEnt
     }
 
     public IsExecutedAgreement(file: LinkedFile): boolean {
-        return isExecutedAgreementCategory(file.CategoryName);
+        return IsExecutedAgreementCategory(file.CategoryName);
+    }
+
+    /**
+     * A file link to THIS contract was created or removed — most often by the toolbar's Attachments
+     * panel, which tells this panel nothing directly. Reload the list; on a create, remember the file
+     * so `Suggested` can ask about it (#117).
+     */
+    private onEntityEvent(e: MJEvent): void {
+        if (e.event !== MJEventType.ComponentEvent || e.eventCode !== BaseEntity.BaseEventCode) return;
+        const ev = e.args as BaseEntityEvent | undefined;
+        if (ev?.type !== 'save' && ev?.type !== 'delete') return;
+        const link = ev.baseEntity;
+        if (link?.EntityInfo?.Name !== MJC_FOREIGN_ENTITIES.FileEntityRecordLink) return;
+
+        const record = this.Record;
+        if (!record?.IsSaved) return;
+        if (!UUIDsEqual(String(link.Get('EntityID') ?? ''), record.EntityInfo.ID)) return;
+        if (!UUIDsEqual(String(link.Get('RecordID') ?? ''), record.ID)) return;
+
+        if (ev.type === 'save' && ev.saveSubType === 'create') {
+            this.justAttachedFileID = String(link.Get('FileID') ?? '') || null;
+        }
+        this.ActionOk = '';
+        void this.load();
     }
 
     /** The form's toolbar Refresh, or a refresh this panel triggered after a write: re-read the list. */

@@ -188,7 +188,9 @@ The **Awaiting documents** worklist is a filter on that derived flag. It is not 
 | `PredictedRenewalRiskBand` | `Low` · `Medium` · `High` · `Critical` (`CK_Contract_PredictedRenewalRiskBand`). The column description sets the bands at under 20%, 20–50%, 50–80% and 80% or more |
 | `PredictedRenewalScoredAt` | When the contract was last scored |
 
-No code in this repo writes them. MJ Predictive Studio records in `demo-data/` (opt-in, never shipped) are set up to:
+A scorer writes the probability and the timestamp. `ContractEntityServer` sets the band from the
+probability on the same save, using the thresholds above, because the scorer returns no band (issue
+#125). MJ Predictive Studio records in `demo-data/` (opt-in, never shipped) are set up to:
 
 - **Train** — `ml-training-pipelines/` holds the classification pipeline "Predict Contract Non-Renewal
   Risk" over Contracts, and `ml-models/` three model versions from it. The label is `NonRenewalOutcome`;
@@ -197,15 +199,31 @@ No code in this repo writes them. MJ Predictive Studio records in `demo-data/` (
   `TerminatedDate` and the supersession columns are denied as leakage.
 - **Score** — `record-processes/` and `ml-model-scoring-bindings/` hold a record process that, once
   enabled, scores contracts whose outcome is still open (`NonRenewalOutcome IS NULL`) on the 1st of
-  each month (UTC) or on demand, mapping the scorer's `score`, `band` and `scoredAt` to the three
-  columns. It is pushed `Disabled` with its schedule off; enable it only after training a model with
-  an artifact (a run against a model with none fails every contract, MemberJunction/MJ#4829).
+  each month (UTC) or on demand, mapping the scorer's `score` and `scoredAt` to the probability and
+  timestamp columns; the band follows on save. It is pushed `Disabled` with its schedule off; enable
+  it only after training a model with an artifact (a run against a model with none fails every
+  contract, MemberJunction/MJ#4829).
 
 The label and features are derived columns on `vwContracts` ([`docs/ERD.md`](docs/ERD.md) §4). The
 pipeline and its models are in `Draft` status. None of it ships to hosts (issue #89): the models'
 fitted preprocessing and feature importance come from one dataset, and they carry no trained artifact.
 A host installed from migrations has the columns, and each organisation trains and schedules its own
 model.
+
+**Databases that ran `mj sync push --dir metadata` on 0.6.0 to 0.7.x** (issue #146). Those releases
+kept the record process in `metadata/` as `Active` with its monthly schedule on, and the push created
+its `MJ: Scheduled Jobs` row. No migration ever carried it, so an install from migrations does not
+have it, but a database seeded by a push still runs it each month against a model with no artifact.
+Moving it to `demo-data/` does not change that row. Turn it off with either:
+
+- `mj sync push --dir demo-data/record-processes`, which saves it `Disabled` with its schedule off and
+  the corrected output mapping; or
+- in Explorer, open the record process "Score MJ_BizApps_Contracts: Contracts with model … (Monthly)"
+  and set its Status to `Disabled`.
+
+Both save through MJ's Record Process server entity, which disables the scheduled job the process
+owns. Editing the row with SQL does not: the scheduler runs the job, and the job does not check the
+process's status.
 
 ---
 
@@ -231,11 +249,12 @@ model.
 
 | App | Range | What contracts uses |
 |---|---|---|
-| [bizapps-common](https://github.com/MemberJunction/bizapps-common) | `>=5.42.0 <6.0.0` | `Organization` and `Person` (foreign keys from `Contract`), and `fnBusinessToday()` |
+| [bizapps-common](https://github.com/MemberJunction/bizapps-common) | `>=5.43.0 <6.0.0` | `Organization` and `Person` (foreign keys from `Contract`), and `fnBusinessToday()` |
 | [bizapps-tasks](https://github.com/MemberJunction/bizapps-tasks) | `>=1.4.0 <2.0.0` | Tasks, read by the dashboard's open-task tiles and the "Has open task" filter |
 
 `V202609211200` stops unless `[__mj_BizAppsCommon].[fnBusinessToday]()` exists, and bizapps-common
-ships that function from **5.43.0**. A host on bizapps-common 5.42.x upgrades it first.
+ships that function from **5.43.0**, which is why the manifest's floor is 5.43.0: the installer
+refuses a host on 5.42.x before any migration runs. Upgrade bizapps-common first.
 
 ```bash
 mj app install https://github.com/MemberJunction/bizapps-contracts --dangerously-ignore-dbl-underscore-schema-rule
