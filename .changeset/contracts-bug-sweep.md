@@ -12,3 +12,4 @@ Contract fixes:
 - The Executed agreement section offers to mark a newly attached file as the signed agreement, so a contract stops showing "Awaiting document" without a separate trip to the file's category.
 - Foreign-key links in the Organization form's Agreements grid open the record.
 - `mj-app.json` requires bizapps-common 5.43.0 or later, the first release with the business time zone a contracts migration reads.
+- Every PostgreSQL query in the server package (contract numbering, the lineage check, the modifications count and the template ancestry check) names the schema `__mj_bizappscontracts`, the name the PostgreSQL baseline creates. MJ's PostgreSQL provider quotes mixed-case identifiers, so `__mj_BizAppsContracts` reached PostgreSQL as a schema that does not exist.
