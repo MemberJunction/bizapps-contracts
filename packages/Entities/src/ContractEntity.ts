@@ -19,7 +19,16 @@
  *
  * @module @mj-biz-apps/contracts-entities
  */
-import { BaseEntity, ValidationErrorInfo, ValidationErrorType, ValidationResult } from '@memberjunction/core';
+import {
+    BaseEntity,
+    DocumentNumberingEngine,
+    EntityLifecyclePolicyEngine,
+    type IDocumentNumberPolicy,
+    type IEntityLifecyclePolicy,
+    ValidationErrorInfo,
+    ValidationErrorType,
+    ValidationResult,
+} from '@memberjunction/core';
 import { RegisterClass } from '@memberjunction/global';
 import { mjBizAppsContractsContractEntity } from './generated/entity_subclasses';
 import {
@@ -29,6 +38,57 @@ import {
     type ContractTypeRenewalDefaults,
     type RenewalSeed,
 } from './renewal-defaults';
+
+export const CONTRACT_ENTITY_NAME = 'MJ_BizApps_Contracts: Contracts';
+export const CONTRACT_NUMBER_SEQUENCE_KEY = 'MJ_BizApps_Contracts: Contracts.ContractNumber';
+
+/**
+ * Declarative auto-numbering policy for `MJ_BizApps_Contracts: Contracts.ContractNumber`,
+ * registered on {@link DocumentNumberingEngine}.
+ */
+export const CONTRACT_DOCUMENT_NUMBER_POLICY: IDocumentNumberPolicy = {
+    targetField: 'ContractNumber',
+    sequenceKey: CONTRACT_NUMBER_SEQUENCE_KEY,
+    pattern: '{PREFIX}-{SEQ:6}',
+    prefix: 'CTR',
+    manualValueMode: 'AllowNonColliding',
+    immutableAfterCreate: true,
+};
+
+/**
+ * Declarative lifecycle policy for `MJ_BizApps_Contracts: Contracts`, registered on
+ * {@link EntityLifecyclePolicyEngine}.
+ */
+export const CONTRACT_LIFECYCLE_POLICY: IEntityLifecyclePolicy = {
+    stateMachine: {
+        statusField: 'State',
+        initialStates: ['Draft', 'Executed', 'Active'],
+        transitions: [
+            { from: 'Draft', to: 'Executed' },
+            { from: 'Draft', to: 'Active' },
+            { from: 'Draft', to: 'Superseded' },
+            { from: 'Draft', to: 'Terminated' },
+            { from: 'Executed', to: 'Active' },
+            { from: 'Executed', to: 'Superseded' },
+            { from: 'Executed', to: 'Terminated' },
+            { from: 'Active', to: 'Expired' },
+            { from: 'Active', to: 'Superseded' },
+            { from: 'Active', to: 'Terminated' },
+            { from: 'Expired', to: 'Active' },
+            { from: 'Expired', to: 'Superseded' },
+            { from: 'Expired', to: 'Terminated' },
+        ],
+        terminalStates: ['Terminated', 'Superseded'],
+        freezeAllFieldsInTerminalStates: false,
+    },
+};
+
+export function RegisterContractEntityPolicies(): void {
+    DocumentNumberingEngine?.Instance?.RegisterPolicy(CONTRACT_ENTITY_NAME, CONTRACT_DOCUMENT_NUMBER_POLICY);
+    EntityLifecyclePolicyEngine?.Instance?.RegisterPolicy(CONTRACT_ENTITY_NAME, CONTRACT_LIFECYCLE_POLICY);
+}
+
+RegisterContractEntityPolicies();
 
 /**
  * Guards an ID before it is interpolated into a filter. Mirrors `ContractEntityServer`'s own guard;
@@ -274,10 +334,15 @@ export class ContractEntity extends mjBizAppsContractsContractEntity {
      * meant to protect.
      */
     private refuseReservedContractNumber(result: ValidationResult): void {
-        if (this.IsSaved || this.NumberWasSystemAssigned) return;
+        if (this.IsSaved) return;
+        if (this.NumberWasSystemAssigned) {
+            this.removeGenericReservedNumberErrors(result);
+            return;
+        }
         const typed = (this.ContractNumber ?? '').trim();
         if (!typed || !/^CTR-\d+$/i.test(typed)) return;
 
+        this.removeGenericReservedNumberErrors(result);
         result.Success = false;
         result.Errors.push(
             new ValidationErrorInfo(
@@ -290,6 +355,21 @@ export class ContractEntity extends mjBizAppsContractsContractEntity {
                 ValidationErrorType.Failure,
             ),
         );
+    }
+
+    private removeGenericReservedNumberErrors(result: ValidationResult): void {
+        for (let i = result.Errors.length - 1; i >= 0; i--) {
+            const err = result.Errors[i];
+            if (
+                err.Source === 'ContractNumber' &&
+                err.Message.includes('uses the reserved system sequence format')
+            ) {
+                result.Errors.splice(i, 1);
+            }
+        }
+        if (result.Errors.length === 0) {
+            result.Success = true;
+        }
     }
 
     /**
@@ -462,5 +542,6 @@ export class ContractEntity extends mjBizAppsContractsContractEntity {
  * above silently stops existing.
  */
 export function LoadContractEntity(): void {
+    RegisterContractEntityPolicies();
     void ContractEntity;
 }
