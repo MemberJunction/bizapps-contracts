@@ -4,6 +4,9 @@ name: Database Checks
 #   - test-harnesses/erd-schema-diff.ts (#124)
 #   - test-harnesses/state-derivation.mjs (#157)
 #   - test-harnesses/entity-field-replay-audit.mjs (#113)
+#
+# The integration suite (pnpm run test:integration) is not run here yet, so changes under
+# packages/IntegrationTests do not trigger this workflow.
 
 on:
   workflow_dispatch:
@@ -14,7 +17,6 @@ on:
       - 'metadata/**'
       - 'test-harnesses/**'
       - 'docs/ERD.md'
-      - 'packages/IntegrationTests/**'
       - '.github/workflows/db-checks.yml'
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
@@ -24,7 +26,6 @@ on:
       - 'metadata/**'
       - 'test-harnesses/**'
       - 'docs/ERD.md'
-      - 'packages/IntegrationTests/**'
       - '.github/workflows/db-checks.yml'
 
 permissions:

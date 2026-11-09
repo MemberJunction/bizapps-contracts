@@ -1,9 +1,9 @@
 /**
  * Audit `__mj.EntityField` rows for `__mj_BizAppsContracts` after a from-zero migration replay (#113).
  *
- * Four early migrations (`V202608270100`, `V202608300100`, `V202609020200`, `V202609192100`)
- * called `spDeleteUnneededEntityFields` before `.github/scripts/check-migration-no-prune.mjs`
- * banned that proc from hand-written migrations. This harness verifies on a replayed database that:
+ * Four shipped migrations (`B202608040001` baseline, `V202608240100`, `V202608240200`,
+ * `V202609140100`) call `spDeleteUnneededEntityFields`, which
+ * `.github/scripts/check-migration-no-prune.mjs` now bans from hand-written migrations. This harness verifies on a replayed database that:
  *
  *   1. All 6 `__mj_BizAppsContracts` entities are registered in `__mj.Entity`.
  *   2. Every column exposed by each entity's `BaseView` (`vwContract*`) has a corresponding row in

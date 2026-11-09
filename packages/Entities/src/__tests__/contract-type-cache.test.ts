@@ -5,11 +5,17 @@
  * `ContractEntity.SeedRenewalDefaultsFromType()` and `MJCContractAgreementPanel` (via
  * `ContractEntity.ReadSelectedContractType()`) share a single `RunView` call per `(provider, typeID)`
  * — including when both fire concurrently on the same tick — and that `InvalidateContractTypeCache`
- * evicts stale entries after a save or delete.
+ * evicts stale entries after a save or delete. Eviction from `ContractTypeEntity.Save` / `.Delete`
+ * themselves is covered in `contract-type-entity-save.test.ts`.
  */
 import { describe, expect, it, vi } from 'vitest';
 import type { IRunViewProvider } from '@memberjunction/core';
-import { InvalidateContractTypeCache, ReadContractTypeByID, type ContractTypeCachedRow } from '../contract-type-cache';
+import {
+    CONTRACT_TYPE_CACHE_TTL_MS,
+    InvalidateContractTypeCache,
+    ReadContractTypeByID,
+    type ContractTypeCachedRow,
+} from '../contract-type-cache';
 
 const ORDER_FORM_ID = '33333333-0000-4000-8000-000000001001';
 const SOW_ID = '33333333-0000-4000-8000-000000001002';
@@ -116,5 +122,29 @@ describe('ReadContractTypeByID (#150)', () => {
 
         expect(a.runView).toHaveBeenCalledTimes(1);
         expect(b.runView).toHaveBeenCalledTimes(1);
+    });
+
+    it('serves a repeat read from cache inside the TTL and re-reads once it expires', async () => {
+        vi.useFakeTimers();
+        try {
+            let noticeDays = 60;
+            const { provider, runView } = createMockProvider(async () => ({
+                Success: true,
+                Results: [{ ...ORDER_FORM_ROW, DefaultRenewalNoticeDays: noticeDays }],
+            }));
+
+            expect((await ReadContractTypeByID(provider, ORDER_FORM_ID))?.DefaultRenewalNoticeDays).toBe(60);
+            noticeDays = 90; // another session edits the type; this one never hears about it
+
+            vi.advanceTimersByTime(CONTRACT_TYPE_CACHE_TTL_MS - 1);
+            expect((await ReadContractTypeByID(provider, ORDER_FORM_ID))?.DefaultRenewalNoticeDays).toBe(60);
+            expect(runView).toHaveBeenCalledTimes(1);
+
+            vi.advanceTimersByTime(1);
+            expect((await ReadContractTypeByID(provider, ORDER_FORM_ID))?.DefaultRenewalNoticeDays).toBe(90);
+            expect(runView).toHaveBeenCalledTimes(2);
+        } finally {
+            vi.useRealTimers();
+        }
     });
 });

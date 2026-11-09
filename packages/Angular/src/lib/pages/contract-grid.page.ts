@@ -304,8 +304,10 @@ export abstract class MJCContractGridPageBase implements OnInit {
         this.publishAgentContext();
     }
 
+    /** Agent context is keyed by the hosting resource; a page rendered without one has nothing to publish. */
     protected publishAgentContext(): void {
-        const caller = this.HostResource ?? (this as unknown as BaseResourceComponent);
+        const caller = this.HostResource;
+        if (!caller) return;
         this.navigation.SetAgentContext(
             caller,
             BuildGridAgentContext({
@@ -322,7 +324,8 @@ export abstract class MJCContractGridPageBase implements OnInit {
     }
 
     protected registerAgentClientTools(): void {
-        const caller = this.HostResource ?? (this as unknown as BaseResourceComponent);
+        const caller = this.HostResource;
+        if (!caller) return;
         this.navigation.SetAgentClientTools(caller, [
             {
                 Name: 'SelectContractFilterPill',

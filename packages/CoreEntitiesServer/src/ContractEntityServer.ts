@@ -256,7 +256,7 @@ export class ContractEntityServer extends ContractEntity {
             const template = await ResolveServerDefaultTemplate(
                 { isSaved: this.IsSaved, contractTypeID: this.ContractTypeID, currentTemplateID: this.ContractTemplateID },
                 async () => !!(await this.typeRule())?.TemplateRequired,
-                async () => this.currentTemplateID((await this.typeRule())?.ContractTemplateTypeID),
+                () => this.typeDefaultTemplateID(),
             );
             if (template) {
                 this.ContractTemplateID = template;
@@ -898,6 +898,11 @@ export class ContractEntityServer extends ContractEntity {
      * database on the next validation because a new entity instance is what a new save uses.
      */
     private cachedTypeRule: ContractTypeRule | null | undefined = undefined;
+
+    /** The current template for this contract's type, scoped by the type's `ContractTemplateTypeID` (#114). */
+    private async typeDefaultTemplateID(): Promise<string | null> {
+        return this.currentTemplateID((await this.typeRule())?.ContractTemplateTypeID);
+    }
 
     /**
      * The newest Published, usable template matching the type's `ContractTemplateTypeID` (#114) —

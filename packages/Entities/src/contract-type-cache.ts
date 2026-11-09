@@ -15,6 +15,10 @@
  * `WeakMap` keyed by the `IRunViewProvider` so provider-scoping is preserved and tests with
  * per-test mock providers stay isolated.
  *
+ * Entries expire after `CONTRACT_TYPE_CACHE_TTL_MS`. A browser tab keeps one provider for its whole
+ * life, and `InvalidateContractTypeCache` only runs in the session that saved the type, so without
+ * an expiry an admin's change to a type's defaults would never reach a tab that had already read it.
+ *
  * @module @mj-biz-apps/contracts-entities
  */
 import type { IRunViewProvider, UserInfo } from '@memberjunction/core';
@@ -49,16 +53,27 @@ const CONTRACT_TYPE_CACHE_FIELDS: string[] = [
 export type ContractTypeCacheProvider = Pick<IRunViewProvider, 'RunView'>;
 
 /**
+ * How long a read stays cached. Long enough to cover the reads one type change sets off on a
+ * contract form; short enough that another session's edit to the type shows up within a minute.
+ */
+export const CONTRACT_TYPE_CACHE_TTL_MS = 60_000;
+
+interface CacheEntry {
+    row: Promise<ContractTypeCachedRow | null>;
+    expiresAt: number;
+}
+
+/**
  * Per-provider cache mapping lowercase `ContractType.ID` -> in-flight or resolved row promise.
  * Keyed by `ContractTypeCacheProvider` in a `WeakMap` so nothing leaks across requests or test stubs.
  */
-const providerCache = new WeakMap<object, Map<string, Promise<ContractTypeCachedRow | null>>>();
+const providerCache = new WeakMap<object, Map<string, CacheEntry>>();
 
-function cacheFor(provider: ContractTypeCacheProvider): Map<string, Promise<ContractTypeCachedRow | null>> {
+function cacheFor(provider: ContractTypeCacheProvider): Map<string, CacheEntry> {
     const key = provider as unknown as object;
     let map = providerCache.get(key);
     if (!map) {
-        map = new Map<string, Promise<ContractTypeCachedRow | null>>();
+        map = new Map<string, CacheEntry>();
         providerCache.set(key, map);
     }
     return map;
@@ -71,6 +86,7 @@ function cacheFor(provider: ContractTypeCacheProvider): Map<string, Promise<Cont
  *   - Throws if `RunView` reports `Success: false` (and evicts the failed entry so a later retry
  *     is not poisoned).
  *   - Evicts when no row matches `typeID`, so a missing ID is not permanently cached.
+ *   - Re-reads once the entry is older than `CONTRACT_TYPE_CACHE_TTL_MS`.
  */
 export async function ReadContractTypeByID(
     provider: ContractTypeCacheProvider | null | undefined,
@@ -84,7 +100,8 @@ export async function ReadContractTypeByID(
     const normalizedKey = id.toLowerCase();
     const map = cacheFor(provider);
     const existing = map.get(normalizedKey);
-    if (existing) return existing;
+    if (existing && existing.expiresAt > Date.now()) return existing.row;
+    if (existing) map.delete(normalizedKey);
 
     const pending = (async (): Promise<ContractTypeCachedRow | null> => {
         try {
@@ -112,7 +129,7 @@ export async function ReadContractTypeByID(
         }
     })();
 
-    map.set(normalizedKey, pending);
+    map.set(normalizedKey, { row: pending, expiresAt: Date.now() + CONTRACT_TYPE_CACHE_TTL_MS });
     return pending;
 }
 
