@@ -18,18 +18,18 @@
     "zod": "^3.25.76"
   },
   "peerDependencies": {
-    "@memberjunction/actions": "^6.1.6",
-    "@memberjunction/actions-base": "^6.1.6",
-    "@memberjunction/core": "^6.1.6",
-    "@memberjunction/core-entities": "^6.1.6",
-    "@memberjunction/global": "^6.1.6"
+    "@memberjunction/actions": "^6.2.1",
+    "@memberjunction/actions-base": "^6.2.1",
+    "@memberjunction/core": "^6.2.1",
+    "@memberjunction/core-entities": "^6.2.1",
+    "@memberjunction/global": "^6.2.1"
   },
   "devDependencies": {
-    "@memberjunction/actions": "^6.1.6",
-    "@memberjunction/actions-base": "^6.1.6",
-    "@memberjunction/core": "^6.1.6",
-    "@memberjunction/core-entities": "^6.1.6",
-    "@memberjunction/global": "^6.1.6",
+    "@memberjunction/actions": "^6.2.1",
+    "@memberjunction/actions-base": "^6.2.1",
+    "@memberjunction/core": "^6.2.1",
+    "@memberjunction/core-entities": "^6.2.1",
+    "@memberjunction/global": "^6.2.1",
     "typescript": "^5.9.3"
   },
   "files": [
