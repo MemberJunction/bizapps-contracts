@@ -1,5 +1,11 @@
 # @mj-biz-apps/contracts-entities
 
+## 0.10.0
+
+### Minor Changes
+
+- e27c5d3: Consolidate repo hygiene, contract-type template & renewal-default UX, DB-backed CI checks, PostgreSQL query variant, and dashboard/grid agent wiring (#113, #114, #124, #132, #133, #135, #137, #144, #149, #150, #154, #155, #157, #167).
+
 ## 0.9.1
 
 ## 0.9.0
