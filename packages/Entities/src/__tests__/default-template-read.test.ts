@@ -9,6 +9,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { RunViewParams } from '@memberjunction/core';
 import {
+    BuildCurrentTemplateFilter,
     CurrentTemplateFilter,
     CurrentTemplateFilterExcluding,
     CurrentTemplateOrderBy,
@@ -23,6 +24,7 @@ const RETIRED_B = 'AAAAAAAA-0000-4000-8000-0000000000A2';
 const CURRENT = 'CCCCCCCC-0000-4000-8000-00000000000C';
 const OURS = 'DDDDDDDD-0000-4000-8000-00000000000D';
 const THEIRS = 'EEEEEEEE-0000-4000-8000-00000000000E';
+const MASTER_AGREEMENT = 'BBBBBBBB-0000-4000-8000-0000000000B1';
 
 describe('CurrentTemplateFilterExcluding — #138', () => {
     it('is the plain filter when no type is retired', () => {
@@ -88,6 +90,22 @@ describe('ReadCurrentTemplateID — #138', () => {
         const run: TemplateViewRunner = { RunView: vi.fn(async () => { throw new Error('down'); }) };
         expect(await ReadCurrentTemplateID(run)).toEqual({ Success: false, TemplateID: null, ErrorMessage: 'down' });
     });
+    it('scopes to the contract type\'s template type (#114) and still skips retired types', async () => {
+        const { run, calls } = runner({
+            types: { Success: true, Results: [{ ID: RETIRED_A }] },
+            templates: { Success: true, Results: [{ ID: CURRENT }] },
+        });
+        expect(await ReadCurrentTemplateID(run, undefined, MASTER_AGREEMENT)).toEqual({ Success: true, TemplateID: CURRENT });
+        expect(calls[1].ExtraFilter).toBe(
+            `${BuildCurrentTemplateFilter(MASTER_AGREEMENT)} AND ContractTemplateTypeID NOT IN ('${RETIRED_A}')`,
+        );
+    });
+    it('reports a non-UUID template type instead of interpolating it', async () => {
+        const { run } = runner({ types: { Success: true, Results: [] } });
+        const read = await ReadCurrentTemplateID(run, undefined, "x' OR 1=1 --");
+        expect(read.Success).toBe(false);
+        expect(read.TemplateID).toBeNull();
+    });
 });
 
 describe('DecideTemplateDefault', () => {
@@ -103,6 +121,13 @@ describe('DecideTemplateDefault', () => {
         const state = { isSaved: false, currentTemplateID: OURS, lastDefaultedID: OURS };
         expect(await DecideTemplateDefault(state, async () => false, current)).toEqual({ Action: 'withdraw' });
         expect(current).not.toHaveBeenCalled();
+    });
+    it('withdraws our own default when the new type has no current template of its template type (#114)', async () => {
+        const state = { isSaved: false, currentTemplateID: OURS, lastDefaultedID: OURS };
+        expect(await DecideTemplateDefault(state, async () => true, async () => null)).toEqual({ Action: 'withdraw' });
+    });
+    it('leaves an empty field alone when no template qualifies', async () => {
+        expect(await DecideTemplateDefault(NEW_EMPTY, async () => true, async () => null)).toEqual({ Action: 'none' });
     });
     it('does nothing when the type could not be read', async () => {
         expect(await DecideTemplateDefault(NEW_EMPTY, async () => null, async () => CURRENT)).toEqual({ Action: 'none' });

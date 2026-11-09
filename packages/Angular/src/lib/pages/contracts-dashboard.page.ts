@@ -38,7 +38,7 @@
 import { ChangeDetectorRef, Component, EventEmitter, Output, ViewEncapsulation, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { CompositeKey, RunQuery, type RunViewParams } from '@memberjunction/core';
-import { BaseDashboard, NavigationService } from '@memberjunction/ng-shared';
+import { BaseDashboard, BaseResourceComponent, NavigationService } from '@memberjunction/ng-shared';
 import type { ResourceData } from '@memberjunction/core-entities';
 import { EntityViewerModule, type AfterRowClickEventArgs, type GridColumnConfig } from '@memberjunction/ng-entity-viewer';
 import {
@@ -52,6 +52,7 @@ import { MJC_ENTITIES, MJC_FOREIGN_ENTITIES, MJC_QUERIES, MJC_QUERY_CATEGORY } f
 import { ScopedRunView } from '../data/provider';
 import { BuildOpenTaskFilters } from '../data/task-filters';
 import { NOTICE_WINDOW_PASSED, NoticeWindowWithin } from '../data/business-day';
+import { BuildDashboardAgentContext } from '../data/agent-context';
 
 /**
  * Where a tile click goes. `Preset` names a filter pill on the destination page, because a tile that
@@ -168,6 +169,10 @@ export class MJCContractsDashboardPageComponent extends BaseDashboard {
     private readonly cdr = inject(ChangeDetectorRef);
     private readonly navigation = inject(NavigationService);
 
+    /** Set by the hosting section so agent context and client tools attach to the cached resource (#154). */
+    public HostResource: BaseResourceComponent | null = null;
+    private availableCompanies: Array<{ ID: string; Name: string }> = [];
+
     /**
      * Asks the host section to switch rails, carrying which pill to select on arrival. The dashboard
      * does not route itself — Explorer resources are not routed components, so page switching inside
@@ -245,7 +250,9 @@ export class MJCContractsDashboardPageComponent extends BaseDashboard {
 
     /** Runs once, before the first load. Cheap, synchronous setup only. */
     protected initDashboard(): void {
+        this.registerAgentClientTools();
         this.rebuildGrid();
+        this.publishAgentContext();
     }
 
     /**
@@ -255,9 +262,110 @@ export class MJCContractsDashboardPageComponent extends BaseDashboard {
     protected async loadData(): Promise<void> {
         await Promise.all([this.loadCompanies(), this.refreshCounts()]);
         this.rebuildGrid();
+        this.publishAgentContext();
         // See the file header: the base class does not do this, and without it the page renders its
         // pre-fetch state forever.
         this.cdr.detectChanges();
+    }
+
+    /** Re-publish agent context and client tools when this page is shown or reattached (#154). */
+    public PublishAgentState(): void {
+        this.registerAgentClientTools();
+        this.publishAgentContext();
+    }
+
+    private publishAgentContext(): void {
+        const caller = this.HostResource ?? this;
+        this.navigation.SetAgentContext(
+            caller,
+            BuildDashboardAgentContext({
+                SelectedCompanyIDs: this.SelectedCompanyIDs,
+                AvailableCompanies: this.availableCompanies,
+                Tiles: this.Tiles,
+                CountError: this.CountError,
+                GridExtraFilter: typeof this.GridParams?.ExtraFilter === 'string' ? this.GridParams.ExtraFilter : '',
+            }),
+        );
+    }
+
+    private registerAgentClientTools(): void {
+        const caller = this.HostResource ?? this;
+        this.navigation.SetAgentClientTools(caller, [
+            {
+                Name: 'FilterDashboardByCompanies',
+                Description: 'Filter the Contracts dashboard by one or more Company UUIDs.',
+                ParameterSchema: {
+                    type: 'object',
+                    properties: {
+                        companyIds: { type: 'array', items: { type: 'string' } },
+                    },
+                    required: ['companyIds'],
+                },
+                Handler: async (params: Record<string, unknown>) => {
+                    const raw = Array.isArray(params?.['companyIds']) ? params['companyIds'] : [];
+                    this.OnFilterChanged({ company: raw });
+                    return { Success: true, SelectedCompanyIDs: this.SelectedCompanyIDs };
+                },
+            },
+            {
+                Name: 'ClearDashboardCompanyFilter',
+                Description: 'Clear the Company filter on the Contracts dashboard so all companies are shown.',
+                ParameterSchema: { type: 'object', properties: {} },
+                Handler: async () => {
+                    this.ClearCompanies();
+                    return { Success: true };
+                },
+            },
+            {
+                Name: 'OpenDashboardWorklist',
+                Description: 'Navigate from the Contracts dashboard to one of its four worklists by tile ID (to-process, awaiting-document, notice-deadlines, special-terms).',
+                ParameterSchema: {
+                    type: 'object',
+                    properties: {
+                        tileId: {
+                            type: 'string',
+                            enum: ['to-process', 'awaiting-document', 'notice-deadlines', 'special-terms'],
+                        },
+                    },
+                    required: ['tileId'],
+                },
+                Handler: async (params: Record<string, unknown>) => {
+                    const tileId = typeof params?.['tileId'] === 'string' ? params['tileId'] : '';
+                    const found = this.Tiles.find((t) => t.Id === tileId);
+                    if (!found?.GoTo) {
+                        return { Success: false, ErrorMessage: `Unknown dashboard tile "${tileId}".` };
+                    }
+                    this.Open(found);
+                    return { Success: true, Target: found.GoTo };
+                },
+            },
+            {
+                Name: 'OpenContractRecord',
+                Description: 'Open a contract record by ID in Explorer.',
+                ParameterSchema: {
+                    type: 'object',
+                    properties: { contractId: { type: 'string' } },
+                    required: ['contractId'],
+                },
+                Handler: async (params: Record<string, unknown>) => {
+                    const contractId = typeof params?.['contractId'] === 'string' ? params['contractId'].trim() : '';
+                    if (!isUUID(contractId)) {
+                        return { Success: false, ErrorMessage: 'A valid contract UUID is required.' };
+                    }
+                    this.navigation.OpenEntityRecord(MJC_ENTITIES.Contract, CompositeKey.FromID(contractId));
+                    return { Success: true };
+                },
+            },
+            {
+                Name: 'RefreshContractsDashboard',
+                Description: 'Reload the Contracts dashboard counts and agreement grid.',
+                ParameterSchema: { type: 'object', properties: {} },
+                Handler: async () => {
+                    await this.Refresh();
+                    return { Success: true };
+                },
+            },
+        ]);
     }
 
     /* ── filter ───────────────────────────────────────────────────────────── */
@@ -333,6 +441,7 @@ export class MJCContractsDashboardPageComponent extends BaseDashboard {
                 OrderBy: 'Name ASC',
             });
             const rows = result?.Success ? (result.Results ?? []) : [];
+            this.availableCompanies = rows.map((r) => ({ ID: r.ID, Name: r.Name }));
             this.FilterFields = [
                 {
                     key: 'company',
@@ -343,6 +452,7 @@ export class MJCContractsDashboardPageComponent extends BaseDashboard {
                 },
             ];
         } catch {
+            this.availableCompanies = [];
             this.FilterFields = [];
         }
     }

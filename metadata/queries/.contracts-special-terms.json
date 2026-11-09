@@ -12,7 +12,20 @@
       "ExecutionCostRank": 1,
       "UsesTemplate": true
     },
-    "relatedEntities": {},
+    "relatedEntities": {
+      "MJ: Query SQLs": [
+        {
+          "fields": {
+            "QueryID": "@parent:ID",
+            "SQLDialectID": "@lookup:MJ: SQL Dialects.PlatformKey=postgresql",
+            "SQL": "@file:SQL/contracts-special-terms.pg.sql"
+          },
+          "primaryKey": {
+            "ID": "33333333-0000-4000-8000-000000003001"
+          }
+        }
+      ]
+    },
     "primaryKey": {
       "ID": "A93597C0-100E-4059-ABC5-E08DD708E520"
     },

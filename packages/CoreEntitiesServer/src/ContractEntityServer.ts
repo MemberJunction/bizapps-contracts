@@ -120,6 +120,8 @@ type ContractTypeRule = {
     MustBeChild: boolean;
     /** R-4: must carry its own ContractTemplateID. */
     TemplateRequired: boolean;
+    /** #114: which ContractTemplateType this contract type incorporates by default when TemplateRequired = 1. */
+    ContractTemplateTypeID: string | null;
     /** R-5: 'Active' | 'Inactive'. */
     Status: string | null;
 };
@@ -258,7 +260,7 @@ export class ContractEntityServer extends ContractEntity {
             const template = await ResolveServerDefaultTemplate(
                 { isSaved: this.IsSaved, contractTypeID: this.ContractTypeID, currentTemplateID: this.ContractTemplateID },
                 async () => !!(await this.typeRule())?.TemplateRequired,
-                () => this.currentTemplateID(),
+                () => this.typeDefaultTemplateID(),
             );
             if (template) {
                 this.ContractTemplateID = template;
@@ -298,7 +300,6 @@ export class ContractEntityServer extends ContractEntity {
      * load a saved contract without its modifications, set `HasModifications = false`, save, and it
      * succeeded — flag false with rows in the table, which ERD §4.4 explicitly rejects and which the
      * modification subclass's own comment calls the single most misleading state this app can produce.
-     * The shared class's comment PROMISED this check existed. Caught on review of PR #9.
      *
      * One `EXISTS`, and only when it can matter (`IsSaved && HasModifications === false`), so the
      * ordinary save pays nothing. The message is the shared class's, deliberately — the user should
@@ -313,15 +314,14 @@ export class ContractEntityServer extends ContractEntity {
      *
      * FIRST, this compared the type's NAME to the string 'Change Order'. A display name is not a rule:
      * renaming that lookup row — an ordinary thing to do — silently stopped the check from ever firing,
-     * with nothing failing and no error to notice (fixed 2026-08-19).
+     * with nothing failing and no error to notice.
      *
      * SECOND, the column that replaced the name match was a THREE-STATE STRING,
-     * `ParentStatusRequirement IN ('Required','Prohibited')` or NULL. Ruled out by Marcelo on
-     * 2026-08-20 as confusing and overly complex, with the transposition argument as the proof: a
-     * column whose values INVERT the rule when read in the wrong order is a column that will
-     * eventually be read in the wrong order. Now two booleans, mutually exclusive by
-     * `CK_ContractType_RootOrChild`, and "both false" means unrestricted — a real and in fact majority
-     * state.
+     * `ParentStatusRequirement IN ('Required','Prohibited')` or NULL. That was replaced because it was
+     * confusing and overly complex, with the transposition argument as the proof: a column whose values
+     * INVERT the rule when read in the wrong order is a column that will eventually be read in the
+     * wrong order. Now two booleans, mutually exclusive by `CK_ContractType_RootOrChild`, and "both
+     * false" means unrestricted — a real and in fact majority state.
      *
      * Both placement directions are enforced, because a rule that only ever checks one of them is half
      * decoration: `MustBeChild` refuses a missing parent (a change order that amends nothing would
@@ -387,7 +387,7 @@ export class ContractEntityServer extends ContractEntity {
                 result.Errors.push(
                     new ValidationErrorInfo(
                         'ContractTemplateID',
-                        TemplateRequiredMessage(rule.Name, !!(await this.currentTemplateID())),
+                        TemplateRequiredMessage(rule.Name, !!(await this.currentTemplateID(rule.ContractTemplateTypeID))),
                         this.ContractTemplateID,
                         ValidationErrorType.Failure,
                     ),
@@ -473,9 +473,9 @@ export class ContractEntityServer extends ContractEntity {
      * is the primary case the rule exists for: the Configuration page promises a retired type "stops
      * being offered for new contracts", and a create is the newest selection there is.
      *
-     * TIER: code only, no trigger. `Status` lives on another table so a CHECK cannot see it, and the
-     * plan ruled a trigger not worth it — the failure mode is a person picking a retired value in our
-     * own UI, not silent corruption by an outside writer.
+     * TIER: code only, no trigger. `Status` lives on another table so a CHECK cannot see it, and a
+     * trigger is not worth it — the failure mode is a person picking a retired value in our own UI,
+     * not silent corruption by an outside writer.
      *
      * COST: the `ContractTypeID` half is FREE — `typeRule()` already reads that row for the
      * parent-status rule, and `Status` now rides along on the same RunView. The `ContractTemplateID`
@@ -675,7 +675,7 @@ export class ContractEntityServer extends ContractEntity {
     /**
      * A contract may only supersede a contract at the SAME LEVEL of the tree — same `ParentContractID`.
      *
-     * WHY THIS IS NOT "ROOT ONLY" (ruled by Marcelo, 2026-08-20). The obvious-looking rule is that only
+     * WHY THIS IS NOT "ROOT ONLY". The obvious-looking rule is that only
      * a top-level agreement may be re-papered. It is wrong in both directions. A change order genuinely
      * does get renegotiated and replaced by a second change order under the same order form — forbidding
      * that would force somebody to DELETE the first one, destroying the history re-papering exists to
@@ -903,7 +903,7 @@ export class ContractEntityServer extends ContractEntity {
             {
                 EntityName: 'MJ_BizApps_Contracts: Contract Types',
                 ExtraFilter: `ID = '${this.ContractTypeID}'`,
-                Fields: ['Name', 'MustBeRoot', 'MustBeChild', 'TemplateRequired', 'Status'],
+                Fields: ['Name', 'MustBeRoot', 'MustBeChild', 'TemplateRequired', 'ContractTemplateTypeID', 'Status'],
                 ResultType: 'simple',
             },
             this.ContextCurrentUser,
@@ -919,16 +919,21 @@ export class ContractEntityServer extends ContractEntity {
      */
     private cachedTypeRule: ContractTypeRule | null | undefined = undefined;
 
+    /** The current template for this contract's type, scoped by the type's `ContractTemplateTypeID` (#114). */
+    private async typeDefaultTemplateID(): Promise<string | null> {
+        return this.currentTemplateID((await this.typeRule())?.ContractTemplateTypeID);
+    }
+
     /**
-     * The newest Published, usable template of a current type — the query the Agreement panel runs,
-     * on the server ({@link ReadCurrentTemplateID}). A template whose type is retired is skipped
-     * (#138): `refuseRetiredSelections` would refuse it on this same save.
+     * The newest Published, usable template matching the type's `ContractTemplateTypeID` (#114) — the
+     * query the Agreement panel runs, on the server ({@link ReadCurrentTemplateID}). A template whose
+     * type is retired is skipped (#138): `refuseRetiredSelections` would refuse it on this same save.
      *
      * A failed read is logged and returns null rather than throwing: the field stays empty and
      * `ValidateAsync` refuses the save with the type's own message, which names what the user must do.
      */
-    private async currentTemplateID(): Promise<string | null> {
-        const read = await ReadCurrentTemplateID(this.RunViewProviderToUse, this.ContextCurrentUser);
+    private async currentTemplateID(contractTemplateTypeID?: string | null): Promise<string | null> {
+        const read = await ReadCurrentTemplateID(this.RunViewProviderToUse, this.ContextCurrentUser, contractTemplateTypeID);
         if (!read.Success) {
             LogError(`ContractEntityServer could not read the current contract template: ${read.ErrorMessage ?? 'unknown error'}`);
         }
@@ -941,7 +946,7 @@ export class ContractEntityServer extends ContractEntity {
      *
      * `IsUsable` is derived in `vwContractTemplates`: 1 when the template records a `SourceURL` **or**
      * has a file attached, 0 when it has neither. The flag and this refusal do different jobs and both
-     * are needed (ruled 2026-08-20):
+     * are needed:
      *
      *   · **the flag is the affordance** — someone authoring a template sees the red "Unusable" chip and
      *     fixes it, rather than being blocked by a condition they cannot see;

@@ -4,8 +4,8 @@
  * WHY A REMOTABLE OPERATION AND NOT ENTITY CALLS FROM THE PANEL. The write targets a DIFFERENT record
  * from the one on screen: `SupersededByContractID` lives on the PREDECESSOR, so the successor's form
  * has to reach over and write another contract. Doing that from the browser meant the panel loading
- * and saving foreign entities itself — server work done in the client. Ruled by Marcelo (2026-08-21):
- * a cross-record write with rules is exactly what a remote operation is for.
+ * and saving foreign entities itself — server work done in the client. A cross-record write with
+ * rules is what a remote operation is for.
  *
  * It also makes the feature immune to MJ#4002, where the browser resolves the CodeGen-generated entity
  * class instead of the app's subclass, so `ContractEntity.Supersede()` is simply absent client-side.

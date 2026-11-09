@@ -54,6 +54,8 @@ export {
 export { MJCSectionShellComponent } from './lib/sections/section-shell.component';
 export * from './lib/sections/section-nav.model';
 export * from './lib/data/entity-names';
+export * from './lib/data/grid-preset';
+export * from './lib/data/agent-context';
 
 /* ============================================================================
  * FORM PANELS — the app's UX, contributed onto the GENERATED forms (plan §6.4) rather than replacing
@@ -80,6 +82,15 @@ import {
 } from './lib/form-panels/contract-form.panels';
 import { MJCOrganizationAgreementsPanel } from './lib/form-panels/organization.panels';
 import { MJCPersonAgreementsPanel } from './lib/form-panels/person.panels';
+import {
+    MJCContractTypeDefaultsPanel,
+    DEFAULT_AUTO_RENEW_OPTIONS,
+    FormatDefaultAutoRenew,
+    ParseDefaultAutoRenewOption,
+    ToDefaultAutoRenewOption,
+    type DefaultAutoRenewChoice,
+    type DefaultAutoRenewOption,
+} from './lib/form-panels/contract-type.panels';
 
 export {
     MJCContractHeroPanel,
@@ -101,6 +112,15 @@ export {
 } from './lib/form-panels/contract-form.panels';
 export { MJCOrganizationAgreementsPanel } from './lib/form-panels/organization.panels';
 export { MJCPersonAgreementsPanel } from './lib/form-panels/person.panels';
+export {
+    MJCContractTypeDefaultsPanel,
+    DEFAULT_AUTO_RENEW_OPTIONS,
+    FormatDefaultAutoRenew,
+    ParseDefaultAutoRenewOption,
+    ToDefaultAutoRenewOption,
+    type DefaultAutoRenewChoice,
+    type DefaultAutoRenewOption,
+} from './lib/form-panels/contract-type.panels';
 
 /* ============================================================================
  * THE ONE SHARED CUSTOM COMPONENT (D-22) — the modification editor, rendered inline by the contract's
@@ -161,4 +181,5 @@ export function LoadMjBizappsContractsClient(): void {
     void MJCContractExecutedAgreementPanel;
     void MJCOrganizationAgreementsPanel;
     void MJCPersonAgreementsPanel;
+    void MJCContractTypeDefaultsPanel;
 }

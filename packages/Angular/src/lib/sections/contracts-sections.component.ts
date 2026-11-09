@@ -78,6 +78,10 @@ interface MJCHostedPage {
     Error?: { subscribe: (fn: (err: Error) => void) => void };
     /** `BaseResourceComponent` hook the error guard uses to tell the initial load from a refresh. */
     LoadCompleteEvent?: (() => void) | null;
+    /** Hosting `BaseResourceComponent` so hosted sub-pages can publish agent context & client tools (#154). */
+    HostResource?: BaseResourceComponent | null;
+    /** Re-publishes agent context & client tools when a cached sub-page is re-inserted (#154). */
+    PublishAgentState?: () => void;
 }
 
 /** Shared skeleton for all three sections. */
@@ -172,6 +176,7 @@ export abstract class MJCSectionBaseComponent extends BaseResourceComponent impl
             // A CACHED page has already run ngOnInit, so a preset it read at init would be ignored on
             // every visit after the first. Apply it here, then force the re-inserted view to repaint.
             this.applyPreset(cached, preset);
+            (cached.instance as MJCHostedPage).PublishAgentState?.();
             cached.changeDetectorRef.detectChanges();
             return;
         }
@@ -188,6 +193,7 @@ export abstract class MJCSectionBaseComponent extends BaseResourceComponent impl
         // rather than a shared interface because the pages are otherwise independent of the section,
         // and an interface would make every page import the shell's world just to emit a string.
         const instance = ref.instance as MJCHostedPage;
+        instance.HostResource = this;
         instance.NavigateToPage?.subscribe((target) =>
             void this.OnPageSelected(
                 typeof target === 'string' ? target : target.PageId,

@@ -111,8 +111,8 @@ export class ContractTemplateModificationEntityServer extends ContractTemplateMo
      * its own (its type has `TemplateRequired = false`) but is the CHILD of a contract that does, and a
      * modification recorded ON the change order is where the negotiated wording physically lives. Under
      * the old rule every such modification was refused, because the change order's own
-     * `ContractTemplateID` is null and the provision's template matched nothing. Ruled by Marcelo
-     * 2026-08-20: *"a modification may point at any template at or above it in the tree."*
+     * `ContractTemplateID` is null and the provision's template matched nothing. The rule is that a
+     * modification may point at any template at or above it in the tree.
      *
      * So the comparison is now against the ANCESTOR SET — every template reachable at or above this
      * modification's contract by walking `ParentContractID`. One recursive walk, one row per level, and
@@ -126,9 +126,9 @@ export class ContractTemplateModificationEntityServer extends ContractTemplateMo
      * old one.
      *
      * A contract whose whole ancestry carries NO template is exempt rather than rejected: an SOW
-     * legitimately has none (Amith, 2026-08-18), and refusing to record what an SOW negotiated because
-     * there is no versioned template to check against would block real work to satisfy a rule about a
-     * document that does not exist.
+     * legitimately has none, and refusing to record what an SOW negotiated because there is no
+     * versioned template to check against would block real work to satisfy a rule about a document
+     * that does not exist.
      */
     public override async ValidateAsync(): Promise<ValidationResult> {
         const result = await super.ValidateAsync();
@@ -244,7 +244,7 @@ export class ContractTemplateModificationEntityServer extends ContractTemplateMo
      * was agreed. A raw `UPDATE` bypasses `MJ: Record Changes` entirely, so that flip would have been
      * the one state transition in the app with no audit trail — on the field whose whole purpose is to
      * warn a reader that the paper differs from the standard. It also skips cache invalidation, so a
-     * long-lived client could keep showing the old value. Caught on review of PR #9.
+     * long-lived client could keep showing the old value.
      *
      * Loading a whole entity to set one bit is more expensive than one statement. That is the right
      * trade here and only here: this runs when a modification is saved OUTSIDE its contract's graph,
@@ -306,7 +306,7 @@ export class ContractTemplateModificationEntityServer extends ContractTemplateMo
         const row = rows?.[0];
         // No provision row, or it is inside the tree: nothing to say.
         if (!row || row.InTree === 1) return null;
-        // The whole ancestry carries no template — the SOW case, exempt by ruling.
+        // The whole ancestry carries no template — the SOW case, which is exempt.
         if (!row.AncestorTemplates) return null;
         return { ProvisionTemplate: row.ProvisionTemplate, ContractTemplate: row.AncestorTemplates };
     }

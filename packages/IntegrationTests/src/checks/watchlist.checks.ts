@@ -14,7 +14,7 @@ import {
     type IntegrationCheckContext,
     type NamedCheck,
 } from '@memberjunction/testing-integration/registry';
-import { E_CONTRACT, FindRows, Quote, ResolveContractsFixture, TxOne, WORLD_NOTE } from '../fixture.js';
+import { DestroyFixture, E_CONTRACT, FindRows, Quote, ResolveContractsFixture, TxOne, WORLD_NOTE } from '../fixture.js';
 
 type Ctx = IntegrationCheckContext;
 
@@ -217,5 +217,7 @@ IntegrationCheckRegistry.Instance.RegisterLifecycle('contracts-watchlist', {
             'contracts-watchlist needs CTR-WORLD. Run `node test-harnesses/integration.mjs contracts-world` first.',
         );
     },
-    Teardown: async () => undefined,
+    Teardown: async (ctx) => {
+        await DestroyFixture(ctx);
+    },
 });

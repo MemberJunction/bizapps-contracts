@@ -349,9 +349,8 @@ export class MJCContractHeroPanel extends BaseFormPanel<ContractEntity> {
     }
 
     /**
-     * READ from the view's derived column. Application code does not re-derive state (Marcelo,
-     * 2026-08-19) — the view is the single authority, and `DeriveContractState()` is now for tests
-     * and the equivalence harness only.
+     * READ from the view's derived column. Application code does not re-derive state — the view is
+     * the single authority, and `DeriveContractState()` is for tests and the equivalence harness only.
      *
      * This panel used to re-derive it in the browser so the chip tracked UNSAVED date edits. That
      * bought a live-updating chip and cost the thing worth more: a second implementation that could

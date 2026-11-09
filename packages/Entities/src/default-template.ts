@@ -11,6 +11,8 @@
  * Angular's DI, so a rule stated in a panel is a rule no unit test reaches.
  *
  *   · {@link CurrentTemplateFilter}  — WHICH templates may be defaulted at all
+ *   · {@link BuildCurrentTemplateFilter} — scopes `CurrentTemplateFilter` to the `ContractTemplateTypeID`
+ *     named on the selected `ContractType` (#114)
  *   · {@link CurrentTemplateOrderBy} — which of them is "current"
  *   · {@link ShouldDefaultTemplate}  — whether we may write over what is in the field right now
  *   · {@link ShouldWithdrawDefaultTemplate} — whether we must TAKE BACK what we wrote, once the
@@ -18,15 +20,14 @@
  *   · {@link DecideTemplateDefault} — the panel's rule end to end, discarding a superseded call
  *   · {@link ReadCurrentTemplateID} — the query both tiers run for the current template
  *
- * SCOPING, THE ISSUE'S ONE OPEN DECISION: the newest published usable template wins, REGARDLESS of
- * its template type. Not a simplification — `ContractType` carries no `ContractTemplateTypeID`, so
- * there is nothing in the data to scope by, and of the two seeded template types only Master
- * Agreement has templates behind it (Statement of Work is seeded deliberately unused, because the
- * business does not version its SOW language). Scoping by type would need a schema change and would
- * today narrow a one-element set to itself. Whether `ContractType` should name its template type is
- * open in #114.
+ * SCOPING BY TEMPLATE TYPE (#114): `ContractType.ContractTemplateTypeID` (nullable FK to
+ * `ContractTemplateType`) names the kind of standard agreement a contract of that type incorporates
+ * by default when `TemplateRequired = 1` (Order Form and Payment Link both point at Master Agreement).
+ * When `ContractType.ContractTemplateTypeID` is set, {@link BuildCurrentTemplateFilter} restricts
+ * candidate templates to that `ContractTemplateTypeID`; when it is null, {@link CurrentTemplateFilter}
+ * falls back to any Published, usable template across all template types.
  *
- * A RETIRED template type is excluded, though (#138): the server refuses a newly selected template
+ * A RETIRED template type is excluded either way (#138): the server refuses a newly selected template
  * whose type is retired, so defaulting one would refuse a save the caller never chose. Both tiers
  * read the candidate through {@link ReadCurrentTemplateID}, so the exclusion cannot drift between
  * them.
@@ -34,6 +35,8 @@
  * @module @mj-biz-apps/contracts-entities
  */
 import type { RunViewParams, RunViewResult, UserInfo } from '@memberjunction/core';
+
+const UUID_SHAPE = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
 
 /**
  * The templates a contract may be started on — an `ExtraFilter`, not a preference.
@@ -50,25 +53,46 @@ import type { RunViewParams, RunViewResult, UserInfo } from '@memberjunction/cor
 export const CurrentTemplateFilter = `Status = 'Published' AND IsUsable = 1`;
 
 /**
+ * Build the `ExtraFilter` for finding a contract type's default template (#114).
+ *
+ * When the selected `ContractType` specifies a `ContractTemplateTypeID` (e.g., Order Form and
+ * Payment Link -> Master Agreement), only Published, usable templates of that `ContractTemplateType`
+ * are eligible. When `contractTemplateTypeID` is null or empty, falls back to {@link CurrentTemplateFilter}.
+ *
+ * Refuses to interpolate a non-UUID `contractTemplateTypeID` into SQL.
+ */
+export function BuildCurrentTemplateFilter(contractTemplateTypeID?: string | null): string {
+    const id = String(contractTemplateTypeID ?? '').trim();
+    if (!id) return CurrentTemplateFilter;
+    if (!UUID_SHAPE.test(id)) {
+        throw new Error(`Refusing to filter templates by ContractTemplateTypeID: '${id}' is not a UUID.`);
+    }
+    return `${CurrentTemplateFilter} AND ContractTemplateTypeID = '${id}'`;
+}
+
+/**
  * The template types a contract may not newly select — `ContractTemplateType.Status = 'Inactive'`,
  * the same value `ContractEntityServer.refuseRetiredSelections()` refuses on (#138).
  */
 export const RetiredTemplateTypeFilter = `Status = 'Inactive'`;
 
 /**
- * {@link CurrentTemplateFilter}, minus templates whose type is retired (#138).
+ * `baseFilter` (by default {@link CurrentTemplateFilter}), minus templates whose type is retired (#138).
  *
  * The retired type IDs are read first and passed in, rather than filtered with a subquery, because
  * `vwContractTemplates` carries the type's name and not its `Status`, and a subquery would have to
  * name the schema and table in one SQL dialect. IDs are quote-escaped before interpolation.
  */
-export function CurrentTemplateFilterExcluding(retiredTemplateTypeIDs: readonly (string | null | undefined)[]): string {
+export function CurrentTemplateFilterExcluding(
+    retiredTemplateTypeIDs: readonly (string | null | undefined)[],
+    baseFilter: string = CurrentTemplateFilter,
+): string {
     const ids = retiredTemplateTypeIDs
         .map((id) => (id ?? '').trim())
         .filter((id) => id.length > 0)
         .map((id) => `'${id.replace(/'/g, "''")}'`);
-    if (ids.length === 0) return CurrentTemplateFilter;
-    return `${CurrentTemplateFilter} AND ContractTemplateTypeID NOT IN (${ids.join(', ')})`;
+    if (ids.length === 0) return baseFilter;
+    return `${baseFilter} AND ContractTemplateTypeID NOT IN (${ids.join(', ')})`;
 }
 
 /**
@@ -152,7 +176,7 @@ export function MayWriteDefaultTemplate(state: TemplateDefaultState): boolean {
 }
 
 /**
- * Take back a template we defaulted, once the type stops wanting one (review of PR #51).
+ * Take back a template we defaulted, once the type stops wanting one.
  *
  * THE BUG THIS EXISTS TO CLOSE. Picking Order Form fills the field in; changing the type to Change
  * Order used to leave it filled, because the defaulting rule saw a type that needs no template and
@@ -213,13 +237,18 @@ export interface CurrentTemplateRead {
 
 /**
  * The newest Published, usable template whose type is not retired: the template a new contract
- * starts on.
+ * starts on. When `contractTemplateTypeID` is given (the contract type's `ContractTemplateTypeID`,
+ * #114), only templates of that type qualify — see {@link BuildCurrentTemplateFilter}.
  *
  * One function for both tiers, so the panel's default and `ContractEntityServer`'s default run the
  * same two reads with the same filters. Each caller decides what a failure means: the panel stays
  * silent, the server logs.
  */
-export async function ReadCurrentTemplateID(runner: TemplateViewRunner, contextUser?: UserInfo): Promise<CurrentTemplateRead> {
+export async function ReadCurrentTemplateID(
+    runner: TemplateViewRunner,
+    contextUser?: UserInfo,
+    contractTemplateTypeID?: string | null,
+): Promise<CurrentTemplateRead> {
     try {
         const retired = await runner.RunView<{ ID: string }>(
             {
@@ -238,7 +267,10 @@ export async function ReadCurrentTemplateID(runner: TemplateViewRunner, contextU
         const current = await runner.RunView<{ ID: string }>(
             {
                 EntityName: 'MJ_BizApps_Contracts: Contract Templates',
-                ExtraFilter: CurrentTemplateFilterExcluding((retired.Results ?? []).map((r) => r.ID)),
+                ExtraFilter: CurrentTemplateFilterExcluding(
+                    (retired.Results ?? []).map((r) => r.ID),
+                    BuildCurrentTemplateFilter(contractTemplateTypeID),
+                ),
                 OrderBy: CurrentTemplateOrderBy,
                 Fields: ['ID'],
                 MaxRows: 1,
@@ -272,7 +304,9 @@ export type TemplateDefaultDecision =
  *
  *   · `readTemplateRequired` — `true` / `false`, or `null` when the type could not be read, which
  *     decides nothing in either direction.
- *   · `readCurrentTemplateID` — only called when the decision is to default.
+ *   · `readCurrentTemplateID` — only called when the decision is to default. When it finds no
+ *     template (none of the type's template type is published, #114), a default this panel wrote for
+ *     the previous type is withdrawn rather than left behind on a type it does not belong to.
  */
 export async function DecideTemplateDefault(
     state: TemplateDefaultState,
@@ -292,6 +326,7 @@ export async function DecideTemplateDefault(
     if (!ShouldDefaultTemplate({ ...state, templateRequired })) return none;
 
     const templateID = await readCurrentTemplateID();
-    if (!isCurrent() || !templateID) return none;
+    if (!isCurrent()) return none;
+    if (!templateID) return holdsOurDefault(state) ? { Action: 'withdraw' } : none;
     return { Action: 'default', TemplateID: templateID };
 }

@@ -21,6 +21,7 @@ import {
     TEMPLATE_PUBLISHED,
 } from '@mj-biz-apps/contracts-entities';
 import {
+    DestroyFixture,
     E_CONTRACT,
     E_MODIFICATION,
     E_PROVISION,
@@ -299,5 +300,7 @@ IntegrationCheckRegistry.Instance.RegisterLifecycle('contracts-graph-save', {
     Setup: async (ctx) => {
         await ResolveContractsFixture(ctx);
     },
-    Teardown: async () => undefined,
+    Teardown: async (ctx) => {
+        await DestroyFixture(ctx);
+    },
 });

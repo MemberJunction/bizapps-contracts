@@ -8,7 +8,7 @@
  * EVERY QUERY GOES THROUGH THE PROVIDER, never `ctx.Pool`. The pool is a different connection
  * (it blocks on the open transaction under READ COMMITTED) and is undefined under `mj test`.
  */
-import { DatabaseProviderBase, RunView, type IMetadataProvider } from '@memberjunction/core';
+import { BaseEntity, DatabaseProviderBase, RunView, type IMetadataProvider } from '@memberjunction/core';
 import { Assert, type IntegrationCheckContext } from '@memberjunction/testing-integration/registry';
 import {
     ContractEntity,
@@ -48,9 +48,12 @@ export const WORLD_NOTE = {
 
 export const WORLD_TEMPLATE_VERSION = 'CTR-WORLD';
 export const WORLD_TEMPLATE_NAME = 'IT Master Agreement';
+export const FIXTURE_COMPANY_NAME = '__mjc-fixture-company';
 
 export interface ContractsFixture {
     CompanyID: string;
+    /** Set when `ResolveContractsFixture` created a fallback company on a clean database (#144). */
+    CreatedCompanyID?: string | null;
     Organizations: {
         northwind: string;
         cascadia: string;
@@ -71,6 +74,19 @@ export interface ContractsFixture {
     ProvisionIDs: string[];
 }
 
+type FixtureCompanyEntity = BaseEntity & {
+    ID: string;
+    Name: string;
+    Description: string;
+    Load(id: string): Promise<boolean>;
+};
+
+type FixtureOrganizationEntity = BaseEntity & {
+    ID: string;
+    Name: string;
+    Status: string;
+};
+
 const CUSTOMERS: ReadonlyArray<{ key: keyof ContractsFixture['Organizations']; name: string }> = [
     { key: 'northwind', name: 'Northwind Association' },
     { key: 'cascadia', name: 'Cascadia Health Society' },
@@ -82,7 +98,7 @@ const IT_PROVISIONS: ReadonlyArray<{ number: string; title: string; text: string
     {
         number: '1',
         title: 'Recitals',
-        text: 'This agreement records the standard terms Blue Cypress offers to every customer of this edition.',
+        text: 'This agreement records the standard terms offered to every customer of this edition.',
     },
     {
         number: '1.9',
@@ -309,7 +325,7 @@ export async function ResolveContractsFixture(ctx: IntegrationCheckContext): Pro
         'fixture: no active contract template type. Push metadata/contract-template-types first.',
     );
 
-    const companyID = await resolveCompany(ctx);
+    const { id: companyID, createdCompanyID } = await ResolveFixtureCompany(ctx);
     const organizations = await resolveOrganizations(ctx);
     const templateID = await ensurePublishedTemplate(ctx, templateTypeID!);
     const provisions = await FindRows<{ ID: string }>(
@@ -326,6 +342,7 @@ export async function ResolveContractsFixture(ctx: IntegrationCheckContext): Pro
 
     cached = {
         CompanyID: companyID,
+        CreatedCompanyID: createdCompanyID,
         Organizations: organizations,
         OrderFormTypeID: orderForm!.ID,
         PaymentLinkTypeID: paymentLink!.ID,
@@ -338,15 +355,48 @@ export async function ResolveContractsFixture(ctx: IntegrationCheckContext): Pro
     return cached;
 }
 
-async function resolveCompany(ctx: IntegrationCheckContext): Promise<string> {
-    const named = await FindId(ctx, E_COMPANY, `Name LIKE '%Blue Cypress%'`);
-    if (named) return named;
+/**
+ * Resolve an `MJ: Companies` row for the integration fixture, creating a fixture-owned row when
+ * the database has no companies (e.g. a clean migrations-only install, #144).
+ */
+export async function ResolveFixtureCompany(
+    ctx: IntegrationCheckContext,
+): Promise<{ id: string; createdCompanyID: string | null }> {
     const any = await FindId(ctx, E_COMPANY, '', 'Name ASC');
-    Assert(
-        !!any,
-        'fixture: no MJ: Companies row. Run the orders catalog-world bundle, or create a company in Explorer.',
-    );
-    return any!;
+    if (any) {
+        return { id: any, createdCompanyID: null };
+    }
+    const company = await ProviderOf(ctx).GetEntityObject<FixtureCompanyEntity>(E_COMPANY, ctx.User);
+    company.NewRecord();
+    company.Name = FIXTURE_COMPANY_NAME;
+    company.Description = 'Fixture company created for integration checks.';
+    await RequireSave(company, 'create fixture company');
+    Assert(!!company.ID, 'fixture: created MJ: Companies row has no ID');
+    return { id: company.ID, createdCompanyID: company.ID };
+}
+
+/**
+ * Tear down fixture-owned rows created by {@link ResolveContractsFixture} (#144) and reset the
+ * cached fixture handle. If committed contracts still reference the created company, the company
+ * is left in place so FK integrity is preserved.
+ */
+export async function DestroyFixture(
+    ctx: IntegrationCheckContext,
+    fixture: ContractsFixture | null = cached,
+): Promise<void> {
+    const createdCompanyID = fixture?.CreatedCompanyID ?? cached?.CreatedCompanyID ?? null;
+    cached = null;
+    if (!createdCompanyID) {
+        return;
+    }
+    const dependentContract = await FindId(ctx, E_CONTRACT, `CompanyID = '${Quote(createdCompanyID)}'`);
+    if (dependentContract) {
+        return;
+    }
+    const company = await ProviderOf(ctx).GetEntityObject<FixtureCompanyEntity>(E_COMPANY, ctx.User);
+    if (await company.Load(createdCompanyID)) {
+        await company.Delete();
+    }
 }
 
 async function resolveOrganizations(ctx: IntegrationCheckContext): Promise<ContractsFixture['Organizations']> {
@@ -375,14 +425,14 @@ async function resolveOrganizations(ctx: IntegrationCheckContext): Promise<Contr
 
 async function createOrganization(ctx: IntegrationCheckContext, name: string): Promise<string | null> {
     try {
-        const org = await ProviderOf(ctx).GetEntityObject(E_ORGANIZATION, ctx.User);
+        const org = await ProviderOf(ctx).GetEntityObject<FixtureOrganizationEntity>(E_ORGANIZATION, ctx.User);
         org.NewRecord();
-        org.Set('Name', name);
-        org.Set('Status', 'Active');
+        org.Name = name;
+        org.Status = 'Active';
         if (!(await org.Save())) {
             return null;
         }
-        const id = String(org.Get('ID') ?? '');
+        const id = String(org.ID ?? '');
         return id || null;
     } catch {
         return null;

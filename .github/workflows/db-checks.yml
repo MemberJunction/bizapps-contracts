@@ -1,0 +1,177 @@
+name: Database Checks
+
+# Replays the full T-SQL migration chain onto a clean SQL Server container and runs:
+#   - test-harnesses/erd-schema-diff.ts (#124)
+#   - test-harnesses/state-derivation.mjs (#157)
+#   - test-harnesses/entity-field-replay-audit.mjs (#113)
+#
+# The integration suite (pnpm run test:integration) is not run here yet, so changes under
+# packages/IntegrationTests do not trigger this workflow.
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [next]
+    paths:
+      - 'migrations/**'
+      - 'metadata/**'
+      - 'test-harnesses/**'
+      - 'docs/ERD.md'
+      - '.github/workflows/db-checks.yml'
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    branches: [next, main]
+    paths:
+      - 'migrations/**'
+      - 'metadata/**'
+      - 'test-harnesses/**'
+      - 'docs/ERD.md'
+      - '.github/workflows/db-checks.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: db-checks-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  db-checks:
+    name: 'db: schema, state & entity-field replay'
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    services:
+      mssql:
+        image: mcr.microsoft.com/mssql/server:2022-latest
+        env:
+          ACCEPT_EULA: 'Y'
+          MSSQL_SA_PASSWORD: 'yourStrong(!)Password123'
+        ports:
+          - 1433:1433
+        options: >-
+          --health-cmd "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P 'yourStrong(!)Password123' -C -Q 'SELECT 1'"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DB_HOST: localhost
+      DB_PORT: 1433
+      DB_DATABASE: bizapps_contracts_ci_${{ github.run_id }}_${{ github.run_attempt }}
+      DB_USERNAME: sa
+      DB_PASSWORD: 'yourStrong(!)Password123'
+      CODEGEN_DB_USERNAME: sa
+      CODEGEN_DB_PASSWORD: 'yourStrong(!)Password123'
+      DB_ENCRYPT: 'false'
+      DB_TRUST_SERVER_CERTIFICATE: 'true'
+
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4.3.0
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 24
+          cache: 'pnpm'
+          cache-dependency-path: 'pnpm-lock.yaml'
+
+      - name: Install sqlcmd
+        run: |
+          if ! command -v sqlcmd &> /dev/null && [ ! -x /opt/mssql-tools18/bin/sqlcmd ]; then
+            curl -fsSL https://packages.microsoft.com/keys/microsoft.asc | sudo gpg --batch --yes --dearmor -o /usr/share/keyrings/microsoft-prod.gpg
+            curl -fsSL https://packages.microsoft.com/config/ubuntu/$(lsb_release -rs)/prod.list | sudo tee /etc/apt/sources.list.d/mssql-release.list
+            sudo apt-get update -qq
+            sudo ACCEPT_EULA=Y apt-get install -y -qq mssql-tools18 unixodbc-dev
+            echo "/opt/mssql-tools18/bin" >> $GITHUB_PATH
+          fi
+
+      - name: Verify sqlcmd is usable
+        run: sqlcmd -S "$DB_HOST,$DB_PORT" -U "$DB_USERNAME" -P "$DB_PASSWORD" -C -b -Q "SELECT @@VERSION"
+
+      - name: Resolve the MJ core tag from mj-app.json
+        id: mj
+        run: |
+          TAG=$(node -e "
+            const range = require('./mj-app.json').mjVersionRange || '';
+            const m = range.match(/>=\s*([0-9][^\s]*)/);
+            if (!m) { console.error('Cannot parse mjVersionRange: ' + JSON.stringify(range)); process.exit(1); }
+            console.log('v' + m[1]);
+          ")
+          echo "Building against MJ core $TAG"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: Create the clean-room database
+        run: |
+          sqlcmd -S "$DB_HOST,$DB_PORT" -U "$DB_USERNAME" -P "$DB_PASSWORD" -C -b -Q \
+            "CREATE DATABASE [$DB_DATABASE]; ALTER AUTHORIZATION ON DATABASE::[$DB_DATABASE] TO [sa];"
+
+      - name: Install MJ core
+        run: pnpm exec mj migrate --tag ${{ steps.mj.outputs.tag }} --verbose
+
+      - name: Seed minimal __mj_BizAppsCommon cross-schema prerequisites
+        run: |
+          sqlcmd -S "$DB_HOST,$DB_PORT" -U "$DB_USERNAME" -P "$DB_PASSWORD" -C -I -b -d "$DB_DATABASE" -Q "
+            IF SCHEMA_ID('__mj_BizAppsCommon') IS NULL
+              EXEC('CREATE SCHEMA [__mj_BizAppsCommon]');
+
+            IF OBJECT_ID('[__mj_BizAppsCommon].[Organization]', 'U') IS NULL
+            BEGIN
+              CREATE TABLE [__mj_BizAppsCommon].[Organization] (
+                [ID] UNIQUEIDENTIFIER NOT NULL CONSTRAINT [PK_Common_Organization] PRIMARY KEY DEFAULT (newsequentialid()),
+                [Name] NVARCHAR(255) NOT NULL,
+                [Status] NVARCHAR(50) NOT NULL DEFAULT (N'Active'),
+                [__mj_CreatedAt] DATETIMEOFFSET NOT NULL DEFAULT (getutcdate()),
+                [__mj_UpdatedAt] DATETIMEOFFSET NOT NULL DEFAULT (getutcdate())
+              );
+              EXEC('CREATE VIEW [__mj_BizAppsCommon].[vwOrganizations] AS SELECT * FROM [__mj_BizAppsCommon].[Organization]');
+            END;
+
+            IF OBJECT_ID('[__mj_BizAppsCommon].[Person]', 'U') IS NULL
+            BEGIN
+              CREATE TABLE [__mj_BizAppsCommon].[Person] (
+                [ID] UNIQUEIDENTIFIER NOT NULL CONSTRAINT [PK_Common_Person] PRIMARY KEY DEFAULT (newsequentialid()),
+                [FirstName] NVARCHAR(100) NOT NULL DEFAULT (N''),
+                [LastName] NVARCHAR(100) NOT NULL DEFAULT (N''),
+                [DisplayName] NVARCHAR(255) NOT NULL DEFAULT (N''),
+                [Status] NVARCHAR(50) NOT NULL DEFAULT (N'Active'),
+                [__mj_CreatedAt] DATETIMEOFFSET NOT NULL DEFAULT (getutcdate()),
+                [__mj_UpdatedAt] DATETIMEOFFSET NOT NULL DEFAULT (getutcdate())
+              );
+              EXEC('CREATE VIEW [__mj_BizAppsCommon].[vwPeople] AS SELECT * FROM [__mj_BizAppsCommon].[Person]');
+            END;
+
+            IF OBJECT_ID('[__mj_BizAppsCommon].[fnBusinessToday]', 'IF') IS NULL
+              EXEC('CREATE FUNCTION [__mj_BizAppsCommon].[fnBusinessToday]() RETURNS TABLE AS RETURN (SELECT CAST(GETUTCDATE() AS DATE) AS [Today], CAST(N''UTC'' AS NVARCHAR(128)) AS [SqlZone])');
+
+            IF NOT EXISTS (SELECT 1 FROM [__mj].[Entity] WHERE ID = 'C70448F9-9792-41D7-A82C-784B66429D54')
+              INSERT INTO [__mj].[Entity] (ID, Name, SchemaName, BaseTable, BaseView, VirtualEntity)
+              VALUES ('C70448F9-9792-41D7-A82C-784B66429D54', N'MJ_BizApps_Common: Organizations', N'__mj_BizAppsCommon', N'Organization', N'vwOrganizations', 0);
+
+            IF NOT EXISTS (SELECT 1 FROM [__mj].[Entity] WHERE ID = '7A94ADA9-7880-4FAE-97D8-DB0E934C3F5F')
+              INSERT INTO [__mj].[Entity] (ID, Name, SchemaName, BaseTable, BaseView, VirtualEntity)
+              VALUES ('7A94ADA9-7880-4FAE-97D8-DB0E934C3F5F', N'MJ_BizApps_Common: People', N'__mj_BizAppsCommon', N'Person', N'vwPeople', 0);
+          "
+
+      - name: Apply bizapps-contracts migration chain
+        run: |
+          for f in migrations/B*.sql migrations/V*.sql; do
+            echo "=== Applying $f ==="
+            sed -e 's/\${flyway:defaultSchema}/__mj_BizAppsContracts/g' -e 's/\${mjSchema}/__mj/g' "$f" > /tmp/mjc_mig.sql
+            sqlcmd -S "$DB_HOST,$DB_PORT" -U "$DB_USERNAME" -P "$DB_PASSWORD" -C -I -b -d "$DB_DATABASE" -i /tmp/mjc_mig.sql
+          done
+          rm -f /tmp/mjc_mig.sql
+
+      - name: Check docs/ERD.md against live database schema (#124)
+        run: pnpm run test:erd
+
+      - name: Check vwContracts State and NonRenewalOutcome derivation (#157)
+        run: pnpm run test:state
+
+      - name: Audit __mj.EntityField rows after migration replay (#113)
+        run: pnpm run test:entity-fields

@@ -11,7 +11,7 @@
  * the work, and the event dies inside the wrapper. Every FK link in every wrapper-hosted grid is inert.
  *
  * That is a silent-failure UI bug of the worst kind — the affordance advertises navigation that cannot
- * happen — and it is why Marcelo hit it immediately on the modifications grid.
+ * happen, immediately visible on grids such as the modifications list.
  *
  * WHY A DIRECTIVE, and why this is not a DOM hack. The wrapper exposes the inner grid publicly
  * (`@ViewChild('innerGrid') innerGrid!: EntityDataGridComponent`), so a directive on the same host

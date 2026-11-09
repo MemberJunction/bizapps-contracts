@@ -10,17 +10,20 @@
       "                           (CK_ContractType_RootOrChild); BOTH FALSE means unrestricted, which",
       "                           is the honest default and what two of these four want.",
       "  TemplateRequired         whether a contract of this type must carry its own ContractTemplateID.",
+      "  ContractTemplateTypeID   which ContractTemplateType a contract of this type incorporates by",
+      "                           default when TemplateRequired = 1 (Order Form and Payment Link both",
+      "                           incorporate Master Agreement; types with TemplateRequired = 0 leave it null).",
       "",
       "Code is the identifier other apps use to find a type (bizapps-sales' close-won policy names",
       "ORDER_FORM). It is not a label: renaming a type leaves its Code alone. V202610122200 set these",
       "four by ID on every existing database; they are repeated here so a push states the same value.",
       "",
-      "MustBeRoot/MustBeChild REPLACED the three-state ParentStatusRequirement string (V202608200300,",
-      "ruled by Marcelo 2026-08-20): a column whose values invert the rule when read in the wrong order",
+      "MustBeRoot/MustBeChild REPLACED the three-state ParentStatusRequirement string (V202608200300):",
+      "a column whose values invert the rule when read in the wrong order",
       "is a column that will eventually be read in the wrong order.",
       "",
       "ORDER FORM AND PAYMENT LINK ARE ACTIVE. They were retired (Status = Inactive) under R-4 on the",
-      "reasoning that contracts does no billing, so neither belonged. REVERSED by Marcelo 2026-08-20: both",
+      "reasoning that contracts does no billing, so neither belonged. Reversed 2026-08-20: both",
       "are real agreement shapes regardless of who bills, and 7 of the 9 existing contracts use them.",
       "Their two rule columns differ in exactly the way the columns exist to express:",
       "",
@@ -35,7 +38,7 @@
       "are entirely in a template it need not cite has no stated terms at all. Corrected here.",
       "",
       "  Statement of Work  TemplateRequired = 0. SOWs have standard language but no versioned template",
-      "                (ruled 2026-08-18, see its Description), so an SOW carries no ContractTemplateID.",
+      "                (see its Description), so an SOW carries no ContractTemplateID.",
       "                It previously carried 1, which refused every SOW on an install with no Published",
       "                template and, once a Master Agreement was published, had the server default attach",
       "                that MA to every SOW (#95).",
@@ -55,12 +58,13 @@
     "fields": {
       "Name": "Order Form",
       "Code": "ORDER_FORM",
-      "Description": "The commercial document a customer signs to buy — the ordinary agreement. Sits beneath a Master Agreement whose provisions it incorporates by reference, which is why the Order Form carries the ContractTemplateID rather than the MA carrying anything about it — hence TemplateRequired = 1. Signed paper is expected (RequiresExecutedDocument = 1), so it appears on the Awaiting-documents worklist until the executed file is registered. Reinstated Active 2026-08-20 (Marcelo), reversing the R-4 retirement.",
+      "Description": "The commercial document a customer signs to buy — the ordinary agreement. Sits beneath a Master Agreement whose provisions it incorporates by reference, which is why the Order Form carries the ContractTemplateID rather than the MA carrying anything about it — hence TemplateRequired = 1. Signed paper is expected (RequiresExecutedDocument = 1), so it appears on the Awaiting-documents worklist until the executed file is registered. Reinstated Active 2026-08-20, reversing the R-4 retirement.",
       "RequiresExecutedDocument": true,
       "Status": "Active",
       "MustBeRoot": false,
       "MustBeChild": false,
-      "TemplateRequired": true
+      "TemplateRequired": true,
+      "ContractTemplateTypeID": "@lookup:MJ_BizApps_Contracts: Contract Template Types.Name=Master Agreement"
     },
     "primaryKey": {
       "ID": "33333333-0000-4000-8000-000000001001"
@@ -79,7 +83,8 @@
       "Status": "Active",
       "MustBeRoot": true,
       "MustBeChild": false,
-      "TemplateRequired": false
+      "TemplateRequired": false,
+      "ContractTemplateTypeID": null
     },
     "primaryKey": {
       "ID": "33333333-0000-4000-8000-000000001002"
@@ -93,12 +98,13 @@
     "fields": {
       "Name": "Payment Link",
       "Code": "PAYMENT_LINK",
-      "Description": "The sub-$10k self-serve case: finance sends a HubSpot payment link that references the Master Agreement, and nobody signs anything. There is an implied contract, so it IS a contract — it carries a ContractTemplateID (TemplateRequired = 1, because the MA it incorporates is the only thing stating the terms) and no document. This is the one type where RequiresExecutedDocument is false, and the reason that column exists at all: it is what keeps a Payment Link OFF the Awaiting-documents worklist instead of sitting there forever waiting on paper that will never arrive. Reinstated Active 2026-08-20 (Marcelo), reversing the R-4 retirement; final shape pending Andrew's confirmation.",
+      "Description": "The sub-$10k self-serve case: finance sends a HubSpot payment link that references the Master Agreement, and nobody signs anything. There is an implied contract, so it IS a contract — it carries a ContractTemplateID (TemplateRequired = 1, because the MA it incorporates is the only thing stating the terms) and no document. This is the one type where RequiresExecutedDocument is false, and the reason that column exists at all: it is what keeps a Payment Link OFF the Awaiting-documents worklist instead of sitting there forever waiting on paper that will never arrive. Reinstated Active 2026-08-20, reversing the R-4 retirement; its final shape is not yet confirmed.",
       "RequiresExecutedDocument": false,
       "Status": "Active",
       "MustBeRoot": false,
       "MustBeChild": false,
-      "TemplateRequired": true
+      "TemplateRequired": true,
+      "ContractTemplateTypeID": "@lookup:MJ_BizApps_Contracts: Contract Template Types.Name=Master Agreement"
     },
     "primaryKey": {
       "ID": "33333333-0000-4000-8000-000000001003"
@@ -117,7 +123,8 @@
       "Status": "Active",
       "MustBeRoot": false,
       "MustBeChild": true,
-      "TemplateRequired": false
+      "TemplateRequired": false,
+      "ContractTemplateTypeID": null
     },
     "primaryKey": {
       "ID": "33333333-0000-4000-8000-000000001004"

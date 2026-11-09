@@ -178,7 +178,7 @@ export class MJCTemplateTypesPageComponent extends MJCConfigPageBase {
 }
 
 /*
- * THE NUMBERING PAGE IS GONE (Marcelo, 2026-08-20), and this note is why rather than a gap.
+ * THE NUMBERING PAGE IS GONE, and this note explains why rather than leaving a gap.
  *
  * It existed to display and edit the contract-number counter. R-7 replaced that counter table with a
  * SQL SEQUENCE, which removed the entity, the grid and the editable field — leaving a page whose only

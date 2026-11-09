@@ -1,0 +1,26 @@
+[
+  {
+    "_comments": [
+      "Which SECTION of the generated Contract Type form ContractType.ContractTemplateTypeID appears in:",
+      "with RequiresExecutedDocument, MustBeRoot, MustBeChild, and TemplateRequired under 'Configuration Rules'."
+    ],
+    "fields": {
+      "Category": "Configuration Rules",
+      "GeneratedFormSection": "Category",
+      "DisplayName": "Default Template Type"
+    },
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entity Fields.Entity=MJ_BizApps_Contracts: Contract Types&Name=ContractTemplateTypeID"
+    }
+  },
+  {
+    "fields": {
+      "Category": "Configuration Rules",
+      "GeneratedFormSection": "Category",
+      "DisplayName": "Default Template Type Name"
+    },
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entity Fields.Entity=MJ_BizApps_Contracts: Contract Types&Name=ContractTemplateType"
+    }
+  }
+]
