@@ -29,6 +29,7 @@ import {
     type ContractTypeRenewalDefaults,
     type RenewalSeed,
 } from './renewal-defaults';
+import { ReadContractTypeByID, type ContractTypeCachedRow } from './contract-type-cache';
 
 /**
  * Guards an ID before it is interpolated into a filter. Mirrors `ContractEntityServer`'s own guard;
@@ -40,7 +41,7 @@ const UUID_SHAPE = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}
 /**
  * Do two contracts sit at the SAME LEVEL of the tree — i.e. may one supersede the other?
  *
- * The pure half of the same-level supersession rule (ruled by Marcelo, 2026-08-20). A free function
+ * The pure half of the same-level supersession rule. A free function
  * taking plain values for the same reason `FindDuplicateProvisionIDs` is one: the decision has three
  * cases and two of them are easy to get backwards, and none of them needs a database to check.
  *
@@ -422,28 +423,25 @@ export class ContractEntity extends mjBizAppsContractsContractEntity {
     }
 
     /**
+     * Read the currently selected `ContractType` row through the shared per-provider cache (#150),
+     * so `SeedRenewalDefaultsFromType()` and `MJCContractAgreementPanel` share one `RunView` when
+     * `ContractTypeID` changes on an unsaved contract.
+     */
+    public async ReadSelectedContractType(): Promise<ContractTypeCachedRow | null> {
+        const id = String(this.ContractTypeID ?? '').trim();
+        if (!UUID_SHAPE.test(id)) return null;
+        return ReadContractTypeByID(this.RunViewProviderToUse, id, this.ContextCurrentUser);
+    }
+
+    /**
      * The selected type's four default columns, or null when no type is selected — which restores the
      * pristine values rather than leaving the departing type's numbers behind.
      *
-     * One `RunView` rather than an entity load: four scalars are wanted and none of the type's rules
-     * are, and this runs on a keystroke-adjacent path (picking from a dropdown). The UUID is shape-
-     * checked before it reaches `ExtraFilter` for the same reason `ContractEntityServer` checks the
-     * one it walks the lineage with — this string is concatenated into SQL.
+     * Goes through {@link ReadSelectedContractType} (#150) so picking a type on the form issues one
+     * `RunView` shared between renewal seeding and template defaulting.
      */
     private async loadRenewalDefaults(): Promise<ContractTypeRenewalDefaults | null> {
-        const id = String(this.ContractTypeID ?? '').trim();
-        if (!UUID_SHAPE.test(id)) return null;
-
-        const result = await this.RunViewProviderToUse.RunView<ContractTypeRenewalDefaults>(
-            {
-                EntityName: 'MJ_BizApps_Contracts: Contract Types',
-                ExtraFilter: `ID = '${id}'`,
-                Fields: RENEWAL_SEED_FIELDS.map((f) => f.TypeField),
-                ResultType: 'simple',
-            },
-            this.ContextCurrentUser,
-        );
-        return result?.Results?.[0] ?? null;
+        return this.ReadSelectedContractType();
     }
 
     /**

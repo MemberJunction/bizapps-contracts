@@ -8,7 +8,7 @@
  * the control moved to a plain field panel in the Details group, which has no such constraint.
  * Lineage keeps the tree and the read-only facts.
  *
- * ALWAYS VISIBLE, not gated on EditMode (Marcelo, 2026-08-21). Re-papering is a deliberate act with
+ * ALWAYS VISIBLE, not gated on EditMode. Re-papering is a deliberate act with
  * its own confirm button that writes another record in its own save — it is not one of the form's
  * fields, so hiding it until the form happens to be in edit mode only made it hard to find. Its
  * button is what commits, so showing it in read mode changes nothing until pressed.
@@ -78,7 +78,7 @@ interface Candidate {
                 <label class="mj-forms-field-label">Supersedes</label>
                 <div class="mj-forms-field-control">
 
-                    <!-- AVAILABLE WHEN NOT EDITING, unavailable while editing (Marcelo, 2026-08-21).
+                    <!-- AVAILABLE WHEN NOT EDITING, unavailable while editing.
                          Inverted from the usual field pattern on purpose: this control does not edit a
                          field on THIS record, it writes the OTHER contract. It therefore needs this
                          contract SAVED - a predecessor cannot point at a row that does not exist yet -

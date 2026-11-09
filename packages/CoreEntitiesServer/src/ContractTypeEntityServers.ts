@@ -73,6 +73,11 @@ export class ContractTemplateTypeEntityServer extends ContractTemplateTypeEntity
                     Filter: `ContractTemplateTypeID = '${this.ID}'`,
                     Describe: (n) => `${plural(n, 'template')} ${n === 1 ? 'is' : 'are'} of this type. ${RETIRE_INSTEAD}`,
                 },
+                {
+                    EntityName: 'MJ_BizApps_Contracts: Contract Types',
+                    Filter: `ContractTemplateTypeID = '${this.ID}'`,
+                    Describe: (n) => `${plural(n, 'contract type')} ${n === 1 ? 'uses' : 'use'} this as ${n === 1 ? 'its' : 'their'} default template type. ${RETIRE_INSTEAD}`,
+                },
             ],
             (o) => super.Delete(o),
         );

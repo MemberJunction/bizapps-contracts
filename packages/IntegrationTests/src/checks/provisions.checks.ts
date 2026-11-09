@@ -13,6 +13,7 @@ import {
 } from '@memberjunction/testing-integration/registry';
 import {
     CONTRACTS_SCHEMA,
+    DestroyFixture,
     E_PROVISION,
     E_TEMPLATE,
     FindId,
@@ -206,5 +207,7 @@ IntegrationCheckRegistry.Instance.RegisterLifecycle('contracts-provisions', {
     Setup: async (ctx) => {
         await ResolveContractsFixture(ctx);
     },
-    Teardown: async () => undefined,
+    Teardown: async (ctx) => {
+        await DestroyFixture(ctx);
+    },
 });

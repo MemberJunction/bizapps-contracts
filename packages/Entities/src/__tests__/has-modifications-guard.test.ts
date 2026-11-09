@@ -13,7 +13,7 @@
  * That last row is where a real defect lived. The shared class's comment claimed the server settled
  * the unknown case, and no server check existed — so the ordinary path (load a contract, its
  * modifications not loaded, untick the box, save) succeeded and left the flag false with rows in the
- * table. Found on review of PR #9. This file pins the DECISION TABLE, which is the part a future
+ * table. This file pins the DECISION TABLE, which is the part a future
  * refactor can silently get wrong; the server's `EXISTS` needs a database and is item 13's
  * `contracts-graph-save` bundle.
  *

@@ -144,7 +144,7 @@ describe('item 1 — the source record, as a chip on the shared Related row', ()
     it('leaves the label to the resolved entity, never a hardcoded "Deal"', () => {
         // `LabelPrefix` has the shared row compose the prefix with the entity's own singular name, so
         // a pair naming Orders reads "Source Order" with no edit here. A literal `Label` on this
-        // descriptor would be exactly the hardcoding item 1 ruled out: the pair is polymorphic, and
+        // descriptor would be the hardcoding item 1 rejected: the pair is polymorphic, and
         // sales being its only writer today is not a promise about tomorrow.
         expect(relatedLinks()).toContain("LabelPrefix: 'Source'");
         expect(relatedLinks()).not.toMatch(/\bLabel:/);

@@ -1,8 +1,8 @@
 {
   "name": "@mj-biz-apps/contracts-actions",
-  "version": "0.9.1",
+  "version": "0.10.0",
   "type": "module",
-  "description": "MJ Actions exposed by this app (generated subclasses + hand-written actions). TODO(template): rename.",
+  "description": "MemberJunction Actions exposed by the Contracts application (generated subclasses and hand-written actions).",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {

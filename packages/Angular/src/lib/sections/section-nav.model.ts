@@ -73,12 +73,12 @@ export const CONTRACTS_SUB_PAGES: MJCSubPage[] = [
  *
  * The rail says "All templates". It used to say "Agreement versions", on the reasoning that a row
  * here is one DATED version of the Master Agreement, never edited in place (signed contracts
- * reference it), and that the word "template" invites editing. Marcelo overruled that on
- * 2026-08-19: the section is already called Templates, so a child item naming a different noun
- * makes the reader work out that the two are the same thing. Parallel with "All provisions"
- * below, and with "All contracts" in the Contracts rail — "All <the thing>" is this app's word
- * for the unfiltered list. The don't-edit-in-place rule is enforced by the schema and stated on
- * the page, which is where it belongs rather than in a nav label.
+ * reference it), and that the word "template" invites editing. However, the section is already
+ * called Templates, so a child item naming a different noun makes the reader work out that the
+ * two are the same thing. Parallel with "All provisions" below, and with "All contracts" in the
+ * Contracts rail — "All <the thing>" is this app's word for the unfiltered list. The
+ * don't-edit-in-place rule is enforced by the schema and stated on the page, which is where it
+ * belongs rather than in a nav label.
  */
 export const TEMPLATES_SUB_PAGES: MJCSubPage[] = [
     { Id: 'versions', Label: 'All templates', Icon: 'fa-solid fa-file-lines', Description: 'One row per published MA' },

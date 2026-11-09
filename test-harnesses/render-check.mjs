@@ -1,7 +1,7 @@
 /**
  * Ad-hoc RENDER CHECK — does the app actually appear and show data?
  *
- * NOT part of the app's test suite. Playwright is out of scope for v2 (ruled 2026-08-19): the tiered
+ * NOT part of the app's test suite. Playwright is out of scope for v2: the tiered
  * suite belongs to MJ's integration testing framework, and item 13's bundles are where behaviour gets
  * asserted. This script exists for one narrower reason — it catches a class of defect that nothing
  * else in this repo can, which it proved twice in one session:
@@ -23,7 +23,7 @@
  *
  * Drives SYSTEM Chrome (`channel: 'chrome'`) so no Playwright browser download is needed.
  */
-import { chromium } from '/Users/marcelotorres/MJDev/instances/contracts-mj6/node_modules/.pnpm/playwright@1.58.1/node_modules/playwright/index.mjs';
+import { chromium } from 'playwright';
 import fs from 'fs';
 const URL = fs.readFileSync('/tmp/mjcurl.txt', 'utf8').trim();
 const shot = (p, n) => p.screenshot({ path: `/tmp/mjj-${n}.png`, fullPage: false }).catch(() => {});

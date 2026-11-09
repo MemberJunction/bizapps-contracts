@@ -14,6 +14,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import {
+    BuildCurrentTemplateFilter,
     CurrentTemplateFilter,
     CurrentTemplateOrderBy,
     MayWriteDefaultTemplate,
@@ -40,6 +41,27 @@ describe('CurrentTemplateFilter — which templates may be defaulted', () => {
      */
     it('joins them with AND rather than offering either', () => {
         expect(CurrentTemplateFilter).toBe(`Status = 'Published' AND IsUsable = 1`);
+    });
+});
+
+describe('BuildCurrentTemplateFilter — scoping by ContractType.ContractTemplateTypeID (#114)', () => {
+    const MASTER_AGREEMENT_TYPE_ID = '33333333-0000-4000-8000-000000002001';
+
+    it('falls back to CurrentTemplateFilter when contractTemplateTypeID is null, undefined, or blank', () => {
+        expect(BuildCurrentTemplateFilter()).toBe(CurrentTemplateFilter);
+        expect(BuildCurrentTemplateFilter(null)).toBe(CurrentTemplateFilter);
+        expect(BuildCurrentTemplateFilter(undefined)).toBe(CurrentTemplateFilter);
+        expect(BuildCurrentTemplateFilter('   ')).toBe(CurrentTemplateFilter);
+    });
+
+    it('scopes to ContractTemplateTypeID when the ContractType names a default template type', () => {
+        expect(BuildCurrentTemplateFilter(MASTER_AGREEMENT_TYPE_ID)).toBe(
+            `Status = 'Published' AND IsUsable = 1 AND ContractTemplateTypeID = '${MASTER_AGREEMENT_TYPE_ID}'`,
+        );
+    });
+
+    it('refuses to interpolate a non-UUID into the SQL filter', () => {
+        expect(() => BuildCurrentTemplateFilter("' OR 1=1 --")).toThrow(/not a UUID/);
     });
 });
 
@@ -173,7 +195,7 @@ describe('ShouldDefaultTemplate — the whole rule', () => {
 
 describe('ShouldWithdrawDefaultTemplate — a default leaves with the type that supplied it', () => {
     /**
-     * THE BUG THE REVIEW OF PR #51 FOUND, stated as its reproduction: new contract, type Order Form,
+     * Reproduction of the withdrawal scenario: new contract, type Order Form,
      * watch the template fill in, change the type to Change Order. The template used to stay, and
      * the contract saved carrying standard terms nobody chose — `ContractEntityServer` refuses a
      * MISSING template on a type that requires one and says nothing about a present one on a type
