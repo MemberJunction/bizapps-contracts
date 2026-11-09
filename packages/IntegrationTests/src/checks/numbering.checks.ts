@@ -14,6 +14,7 @@ import {
     type NamedCheck,
 } from '@memberjunction/testing-integration/registry';
 import {
+    DestroyFixture,
     InRolledBackTransaction,
     NewContract,
     RefuseSave,
@@ -118,5 +119,7 @@ IntegrationCheckRegistry.Instance.RegisterLifecycle('contracts-numbering', {
     Setup: async (ctx) => {
         await ResolveContractsFixture(ctx);
     },
-    Teardown: async () => undefined,
+    Teardown: async (ctx) => {
+        await DestroyFixture(ctx);
+    },
 });

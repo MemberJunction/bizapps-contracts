@@ -17,7 +17,7 @@
  * WHY NOT A CHECK CONSTRAINT: a CHECK sees one row's final state, not the transition. "Was Published,
  * is now Draft" is a comparison against `OldValue`, which only the entity layer has.
  *
- * WHY PROVISION-LEVEL DEACTIVATION WAS REJECTED (Marcelo, 2026-08-20), recorded so it is not
+ * WHY PROVISION-LEVEL DEACTIVATION WAS REJECTED, recorded so it is not
  * re-proposed: soft-deleting provisions would build a second, finer-grained versioning system beside
  * the one that already exists, and "what did this customer sign" would degrade from "template T" into
  * "the provisions of T that were active on date X" — a temporal query, which is exactly what

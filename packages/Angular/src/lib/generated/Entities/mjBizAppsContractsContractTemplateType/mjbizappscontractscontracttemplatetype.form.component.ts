@@ -18,7 +18,8 @@ export class mjBizAppsContractsContractTemplateTypeFormComponent extends BaseFor
         this.initSections([
             { sectionKey: 'contractTemplateDetails', sectionName: 'Contract Template Details', isExpanded: true },
             { sectionKey: 'systemMetadata', sectionName: 'System Metadata', isExpanded: false },
-            { sectionKey: 'mJBizAppsContractsContractTemplates', sectionName: 'Contract Templates', isExpanded: false }
+            { sectionKey: 'mJBizAppsContractsContractTemplates', sectionName: 'Contract Templates', isExpanded: false },
+            { sectionKey: 'mJBizAppsContractsContractTypes', sectionName: 'Contract Types', isExpanded: false }
         ]);
     }
 }

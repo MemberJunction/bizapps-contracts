@@ -114,7 +114,6 @@ module.exports = {
     schemaPlaceholders: [
       // Order matters: more-specific schema names must come first (greedy
       // sequential substitution).
-      // TODO(template): your schema name here:
       { schema: '__mj_BizAppsContracts', placeholder: '${flyway:defaultSchema}' },
       { schema: '__mj', placeholder: '${mjSchema}' },
     ],

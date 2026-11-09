@@ -85,8 +85,8 @@ const pool = await new sql.ConnectionPool({
  * nothing caught either, because nothing tested the boundary.
  *
  * MOVED AGAIN 2026-08-30, and this one is a DECISION rather than a third oscillation. `terminated TODAY`
- * expected Active, on the reading that a contract is in force through the end of its last day. Andrew
- * settled it the other way in contracts#28 item 13: terminated means terminated FROM that date, which is
+ * expected Active, on the reading that a contract is in force through the end of its last day. Item 13
+ * settled it the other way: terminated means terminated FROM that date, which is
  * also what the Dates tab has always told the user it means. `V202608300100` moves the view from `<` to
  * `<=` to match, and this fixture is what proves the view actually moved.
  *
@@ -113,16 +113,50 @@ const fmt = (v) => (v === null ? 'NULL' : String(v));
 
 const token = `ZZTEST-${process.pid}-${Date.now().toString(36).toUpperCase()}`;
 let failures = 0;
+let createdCompanyID = null;
+let createdOrgID = null;
 
 try {
     const ids = await pool.request().query(`
         SELECT TOP 1
-            (SELECT TOP 1 ID FROM [${schema}].[ContractType])                 AS TypeID,
-            (SELECT TOP 1 CompanyID FROM [${schema}].[Contract])              AS CompanyID,
-            (SELECT TOP 1 CustomerOrganizationID FROM [${schema}].[Contract]) AS OrgID`);
-    const { TypeID, CompanyID, OrgID } = ids.recordset[0] ?? {};
-    if (!TypeID || !CompanyID || !OrgID) {
-        console.error('BOOTSTRAP: no existing type/company/organisation to borrow FK values from.');
+            (SELECT TOP 1 ID FROM [${schema}].[ContractType]) AS TypeID,
+            COALESCE(
+                (SELECT TOP 1 CompanyID FROM [${schema}].[Contract]),
+                (SELECT TOP 1 ID FROM [__mj].[Company])
+            ) AS CompanyID,
+            COALESCE(
+                (SELECT TOP 1 CustomerOrganizationID FROM [${schema}].[Contract]),
+                (SELECT TOP 1 ID FROM [__mj_BizAppsCommon].[Organization])
+            ) AS OrgID`);
+    let { TypeID, CompanyID, OrgID } = ids.recordset[0] ?? {};
+    if (!TypeID) {
+        console.error('BOOTSTRAP: no ContractType rows exist in this database.');
+        process.exit(2);
+    }
+    if (!CompanyID) {
+        const createdCo = await pool.request()
+            .input('name', `${token}-COMPANY`)
+            .query(`
+                DECLARE @coId uniqueidentifier = NEWID();
+                INSERT INTO [__mj].[Company] (ID, Name, Description)
+                VALUES (@coId, @name, N'Temporary company for state-derivation harness');
+                SELECT @coId AS ID;`);
+        CompanyID = createdCo.recordset[0]?.ID;
+        createdCompanyID = CompanyID;
+    }
+    if (!OrgID) {
+        const createdOrg = await pool.request()
+            .input('name', `${token}-ORG`)
+            .query(`
+                DECLARE @orgId uniqueidentifier = NEWID();
+                INSERT INTO [__mj_BizAppsCommon].[Organization] (ID, Name, Status)
+                VALUES (@orgId, @name, N'Active');
+                SELECT @orgId AS ID;`);
+        OrgID = createdOrg.recordset[0]?.ID;
+        createdOrgID = OrgID;
+    }
+    if (!CompanyID || !OrgID) {
+        console.error('BOOTSTRAP: could not resolve or create Company/Organization FK rows.');
         process.exit(2);
     }
 
@@ -198,6 +232,16 @@ try {
 } finally {
     const cleanup = await pool.request()
         .query(`DELETE FROM [${schema}].[Contract] WHERE ContractNumber LIKE '${token}-%'`);
+    if (createdOrgID) {
+        await pool.request()
+            .input('orgId', createdOrgID)
+            .query(`DELETE FROM [__mj_BizAppsCommon].[Organization] WHERE ID = @orgId`);
+    }
+    if (createdCompanyID) {
+        await pool.request()
+            .input('coId', createdCompanyID)
+            .query(`DELETE FROM [__mj].[Company] WHERE ID = @coId`);
+    }
     console.log(`Fixture cleanup: removed ${cleanup.rowsAffected[0]} row(s).`);
 }
 

@@ -23,12 +23,13 @@
  *
  * @module @mj-biz-apps/contracts-entities
  */
-import { BaseEntity, ValidationResult } from '@memberjunction/core';
+import { BaseEntity, type EntityDeleteOptions, EntitySaveOptions, ValidationResult } from '@memberjunction/core';
 import { RegisterClass } from '@memberjunction/global';
 import {
     mjBizAppsContractsContractTemplateTypeEntity,
     mjBizAppsContractsContractTypeEntity,
 } from './generated/entity_subclasses';
+import { InvalidateContractTypeCache } from './contract-type-cache';
 import { ValidateValueLists } from './value-list-validation';
 
 /**
@@ -51,6 +52,44 @@ export class ContractTypeEntity extends mjBizAppsContractsContractTypeEntity {
         const result = super.Validate();
         ValidateValueLists(this, result);
         return result;
+    }
+
+    /**
+     * Forces the write when `DefaultAutoRenew` moves between "No" (`false`) and "no default" (`null`)
+     * (#149). MJ's `EntityField.Dirty` compares `bit` fields through `convertToBoolean`, which turns
+     * `null` into `false`, so those two transitions look clean: `BaseEntity` skips the provider and
+     * `Save()` still returns `true`. The override lives on the shared class because MJAPI's
+     * `UpdateRecord` goes through the same dirty gate. Remove it once `EntityField.Dirty` treats `null`
+     * and `false` as different on a nullable `bit`.
+     */
+    public override async Save(options?: EntitySaveOptions): Promise<boolean> {
+        const saveOptions = this.defaultAutoRenewNullnessChanged()
+            ? { ...(options ?? new EntitySaveOptions()), IgnoreDirtyState: true }
+            : options;
+        const saved = await super.Save(saveOptions);
+        if (saved) {
+            InvalidateContractTypeCache(this.RunViewProviderToUse, this.ID);
+        }
+        return saved;
+    }
+
+    public override async Delete(options?: EntityDeleteOptions): Promise<boolean> {
+        // `BaseEntity.Delete()` ends in `NewRecord()`, which assigns a fresh ID, so read it first.
+        const deletedID = this.ID;
+        const deleted = await super.Delete(options);
+        if (deleted) {
+            InvalidateContractTypeCache(this.RunViewProviderToUse, deletedID);
+        }
+        return deleted;
+    }
+
+    /** True on a saved record whose `DefaultAutoRenew` went from null to a value or back. */
+    private defaultAutoRenewNullnessChanged(): boolean {
+        if (!this.IsSaved) return false;
+        const field = this.GetFieldByName('DefaultAutoRenew');
+        if (!field) return false;
+        const isNull = (v: unknown) => v === null || v === undefined;
+        return isNull(field.OldValue) !== isNull(field.Value);
     }
 }
 
