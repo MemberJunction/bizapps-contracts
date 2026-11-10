@@ -1,5 +1,12 @@
 # @mj-biz-apps/contracts-entities
 
+## 0.12.0
+
+### Minor Changes
+
+- aacad4e: Release seed for the stored renewal outcome: `V…__v0.12.x__Metadata_Sync` creates the Contracts action category, the Record Contract Renewal Outcomes action, and the hourly "Contracts — Record Renewal Outcomes" scheduled job that runs it. Every record is create-only, guarded on its ID or natural key, so a host that pauses the job keeps it paused.
+- 2e69097: The renewal-risk label `NonRenewalOutcome` is now a stored column on Contract instead of a `vwContracts` expression that read the clock (#159). The database records it on every save (trigger `trgContract_RecordNonRenewalOutcome`) and for contracts whose end date has passed (`spRecordContractNonRenewalOutcomes`, run hourly by the new "Contracts — Record Renewal Outcomes" scheduled job through the `Contracts.RecordNonRenewalOutcomes` action). The rule is unchanged and lives once, in `fnContractNonRenewalOutcome`, which takes the day as an argument. Training runs over the same rows now see the same labels. Ships migration `V202611031700` and new `metadata/` folders (action-categories, actions, scheduled-jobs).
+
 ## 0.11.0
 
 ### Minor Changes

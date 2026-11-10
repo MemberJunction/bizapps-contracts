@@ -1,6 +1,6 @@
 {
   "name": "@mj-biz-apps/contracts-actions",
-  "version": "0.11.0",
+  "version": "0.12.0",
   "type": "module",
   "description": "MemberJunction Actions exposed by the Contracts application (generated subclasses and hand-written actions).",
   "main": "dist/index.js",

@@ -191,7 +191,8 @@ describe('item 18 — these fields are never typed into', () => {
          * RESOLVE, so the ids below the lookup remain the one place a reader sees the provenance
          * verbatim — #219 item 3 asks for exactly that. The section stays for good.
          */
-        expect(FORM_FIELDS_RAW).toContain("replacesSectionKey: 'provenance'");
+        // The hero holds the claim on the generated section; the panel draws its fields.
+        expect(PANELS).toContain("'provenance'");
         expect(FORM_FIELDS_RAW).toContain('MJCContractProvenanceFieldsPanel');
     });
 
