@@ -65,7 +65,7 @@ export function NoticeWindowWithin(days: number): string {
 }
 
 /**
- * Today on the BUSINESS calendar, as a scalar subquery for an `ExtraFilter`.
+ * Today on the BUSINESS calendar, as a scalar expression for an `ExtraFilter`.
  *
  * FOR A COLUMN NO VIEW OF OURS DERIVES A DAY-COUNT FOR — in practice `Tasks.DueAt`, which lives in
  * another app's view and is reached through a correlated `EXISTS` (see `task-filters.ts`). Prefer a
@@ -75,16 +75,19 @@ export function NoticeWindowWithin(days: number): string {
  * reason. `BusinessTimeZoneEngine.Instance.Today()` would read the day in the browser — from a cached
  * engine that falls open to UTC until something calls `Config()`, which is the precise failure this
  * is fixing, silently reintroduced; and the value would be fixed at the moment the filter string was
- * built rather than at the moment the query runs. Evaluated here, "today" comes from the same
- * function, the same configuration row and the same clock the view uses.
+ * built rather than at the moment the query runs.
+ *
+ * A SCALAR CALL, NOT A SUBQUERY. bizapps-common's `fnBusinessDayOf(@At)` returns the business day an
+ * instant falls on, resolving the zone through `fnBusinessToday()` — the function `vwContracts`
+ * cross joins — so the two cannot disagree. Passed `SYSDATETIMEOFFSET()`, it is today, evaluated when
+ * the query runs. This used to be `(SELECT b.[Today] FROM fnBusinessToday() b)`, which MJ 6.2's
+ * GraphQL boundary refuses: its screen (`ClientClauseScreen`) parses every client filter and accepts
+ * a FROM item only when it names an entity base view. It does not screen scalar calls, except the
+ * dialect's forbidden list (`OPENROWSET` and the like).
  *
  * `[__mj_BizAppsCommon]` is named literally because the schema is fixed by bizapps-common's own
  * migration, and it is already a hard requirement of this app: `V202609211200` refuses to apply
- * without this function, with a message saying so.
- *
- * An `ExtraFilter` is raw SQL appended to the base view's WHERE and MJ screens it with a keyword
- * denylist (`insert / update / delete / exec / drop / -- / union / xp_ / ; / waitfor`). A scalar
- * subquery trips none of it — this package already ships a whole correlated `EXISTS (SELECT 1 FROM …)`
- * through the same seam.
+ * without `fnBusinessToday()`, with a message saying so. `fnBusinessDayOf` arrived in bizapps-common
+ * 5.51 (`V202610062305`), which is `mj-app.json`'s floor for that dependency.
  */
-export const BUSINESS_TODAY_SQL = '(SELECT b.[Today] FROM [__mj_BizAppsCommon].[fnBusinessToday]() b)';
+export const BUSINESS_TODAY_SQL = '[__mj_BizAppsCommon].[fnBusinessDayOf](SYSDATETIMEOFFSET())';
