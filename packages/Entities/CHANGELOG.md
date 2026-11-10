@@ -1,5 +1,17 @@
 # @mj-biz-apps/contracts-entities
 
+## 0.11.0
+
+### Minor Changes
+
+- 21860cd: Move to MemberJunction's 6.2 LTS line: every `@memberjunction/*` range and the core/global overrides are `^6.2.1` (exact `6.2.1` devDependency anchors), and `mjVersionRange` is `>=6.2.1 <7.0.0`. Hosts must run MJ 6.2.1 or later to install this release.
+
+## 0.10.0
+
+### Minor Changes
+
+- e27c5d3: Consolidate repo hygiene, contract-type template & renewal-default UX, DB-backed CI checks, PostgreSQL query variant, and dashboard/grid agent wiring (#113, #114, #124, #132, #133, #135, #137, #144, #149, #150, #154, #155, #157, #167).
+
 ## 0.9.1
 
 ## 0.9.0
