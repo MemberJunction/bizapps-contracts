@@ -17,6 +17,7 @@ export class mjBizAppsContractsContractTemplateModificationFormComponent extends
         this.initSections([
             { sectionKey: 'contractAssociation', sectionName: 'Contract Association', isExpanded: true },
             { sectionKey: 'modificationDetails', sectionName: 'Modification Details', isExpanded: true },
+            { sectionKey: 'details', sectionName: 'Details', isExpanded: true },
             { sectionKey: 'systemMetadata', sectionName: 'System Metadata', isExpanded: false }
         ]);
     }

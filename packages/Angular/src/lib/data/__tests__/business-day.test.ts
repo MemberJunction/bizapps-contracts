@@ -8,8 +8,8 @@
  * instants where the UTC day, the browser day and the business day disagree, because it tests code
  * that reads a zone. These predicates deliberately read none: four of the five now filter on the
  * view's own `DaysUntilNoticeDeadline`, which the same row derives from the same `bt.Today` as the
- * `DaysToEnd` and `State` printed beside it, and the fifth compares with the same row's
- * `BusinessToday`. A predicate with no clock in it has no instant at which it can be one day out —
+ * `DaysToEnd` and `State` printed beside it, and the fifth resolves the day in SQL from the function
+ * the view joins. A predicate with no clock in it has no instant at which it can be one day out —
  * which is a stronger property than agreeing with a chosen zone at a chosen instant, and the reason
  * a client-side business day was not the fix.
  *
@@ -21,6 +21,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import {
+    BUSINESS_TODAY_SQL,
     NOTICE_WINDOW_OPEN,
     NOTICE_WINDOW_PASSED,
     NoticeWindowWithin,
@@ -74,6 +75,17 @@ describe('the notice-window predicates', () => {
     });
 });
 
+describe('BUSINESS_TODAY_SQL', () => {
+    it('resolves the day in SQL, from bizapps-common, at query time', () => {
+        expect(BUSINESS_TODAY_SQL).toBe('[__mj_BizAppsCommon].[fnBusinessDayOf](SYSDATETIMEOFFSET())');
+        expect(BUSINESS_TODAY_SQL).not.toMatch(/GETUTCDATE|GETDATE/i);
+    });
+
+    it('reads no FROM, so MJ 6.2’s screen has no table function to refuse', () => {
+        expect(BUSINESS_TODAY_SQL).not.toMatch(/\bselect\b|\bfrom\b|fnBusinessToday/i);
+    });
+});
+
 /**
  * THE CALL SITES, CHECKED AS SOURCE.
  *
@@ -124,12 +136,9 @@ describe('every consumer of "today" in this package', () => {
         }
     });
 
-    it('takes the overdue-task day from the contract row the view computed it for', async () => {
-        // MJ 6.2's client-filter screen refuses a function call in a FROM, so the fragment compares
-        // with the view's own BusinessToday column. task-filters.test.ts runs it through that screen.
+    it('resolves the overdue-task day in SQL, from bizapps-common', async () => {
         const tasks = await read('../task-filters.ts');
-        expect(tasks).toContain('t.DueAt < ${contractView}.BusinessToday');
-        expect(tasks).not.toContain('fnBusinessToday');
+        expect(tasks).toContain('t.DueAt < ${BUSINESS_TODAY_SQL}');
     });
 
     it('takes the Overview countdown from the view rather than deriving a second one', async () => {

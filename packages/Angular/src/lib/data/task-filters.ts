@@ -19,9 +19,8 @@
  * the GraphQL boundary parses it (`ClientClauseScreen`, called from
  * `ResolverBase.assertClientClauseUsesEntityBaseViews`): every FROM item must be an entity base view
  * the reader can read, and a table-valued function is refused. Both views here are base views, and
- * nothing else may appear in a FROM — which is why "today" comes from the outer contract row (see
- * `HasOverdueTask`) rather than from a function call. The base view is selected without an alias,
- * so `vwContracts.ID` and `vwContracts.BusinessToday` are legal correlated references.
+ * "today" is a scalar call (`BUSINESS_TODAY_SQL`), which the screen does not refuse. The base view
+ * is selected without an alias, so `vwContracts.ID` is a legal correlated reference.
  *
  * ## ⚠ Two consequences worth knowing before this pattern spreads
  *
@@ -41,6 +40,7 @@
 import { Metadata, type IMetadataProvider } from '@memberjunction/core';
 import { MJC_ENTITIES, MJC_FOREIGN_ENTITIES } from './entity-names';
 import { ScopedRunView } from './provider';
+import { BUSINESS_TODAY_SQL } from './business-day';
 
 /**
  * The task type sales raises on Close-Won for finance to work through.
@@ -118,15 +118,12 @@ export async function BuildOpenTaskFilters(
          * every task due today read as overdue from 6 PM Central, in the same dashboard tile whose
          * sibling counts come from `vwContracts` on `bt.Today`.
          *
-         * "Today" is the contract row's own `BusinessToday`: the `bt.Today` that `vwContracts` cross
-         * joins from bizapps-common's `fnBusinessToday()` and compares every other date against. The
-         * EXISTS already correlates on the outer row, so this reads the same day as the `State` and
-         * `DaysToEnd` printed beside it, evaluated when the query runs. It used to call the function
-         * inline, which MJ 6.2's boundary screen refuses (a FROM may name only entity base views),
-         * and resolving the day on the client would reintroduce the UTC fallback — see
-         * `business-day.ts`.
+         * `DueAt` is the one column here with no business-day day-count to filter on: it belongs to
+         * another app's view and is reached through the `EXISTS` above. So "today" is resolved in
+         * SQL, by bizapps-common's `fnBusinessDayOf`, whose zone comes from the same `fnBusinessToday()`
+         * the view joins — see `BUSINESS_TODAY_SQL` for why not on the client, and why not a subquery.
          */
-        HasOverdueTask: exists(` AND t.DueAt < ${contractView}.BusinessToday`),
+        HasOverdueTask: exists(` AND t.DueAt < ${BUSINESS_TODAY_SQL}`),
     };
 }
 

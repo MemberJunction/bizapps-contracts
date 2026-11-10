@@ -199,13 +199,15 @@ sequence:
 
 | app | range | why |
 | --- | --- | --- |
-| `mj-bizapps-common` | `>=5.42.0 <6.0.0` | the baseline's FKs to `__mj_BizAppsCommon.Organization` and `__mj_BizAppsCommon.Person`; `V202609211200` reads `[__mj_BizAppsCommon].[fnBusinessToday]()` |
+| `mj-bizapps-common` | `>=5.51.0 <6.0.0` | the baseline's FKs to `__mj_BizAppsCommon.Organization` and `__mj_BizAppsCommon.Person`; `V202609211200` reads `[__mj_BizAppsCommon].[fnBusinessToday]()`; the overdue-task filter calls `[__mj_BizAppsCommon].[fnBusinessDayOf]()` at runtime |
 | `mj-bizapps-tasks` | `>=1.4.0 <2.0.0` | the dashboard's "To process" tile and the "Has open task" pill read Tasks views at runtime; no migration references Tasks |
 
 `fnBusinessToday()` first shipped in bizapps-common **5.43.0** (its
-`V202609160900__v5.43.x__Business_Time_Zone` migration). The manifest's floor, 5.42.0, admits a
-release without it; on such a database `V202609211200` fails with a message naming the missing
-function. Apply bizapps-common 5.43.0 or later first.
+`V202609160900__v5.43.x__Business_Time_Zone` migration); on a database without it
+`V202609211200` fails with a message naming the missing function. `fnBusinessDayOf()` first shipped
+in **5.51.0** (`V202610062305__v5.51.x__Business_Day_Of`); no migration needs it, but without it the
+dashboard's "Overdue tasks" tile and the overdue-task pill fail at query time. The manifest's floor
+is 5.51.0 for that reason.
 
 Beyond those, the migrations touch only MJ core (`__mj.Company`, `__mj.Entity`, …). A clean host
 carrying MJ core + bizapps-common 5.43.0 or later is enough to apply this whole train, which is

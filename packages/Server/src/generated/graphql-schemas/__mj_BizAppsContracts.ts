@@ -23,7 +23,7 @@ import { mjBizAppsContractsContractTemplateModificationEntity, mjBizAppsContract
 //****************************************************************************
 // ENTITY CLASS for MJ_BizApps_Contracts: Contract Template Modifications
 //****************************************************************************
-@ObjectType({ description: "What THIS contract changed about the standard agreement. Deliberately lean: it names a provision and carries what the contract says instead. Carries no ContractTemplateID — the provision belongs to exactly one template in every future, so the template derives through the provision, and a stored copy of a derivation can only agree or lie." })
+@ObjectType({ description: `What THIS contract changed about the standard agreement. Deliberately lean: it names a provision and carries what the contract says instead. Carries no ContractTemplateID — the provision belongs to exactly one template in every future, so the template derives through the provision, and a stored copy of a derivation can only agree or lie.` })
 export class mjBizAppsContractsContractTemplateModification_ {
     @Field() 
     @MaxLength(36)
@@ -33,14 +33,14 @@ export class mjBizAppsContractsContractTemplateModification_ {
     @MaxLength(36)
     ContractID?: string;
         
-    @Field({nullable: true, description: "The provision being modified — the structured identifier, and the only one. A server rule enforces what this replaces: the provision must belong to a template this contract incorporates."}) 
+    @Field({nullable: true, description: `The provision being modified — the structured identifier, and the only one. A server rule enforces what this replaces: the provision must belong to a template this contract incorporates.`}) 
     @MaxLength(36)
     ContractTemplateProvisionID?: string;
         
-    @Field({nullable: true, description: "What this contract says INSTEAD of the standard clause. Read as a pair with ContractTemplateProvision.ProvisionText."}) 
+    @Field({nullable: true, description: `What this contract says INSTEAD of the standard clause. Read as a pair with ContractTemplateProvision.ProvisionText.`}) 
     ModificationText?: string;
         
-    @Field({nullable: true, description: "Optional working note, e.g. who negotiated it."}) 
+    @Field({nullable: true, description: `Optional working note, e.g. who negotiated it.`}) 
     Notes?: string;
         
     @Field() 
@@ -203,7 +203,7 @@ export class mjBizAppsContractsContractTemplateModificationResolver extends Reso
 //****************************************************************************
 // ENTITY CLASS for MJ_BizApps_Contracts: Contract Template Provisions
 //****************************************************************************
-@ObjectType({ description: "The numbered clause list of a template version, and the home of all standard contract text. Hangs off ContractTemplate rather than standing alone because provision numbering belongs to a VERSION — the moment a new version renumbers, a single global list is wrong." })
+@ObjectType({ description: `The numbered clause list of a template version, and the home of all standard contract text. Hangs off ContractTemplate rather than standing alone because provision numbering belongs to a VERSION — the moment a new version renumbers, a single global list is wrong.` })
 export class mjBizAppsContractsContractTemplateProvision_ {
     @Field() 
     @MaxLength(36)
@@ -213,21 +213,21 @@ export class mjBizAppsContractsContractTemplateProvision_ {
     @MaxLength(36)
     ContractTemplateID?: string;
         
-    @Field({nullable: true, description: "The clause number as the document writes it, e.g. \"3.5(b)\". Unique within its template."}) 
+    @Field({nullable: true, description: `The clause number as the document writes it, e.g. "3.5(b)". Unique within its template.`}) 
     @MaxLength(20)
     ProvisionNumber?: string;
         
-    @Field({nullable: true, description: "The clause heading, e.g. \"Limitation of Liability\". This plus the number is what a person picks from."}) 
+    @Field({nullable: true, description: `The clause heading, e.g. "Limitation of Liability". This plus the number is what a person picks from.`}) 
     @MaxLength(200)
     Title?: string;
         
-    @Field({nullable: true, description: "The STANDARD wording of this clause. Read as a pair with ContractTemplateModification.ModificationText, which holds what a given contract says instead — a dispute needs the comparison, not either half."}) 
+    @Field({nullable: true, description: `The STANDARD wording of this clause. Read as a pair with ContractTemplateModification.ModificationText, which holds what a given contract says instead — a dispute needs the comparison, not either half.`}) 
     ProvisionText?: string;
         
     @Field({nullable: true}) 
     Description?: string;
         
-    @Field({nullable: true, description: "Collation key derived from ProvisionNumber: every run of digits zero-padded to six places, everything else upper-cased. Makes a plain SQL ORDER BY produce natural order ('1.9' before '1.10'), which ordering by ProvisionNumber cannot. READ-ONLY -- a persisted computed column; nobody should be able to set a sort key. Replaced the hand-maintained Sequence column, which had already collided in the seeded data."}) 
+    @Field({nullable: true, description: `Collation key derived from ProvisionNumber: every run of digits zero-padded to six places, everything else upper-cased. Makes a plain SQL ORDER BY produce natural order ('1.9' before '1.10'), which ordering by ProvisionNumber cannot. READ-ONLY -- a persisted computed column; nobody should be able to set a sort key. Replaced the hand-maintained Sequence column, which had already collided in the seeded data.`}) 
     @MaxLength(200)
     ProvisionSortKey?: string;
         
@@ -393,7 +393,7 @@ export class mjBizAppsContractsContractTemplateProvisionResolver extends Resolve
 //****************************************************************************
 // ENTITY CLASS for MJ_BizApps_Contracts: Contract Template Types
 //****************************************************************************
-@ObjectType({ description: "The kind of standard agreement (Master Agreement, Statement of Work). A lookup TABLE rather than a CHECK because the list is additive at runtime and a business user should be able to add one without a migration. Carries no behaviour." })
+@ObjectType({ description: `The kind of standard agreement (Master Agreement, Statement of Work). A lookup TABLE rather than a CHECK because the list is additive at runtime and a business user should be able to add one without a migration. Carries no behaviour.` })
 export class mjBizAppsContractsContractTemplateType_ {
     @Field() 
     @MaxLength(36)
@@ -406,7 +406,7 @@ export class mjBizAppsContractsContractTemplateType_ {
     @Field({nullable: true}) 
     Description?: string;
         
-    @Field({nullable: true, description: "Active | Inactive. Retiring a type hides it from pickers without touching the templates that used it."}) 
+    @Field({nullable: true, description: `Active | Inactive. Retiring a type hides it from pickers without touching the templates that used it.`}) 
     @MaxLength(10)
     Status?: string;
         
@@ -556,7 +556,7 @@ export class mjBizAppsContractsContractTemplateTypeResolver extends ResolverBase
 //****************************************************************************
 // ENTITY CLASS for MJ_BizApps_Contracts: Contract Templates
 //****************************************************************************
-@ObjectType({ description: "One VERSION of a standard agreement — in practice the Master Agreement. Versions matter because each is published at its own dated URL that never goes away, so a customer stays bound to the text they signed. Carries no prose of its own: every clauses standard wording lives on its ContractTemplateProvision row." })
+@ObjectType({ description: `One VERSION of a standard agreement — in practice the Master Agreement. Versions matter because each is published at its own dated URL that never goes away, so a customer stays bound to the text they signed. Carries no prose of its own: every clauses standard wording lives on its ContractTemplateProvision row.` })
 export class mjBizAppsContractsContractTemplate_ {
     @Field() 
     @MaxLength(36)
@@ -570,21 +570,21 @@ export class mjBizAppsContractsContractTemplate_ {
     @MaxLength(36)
     ContractTemplateTypeID?: string;
         
-    @Field({nullable: true, description: "The version the document names itself, e.g. \"v6\". Free text, because it is the documents own label rather than something we derive."}) 
+    @Field({nullable: true, description: `The version the document names itself, e.g. "v6". Free text, because it is the documents own label rather than something we derive.`}) 
     @MaxLength(50)
     VersionLabel?: string;
         
-    @Field({nullable: true, description: "When this version started being offered. NOT an effective date: a template becomes effective for a customer when THAT customer signs it, never on a calendar date. Naming it EffectiveDate would invite exactly the wrong query."}) 
+    @Field({nullable: true, description: `When this version started being offered. NOT an effective date: a template becomes effective for a customer when THAT customer signs it, never on a calendar date. Naming it EffectiveDate would invite exactly the wrong query.`}) 
     IntroducedDate?: Date;
         
-    @Field({nullable: true, description: "The dated public URL a customer can open to read the standard terms. NULLABLE: reachability is enforceable by nothing (a well-formed dead link passes any format check), and the real rule is \"a URL OR an attached file\" — the file half attaching through __mj.FileEntityRecordLink, which cannot reference a record that does not exist yet, so on CREATE it is unsatisfiable in principle. A template with neither is INCOMPLETE rather than invalid; the derived IsUsable column on vwContractTemplates is what says so."}) 
+    @Field({nullable: true, description: `The dated public URL a customer can open to read the standard terms. NULLABLE: reachability is enforceable by nothing (a well-formed dead link passes any format check), and the real rule is "a URL OR an attached file" — the file half attaching through __mj.FileEntityRecordLink, which cannot reference a record that does not exist yet, so on CREATE it is unsatisfiable in principle. A template with neither is INCOMPLETE rather than invalid; the derived IsUsable column on vwContractTemplates is what says so.`}) 
     @MaxLength(1000)
     SourceURL?: string;
         
     @Field({nullable: true}) 
     Description?: string;
         
-    @Field({nullable: true, description: "Publication lifecycle. 'Draft' -- freely editable, provisions may be added, changed and removed, and a contract may not NEWLY reference it. 'Published' -- the provisions are frozen against INSERT, UPDATE and DELETE by trg_ContractTemplateProvision_Immutability, and contracts may reference it. Publishing is ONE-WAY (enforced in ContractTemplateEntity): to change published terms, publish a new version -- that is what VersionLabel exists for. Existing references are never invalidated by this column; only new ones are policed, the same way ContractType.Status works."}) 
+    @Field({nullable: true, description: `Publication lifecycle. 'Draft' -- freely editable, provisions may be added, changed and removed, and a contract may not NEWLY reference it. 'Published' -- the provisions are frozen against INSERT, UPDATE and DELETE by trg_ContractTemplateProvision_Immutability, and contracts may reference it. Publishing is ONE-WAY (enforced in ContractTemplateEntity): to change published terms, publish a new version -- that is what VersionLabel exists for. Existing references are never invalidated by this column; only new ones are policed, the same way ContractType.Status works.`}) 
     @MaxLength(20)
     Status?: string;
         
@@ -765,7 +765,7 @@ export class mjBizAppsContractsContractTemplateResolver extends ResolverBase {
 //****************************************************************************
 // ENTITY CLASS for MJ_BizApps_Contracts: Contract Types
 //****************************************************************************
-@ObjectType({ description: "The kind of paper: Order Form, Statement of Work, Payment Link, Change Order. A lookup TABLE for the same reason as ContractTemplateType." })
+@ObjectType({ description: `The kind of paper: Order Form, Statement of Work, Payment Link, Change Order. A lookup TABLE for the same reason as ContractTemplateType.` })
 export class mjBizAppsContractsContractType_ {
     @Field() 
     @MaxLength(36)
@@ -778,20 +778,20 @@ export class mjBizAppsContractsContractType_ {
     @Field({nullable: true}) 
     Description?: string;
         
-    @Field(() => Boolean, {nullable: true, description: "Whether paper is ever expected for this kind of contract. No for a Payment Link, which has an implied agreement and no signature. This is what stops such a contract asking forever for a document that will never arrive: \"awaiting the document\" is DERIVED as requires-it AND no-linked-file, never stored and never a status value."}) 
+    @Field(() => Boolean, {nullable: true, description: `Whether paper is ever expected for this kind of contract. No for a Payment Link, which has an implied agreement and no signature. This is what stops such a contract asking forever for a document that will never arrive: "awaiting the document" is DERIVED as requires-it AND no-linked-file, never stored and never a status value.`}) 
     RequiresExecutedDocument?: boolean;
         
-    @Field({nullable: true, description: "Active | Inactive."}) 
+    @Field({nullable: true, description: `Active | Inactive.`}) 
     @MaxLength(10)
     Status?: string;
         
-    @Field(() => Boolean, {nullable: true, description: "This type of contract may NOT name a ParentContractID -- it is a root agreement. Enforced in ContractEntityServer.ValidateAsync. Mutually exclusive with MustBeChild (CK_ContractType_RootOrChild); both false means no restriction on where in the tree this type may sit, which is the honest default."}) 
+    @Field(() => Boolean, {nullable: true, description: `This type of contract may NOT name a ParentContractID -- it is a root agreement. Enforced in ContractEntityServer.ValidateAsync. Mutually exclusive with MustBeChild (CK_ContractType_RootOrChild); both false means no restriction on where in the tree this type may sit, which is the honest default.`}) 
     MustBeRoot?: boolean;
         
-    @Field(() => Boolean, {nullable: true, description: "This type of contract MUST name a ParentContractID -- a Change Order that amends nothing is not a change order, and would never appear in the original agreement's lineage. Enforced in ContractEntityServer.ValidateAsync. Mutually exclusive with MustBeRoot."}) 
+    @Field(() => Boolean, {nullable: true, description: `This type of contract MUST name a ParentContractID -- a Change Order that amends nothing is not a change order, and would never appear in the original agreement's lineage. Enforced in ContractEntityServer.ValidateAsync. Mutually exclusive with MustBeRoot.`}) 
     MustBeChild?: boolean;
         
-    @Field(() => Boolean, {nullable: true, description: "This type of contract must carry its own ContractTemplateID -- the standard terms it incorporates. On the TYPE rather than inferred from the placement flags, because 'where in the tree' and 'does it need its own paper' are different questions and a future type could want any combination."}) 
+    @Field(() => Boolean, {nullable: true, description: `This type of contract must carry its own ContractTemplateID -- the standard terms it incorporates. On the TYPE rather than inferred from the placement flags, because 'where in the tree' and 'does it need its own paper' are different questions and a future type could want any combination.`}) 
     TemplateRequired?: boolean;
         
     @Field() 
@@ -800,23 +800,23 @@ export class mjBizAppsContractsContractType_ {
     @Field() 
     _mj__UpdatedAt: Date;
         
-    @Field(() => Boolean, {nullable: true, description: "Seeds Contract.AutoRenew when a new contract picks this type. NULL means the type has no opinion and the contract is left alone — which is why this is nullable where the contract's own column is not. Copied once, on an unsaved contract; never consulted afterwards and never enforced."}) 
+    @Field(() => Boolean, {nullable: true, description: `Seeds Contract.AutoRenew when a new contract picks this type. NULL means the type has no opinion and the contract is left alone — which is why this is nullable where the contract's own column is not. Copied once, on an unsaved contract; never consulted afterwards and never enforced.`}) 
     DefaultAutoRenew?: boolean;
         
-    @Field(() => Int, {nullable: true, description: "Seeds Contract.RenewalNoticeDays — the notice WE owe the customer before a renewal price change. NULL means no default. A starting point for whoever reads the paper, not a term of any agreement."}) 
+    @Field(() => Int, {nullable: true, description: `Seeds Contract.RenewalNoticeDays — the notice WE owe the customer before a renewal price change. NULL means no default. A starting point for whoever reads the paper, not a term of any agreement.`}) 
     DefaultRenewalNoticeDays?: number;
         
-    @Field(() => Int, {nullable: true, description: "Seeds Contract.CancellationWindowDays — the notice the CUSTOMER owes us to cancel. Deliberately a separate default from the renewal notice even where a type sets them equal: one obligation is ours and the other theirs, and a single default would hide that."}) 
+    @Field(() => Int, {nullable: true, description: `Seeds Contract.CancellationWindowDays — the notice the CUSTOMER owes us to cancel. Deliberately a separate default from the renewal notice even where a type sets them equal: one obligation is ours and the other theirs, and a single default would hide that.`}) 
     DefaultCancellationWindowDays?: number;
         
-    @Field(() => Float, {nullable: true, description: "Seeds Contract.AnnualIncreasePercent — the year-over-year uplift this kind of agreement usually carries. NULL means no default. Same precision as the column it seeds, so a legal default can never seed an unsaveable contract."}) 
+    @Field(() => Float, {nullable: true, description: `Seeds Contract.AnnualIncreasePercent — the year-over-year uplift this kind of agreement usually carries. NULL means no default. Same precision as the column it seeds, so a legal default can never seed an unsaveable contract.`}) 
     DefaultAnnualIncreasePercent?: number;
         
-    @Field({nullable: true, description: "Stable machine code other apps and metadata use to find this type (for example ORDER_FORM). Unique. Unlike Name, it is not a label: renaming the type leaves the Code alone, and changing the Code breaks every caller that names it."}) 
+    @Field({nullable: true, description: `Stable machine code other apps and metadata use to find this type (for example ORDER_FORM). Unique. Unlike Name, it is not a label: renaming the type leaves the Code alone, and changing the Code breaks every caller that names it.`}) 
     @MaxLength(50)
     Code?: string;
         
-    @Field({nullable: true, description: "Which kind of standard agreement (ContractTemplateType) a contract of this type incorporates by default when TemplateRequired = 1. Nullable because types with TemplateRequired = 0 carry no template, and a type that leaves this NULL falls back to the newest Published, usable template across all template types."}) 
+    @Field({nullable: true, description: `Which kind of standard agreement (ContractTemplateType) a contract of this type incorporates by default when TemplateRequired = 1. Nullable because types with TemplateRequired = 0 carry no template, and a type that leaves this NULL falls back to the newest Published, usable template across all template types.`}) 
     @MaxLength(36)
     ContractTemplateTypeID?: string;
         
@@ -1024,13 +1024,13 @@ export class mjBizAppsContractsContractTypeResolver extends ResolverBase {
 //****************************************************************************
 // ENTITY CLASS for MJ_BizApps_Contracts: Contracts
 //****************************************************************************
-@ObjectType({ description: "The signed agreement — one row per piece of signed (or implied) paper, and the centre of the app. Carries NO hard reference to a Deal: sales creates contracts, so sales depends on this app and a reference upward would invert the dependency graph. The link is the typed polymorphic pair CreatingEntityID + CreatingRecordID." })
+@ObjectType({ description: `The signed agreement — one row per piece of signed (or implied) paper, and the centre of the app. Carries NO hard reference to a Deal: sales creates contracts, so sales depends on this app and a reference upward would invert the dependency graph. The link is the typed polymorphic pair CreatingEntityID + CreatingRecordID.` })
 export class mjBizAppsContractsContract_ {
     @Field() 
     @MaxLength(36)
     ID: string;
         
-    @Field({nullable: true, description: "CTR-000001, minted by spAssignNextContractNumber from the seq_ContractNumber database SEQUENCE. Unique. NULLABLE at the schema level because MJ cannot express 'NOT NULL, assigned by the server on insert' -- ContractEntityServer.Save() is what guarantees every contract has one. Gaps are normal and are not to be 'fixed': a save that fails after taking a number leaves one behind, and UQ_Contract_ContractNumber is what guarantees no two contracts share a number."}) 
+    @Field({nullable: true, description: `CTR-000001, minted by spAssignNextContractNumber from the seq_ContractNumber database SEQUENCE. Unique. NULLABLE at the schema level because MJ cannot express 'NOT NULL, assigned by the server on insert' -- ContractEntityServer.Save() is what guarantees every contract has one. Gaps are normal and are not to be 'fixed': a save that fails after taking a number leaves one behind, and UQ_Contract_ContractNumber is what guarantees no two contracts share a number.`}) 
     @MaxLength(50)
     ContractNumber?: string;
         
@@ -1038,73 +1038,73 @@ export class mjBizAppsContractsContract_ {
     @MaxLength(36)
     ContractTypeID?: string;
         
-    @Field({nullable: true, description: "The SELLING company (__mj.Company) — which of OUR entities holds this agreement. Not the customer. Stored rather than derived because it is not reliably recoverable from the deal."}) 
+    @Field({nullable: true, description: `The SELLING company (__mj.Company) — which of OUR entities holds this agreement. Not the customer. Stored rather than derived because it is not reliably recoverable from the deal.`}) 
     @MaxLength(36)
     CompanyID?: string;
         
-    @Field({nullable: true, description: "The customer. NOT NULL: contracts are B2B here by definition, and the individual case lives entirely in orders. v1 allowed an organization-or-person XOR; that is gone."}) 
+    @Field({nullable: true, description: `The customer. NOT NULL: contracts are B2B here by definition, and the individual case lives entirely in orders. v1 allowed an organization-or-person XOR; that is gone.`}) 
     @MaxLength(36)
     CustomerOrganizationID?: string;
         
-    @Field({nullable: true, description: "Their named contact, optional."}) 
+    @Field({nullable: true, description: `Their named contact, optional.`}) 
     @MaxLength(36)
     PrimaryContactPersonID?: string;
         
-    @Field({nullable: true, description: "The agreement version this contract incorporates. Nullable because contract types with TemplateRequired = 0 (such as Change Order and Statement of Work) carry no standard agreement version of their own, and because a newly created contract leaves this empty when no Published, usable template exists yet."}) 
+    @Field({nullable: true, description: `The agreement version this contract incorporates. Nullable because contract types with TemplateRequired = 0 (such as Change Order and Statement of Work) carry no standard agreement version of their own, and because a newly created contract leaves this empty when no Published, usable template exists yet.`}) 
     @MaxLength(36)
     ContractTemplateID?: string;
         
-    @Field({nullable: true, description: "Polymorphic reference part 1: the MJ Entity of the record that CREATED this contract, in practice Deals. A real foreign key to __mj.Entity — this is the half that is enforced, and the half that lets MJ resolve the pair generically. Same pattern accounting uses for JournalEntry provenance."}) 
+    @Field({nullable: true, description: `Polymorphic reference part 1: the MJ Entity of the record that CREATED this contract, in practice Deals. A real foreign key to __mj.Entity — this is the half that is enforced, and the half that lets MJ resolve the pair generically. Same pattern accounting uses for JournalEntry provenance.`}) 
     @MaxLength(36)
     CreatingEntityID?: string;
         
-    @Field({nullable: true, description: "Polymorphic reference part 2: the creating records id. Soft by nature — it points at a record owned by an app this repo has no knowledge of. Set together with CreatingEntityID or not at all."}) 
+    @Field({nullable: true, description: `Polymorphic reference part 2: the creating records id. Soft by nature — it points at a record owned by an app this repo has no knowledge of. Set together with CreatingEntityID or not at all.`}) 
     @MaxLength(450)
     CreatingRecordID?: string;
         
-    @Field({nullable: true, description: "The contract this one amends. How a change order attaches: a change order is signed paper with its own PDF, dates and modifications, so it reuses this entity rather than getting one of its own. The original stays in force."}) 
+    @Field({nullable: true, description: `The contract this one amends. How a change order attaches: a change order is signed paper with its own PDF, dates and modifications, so it reuses this entity rather than getting one of its own. The original stays in force.`}) 
     @MaxLength(36)
     ParentContractID?: string;
         
-    @Field({nullable: true, description: "The contract that REPLACED this one, where an agreement was re-papered rather than amended. Also the sole source of the derived Superseded state, which is why the old CHECK tying it to a Status column disappeared with that column."}) 
+    @Field({nullable: true, description: `The contract that REPLACED this one, where an agreement was re-papered rather than amended. Also the sole source of the derived Superseded state, which is why the old CHECK tying it to a Status column disappeared with that column.`}) 
     @MaxLength(36)
     SupersededByContractID?: string;
         
-    @Field({nullable: true, description: "Direct link to the document in the signing provider (PandaDoc). The fallback that works before any integration exists, and when a storage sync has broken."}) 
+    @Field({nullable: true, description: `Direct link to the document in the signing provider (PandaDoc). The fallback that works before any integration exists, and when a storage sync has broken.`}) 
     @MaxLength(1000)
     SigningProviderURL?: string;
         
-    @Field({nullable: true, description: "When the agreement takes effect."}) 
+    @Field({nullable: true, description: `When the agreement takes effect.`}) 
     EffectiveDate?: Date;
         
-    @Field({nullable: true, description: "When it was signed. May legitimately PRECEDE EffectiveDate — sign in December for a January start is the ordinary case. There is deliberately no constraint ordering the two; v1 had one and it rejected exactly the data a correct contract produces."}) 
+    @Field({nullable: true, description: `When it was signed. May legitimately PRECEDE EffectiveDate — sign in December for a January start is the ordinary case. There is deliberately no constraint ordering the two; v1 had one and it rejected exactly the data a correct contract produces.`}) 
     ExecutedDate?: Date;
         
-    @Field({nullable: true, description: "When the current term ends. This is what drives the renewal watchlist and every expiry projection."}) 
+    @Field({nullable: true, description: `When the current term ends. This is what drives the renewal watchlist and every expiry projection.`}) 
     EndDate?: Date;
         
-    @Field({nullable: true, description: "When the agreement ended early. Stored rather than derived: it is only recoverable from a successors effective date, and a contract can end with no successor at all when a customer simply leaves."}) 
+    @Field({nullable: true, description: `When the agreement ended early. Stored rather than derived: it is only recoverable from a successors effective date, and a contract can end with no successor at all when a customer simply leaves.`}) 
     TerminatedDate?: Date;
         
-    @Field(() => Boolean, {nullable: true, description: "Whether the agreement auto-renews, AS THE PAPER STATES IT. True or false, no third state. Distinct from the subscriptions operational setting in orders, which someone can change later; when the two disagree that is a finding, not a bug."}) 
+    @Field(() => Boolean, {nullable: true, description: `Whether the agreement auto-renews, AS THE PAPER STATES IT. True or false, no third state. Distinct from the subscriptions operational setting in orders, which someone can change later; when the two disagree that is a finding, not a bug.`}) 
     AutoRenew?: boolean;
         
-    @Field(() => Int, {nullable: true, description: "Days of written notice we owe before a renewal price change, as stated in the agreement. NOT the same field as CancellationWindowDays even though many agreements set them equal — conflating them silently is how a notice obligation gets missed."}) 
+    @Field(() => Int, {nullable: true, description: `Days of written notice we owe before a renewal price change, as stated in the agreement. NOT the same field as CancellationWindowDays even though many agreements set them equal — conflating them silently is how a notice obligation gets missed.`}) 
     RenewalNoticeDays?: number;
         
-    @Field(() => Int, {nullable: true, description: "Days of notice the customer owes to cancel without renewing."}) 
+    @Field(() => Int, {nullable: true, description: `Days of notice the customer owes to cancel without renewing.`}) 
     CancellationWindowDays?: number;
         
-    @Field(() => Float, {nullable: true, description: "The negotiated year-over-year uplift. Exists here because it exists nowhere else: the orders schema has no escalation concept of any kind, which is why a two-year agreement stepping up 10% in year two is recorded in no other system."}) 
+    @Field(() => Float, {nullable: true, description: `The negotiated year-over-year uplift. Exists here because it exists nowhere else: the orders schema has no escalation concept of any kind, which is why a two-year agreement stepping up 10% in year two is recorded in no other system.`}) 
     AnnualIncreasePercent?: number;
         
-    @Field(() => Boolean, {nullable: true, description: "Whether the standard agreement was changed for this customer. ASSERTED by a person, not derived — its job is to say \"go read the PDF\" BEFORE anyone has recorded the modifications, and a derived flag would read false for every contract nobody has processed yet. One direction IS enforced server-side: if modification rows exist this must be true. It is never cleared automatically."}) 
+    @Field(() => Boolean, {nullable: true, description: `Whether the standard agreement was changed for this customer. ASSERTED by a person, not derived — its job is to say "go read the PDF" BEFORE anyone has recorded the modifications, and a derived flag would read false for every contract nobody has processed yet. One direction IS enforced server-side: if modification rows exist this must be true. It is never cleared automatically.`}) 
     HasModifications?: boolean;
         
     @Field({nullable: true}) 
     Description?: string;
         
-    @Field({nullable: true, description: "Free-text working notes for whoever is processing the contract."}) 
+    @Field({nullable: true, description: `Free-text working notes for whoever is processing the contract.`}) 
     Notes?: string;
         
     @Field() 
@@ -1113,18 +1113,15 @@ export class mjBizAppsContractsContract_ {
     @Field() 
     _mj__UpdatedAt: Date;
         
-    @Field(() => Float, {nullable: true, description: "Predicted probability (0.0000 to 1.0000) that this commercial agreement will fail to renew prior to the required notice deadline."}) 
+    @Field(() => Float, {nullable: true, description: `Predicted probability (0.0000 to 1.0000) that this commercial agreement will fail to renew prior to the required notice deadline.`}) 
     PredictedNonRenewalRisk?: number;
         
-    @Field({nullable: true, description: "Derived operational risk band classifying renewal risk: Low (<20%), Medium (20-50%), High (50-80%), Critical (>=80%)."}) 
+    @Field({nullable: true, description: `Derived operational risk band classifying renewal risk: Low (<20%), Medium (20-50%), High (50-80%), Critical (>=80%).`}) 
     @MaxLength(20)
     PredictedRenewalRiskBand?: string;
         
-    @Field({nullable: true, description: "Timestamp of the most recent predictive model scoring execution for this contract."}) 
+    @Field({nullable: true, description: `Timestamp of the most recent predictive model scoring execution for this contract.`}) 
     PredictedRenewalScoredAt?: Date;
-        
-    @Field(() => Int, {nullable: true, description: "The renewal-risk model's training label, recorded by the database: 0 when the contract was superseded (renewed), 1 when it was terminated or its term ended without renewal, NULL while the outcome is open. Written by trgContract_RecordNonRenewalOutcome on every save and by spRecordContractNonRenewalOutcomes when an end date passes; a value sent on save is replaced."}) 
-    NonRenewalOutcome?: number;
         
     @Field({nullable: true}) 
     @MaxLength(100)
@@ -1139,7 +1136,7 @@ export class mjBizAppsContractsContract_ {
     CustomerOrganization?: string;
         
     @Field({nullable: true}) 
-    @MaxLength(250)
+    @MaxLength(201)
     PrimaryContactPerson?: string;
         
     @Field({nullable: true}) 
@@ -1175,6 +1172,9 @@ export class mjBizAppsContractsContract_ {
     IsInCancellationWindow?: boolean;
         
     @Field(() => Int, {nullable: true}) 
+    NonRenewalOutcome?: number;
+        
+    @Field(() => Int, {nullable: true}) 
     TermLengthDays?: number;
         
     @Field(() => Int, {nullable: true}) 
@@ -1194,9 +1194,6 @@ export class mjBizAppsContractsContract_ {
         
     @Field(() => Int, {nullable: true}) 
     HasAnnualIncrease?: number;
-        
-    @Field({nullable: true}) 
-    BusinessToday?: Date;
         
     @Field(() => [String], { nullable: true, description: `Field-level security: when non-null, the fields on this entity the calling user may read. Any other field arriving as null was withheld by the server rather than genuinely empty. Null for callers with no field restrictions.` })
     ReadableFields___?: string[];
