@@ -27,9 +27,11 @@
  *  3. **The hero was one line.** The mockup's hero is identity + chips + a meta row + a five-stat strip,
  *     and the stats are the part a reader actually scans.
  *
- * The hero lives in `before-fields` with NO `replacesSectionKey`: the mockup keeps the generated fields
- * as their own Overview section, and content in `before-fields` stays put across rail sections, which is
- * what makes the hero persistent chrome rather than a section.
+ * The hero lives in `before-fields`, and content there stays put across rail sections, which is what
+ * makes the hero persistent chrome rather than a section. It also holds every generated-section claim on
+ * the form (`replacesSectionKeys`). MJ 6.2 files a panel that replaces a field section inside the Details
+ * rail item, whatever its slot or inclusion, so a panel holding its own claim lost its rail item. The hero
+ * is not a rail item, so claiming there hides the duplicate fields and moves nothing into Details.
  *
  * @module @mj-biz-apps/contracts-ng
  */
@@ -72,6 +74,16 @@ function chipClassFor(state: ContractState): string {
         slot: 'before-fields',
         sortKey: 100,
         contributionKey: 'header',
+        // Every generated section a Contract panel draws. See the file header for why the claims live here.
+        replacesSectionKeys: [
+            'contractDetails',   // Overview
+            'stakeholders',      // Parties
+            'datesAndTerms',     // Dates
+            'renewalTerms',      // Renewal terms
+            'notesAndMetadata',  // Notes
+            'contractLifecycle', // Change orders
+            'provenance',        // Origin
+        ],
     },
 })
 @Component({
@@ -480,34 +492,13 @@ export class MJCContractHeroPanel extends BaseFormPanel<ContractEntity> {
     skipNullKeyWarning: true,
     metadata: {
         entity: MJC_ENTITIES.Contract,
-        slot: 'after-fields',
+        // After-related, not after-fields: MJ 6.2 files every before/after-fields panel, and every
+        // panel that replaces a field section, inside the Details rail item. After-related keeps this
+        // a rail item of its own after Details, where it sat before 6.2; the related band sorts by
+        // sortKey, descending. The generated section it stands in for is claimed by the hero.
+        slot: 'after-related',
         sortKey: 85,
         contributionKey: 'renewal',
-        // REPLACES the generated `renewalTerms` section rather than sitting beside it. Two reasons, and
-        // the second is the one that makes the rail work:
-        //
-        //  1. Without it the four fields render TWICE — once in the generated field list and once here.
-        //  2. Under `left-nav`, MJ folds every *leftover* field panel into a single `Details` rail item.
-        //     A section that a Primary contribution REPLACES is no longer leftover, so it earns its own
-        //     rail entry. That is the mechanism behind the mockup's rail, and without the replacement
-        //     this panel folded into Details and the form read as one long page.
-        replacesSectionKey: 'renewalTerms',
-        // NO `inclusion: 'Primary'` — and that omission is what puts Details FIRST.
-        //
-        // The rail is assembled as fixed BANDS, not from a sortable flat list:
-        // `spec.Groups = [...leads, ...details, ...related, ...more]`
-        // (`resolve-form-chrome.ts:761`). A panel joins the LEAD band purely by declaring
-        // `inclusion: 'Primary'` (`isLeadContribution`, `:313`), and every lead therefore renders
-        // BEFORE Details. With all of these marked Primary, Details sat fourth.
-        //
-        // Reordering `spec.Groups` from a `BaseFormPolicy.DecorateChrome` cannot fix that:
-        // `StabilizeFirstClassGroupOrder` re-imposes the bands, and its own comment says it moves
-        // groups "into the lead band before Details" — so the reorder is silently undone. Only a
-        // user's drag order (`OrderChromeGroups`) outranks the bands, and that is a per-user
-        // preference an app cannot ship.
-        //
-        // Dropping Primary moves these into the `related` band, which sorts DESCENDING by sortKey
-        // (`:753`), so the numbers below are the running order after Details.
     },
 })
 @Component({
@@ -723,26 +714,13 @@ export class MJCContractRenewalPanel extends BaseFormPanel<ContractEntity> imple
     skipNullKeyWarning: true,
     metadata: {
         entity: MJC_ENTITIES.Contract,
-        slot: 'after-fields',
+        // After-related, not after-fields: MJ 6.2 files every before/after-fields panel, and every
+        // panel that replaces a field section, inside the Details rail item. After-related keeps this
+        // a rail item of its own after Details, where it sat before 6.2; the related band sorts by
+        // sortKey, descending. The generated section it stands in for is claimed by the hero.
+        slot: 'after-related',
         sortKey: 90,
         contributionKey: 'dates',
-        replacesSectionKey: 'datesAndTerms',
-        // NO `inclusion: 'Primary'` — and that omission is what puts Details FIRST.
-        //
-        // The rail is assembled as fixed BANDS, not from a sortable flat list:
-        // `spec.Groups = [...leads, ...details, ...related, ...more]`
-        // (`resolve-form-chrome.ts:761`). A panel joins the LEAD band purely by declaring
-        // `inclusion: 'Primary'` (`isLeadContribution`, `:313`), and every lead therefore renders
-        // BEFORE Details. With all of these marked Primary, Details sat fourth.
-        //
-        // Reordering `spec.Groups` from a `BaseFormPolicy.DecorateChrome` cannot fix that:
-        // `StabilizeFirstClassGroupOrder` re-imposes the bands, and its own comment says it moves
-        // groups "into the lead band before Details" — so the reorder is silently undone. Only a
-        // user's drag order (`OrderChromeGroups`) outranks the bands, and that is a per-user
-        // preference an app cannot ship.
-        //
-        // Dropping Primary moves these into the `related` band, which sorts DESCENDING by sortKey
-        // (`:753`), so the numbers below are the running order after Details.
     },
 })
 @Component({
