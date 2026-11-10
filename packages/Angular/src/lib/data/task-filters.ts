@@ -15,20 +15,22 @@
  * second is not a worklist filter — an `IN` list has to be capped, and a capped filter quietly hides
  * work, which is the one thing a work queue must not do.
  *
- * `ExtraFilter` is raw SQL appended to the base view's WHERE, so the subquery is legal. MJ screens
- * it with a keyword denylist (`DatabaseProviderBase.ValidateUserProvidedSQLClause`) covering
- * `insert / update / delete / exec / drop / -- / union / xp_ / ; / waitfor` — `SELECT`, `EXISTS` and
- * `JOIN` are not on it. (The stricter validator that DOES block `EXISTS` governs aggregate
- * expressions, not filters.) The base view is selected without an alias, so `vwContracts.ID` is a
- * legal correlated reference.
+ * `ExtraFilter` is raw SQL appended to the base view's WHERE, so the subquery is legal. From MJ 6.2
+ * the GraphQL boundary parses it (`ClientClauseScreen`, called from
+ * `ResolverBase.assertClientClauseUsesEntityBaseViews`): every FROM item must be an entity base view
+ * the reader can read, and a table-valued function is refused. Both views here are base views, and
+ * nothing else may appear in a FROM — which is why "today" comes from the outer contract row (see
+ * `HasOverdueTask`) rather than from a function call. The base view is selected without an alias,
+ * so `vwContracts.ID` and `vwContracts.BusinessToday` are legal correlated references.
  *
  * ## ⚠ Two consequences worth knowing before this pattern spreads
  *
- * **It bypasses MJ's permission and RLS model for Tasks.** MJ applies entity permissions and row
- * filters to the entity being *read* — here, Contracts. Nothing checks the reader against Tasks, so
- * a user with no access to Tasks still gets a count shaped by them. That is an acceptable trade for
- * a COUNT of the reader's own contracts, and it is the reason not to extend this to reading task
- * rows: the moment task content reaches the screen, it must go through a Tasks read.
+ * **It reads Tasks outside a Tasks RunView.** MJ applies row filters to the entity being *read* —
+ * here, Contracts — and a subquery on a base view cannot apply Tasks' own. MJ 6.2's screen closes
+ * that gap by refusal: the reader needs read permission on Task Links and Tasks, with no row filter
+ * and no denied fields, or the whole filter is refused. That is acceptable for a COUNT of the
+ * reader's own contracts, and it is the reason not to extend this to reading task rows: the moment
+ * task content reaches the screen, it must go through a Tasks read.
  *
  * **Nothing here is hardcoded except the type code.** Schema and view names come from MJ's metadata
  * rather than string literals, so an app that is not installed produces `null` (and a dashboard tile
@@ -39,7 +41,6 @@
 import { Metadata, type IMetadataProvider } from '@memberjunction/core';
 import { MJC_ENTITIES, MJC_FOREIGN_ENTITIES } from './entity-names';
 import { ScopedRunView } from './provider';
-import { BUSINESS_TODAY_SQL } from './business-day';
 
 /**
  * The task type sales raises on Close-Won for finance to work through.
@@ -117,12 +118,15 @@ export async function BuildOpenTaskFilters(
          * every task due today read as overdue from 6 PM Central, in the same dashboard tile whose
          * sibling counts come from `vwContracts` on `bt.Today`.
          *
-         * `DueAt` is the one column here with no business-day day-count to filter on: it belongs to
-         * another app's view and is reached through the `EXISTS` above. So "today" is resolved in
-         * SQL, from the same function the view joins — see `BUSINESS_TODAY_SQL` for why not on the
-         * client.
+         * "Today" is the contract row's own `BusinessToday`: the `bt.Today` that `vwContracts` cross
+         * joins from bizapps-common's `fnBusinessToday()` and compares every other date against. The
+         * EXISTS already correlates on the outer row, so this reads the same day as the `State` and
+         * `DaysToEnd` printed beside it, evaluated when the query runs. It used to call the function
+         * inline, which MJ 6.2's boundary screen refuses (a FROM may name only entity base views),
+         * and resolving the day on the client would reintroduce the UTC fallback — see
+         * `business-day.ts`.
          */
-        HasOverdueTask: exists(` AND t.DueAt < ${BUSINESS_TODAY_SQL}`),
+        HasOverdueTask: exists(` AND t.DueAt < ${contractView}.BusinessToday`),
     };
 }
 

@@ -1,5 +1,5 @@
 import { BaseEntity, EntitySaveOptions, EntityDeleteOptions, CompositeKey, ValidationResult, ValidationErrorInfo, ValidationErrorType, Metadata, ProviderType, DatabaseProviderBase, RunView } from "@memberjunction/core";
-import { RegisterClass } from "@memberjunction/global";
+import { RegisterClass, UUIDsEqual } from "@memberjunction/global";
 import { z } from "zod";
 
      
@@ -480,6 +480,15 @@ export const mjBizAppsContractsContractSchema = z.object({
         * * Display Name: Predicted Renewal Scored At
         * * SQL Data Type: datetimeoffset
         * * Description: Timestamp of the most recent predictive model scoring execution for this contract.`),
+    NonRenewalOutcome: z.union([z.literal(0), z.literal(1)]).nullable().describe(`
+        * * Field Name: NonRenewalOutcome
+        * * Display Name: Non Renewal Outcome
+        * * SQL Data Type: int
+    * * Value List Type: List
+    * * Possible Values 
+    *   * 0
+    *   * 1
+        * * Description: The renewal-risk model's training label, recorded by the database: 0 when the contract was superseded (renewed), 1 when it was terminated or its term ended without renewal, NULL while the outcome is open. Written by trgContract_RecordNonRenewalOutcome on every save and by spRecordContractNonRenewalOutcomes when an end date passes; a value sent on save is replaced.`),
     ContractType: z.string().describe(`
         * * Field Name: ContractType
         * * Display Name: Contract Type Name
@@ -495,7 +504,7 @@ export const mjBizAppsContractsContractSchema = z.object({
     PrimaryContactPerson: z.string().nullable().describe(`
         * * Field Name: PrimaryContactPerson
         * * Display Name: Primary Contact Name
-        * * SQL Data Type: nvarchar(201)`),
+        * * SQL Data Type: nvarchar(250)`),
     ContractTemplate: z.string().nullable().describe(`
         * * Field Name: ContractTemplate
         * * Display Name: Contract Template Name
@@ -532,10 +541,6 @@ export const mjBizAppsContractsContractSchema = z.object({
         * * Field Name: IsInCancellationWindow
         * * Display Name: Is In Cancellation Window
         * * SQL Data Type: bit`),
-    NonRenewalOutcome: z.number().nullable().describe(`
-        * * Field Name: NonRenewalOutcome
-        * * Display Name: Non Renewal Outcome
-        * * SQL Data Type: int`),
     TermLengthDays: z.number().nullable().describe(`
         * * Field Name: TermLengthDays
         * * Display Name: Term Length Days
@@ -564,6 +569,10 @@ export const mjBizAppsContractsContractSchema = z.object({
         * * Field Name: HasAnnualIncrease
         * * Display Name: Has Annual Increase
         * * SQL Data Type: int`),
+    BusinessToday: z.date().nullable().describe(`
+        * * Field Name: BusinessToday
+        * * Display Name: Business Today
+        * * SQL Data Type: date`),
 });
 
 export type mjBizAppsContractsContractEntityType = z.infer<typeof mjBizAppsContractsContractSchema>;
@@ -1734,7 +1743,7 @@ export class mjBizAppsContractsContractEntity extends BaseEntity<mjBizAppsContra
     * @method
     */
     public ValidateParentContractIDNotEqualToID(result: ValidationResult) {
-    	if (this.ParentContractID != null && this.ParentContractID === this.ID) {
+    	if (this.ParentContractID != null && UUIDsEqual(this.ParentContractID, this.ID)) {
     		result.Errors.push(new ValidationErrorInfo(
     			"ParentContractID",
     			"A contract cannot be its own parent contract.",
@@ -1751,7 +1760,7 @@ export class mjBizAppsContractsContractEntity extends BaseEntity<mjBizAppsContra
     * @method
     */
     public ValidateSupersededByContractIDNotEqualToID(result: ValidationResult) {
-    	if (this.SupersededByContractID != null && this.SupersededByContractID === this.ID) {
+    	if (this.SupersededByContractID != null && UUIDsEqual(this.SupersededByContractID, this.ID)) {
     		result.Errors.push(new ValidationErrorInfo(
     			"SupersededByContractID",
     			"A contract cannot be superseded by itself. Please select a different contract.",
@@ -2134,6 +2143,20 @@ export class mjBizAppsContractsContractEntity extends BaseEntity<mjBizAppsContra
     }
 
     /**
+    * * Field Name: NonRenewalOutcome
+    * * Display Name: Non Renewal Outcome
+    * * SQL Data Type: int
+    * * Value List Type: List
+    * * Possible Values 
+    *   * 0
+    *   * 1
+    * * Description: The renewal-risk model's training label, recorded by the database: 0 when the contract was superseded (renewed), 1 when it was terminated or its term ended without renewal, NULL while the outcome is open. Written by trgContract_RecordNonRenewalOutcome on every save and by spRecordContractNonRenewalOutcomes when an end date passes; a value sent on save is replaced.
+    */
+    get NonRenewalOutcome(): 0 | 1 | null {
+        return this.Get('NonRenewalOutcome');
+    }
+
+    /**
     * * Field Name: ContractType
     * * Display Name: Contract Type Name
     * * SQL Data Type: nvarchar(100)
@@ -2163,7 +2186,7 @@ export class mjBizAppsContractsContractEntity extends BaseEntity<mjBizAppsContra
     /**
     * * Field Name: PrimaryContactPerson
     * * Display Name: Primary Contact Name
-    * * SQL Data Type: nvarchar(201)
+    * * SQL Data Type: nvarchar(250)
     */
     get PrimaryContactPerson(): string | null {
         return this.Get('PrimaryContactPerson');
@@ -2251,15 +2274,6 @@ export class mjBizAppsContractsContractEntity extends BaseEntity<mjBizAppsContra
     }
 
     /**
-    * * Field Name: NonRenewalOutcome
-    * * Display Name: Non Renewal Outcome
-    * * SQL Data Type: int
-    */
-    get NonRenewalOutcome(): number | null {
-        return this.Get('NonRenewalOutcome');
-    }
-
-    /**
     * * Field Name: TermLengthDays
     * * Display Name: Term Length Days
     * * SQL Data Type: int
@@ -2320,5 +2334,14 @@ export class mjBizAppsContractsContractEntity extends BaseEntity<mjBizAppsContra
     */
     get HasAnnualIncrease(): number {
         return this.Get('HasAnnualIncrease');
+    }
+
+    /**
+    * * Field Name: BusinessToday
+    * * Display Name: Business Today
+    * * SQL Data Type: date
+    */
+    get BusinessToday(): Date | null {
+        return this.Get('BusinessToday');
     }
 }

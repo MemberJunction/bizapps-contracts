@@ -8,8 +8,8 @@
  * instants where the UTC day, the browser day and the business day disagree, because it tests code
  * that reads a zone. These predicates deliberately read none: four of the five now filter on the
  * view's own `DaysUntilNoticeDeadline`, which the same row derives from the same `bt.Today` as the
- * `DaysToEnd` and `State` printed beside it, and the fifth resolves the day in SQL from the function
- * the view joins. A predicate with no clock in it has no instant at which it can be one day out —
+ * `DaysToEnd` and `State` printed beside it, and the fifth compares with the same row's
+ * `BusinessToday`. A predicate with no clock in it has no instant at which it can be one day out —
  * which is a stronger property than agreeing with a chosen zone at a chosen instant, and the reason
  * a client-side business day was not the fix.
  *
@@ -21,7 +21,6 @@
  */
 import { describe, expect, it } from 'vitest';
 import {
-    BUSINESS_TODAY_SQL,
     NOTICE_WINDOW_OPEN,
     NOTICE_WINDOW_PASSED,
     NoticeWindowWithin,
@@ -75,28 +74,6 @@ describe('the notice-window predicates', () => {
     });
 });
 
-describe('BUSINESS_TODAY_SQL', () => {
-    it('resolves the day from the same function the view joins', () => {
-        expect(BUSINESS_TODAY_SQL).toContain('[__mj_BizAppsCommon].[fnBusinessToday]()');
-        expect(BUSINESS_TODAY_SQL).toContain('[Today]');
-        expect(BUSINESS_TODAY_SQL).not.toMatch(/GETUTCDATE|GETDATE/i);
-    });
-
-    it('is a scalar subquery, so it can stand where a date did', () => {
-        expect(BUSINESS_TODAY_SQL.startsWith('(')).toBe(true);
-        expect(BUSINESS_TODAY_SQL.endsWith(')')).toBe(true);
-    });
-
-    it('trips none of the ExtraFilter keyword denylist', () => {
-        // MJ screens ExtraFilter with a denylist covering `insert / update / delete / exec / drop /
-        // -- / union / xp_ / ; / waitfor` (DatabaseProviderBase.ValidateUserProvidedSQLClause). A
-        // predicate that trips it surfaces as an unreadable grid, not as a message about the filter.
-        expect(BUSINESS_TODAY_SQL).not.toMatch(
-            /--|;|\bunion\b|\bexec\b|\bdrop\b|\bwaitfor\b|\binsert\b|\bupdate\b|\bdelete\b|xp_/i,
-        );
-    });
-});
-
 /**
  * THE CALL SITES, CHECKED AS SOURCE.
  *
@@ -147,9 +124,12 @@ describe('every consumer of "today" in this package', () => {
         }
     });
 
-    it('resolves the overdue-task day in SQL, from the function the view joins', async () => {
+    it('takes the overdue-task day from the contract row the view computed it for', async () => {
+        // MJ 6.2's client-filter screen refuses a function call in a FROM, so the fragment compares
+        // with the view's own BusinessToday column. task-filters.test.ts runs it through that screen.
         const tasks = await read('../task-filters.ts');
-        expect(tasks).toContain('t.DueAt < ${BUSINESS_TODAY_SQL}');
+        expect(tasks).toContain('t.DueAt < ${contractView}.BusinessToday');
+        expect(tasks).not.toContain('fnBusinessToday');
     });
 
     it('takes the Overview countdown from the view rather than deriving a second one', async () => {

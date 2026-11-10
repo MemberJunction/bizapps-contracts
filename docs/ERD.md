@@ -214,7 +214,7 @@ additionally creates an `IDX_AUTO_MJ_FKEY_*` index on every foreign key column.
 ## 4. Derived columns — not in any table
 
 `vwContracts` is an **app-owned layered base view**: it wraps the CodeGen-generated
-`vwContractsGenerated` and adds twelve columns computed at read time. They appear on the
+`vwContractsGenerated` and adds thirteen columns computed at read time. They appear on the
 `Contracts` entity as read-only virtual fields, and they are the only place these facts exist.
 
 **"Today" is the business day:** `bt.Today` from bizapps-common's
@@ -236,11 +236,15 @@ state) — cross-joined once per query, so every column in a row uses the same d
 | `HasParentContract` | `ParentContractID IS NOT NULL` as `1` / `0` |
 | `HasCancellationWindow` | `CancellationWindowDays > 0` as `1` / `0` |
 | `HasAnnualIncrease` | `AnnualIncreasePercent > 0` as `1` / `0` |
+| `BusinessToday` | today itself (`bt.Today`) |
 
-The last seven were added for the renewal-risk model (`V202609202354`).
+`TermLengthDays` through `HasAnnualIncrease` were added for the renewal-risk model (`V202609202354`).
+`BusinessToday` (`V202611101800`) lets a client filter compare a date from another app's view with
+today, as the overdue-task filter compares `Task.DueAt`: MJ 6.2 refuses a client filter that calls
+`fnBusinessToday()` itself.
 
-Four of the columns depend on **today** — `State`, `DaysToEnd`, `IsInCancellationWindow` and
-`DaysUntilNoticeDeadline` — so they cannot be stored: nothing writes the row when the clock crosses a
+Five of the columns depend on **today** — `State`, `DaysToEnd`, `IsInCancellationWindow`,
+`DaysUntilNoticeDeadline` and `BusinessToday` — so they cannot be stored: nothing writes the row when the clock crosses a
 boundary. `plans/ERD-planned.md` §7.2 records the reasoning, as history.
 
 **`NonRenewalOutcome` is the exception, because it is a training label** (`V202611031700`, issue #159).

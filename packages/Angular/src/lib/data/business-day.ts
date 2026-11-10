@@ -1,5 +1,5 @@
 /**
- * @fileoverview The notice-window predicates, and "today" for the one column the view cannot answer.
+ * @fileoverview The notice-window predicates, filtered on the day-counts `vwContracts` derives.
  *
  * ## What was wrong
  *
@@ -32,6 +32,12 @@
  * has always read `DaysToEnd IS NOT NULL AND DaysToEnd BETWEEN 0 AND 120`. The notice pills were the
  * outliers, and the deadline's own day-count column did not exist until V202609202354 added it.
  *
+ * The same holds where no day-count exists. The overdue-task filter (`task-filters.ts`) compares
+ * `Task.DueAt`, a date in another app's view, with the contract row's `BusinessToday` — the view's
+ * `bt.Today` published as a column — rather than reading the day on the client. It also cannot call
+ * `fnBusinessToday()` itself: MJ 6.2's GraphQL boundary refuses a client filter whose FROM names
+ * anything but an entity base view.
+ *
  * `DaysUntilNoticeDeadline` is NULL under exactly the conditions `RenewalNoticeDeadline` is (no end
  * date, or no notice period recorded), and every comparison below drops a NULL — so the explicit
  * `IS NOT NULL` these predicates used to carry is preserved, not lost.
@@ -63,28 +69,3 @@ export function NoticeWindowWithin(days: number): string {
     }
     return `DaysUntilNoticeDeadline BETWEEN 0 AND ${days}`;
 }
-
-/**
- * Today on the BUSINESS calendar, as a scalar subquery for an `ExtraFilter`.
- *
- * FOR A COLUMN NO VIEW OF OURS DERIVES A DAY-COUNT FOR — in practice `Tasks.DueAt`, which lives in
- * another app's view and is reached through a correlated `EXISTS` (see `task-filters.ts`). Prefer a
- * derived day-count column wherever one exists; this is the fallback, not the default.
- *
- * IN SQL RATHER THAN ON THE CLIENT, deliberately, and it is the same choice as above for the same
- * reason. `BusinessTimeZoneEngine.Instance.Today()` would read the day in the browser — from a cached
- * engine that falls open to UTC until something calls `Config()`, which is the precise failure this
- * is fixing, silently reintroduced; and the value would be fixed at the moment the filter string was
- * built rather than at the moment the query runs. Evaluated here, "today" comes from the same
- * function, the same configuration row and the same clock the view uses.
- *
- * `[__mj_BizAppsCommon]` is named literally because the schema is fixed by bizapps-common's own
- * migration, and it is already a hard requirement of this app: `V202609211200` refuses to apply
- * without this function, with a message saying so.
- *
- * An `ExtraFilter` is raw SQL appended to the base view's WHERE and MJ screens it with a keyword
- * denylist (`insert / update / delete / exec / drop / -- / union / xp_ / ; / waitfor`). A scalar
- * subquery trips none of it — this package already ships a whole correlated `EXISTS (SELECT 1 FROM …)`
- * through the same seam.
- */
-export const BUSINESS_TODAY_SQL = '(SELECT b.[Today] FROM [__mj_BizAppsCommon].[fnBusinessToday]() b)';
