@@ -1,5 +1,12 @@
 # @mj-biz-apps/contracts-integration-tests
 
+## 0.12.1
+
+### Patch Changes
+
+- @mj-biz-apps/contracts-core-entities-server@0.12.1
+- @mj-biz-apps/contracts-entities@0.12.1
+
 ## 0.12.0
 
 ### Patch Changes
