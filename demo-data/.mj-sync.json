@@ -7,11 +7,13 @@
     "Dependency order: our company, then customers, then the contracts that",
     "reference both. Contracts last also means the change order's parent exists",
     "by the time it is pushed — within one folder, file order is the array order. Modifications last: they reference both a contract and a provision.",
-    "The predictive-scoring bench (issue #89) follows: the pipeline, the model versions that name it, the record process that names a model in its Configuration, then the binding that names both. None of it references the demo contracts, only the Contracts entity."
+    "The predictive-scoring bench (issue #89) follows: the pipeline, the model versions that name it, the record process that names a model in its Configuration, then the binding that names both. None of it references the demo contracts, only the Contracts entity.",
+    "contract-template-publish publishes the template once its provisions exist: a Published template takes no new provisions, and a Draft one takes no new contracts."
   ],
   "directoryOrder": [
     "contract-templates",
     "contract-provisions",
+    "contract-template-publish",
     "companies",
     "organizations",
     "contracts",

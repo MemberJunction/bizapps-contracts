@@ -13,7 +13,11 @@
       "underneath the record.",
       "",
       "VersionLabel is the date rather than a semver-ish number, because that is how the business refers",
-      "to it and how the URL is built."
+      "to it and how the URL is built.",
+      "",
+      "Status is left out on purpose: the row is created with the column default, Draft, so",
+      "contract-provisions/ can add its clauses, and contract-template-publish/ then publishes it.",
+      "Naming Draft here would make every later push try to un-publish it, which the server refuses (#140)."
     ],
     "fields": {
       "Name": "Master Agreement — 2026-02-02",
@@ -21,8 +25,7 @@
       "VersionLabel": "2026-02-02",
       "IntroducedDate": "2026-02-02",
       "SourceURL": "https://bluecypress.io/masteragreement20260202/",
-      "Description": "Blue Cypress Master Services Agreement, 2026-02-02 edition. 16 sections, 71 numbered provisions. Captured from the dated published URL; each provision carries its verbatim text so a negotiated deviation can be read beside the standard clause.",
-      "Status": "Draft"
+      "Description": "Blue Cypress Master Services Agreement, 2026-02-02 edition. 16 sections, 71 numbered provisions. Captured from the dated published URL; each provision carries its verbatim text so a negotiated deviation can be read beside the standard clause."
     },
     "primaryKey": {
       "ID": "33333333-0000-4000-8000-000000003001"

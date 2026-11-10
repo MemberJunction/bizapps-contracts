@@ -8,7 +8,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { ProviderBase, type PlatformSQL } from '@memberjunction/core';
-import { lineageProbeSQL, modificationsAgainstTemplateSQL } from '../ContractEntityServer.js';
+import { ASSIGN_CONTRACT_NUMBER_SQL, lineageProbeSQL, modificationsAgainstTemplateSQL } from '../ContractEntityServer.js';
 import { provisionTemplateCheckSQL } from '../ContractTemplateModificationEntityServer.js';
 
 const A = '11111111-1111-1111-1111-111111111111';
@@ -39,7 +39,7 @@ describe.each(cases)('$name — one form per database', ({ sql, aliases }) => {
     it('PostgreSQL gets no T-SQL', () => {
         const resolved = resolveFor('postgresql', sql);
         expect(resolved).not.toMatch(/\[|\]|\bTOP\b|NVARCHAR|N'/);
-        expect(resolved).toContain('__mj_BizAppsContracts."');
+        expect(resolved).toContain('__mj_bizappscontracts."');
     });
 
     it('PostgreSQL quotes every alias the caller reads, so none folds to lowercase', () => {
@@ -68,5 +68,25 @@ describe('recursive walks', () => {
         const resolved = resolveFor('postgresql', lineageProbeSQL('SupersededByContractID', A, B));
         expect(resolved).toContain('JOIN lineage l ON c."ID" = l."SupersededByContractID"');
         expect(resolved).not.toContain('ParentContractID');
+    });
+});
+
+/**
+ * MJ's PostgreSQL provider passes every query through `AutoQuotePostgreSQLIdentifiers`, which quotes
+ * any unquoted mixed-case identifier. A mixed-case schema such as `__mj_BizAppsContracts` therefore
+ * reaches PostgreSQL as `"__mj_BizAppsContracts"`, a schema that does not exist; the baseline creates
+ * `__mj_bizappscontracts` (#141). The quoter is not a dependency of this package, so this applies
+ * its rule directly: outside quoted names and string literals, no identifier may mix cases.
+ */
+describe('PostgreSQL forms survive the provider auto-quoter', () => {
+    const forms: { name: string; sql: PlatformSQL }[] = [
+        { name: 'contract number', sql: ASSIGN_CONTRACT_NUMBER_SQL },
+        ...cases.map(({ name, sql }) => ({ name, sql })),
+    ];
+
+    it.each(forms)('$name: no unquoted mixed-case identifier', ({ sql }) => {
+        const bare = resolveFor('postgresql', sql).replace(/'(?:[^']|'')*'/g, "''").replace(/"[^"]*"/g, '""');
+        const mixed = bare.match(/\b(?=\w*[a-z])(?=\w*[A-Z])\w+\b/g) ?? [];
+        expect(mixed).toEqual([]);
     });
 });
