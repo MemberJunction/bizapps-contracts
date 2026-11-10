@@ -16,7 +16,7 @@
 > migration. A previous revision of this file described the **v1** schema for a day after v1 was
 > retired, and nothing about reading it revealed that — which is why the check exists.
 
-**6 tables** · 9 internal relationships · 4 cross-app foreign keys · 17 CHECK constraints · 7 unique indexes.
+**6 tables** · 9 internal relationships · 4 cross-app foreign keys · 18 CHECK constraints · 7 unique indexes.
 
 Schema: `__mj_BizAppsContracts`. Entity name prefix: `MJ_BizApps_Contracts: `.
 
@@ -98,6 +98,7 @@ erDiagram
         decimal PredictedNonRenewalRisk "nullable · predicted probability of non-renewal, 0 to 1"
         nvarchar PredictedRenewalRiskBand "nullable · Low, Medium, High or Critical"
         datetimeoffset PredictedRenewalScoredAt "nullable · when the contract was last scored"
+        int NonRenewalOutcome "nullable · 0 or 1 · the renewal-risk label, recorded by the database"
     }
 
     ContractTemplateModification {
@@ -152,7 +153,7 @@ counter; a sequence has no such surface.
 
 ## 3. Constraints
 
-### 3.1 CHECK — 17
+### 3.1 CHECK — 18
 
 | Table | Constraint | Rule |
 |---|---|---|
@@ -164,6 +165,7 @@ counter; a sequence has no such surface.
 | `Contract` | `CK_Contract_CancellationWindow` | null or `>= 0` |
 | `Contract` | `CK_Contract_AnnualIncrease` | null or `>= 0` |
 | `Contract` | `CK_Contract_PredictedRenewalRiskBand` | null or `IN ('Low','Medium','High','Critical')` |
+| `Contract` | `CK_Contract_NonRenewalOutcome` | null or `IN (0, 1)` — no code counterpart: the database writes the column, and no save can set it |
 | `ContractType` | `CK_ContractType_Status` | `IN ('Active','Inactive')` |
 | `ContractType` | `CK_ContractType_RootOrChild` | `NOT (MustBeRoot = 1 AND MustBeChild = 1)` — a type cannot be both |
 | `ContractType` | `CK_ContractType_DefaultRenewalNoticeDays` | null or `>= 0` |
@@ -212,7 +214,7 @@ additionally creates an `IDX_AUTO_MJ_FKEY_*` index on every foreign key column.
 ## 4. Derived columns — not in any table
 
 `vwContracts` is an **app-owned layered base view**: it wraps the CodeGen-generated
-`vwContractsGenerated` and adds thirteen columns computed at read time. They appear on the
+`vwContractsGenerated` and adds twelve columns computed at read time. They appear on the
 `Contracts` entity as read-only virtual fields, and they are the only place these facts exist.
 
 **"Today" is the business day:** `bt.Today` from bizapps-common's
@@ -227,7 +229,6 @@ state) — cross-joined once per query, so every column in a row uses the same d
 | `DaysToEnd` | `DATEDIFF(day, today, EndDate)` — signed |
 | `RenewalNoticeDeadline` | `EndDate - RenewalNoticeDays` |
 | `IsInCancellationWindow` | today falls within `CancellationWindowDays` of `EndDate`, `EndDate` included |
-| `NonRenewalOutcome` | The renewal-risk model's label. First match wins: superseded → `0`; `TerminatedDate <= today` → `1`; `EndDate < today` → `1`; otherwise null |
 | `TermLengthDays` | `DATEDIFF(day, EffectiveDate, EndDate)` |
 | `DaysUntilNoticeDeadline` | `DATEDIFF(day, today, RenewalNoticeDeadline)` |
 | `HasModificationsFlag` | `HasModifications` as `1` / `0` |
@@ -236,13 +237,22 @@ state) — cross-joined once per query, so every column in a row uses the same d
 | `HasCancellationWindow` | `CancellationWindowDays > 0` as `1` / `0` |
 | `HasAnnualIncrease` | `AnnualIncreasePercent > 0` as `1` / `0` |
 
-The last eight were added for the renewal-risk model (`V202609202354`). `NonRenewalOutcome` checks
-supersession *before* termination, the reverse of `State`: a renewal normally both terminates the old
-contract and points it at its successor, and for training that counts as renewed.
+The last seven were added for the renewal-risk model (`V202609202354`).
 
-Five of the columns depend on **today** — `State`, `DaysToEnd`, `IsInCancellationWindow`,
-`NonRenewalOutcome` and `DaysUntilNoticeDeadline` — so they cannot be stored: nothing writes the row
-when the clock crosses a boundary. `plans/ERD-planned.md` §7.2 records the reasoning, as history.
+Four of the columns depend on **today** — `State`, `DaysToEnd`, `IsInCancellationWindow` and
+`DaysUntilNoticeDeadline` — so they cannot be stored: nothing writes the row when the clock crosses a
+boundary. `plans/ERD-planned.md` §7.2 records the reasoning, as history.
+
+**`NonRenewalOutcome` is the exception, because it is a training label** (`V202611031700`, issue #159).
+Computed in the view, the same unchanged contract read null one day and `1` the next, so two training
+runs over identical rows labelled different sets. It is now a stored column on `Contract`, and the
+database writes it: `fnContractNonRenewalOutcome` holds the rule once, with the day as an argument
+(first match wins: superseded → `0`; `TerminatedDate <=` the day → `1`; `EndDate <` the day → `1`;
+otherwise null). `trgContract_RecordNonRenewalOutcome` applies it to every inserted or updated row, and
+`spRecordContractNonRenewalOutcomes` applies it to rows whose end date has passed, run hourly by the
+*Contracts — Record Renewal Outcomes* scheduled job. The rule checks supersession *before* termination,
+the reverse of `State`: a renewal normally both terminates the old contract and points it at its
+successor, and for training that counts as renewed.
 
 `vwContractsGenerated` also carries CodeGen's joined name columns: `ContractType`, `Company`,
 `CustomerOrganization`, `PrimaryContactPerson`, `ContractTemplate`, `CreatingEntity`,
