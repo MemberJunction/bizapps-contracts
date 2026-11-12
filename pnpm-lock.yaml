@@ -235,6 +235,12 @@ importers:
       '@memberjunction/sqlserver-dataprovider':
         specifier: ^6.2.1
         version: 6.2.1(@aws-sdk/credential-provider-node@3.972.95)(@modelcontextprotocol/sdk@1.30.0(zod@4.6.7))(@smithy/signature-v4@5.7.5)(@types/node@25.9.5)(axios@1.19.0)(chokidar@3.6.0)(encoding@0.1.13)(typescript@5.9.3)(ws@8.22.2)(zod@4.6.7)
+      '@mj-biz-apps/common-entities':
+        specifier: 5.65.0
+        version: 5.65.0(@memberjunction/core@6.2.1)(@memberjunction/global@6.2.1)
+      '@mj-biz-apps/orders-entities':
+        specifier: 5.49.0
+        version: 5.49.0(@memberjunction/core@6.2.1)(@memberjunction/global@6.2.1)(@mj-biz-apps/common-entities@5.65.0(@memberjunction/core@6.2.1)(@memberjunction/global@6.2.1))
       typescript:
         specifier: ^5.9.3
         version: 5.9.3
@@ -270,6 +276,12 @@ importers:
         specifier: ^0.12.1
         version: link:../Entities
     devDependencies:
+      '@mj-biz-apps/common-entities':
+        specifier: 5.65.0
+        version: 5.65.0(@memberjunction/core@6.2.1)(@memberjunction/global@6.2.1)
+      '@mj-biz-apps/orders-entities':
+        specifier: 5.49.0
+        version: 5.49.0(@memberjunction/core@6.2.1)(@memberjunction/global@6.2.1)(@mj-biz-apps/common-entities@5.65.0(@memberjunction/core@6.2.1)(@memberjunction/global@6.2.1))
       '@types/node':
         specifier: ^22.10.2
         version: 22.20.1
@@ -298,6 +310,12 @@ importers:
         specifier: ^0.14.3
         version: 0.14.4
     devDependencies:
+      '@memberjunction/actions':
+        specifier: ^6.2.1
+        version: 6.2.1
+      '@memberjunction/actions-base':
+        specifier: ^6.2.1
+        version: 6.2.1
       '@memberjunction/core':
         specifier: ^6.2.1
         version: 6.2.1
@@ -310,6 +328,12 @@ importers:
       '@memberjunction/sqlserver-dataprovider':
         specifier: ^6.2.1
         version: 6.2.1(@aws-sdk/credential-provider-node@3.972.95)(@modelcontextprotocol/sdk@1.30.0(zod@4.6.7))(@smithy/signature-v4@5.7.5)(@types/node@25.9.5)(axios@1.19.0)(chokidar@3.6.0)(encoding@0.1.13)(typescript@5.9.3)(ws@8.22.2)(zod@4.6.7)
+      '@mj-biz-apps/common-entities':
+        specifier: 5.65.0
+        version: 5.65.0(@memberjunction/core@6.2.1)(@memberjunction/global@6.2.1)
+      '@mj-biz-apps/orders-entities':
+        specifier: 5.49.0
+        version: 5.49.0(@memberjunction/core@6.2.1)(@memberjunction/global@6.2.1)(@mj-biz-apps/common-entities@5.65.0(@memberjunction/core@6.2.1)(@memberjunction/global@6.2.1))
       typescript:
         specifier: ^5.9.3
         version: 5.9.3
@@ -2807,6 +2831,12 @@ packages:
       '@memberjunction/core': ^6.2.1
       '@memberjunction/global': ^6.2.1
 
+  '@mj-biz-apps/common-entities@5.65.0':
+    resolution: {integrity: sha512-Pvs6BIGut2xQz7wT/jKpcAZW9Bj8E5/NrkbXnFUEk+sz1nl48uPbWWO4xvZaev//0Zvj6G2HfjqxAFxPQS30FQ==}
+    peerDependencies:
+      '@memberjunction/core': ^6.2.1
+      '@memberjunction/global': ^6.2.1
+
   '@mj-biz-apps/common-ng@5.56.0':
     resolution: {integrity: sha512-TbC+lmsDgt11B9LIxHOpWLI7bbZfKYGn/7mQoWV/cKG66og2zBnScGUyPMY1NYjF6i/iC4Z5Uxz9fmo4DQW96w==}
     peerDependencies:
@@ -2827,6 +2857,13 @@ packages:
       '@memberjunction/ng-shared': ^6.1.6
       '@memberjunction/ng-ui-components': ^6.1.6
       rxjs: ^7.8.2
+
+  '@mj-biz-apps/orders-entities@5.49.0':
+    resolution: {integrity: sha512-DWlOogHPJSVD7yVq4qNXUbOcwLuNOe01XK8Cq9JYiyoMGAaIin71J0nLMpuL+8HeoFN0sk9lbPhCDWMpe4myfQ==}
+    peerDependencies:
+      '@memberjunction/core': ^6.2.1
+      '@memberjunction/global': ^6.2.1
+      '@mj-biz-apps/common-entities': ^5.56.0
 
   '@modelcontextprotocol/sdk@1.30.0':
     resolution: {integrity: sha512-xKd8OIzlqNzcqcNumGAa6g+PW2kjD5vrpcKOnfldAUPP3j7lnqMPwlTXQm8gF+UwH72z0lqaRbjr9hqGz0eITA==}
@@ -9800,6 +9837,23 @@ snapshots:
     transitivePeerDependencies:
       - '@types/node'
 
+  '@hyperframes/core@0.8.134(@types/node@22.20.1)':
+    dependencies:
+      '@chenglou/pretext': 0.0.5
+      '@hyperframes/lint': 0.8.134
+      '@hyperframes/parsers': 0.8.134
+      '@hyperframes/studio-server': 0.8.134(@types/node@22.20.1)
+      bpm-detective: 2.0.5
+      linkedom: 0.18.15
+      postcss: 8.5.26
+      wawoff2: 2.0.1
+    optionalDependencies:
+      esbuild: 0.25.12
+    transitivePeerDependencies:
+      - '@types/node'
+      - canvas
+    optional: true
+
   '@hyperframes/core@0.8.134(@types/node@24.10.11)':
     dependencies:
       '@chenglou/pretext': 0.0.5
@@ -9815,6 +9869,24 @@ snapshots:
     transitivePeerDependencies:
       - '@types/node'
       - canvas
+    optional: true
+
+  '@hyperframes/engine@0.8.134(@types/node@22.20.1)':
+    dependencies:
+      '@hono/node-server': 2.1.1(hono@4.13.2)
+      '@hyperframes/core': 0.8.134(@types/node@22.20.1)
+      '@hyperframes/parsers': 0.8.134
+      hono: 4.13.2
+      linkedom: 0.18.15
+      puppeteer: 25.16.0
+      puppeteer-core: 25.16.0
+    transitivePeerDependencies:
+      - '@types/node'
+      - bufferutil
+      - canvas
+      - proxy-agent
+      - utf-8-validate
+      - yauzl
     optional: true
 
   '@hyperframes/engine@0.8.134(@types/node@24.10.11)':
@@ -9863,8 +9935,8 @@ snapshots:
   '@hyperframes/producer@0.8.134(@types/node@22.20.1)':
     dependencies:
       '@hono/node-server': 2.1.1(hono@4.13.2)
-      '@hyperframes/core': 0.8.134(@types/node@24.10.11)
-      '@hyperframes/engine': 0.8.134(@types/node@24.10.11)
+      '@hyperframes/core': 0.8.134(@types/node@22.20.1)
+      '@hyperframes/engine': 0.8.134(@types/node@22.20.1)
       '@hyperframes/lint': 0.8.134
       '@hyperframes/parsers': 0.8.134
       '@hyperframes/studio-server': 0.8.134(@types/node@22.20.1)
@@ -9906,7 +9978,7 @@ snapshots:
 
   '@hyperframes/studio-server@0.8.134(@types/node@22.20.1)':
     dependencies:
-      '@hyperframes/core': 0.8.134(@types/node@24.10.11)
+      '@hyperframes/core': 0.8.134(@types/node@22.20.1)
       '@hyperframes/parsers': 0.8.134
       hono: 4.13.2
       linkedom: 0.18.15
@@ -22029,8 +22101,8 @@ snapshots:
 
   '@memberjunction/video-studio-render-worker@6.2.1(@types/node@22.20.1)':
     dependencies:
-      '@hyperframes/core': 0.8.134(@types/node@24.10.11)
-      '@hyperframes/engine': 0.8.134(@types/node@24.10.11)
+      '@hyperframes/core': 0.8.134(@types/node@22.20.1)
+      '@hyperframes/engine': 0.8.134(@types/node@22.20.1)
       '@hyperframes/lint': 0.8.134
       '@hyperframes/parsers': 0.8.134
       '@hyperframes/producer': 0.8.134(@types/node@22.20.1)
@@ -22416,6 +22488,12 @@ snapshots:
       '@memberjunction/global': 6.2.1
       zod: 3.25.76
 
+  '@mj-biz-apps/common-entities@5.65.0(@memberjunction/core@6.2.1)(@memberjunction/global@6.2.1)':
+    dependencies:
+      '@memberjunction/core': 6.2.1
+      '@memberjunction/global': 6.2.1
+      zod: 3.25.76
+
   '@mj-biz-apps/common-ng@5.56.0(26c82e5f7c2ebe1a5ea421c5add49085)':
     dependencies:
       '@angular/common': 21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2)
@@ -22434,6 +22512,14 @@ snapshots:
       '@memberjunction/ng-ui-components': 6.2.1(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(@angular/forms@21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(rxjs@7.8.2)
       '@mj-biz-apps/common-entities': 5.56.0(@memberjunction/core@6.2.1)(@memberjunction/global@6.2.1)
       rxjs: 7.8.2
+
+  '@mj-biz-apps/orders-entities@5.49.0(@memberjunction/core@6.2.1)(@memberjunction/global@6.2.1)(@mj-biz-apps/common-entities@5.65.0(@memberjunction/core@6.2.1)(@memberjunction/global@6.2.1))':
+    dependencies:
+      '@memberjunction/core': 6.2.1
+      '@memberjunction/global': 6.2.1
+      '@mj-biz-apps/common-entities': 5.65.0(@memberjunction/core@6.2.1)(@memberjunction/global@6.2.1)
+      rxjs: 7.8.2
+      zod: 3.25.76
 
   '@modelcontextprotocol/sdk@1.30.0(zod@3.25.76)':
     dependencies:

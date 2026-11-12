@@ -32,6 +32,7 @@ const ALL_BUNDLES = [
     'contracts-numbering',
     'contracts-provisions',
     'contracts-watchlist',
+    'contracts-renewal-terms',
 ];
 
 const args = process.argv.slice(2);
@@ -85,7 +86,7 @@ if (!user) {
 await import('@mj-biz-apps/contracts-entities');
 await import('@mj-biz-apps/contracts-core-entities-server');
 
-const { IntegrationCheckRegistry } = await import('@memberjunction/testing-integration');
+const { IntegrationCheckRegistry, IsCheckSkip } = await import('@memberjunction/testing-integration');
 await import('@mj-biz-apps/contracts-integration-tests'); // side effect: registers the bundles
 
 const registry = IntegrationCheckRegistry.Instance;
@@ -106,6 +107,7 @@ const baseContext = {
 const requested = only.length ? only : ALL_BUNDLES;
 let pass = 0;
 let fail = 0;
+let skipped = 0;
 const failures = [];
 
 for (const request of requested) {
@@ -131,6 +133,13 @@ for (const request of requested) {
                 pass++;
                 console.log(`  ✔ ${check.Name}  (${Date.now() - started}ms)`);
             } catch (e) {
+                // SkipCheck: a precondition is missing (an upstream app not installed, data not
+                // seeded). It verified nothing, so it is neither a pass nor a failure.
+                if (IsCheckSkip(e)) {
+                    skipped++;
+                    console.log(`  ○ ${check.Name}  SKIPPED: ${e.message}`);
+                    continue;
+                }
                 fail++;
                 const message = String(e?.message ?? e).split('\n')[0];
                 failures.push({ Id: check.Id, message });
@@ -154,7 +163,7 @@ for (const request of requested) {
     }
 }
 
-console.log(`\n${fail === 0 ? 'PASS' : 'FAIL'} — ${pass} passed, ${fail} failed`);
+console.log(`\n${fail === 0 ? 'PASS' : 'FAIL'} — ${pass} passed, ${fail} failed, ${skipped} skipped`);
 if (fail) failures.forEach((f) => console.log(`  · ${f.Id}: ${f.message}`));
 
 // NEVER await pool.close() — the MJ provider's pool can hang forever and the process never exits.

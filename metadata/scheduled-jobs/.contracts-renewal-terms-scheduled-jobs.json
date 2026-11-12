@@ -1,0 +1,30 @@
+[
+  {
+    "_comments": [
+      "Runs the Sweep Contract Renewal Terms action daily at 01:30 UTC, ahead of the renewal pass.",
+      "  · ConcurrencyMode Skip: two runs would save the same subscriptions.",
+      "  · MissedRunPolicy RunOnce: each run re-reads every link, so one catch-up covers any gap.",
+      "Seeded Active: it only touches subscriptions of orders explicitly linked to a contract."
+    ],
+    "fields": {
+      "Name": "Contracts — Copy Renewal Terms to Subscriptions (daily)",
+      "Description": "Copies each linked contract's annual increase and carry-discount flag to the subscriptions its orders created, including subscriptions created after the link.",
+      "JobTypeID": "3B94DD43-E961-4D85-B7F4-B6783D748766",
+      "CronExpression": "0 30 1 * * *",
+      "Timezone": "UTC",
+      "Status": "Active",
+      "ConcurrencyMode": "Skip",
+      "MissedRunPolicy": "RunOnce",
+      "RunImmediatelyIfNeverRun": false,
+      "MaxRuntimeMinutes": 15,
+      "NotifyOnSuccess": false,
+      "NotifyOnFailure": false,
+      "NotifyViaEmail": false,
+      "NotifyViaInApp": false,
+      "Configuration": "{\"ActionID\":\"B8818305-AB67-4BDC-BDA3-7539F009DB1C\",\"Params\":[]}"
+    },
+    "primaryKey": {
+      "ID": "00FCEB90-D230-4DC5-A992-6356988224F6"
+    }
+  }
+]

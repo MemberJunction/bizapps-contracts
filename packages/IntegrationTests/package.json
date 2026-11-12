@@ -24,7 +24,9 @@
     "typescript": "^5.9.3",
     "tsc-alias": "^1.8.10",
     "@types/node": "^22.10.2",
-    "vitest": "^4.0.18"
+    "vitest": "^4.0.18",
+    "@mj-biz-apps/common-entities": "5.65.0",
+    "@mj-biz-apps/orders-entities": "5.49.0"
   },
   "dependencies": {
     "@mj-biz-apps/contracts-entities": "^0.12.1",
@@ -33,6 +35,7 @@
   "peerDependencies": {
     "@memberjunction/core": "^6.2.1",
     "@memberjunction/global": "^6.2.1",
-    "@memberjunction/testing-integration": "^6.2.1"
+    "@memberjunction/testing-integration": "^6.2.1",
+    "@mj-biz-apps/orders-entities": "^5.28.0"
   }
 }

@@ -27,7 +27,8 @@ export class mjBizAppsContractsContractFormComponent extends BaseFormComponent {
             { sectionKey: 'systemMetadata', sectionName: 'System Metadata', isExpanded: false },
             { sectionKey: 'mJBizAppsContractsContractTemplateModifications', sectionName: 'Modifications', isExpanded: false },
             { sectionKey: 'mJBizAppsContractsContractsSupersededByContractID', sectionName: 'Supersedes', isExpanded: false },
-            { sectionKey: 'mJBizAppsContractsContractsParentContractID', sectionName: 'Lineage', isExpanded: false }
+            { sectionKey: 'mJBizAppsContractsContractsParentContractID', sectionName: 'Lineage', isExpanded: false },
+            { sectionKey: 'mJBizAppsContractsContractOrders', sectionName: 'Contract Orders', isExpanded: false }
         ]);
     }
 }
