@@ -53,6 +53,7 @@ import { ScopedRunView } from '../data/provider';
 import { BuildOpenTaskFilters } from '../data/task-filters';
 import { NOTICE_WINDOW_PASSED, NoticeWindowWithin } from '../data/business-day';
 import { BuildDashboardAgentContext } from '../data/agent-context';
+import { RunContractCounts, type ContractCountQuery } from '../data/contract-counts';
 
 /**
  * Where a tile click goes. `Preset` names a filter pill on the destination page, because a tile that
@@ -460,32 +461,14 @@ export class MJCContractsDashboardPageComponent extends BaseDashboard {
     /**
      * Count everything concurrently, then compose one error sentence for whatever failed.
      *
-     * Each tile owns its own try/catch so one unreadable count cannot blank the other three, and a
-     * failure sets `null` rather than `0`. `MaxRows: 1` with `TotalRowCount` means no rows cross the
-     * wire for a count.
+     * Batches all contract count queries across the first three tiles into a single RunContractCounts
+     * call with ResultType: 'count_only', running concurrently with the special-terms stored query.
      */
     private async refreshCounts(): Promise<void> {
-        const rv = ScopedRunView(this.ProviderToUse);
         const failures: string[] = [];
 
-        const count = async (label: string, filter: string): Promise<number | null> => {
-            try {
-                const r = await rv.RunView({
-                    EntityName: MJC_ENTITIES.Contract,
-                    ExtraFilter: this.scoped(filter),
-                    MaxRows: 1,
-                });
-                return r?.TotalRowCount ?? 0;
-            } catch {
-                failures.push(label);
-                return null;
-            }
-        };
-
         await Promise.all([
-            this.countToProcess(count, failures),
-            this.countAwaiting(count),
-            this.countNoticeDeadlines(count),
+            this.countContractBatches(failures),
             this.countSpecialTerms(failures),
         ]);
 
@@ -494,67 +477,55 @@ export class MJCContractsDashboardPageComponent extends BaseDashboard {
             : null;
     }
 
-    /**
-     * Draft contracts with an open Contract Processing task.
-     *
-     * The filter comes from `task-filters.ts` and is the SAME fragment the All Contracts "Has open
-     * task" pill uses, which is what keeps this tile from promising work the list then fails to show.
-     * A `null` fragment means bizapps-tasks is not installed (or its type row is missing) — the tile
-     * reports unknown rather than claiming zero, because zero would be a lie about a queue.
-     */
-    private async countToProcess(
-        count: (label: string, filter: string) => Promise<number | null>,
-        failures: string[],
-    ): Promise<void> {
-        const tile = this.tile('to-process');
+    private async countContractBatches(failures: string[]): Promise<void> {
+        const toProcessTile = this.tile('to-process');
+        const awaitingTile = this.tile('awaiting-document');
+        const noticeTile = this.tile('notice-deadlines');
+
         const filters = await BuildOpenTaskFilters(this.ProviderToUse);
-        if (!filters) {
-            tile.Count = null;
-            tile.Detail = null;
+        const queries: ContractCountQuery[] = [];
+
+        if (filters) {
+            queries.push(
+                { Key: 'to-process:open', Label: 'To process', ExtraFilter: this.scoped(`State = 'Draft' AND ${filters.HasOpenTask}`) },
+                { Key: 'to-process:overdue', Label: 'Overdue tasks', ExtraFilter: this.scoped(`State = 'Draft' AND ${filters.HasOverdueTask}`) },
+            );
+        } else {
+            toProcessTile.Count = null;
+            toProcessTile.Detail = null;
             failures.push('Open tasks');
-            return;
         }
 
-        const [open, overdue] = await Promise.all([
-            count('To process', `State = 'Draft' AND ${filters.HasOpenTask}`),
-            count('Overdue tasks', `State = 'Draft' AND ${filters.HasOverdueTask}`),
-        ]);
-        tile.Count = open;
-        tile.Detail = overdue ? `${overdue} overdue` : null;
-        tile.Tone = overdue ? 'warn' : 'none';
-    }
-
-    private async countAwaiting(
-        count: (label: string, filter: string) => Promise<number | null>,
-    ): Promise<void> {
-        const tile = this.tile('awaiting-document');
-        const [awaiting, inForce] = await Promise.all([
-            count('Awaiting documents', `IsAwaitingDocument = 1 AND State IN ('Draft','Executed','Active')`),
-            count('In force without paper', `IsAwaitingDocument = 1 AND State = 'Active'`),
-        ]);
-        tile.Count = awaiting;
-        tile.Detail = inForce ? `${inForce} already in force` : null;
-        // Error, not warn: operating under an agreement whose signed copy we cannot produce is the
-        // combination that hurts in a dispute.
-        tile.Tone = inForce ? 'error' : 'none';
-    }
-
-    private async countNoticeDeadlines(
-        count: (label: string, filter: string) => Promise<number | null>,
-    ): Promise<void> {
-        const tile = this.tile('notice-deadlines');
         const live = `State IN ('Active','Executed')`;
-        // Both counts on the view's own `DaysUntilNoticeDeadline` (bc-aidp-next-golive#168), which is
-        // derived from `bt.Today`. On `CAST(GETUTCDATE() AS date)` this tile moved a deadline out of
-        // "upcoming" and into "missed" an evening before the record itself agreed — and the tile links
-        // straight to the pill that was answering the other way.
-        const [upcoming, missed] = await Promise.all([
-            count('Notice deadlines', `${live} AND ${NoticeWindowWithin(60)}`),
-            count('Missed deadlines', `State = 'Active' AND ${NOTICE_WINDOW_PASSED}`),
-        ]);
-        tile.Count = upcoming;
-        tile.Detail = missed ? `${missed} missed` : null;
-        tile.Tone = missed ? 'warn' : 'none';
+        queries.push(
+            { Key: 'awaiting:total', Label: 'Awaiting documents', ExtraFilter: this.scoped(`IsAwaitingDocument = 1 AND State IN ('Draft','Executed','Active')`) },
+            { Key: 'awaiting:inForce', Label: 'In force without paper', ExtraFilter: this.scoped(`IsAwaitingDocument = 1 AND State = 'Active'`) },
+            { Key: 'notice:upcoming', Label: 'Notice deadlines', ExtraFilter: this.scoped(`${live} AND ${NoticeWindowWithin(60)}`) },
+            { Key: 'notice:missed', Label: 'Missed deadlines', ExtraFilter: this.scoped(`State = 'Active' AND ${NOTICE_WINDOW_PASSED}`) },
+        );
+
+        const { Counts, FailedLabels } = await RunContractCounts(ScopedRunView(this.ProviderToUse), queries);
+        failures.push(...FailedLabels);
+
+        if (filters) {
+            const open = Counts['to-process:open'];
+            const overdue = Counts['to-process:overdue'];
+            toProcessTile.Count = open;
+            toProcessTile.Detail = overdue ? `${overdue} overdue` : null;
+            toProcessTile.Tone = overdue ? 'warn' : 'none';
+        }
+
+        const awaiting = Counts['awaiting:total'];
+        const inForce = Counts['awaiting:inForce'];
+        awaitingTile.Count = awaiting;
+        awaitingTile.Detail = inForce ? `${inForce} already in force` : null;
+        awaitingTile.Tone = inForce ? 'error' : 'none';
+
+        const upcoming = Counts['notice:upcoming'];
+        const missed = Counts['notice:missed'];
+        noticeTile.Count = upcoming;
+        noticeTile.Detail = missed ? `${missed} missed` : null;
+        noticeTile.Tone = missed ? 'warn' : 'none';
     }
 
     /**
