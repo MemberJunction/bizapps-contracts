@@ -16,6 +16,7 @@ import { LinkDirectivesModule } from '@memberjunction/ng-link-directives';
 
 // Import Generated Components
 import { mjBizAppsContractsContractFormComponent } from "./Entities/mjBizAppsContractsContract/mjbizappscontractscontract.form.component";
+import { mjBizAppsContractsContractOrderFormComponent } from "./Entities/mjBizAppsContractsContractOrder/mjbizappscontractscontractorder.form.component";
 import { mjBizAppsContractsContractTemplateFormComponent } from "./Entities/mjBizAppsContractsContractTemplate/mjbizappscontractscontracttemplate.form.component";
 import { mjBizAppsContractsContractTemplateModificationFormComponent } from "./Entities/mjBizAppsContractsContractTemplateModification/mjbizappscontractscontracttemplatemodification.form.component";
 import { mjBizAppsContractsContractTemplateProvisionFormComponent } from "./Entities/mjBizAppsContractsContractTemplateProvision/mjbizappscontractscontracttemplateprovision.form.component";
@@ -56,6 +57,24 @@ exports: [
 ]
 })
 export class GeneratedForms_SubModule_10 { }
+    
+
+
+@NgModule({
+declarations: [
+    mjBizAppsContractsContractOrderFormComponent
+],
+imports: [
+    CommonModule,
+    FormsModule,
+    BaseFormsModule,
+    EntityViewerModule,
+    LinkDirectivesModule
+],
+exports: [
+]
+})
+export class GeneratedForms_SubModule_13 { }
     
 
 
@@ -120,6 +139,7 @@ declarations: [
 imports: [
     GeneratedForms_SubModule_3,
     GeneratedForms_SubModule_10,
+    GeneratedForms_SubModule_13,
     GeneratedForms_SubModule_21,
     GeneratedForms_SubModule_27,
     GeneratedForms_SubModule_29

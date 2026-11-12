@@ -9,11 +9,13 @@
  *
  * BUNDLES
  *   contracts-world        CW1        commit CTR-WORLD (template, customers, a portfolio of every State)
- *   contracts-graph-save   GS1–GS11   header + modifications atomicity, flag invariant, type rules — D-15
+ *   contracts-graph-save   GS1–GS13   header + modifications atomicity, flag invariant, type rules — D-15
  *   contracts-numbering    N1–N5      ContractNumber CTR sequence, uniqueness, reserved namespace
  *   contracts-provisions   P1–P7      seed completeness incl. text, natural order via ProvisionSortKey,
  *                                    published-provision guard errors through INSERT-EXEC
  *   contracts-watchlist    W1–W8      derived column VALUES (awaiting document, days to end, notice, state)
+ *   contracts-renewal-terms RT1–RT4  renewal terms reach Orders subscriptions (link, edit, sweep, delete
+ *                                    guard); skips when Orders or an order-created subscription is absent
  *
  * WHY BUNDLE IDS ARE PREFIXED `contracts-`. The registry is a `BaseSingleton` keyed on check id and
  * is PROCESS-GLOBAL. An instance with both apps dev-linked loads orders' bundles and ours into the
@@ -44,6 +46,7 @@ import './checks/graph-save.checks.js';
 import './checks/numbering.checks.js';
 import './checks/provisions.checks.js';
 import './checks/watchlist.checks.js';
+import './checks/renewal-terms.checks.js';
 
 LoadContractEntity();
 LoadContractTemplateEntity();
@@ -57,6 +60,7 @@ export { GraphSaveChecks } from './checks/graph-save.checks.js';
 export { NumberingChecks } from './checks/numbering.checks.js';
 export { ProvisionsChecks } from './checks/provisions.checks.js';
 export { WatchlistChecks } from './checks/watchlist.checks.js';
+export { RenewalTermsChecks } from './checks/renewal-terms.checks.js';
 export * from './fixture.js';
 export * from './world/world.js';
 export * from './world/load-world.js';

@@ -158,6 +158,31 @@ jobs:
               VALUES ('7A94ADA9-7880-4FAE-97D8-DB0E934C3F5F', N'MJ_BizApps_Common: People', N'__mj_BizAppsCommon', N'Person', N'vwPeople', 0);
           "
 
+      # V202611121200's ContractOrder has an FK to __mj_BizAppsOrders.OrderHeader (issue #77), so the
+      # replay needs that table, and CodeGen's capture names its entity. A stub with the key is enough;
+      # the entity row carries the ID bizapps-orders ships for 'MJ_BizApps_Orders: Order Headers'.
+      - name: Seed minimal __mj_BizAppsOrders cross-schema prerequisites
+        run: |
+          sqlcmd -S "$DB_HOST,$DB_PORT" -U "$DB_USERNAME" -P "$DB_PASSWORD" -C -I -b -d "$DB_DATABASE" -Q "
+            IF SCHEMA_ID('__mj_BizAppsOrders') IS NULL
+              EXEC('CREATE SCHEMA [__mj_BizAppsOrders]');
+
+            IF OBJECT_ID('[__mj_BizAppsOrders].[OrderHeader]', 'U') IS NULL
+            BEGIN
+              CREATE TABLE [__mj_BizAppsOrders].[OrderHeader] (
+                [ID] UNIQUEIDENTIFIER NOT NULL CONSTRAINT [PK_Orders_OrderHeader] PRIMARY KEY DEFAULT (newsequentialid()),
+                [OrderNumber] NVARCHAR(50) NULL,
+                [__mj_CreatedAt] DATETIMEOFFSET NOT NULL DEFAULT (getutcdate()),
+                [__mj_UpdatedAt] DATETIMEOFFSET NOT NULL DEFAULT (getutcdate())
+              );
+              EXEC('CREATE VIEW [__mj_BizAppsOrders].[vwOrderHeaders] AS SELECT * FROM [__mj_BizAppsOrders].[OrderHeader]');
+            END;
+
+            IF NOT EXISTS (SELECT 1 FROM [__mj].[Entity] WHERE ID = 'FC529BC8-FF09-44A9-B454-26EAFDAC791B')
+              INSERT INTO [__mj].[Entity] (ID, Name, SchemaName, BaseTable, BaseView, VirtualEntity)
+              VALUES ('FC529BC8-FF09-44A9-B454-26EAFDAC791B', N'MJ_BizApps_Orders: Order Headers', N'__mj_BizAppsOrders', N'OrderHeader', N'vwOrderHeaders', 0);
+          "
+
       - name: Apply bizapps-contracts migration chain
         run: |
           for f in migrations/B*.sql migrations/V*.sql; do
