@@ -110,7 +110,7 @@ module.exports = {
     folderPath: './migrations/codegen/',
     appendToFile: false,
     convertCoreSchemaToFlywayMigrationFile: true,
-    omitRecurringScriptsFromLog: false,
+    omitRecurringScriptsFromLog: true,
     schemaPlaceholders: [
       // Order matters: more-specific schema names must come first (greedy
       // sequential substitution).

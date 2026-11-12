@@ -268,9 +268,9 @@ currently work, so this is not breaking anything today — but it is metadata de
 nothing returns, which is the exact shape of the `IsChangeOrder` trap we just removed. Either build
 them (a recursive view column, which then *needs* R-3 to terminate) or delete the metadata rows.
 
-## R-4 · Modifications, templates, and the contract tree — **IMPLEMENTED 2026-08-20** (deferred half excepted)
+## R-4 · Modifications, templates, and the contract tree — **IMPLEMENTED 2026-08-20** (tree-wide clearing half: #147)
 
-> ✅ **DONE 2026-08-20**, except the half the item itself defers to R-14.
+> ✅ **DONE 2026-08-20**; the tree-wide clearing half the item deferred to R-14 landed with #147 (below).
 >
 > `V202608200300`: `MustBeRoot` / `MustBeChild` / `TemplateRequired` added, `CK_ContractType_RootOrChild`
 > added, `ParentStatusRequirement` and its CHECK **dropped**. Seed rewritten and pushed
@@ -317,14 +317,14 @@ them (a recursive view column, which then *needs* R-3 to terminate) or delete th
 > *"ParentStatusRequirement = 'Required' is what enforces that parent"* — user-visible help text naming
 > a column this migration drops. Rewritten and re-pushed.
 >
-> ### ⏳ NOT DONE — the deferred half (rides with R-14, per the item)
+> ### ✅ DONE — the tree-wide half (#147)
 > *"Reject clearing `ContractTemplateID` when a modification ANYWHERE IN THE TREE references that
-> template and it is not reachable elsewhere in the tree."* What IS implemented is the narrow half the
-> item marks certain: clearing is refused when modifications on **this** contract cite provisions of the
-> template being cleared (`refuseClearingAReferencedTemplate`, verified by build; the tree-wide version
-> needs the settled tree model R-14 brings). A pre-existing modification on a CHILD contract citing the
-> cleared template is not yet caught — though the modification-side rule refuses to SAVE such a row, so
-> the gap is historical rows, not new ones.
+> template and it is not reachable elsewhere in the tree."* `refuseClearingAReferencedTemplate` now runs
+> `modificationsAgainstTemplateSQL`, which walks down from the saving contract, finds modifications
+> citing the template being cleared, and keeps only those with no other contract at or above them still
+> referencing it. Own and child-contract counts are reported separately. Scope is clearing only:
+> repointing to a different template or re-parenting a child is not checked. Verified by unit tests and
+> integration checks GS12 (refused) and GS13 (allowed when the child references the template itself).
 >
 > The original specification follows.
 
@@ -418,12 +418,12 @@ The validation becomes `MustBeChild && !ParentContractID` → refuse, and
 - **Contract side (certain half, implement now)** — reject clearing `ContractTemplateID` when the
   type's `TemplateRequired` is true, and reject clearing it while modifications on THIS contract point
   at provisions of THAT template.
-- **Contract side (full half, DEFERRED — sequenced after the tree model, ruled 2026-08-20)** — the complete rule is *"reject clearing when
+- **Contract side (full half, IMPLEMENTED — #147, after the tree model; ruled 2026-08-20)** — the complete rule is *"reject clearing when
   a modification anywhere in the tree references that template and it is not reachable elsewhere in
   the tree."* Marcelo asked whether the `and it is not present elsewhere` clause is too expensive: **it
   is not** — it is the same recursive walk R-3 already needs, chains are 1–3 deep, and modifications
   are indexed by contract, so the whole check is dozens of logical reads. **Keep the clause; do not
-  weaken it.** The reason to defer is not cost but sequencing: this rule, the modification rule above,
+  weaken it.** The reason it was deferred was not cost but sequencing: this rule, the modification rule above,
   and the post-execution lock (R-9) all read the same ancestor set, and writing that walk once against
   a settled tree model beats writing it three times.
 
