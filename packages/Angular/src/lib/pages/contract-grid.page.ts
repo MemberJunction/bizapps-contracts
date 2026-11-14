@@ -33,6 +33,7 @@ import { BuildOpenTaskFilters } from '../data/task-filters';
 import { NOTICE_WINDOW_OPEN, NOTICE_WINDOW_PASSED } from '../data/business-day';
 import { ApplyGridPreset, FlushPendingGridPreset } from '../data/grid-preset';
 import { BuildGridAgentContext } from '../data/agent-context';
+import { RunContractCounts, type ContractCountQuery } from '../data/contract-counts';
 import { MJCFkNavigateDirective } from '../directives/fk-navigate.directive';
 
 /** One filter pill: a label, the SQL it contributes, and a live count. */
@@ -273,27 +274,20 @@ export abstract class MJCContractGridPageBase implements OnInit {
     /**
      * Count each pill, so the rail and the pills agree about how much work there is.
      *
-     * One `RunView` per pill with `MaxRows: 1` — the count comes from `TotalRowCount`, so nothing is
-     * transferred. Failures are swallowed to a null count rather than surfaced: a missing badge is a
-     * cosmetic loss, and a page that refuses to render because a count query failed is not.
+     * Batched via RunContractCounts with ResultType: 'count_only'. Failures are swallowed to an
+     * undefined count rather than surfaced: a missing badge is a cosmetic loss, and a page that
+     * refuses to render because a count query failed is not.
      */
-    protected async refreshCounts(): Promise<void> {
-        const rv = ScopedRunView();
-        await Promise.all(
-            this.Pills.map(async (pill) => {
-                const clauses = [this.pageFilter, pill.Filter].filter(Boolean).map((c) => `(${c})`);
-                try {
-                    const result = await rv.RunView({
-                        EntityName: MJC_ENTITIES.Contract,
-                        ExtraFilter: clauses.join(' AND '),
-                        MaxRows: 1,
-                    });
-                    pill.Count = result?.TotalRowCount ?? undefined;
-                } catch {
-                    pill.Count = undefined;
-                }
-            }),
-        );
+    protected async refreshCounts(pillsToCount: readonly MJCFilterPill[] = this.Pills): Promise<void> {
+        const queries: ContractCountQuery[] = pillsToCount.map((pill) => ({
+            Key: pill.Id,
+            ExtraFilter: [this.pageFilter, pill.Filter].filter(Boolean).map((c) => `(${c})`).join(' AND '),
+            Label: pill.Label,
+        }));
+        const { Counts } = await RunContractCounts(ScopedRunView(), queries);
+        for (const pill of pillsToCount) {
+            pill.Count = Counts[pill.Id] ?? undefined;
+        }
         this.publishAgentContext();
         this.cdr.detectChanges();
     }
@@ -454,18 +448,19 @@ export class MJCAllContractsPageComponent extends MJCContractGridPageBase {
         const filters = await BuildOpenTaskFilters();
         if (!filters) return;
 
+        const openTaskPill: MJCFilterPill = {
+            Id: 'has-open-task',
+            Label: 'Has open task',
+            Filter: filters.HasOpenTask,
+            Hint: 'Finance has an open Contract Processing task on this contract',
+        };
         this.Pills = [
             ...this.Pills,
-            {
-                Id: 'has-open-task',
-                Label: 'Has open task',
-                Filter: filters.HasOpenTask,
-                Hint: 'Finance has an open Contract Processing task on this contract',
-            },
+            openTaskPill,
         ];
         // A tile may have navigated here before this pill existed.
         this.applyPendingPreset();
-        void this.refreshCounts();
+        void this.refreshCounts([openTaskPill]);
     }
 
     /**
