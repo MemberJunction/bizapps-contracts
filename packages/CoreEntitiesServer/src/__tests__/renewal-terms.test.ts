@@ -31,6 +31,7 @@ function makeWorld(opts: {
     lines: Array<{ ID: string; OrderHeaderID: string }>;
     subs: SubRow[];
 }) {
+    const views: Array<{ EntityName: string; IgnoreMaxRows?: boolean }> = [];
     const saves: Array<{ SubscriptionNumber: string; RenewalIncreasePercent: number | null; CarryDiscountOnRenewal: boolean }> = [];
 
     const subEntity = (row: SubRow) => {
@@ -64,7 +65,8 @@ function makeWorld(opts: {
     };
 
     const provider = {
-        async RunView(params: { EntityName: string; ExtraFilter: string }) {
+        async RunView(params: { EntityName: string; ExtraFilter: string; IgnoreMaxRows?: boolean }) {
+            views.push({ EntityName: params.EntityName, IgnoreMaxRows: params.IgnoreMaxRows });
             switch (params.EntityName) {
                 case E_CONTRACT: {
                     const ids = inList(params.ExtraFilter, 'ID');
@@ -89,7 +91,7 @@ function makeWorld(opts: {
         },
     } as unknown as RenewalTermsProvider;
 
-    return { provider, saves };
+    return { provider, saves, views };
 }
 
 const TERMS = (over: Partial<ContractRenewalTerms> = {}): ContractRenewalTerms => ({
@@ -128,6 +130,20 @@ describe('ApplyContractRenewalTerms', () => {
     it('leaves a hand-set increase alone when the contract states none', async () => {
         const { provider, saves } = WORLD([{ RenewalIncreasePercent: 4 }]);
         const outcome = await ApplyContractRenewalTerms(provider, TERMS({ AnnualIncreasePercent: null }), undefined);
+        expect(saves).toEqual([]);
+        expect(outcome.Unchanged).toBe(2);
+    });
+
+    it('writes a stated 0% over a blank increase, since blank inherits and 0 means no increase', async () => {
+        const { provider, saves } = WORLD([{ RenewalIncreasePercent: null }, { RenewalIncreasePercent: 5 }]);
+        const outcome = await ApplyContractRenewalTerms(provider, TERMS({ AnnualIncreasePercent: 0 }), undefined);
+        expect(outcome.Updated.sort()).toEqual(['SUB-1', 'SUB-2']);
+        expect(saves.map((s) => s.RenewalIncreasePercent)).toEqual([0, 0]);
+    });
+
+    it('leaves a subscription already at 0% alone when the contract states 0%', async () => {
+        const { provider, saves } = WORLD([{ RenewalIncreasePercent: 0 }, { RenewalIncreasePercent: 0 }]);
+        const outcome = await ApplyContractRenewalTerms(provider, TERMS({ AnnualIncreasePercent: 0 }), undefined);
         expect(saves).toEqual([]);
         expect(outcome.Unchanged).toBe(2);
     });
@@ -212,6 +228,13 @@ describe('SweepContractRenewalTerms', () => {
             { SubscriptionNumber: 'SUB-1', RenewalIncreasePercent: 6, CarryDiscountOnRenewal: false },
             { SubscriptionNumber: 'SUB-2', RenewalIncreasePercent: 3, CarryDiscountOnRenewal: true },
         ]);
+    });
+
+    it('reads every row past the entity row cap, so a large deployment is not cut off', async () => {
+        const { provider, views } = world();
+        await SweepContractRenewalTerms(provider, undefined);
+        expect(views.length).toBeGreaterThan(0);
+        expect(views.filter((v) => v.IgnoreMaxRows !== true)).toEqual([]);
     });
 
     it('does nothing when no contract is linked to an order', async () => {

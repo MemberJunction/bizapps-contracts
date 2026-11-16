@@ -104,7 +104,12 @@ export async function ApplyContractRenewalTerms(
     if (lineIDs.length === 0) return outcome;
 
     const subs = await provider.RunView<mjBizAppsOrdersSubscriptionEntity>(
-        { EntityName: SubscriptionEntityName(), ExtraFilter: `OrderLineID IN (${quoted(lineIDs)})`, ResultType: 'entity_object' },
+        {
+            EntityName: SubscriptionEntityName(),
+            ExtraFilter: `OrderLineID IN (${quoted(lineIDs)})`,
+            ResultType: 'entity_object',
+            IgnoreMaxRows: true,
+        },
         user,
     );
     if (!subs.Success) {
@@ -120,7 +125,12 @@ export async function ApplyContractRenewalTerms(
                     `Contract ${label(terms)} states an annual increase of ${increase}%, above the ` +
                     `${SUBSCRIPTION_MAX_INCREASE_PERCENT}% a subscription accepts. The increase was not copied.`,
             });
-        } else if (increase != null && Number(sub.RenewalIncreasePercent) !== Number(increase)) {
+        } else if (
+            increase != null &&
+            // A NULL subscription inherits from product, category and company; 0 is a deliberate
+            // no-increase. `Number(null)` is 0, so the null case has to be tested on its own.
+            (sub.RenewalIncreasePercent == null || Number(sub.RenewalIncreasePercent) !== Number(increase))
+        ) {
             sub.RenewalIncreasePercent = increase;
         }
         if (sub.CarryDiscountOnRenewal !== terms.CarryDiscountOnRenewal) {
@@ -180,6 +190,7 @@ export async function SweepContractRenewalTerms(
             ExtraFilter: `ID IN (${quoted(contractIDs)})`,
             Fields: ['ID', 'ContractNumber', 'AnnualIncreasePercent', 'CarryDiscountOnRenewal'],
             ResultType: 'simple',
+            IgnoreMaxRows: true,
         },
         user,
     );
@@ -220,6 +231,10 @@ export function ReportRenewalTermsOutcome(terms: ContractRenewalTerms, outcome: 
     else if (outcome.Updated.length > 0) LogStatus(message);
 }
 
+/**
+ * Every row, past the entity's `UserViewMaxRows`. Without `IgnoreMaxRows` the provider adds a `TOP`
+ * from that setting (1000 for Contract Orders), and the sweep would stop there without a warning.
+ */
 async function ids(
     provider: RenewalTermsProvider,
     entityName: string,
@@ -228,7 +243,7 @@ async function ids(
     user: UserInfo | undefined,
 ): Promise<string[]> {
     const result = await provider.RunView<Record<string, string>>(
-        { EntityName: entityName, ExtraFilter: filter || undefined, Fields: [field], ResultType: 'simple' },
+        { EntityName: entityName, ExtraFilter: filter || undefined, Fields: [field], ResultType: 'simple', IgnoreMaxRows: true },
         user,
     );
     if (!result.Success) {
