@@ -1,5 +1,12 @@
 # @mj-biz-apps/contracts-ng
 
+## 0.12.2
+
+### Patch Changes
+
+- 3172606: Restore the declarative `[mjRecordLink]` directive (removed while the app built against MJ 6.1 LTS) now that MJ pins are on the 6.2 LTS line, which ships it.
+  - @mj-biz-apps/contracts-entities@0.12.2
+
 ## 0.12.1
 
 ### Patch Changes
