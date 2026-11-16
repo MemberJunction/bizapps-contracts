@@ -1,5 +1,12 @@
 # @mj-biz-apps/contracts-core-entities-server
 
+## 0.12.3
+
+### Patch Changes
+
+- 7adb764: Clearing a contract's template is now refused when a modification on a child contract still cites that template and no other contract above the child references it. The refusal names the child-contract count separately.
+  - @mj-biz-apps/contracts-entities@0.12.3
+
 ## 0.12.2
 
 ### Patch Changes
