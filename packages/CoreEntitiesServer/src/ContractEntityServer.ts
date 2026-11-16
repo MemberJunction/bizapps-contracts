@@ -197,25 +197,156 @@ export function lineageProbeSQL(
 }
 
 /**
- * The R-4 count: how many of `contractID`'s modifications cite a provision of `templateID`.
+ * The R-4 tree-wide count: the modifications that clearing `templateID` from `contractID` would orphan.
  *
- * A `RunView` cannot replace this: the modifications view carries no template column, so the filter
- * needs a subquery, and that subquery would be dialect-specific too. `COUNT(*)` comes back as a
- * string from the PostgreSQL driver (it is a bigint), which the caller's `Number()` handles.
+ * A modification is counted when it sits on `contractID` or any contract below it (walking
+ * `ParentContractID` down, depth-capped at 50 like the ancestor walks), cites a provision of
+ * `templateID`, and no OTHER contract at or above its own contract still references `templateID`.
+ * The saving contract is excluded from that ancestor check because during validation its row still
+ * holds the template being cleared. A child that references the template itself, or sits under
+ * another contract that does, keeps its modifications reachable and is not counted.
+ *
+ * Returns `Hits` (modifications on `contractID` itself) and `ChildHits` (modifications on contracts
+ * below it), so the message can say where to look.
+ *
+ * A `RunView` cannot replace this: the modifications view carries no template column and the walk is
+ * recursive, both dialect-specific. `SUM` comes back as a string from the PostgreSQL driver (bigint),
+ * which the caller's `Number()` handles.
  *
  * Callers check both IDs against `UUID_SHAPE` first.
  */
 export function modificationsAgainstTemplateSQL(contractID: string, templateID: string): PlatformSQL {
     return {
-        default: `SELECT COUNT(*) AS Hits
-               FROM __mj_BizAppsContracts.[ContractTemplateModification] m
-               JOIN __mj_BizAppsContracts.[ContractTemplateProvision] p ON p.[ID] = m.[ContractTemplateProvisionID]
-              WHERE m.[ContractID] = '${contractID}' AND p.[ContractTemplateID] = '${templateID}';`,
-        postgresql: `SELECT COUNT(*) AS "Hits"
-               FROM __mj_BizAppsContracts."ContractTemplateModification" m
-               JOIN __mj_BizAppsContracts."ContractTemplateProvision" p ON p."ID" = m."ContractTemplateProvisionID"
-              WHERE m."ContractID" = '${contractID}' AND p."ContractTemplateID" = '${templateID}';`,
+        default: `WITH subtree AS (
+                 SELECT [ID], 1 AS Depth
+                   FROM __mj_BizAppsContracts.[Contract]
+                  WHERE [ID] = '${contractID}'
+                 UNION ALL
+                 SELECT c.[ID], s.Depth + 1
+                   FROM __mj_BizAppsContracts.[Contract] c
+                   JOIN subtree s ON c.[ParentContractID] = s.[ID]
+                  WHERE s.Depth < 50
+             ),
+             hits AS (
+                 SELECT m.[ContractID]
+                   FROM __mj_BizAppsContracts.[ContractTemplateModification] m
+                   JOIN __mj_BizAppsContracts.[ContractTemplateProvision] p ON p.[ID] = m.[ContractTemplateProvisionID]
+                   JOIN subtree s ON s.[ID] = m.[ContractID]
+                  WHERE p.[ContractTemplateID] = '${templateID}'
+             ),
+             ancestry AS (
+                 SELECT o.[ContractID] AS Origin, c.[ID], c.[ParentContractID], c.[ContractTemplateID], 1 AS Depth
+                   FROM (SELECT DISTINCT [ContractID] FROM hits) o
+                   JOIN __mj_BizAppsContracts.[Contract] c ON c.[ID] = o.[ContractID]
+                 UNION ALL
+                 SELECT a.Origin, c.[ID], c.[ParentContractID], c.[ContractTemplateID], a.Depth + 1
+                   FROM __mj_BizAppsContracts.[Contract] c
+                   JOIN ancestry a ON c.[ID] = a.[ParentContractID]
+                  WHERE a.Depth < 50
+             ),
+             covered AS (
+                 SELECT DISTINCT a.Origin
+                   FROM ancestry a
+                  WHERE a.[ID] <> '${contractID}' AND a.[ContractTemplateID] = '${templateID}'
+             )
+             SELECT COALESCE(SUM(CASE WHEN h.[ContractID] = '${contractID}' THEN 1 ELSE 0 END), 0)  AS Hits,
+                    COALESCE(SUM(CASE WHEN h.[ContractID] <> '${contractID}' THEN 1 ELSE 0 END), 0) AS ChildHits
+               FROM hits h
+              WHERE NOT EXISTS (SELECT 1 FROM covered cv WHERE cv.Origin = h.[ContractID]);`,
+        postgresql: `WITH RECURSIVE subtree AS (
+                 SELECT "ID", 1 AS "Depth"
+                   FROM __mj_BizAppsContracts."Contract"
+                  WHERE "ID" = '${contractID}'
+                 UNION ALL
+                 SELECT c."ID", s."Depth" + 1
+                   FROM __mj_BizAppsContracts."Contract" c
+                   JOIN subtree s ON c."ParentContractID" = s."ID"
+                  WHERE s."Depth" < 50
+             ),
+             hits AS (
+                 SELECT m."ContractID"
+                   FROM __mj_BizAppsContracts."ContractTemplateModification" m
+                   JOIN __mj_BizAppsContracts."ContractTemplateProvision" p ON p."ID" = m."ContractTemplateProvisionID"
+                   JOIN subtree s ON s."ID" = m."ContractID"
+                  WHERE p."ContractTemplateID" = '${templateID}'
+             ),
+             ancestry AS (
+                 SELECT o."ContractID" AS "Origin", c."ID", c."ParentContractID", c."ContractTemplateID", 1 AS "Depth"
+                   FROM (SELECT DISTINCT "ContractID" FROM hits) o
+                   JOIN __mj_BizAppsContracts."Contract" c ON c."ID" = o."ContractID"
+                 UNION ALL
+                 SELECT a."Origin", c."ID", c."ParentContractID", c."ContractTemplateID", a."Depth" + 1
+                   FROM __mj_BizAppsContracts."Contract" c
+                   JOIN ancestry a ON c."ID" = a."ParentContractID"
+                  WHERE a."Depth" < 50
+             ),
+             covered AS (
+                 SELECT DISTINCT a."Origin"
+                   FROM ancestry a
+                  WHERE a."ID" <> '${contractID}' AND a."ContractTemplateID" = '${templateID}'
+             )
+             SELECT COALESCE(SUM(CASE WHEN h."ContractID" = '${contractID}' THEN 1 ELSE 0 END), 0)  AS "Hits",
+                    COALESCE(SUM(CASE WHEN h."ContractID" <> '${contractID}' THEN 1 ELSE 0 END), 0) AS "ChildHits"
+               FROM hits h
+              WHERE NOT EXISTS (SELECT 1 FROM covered cv WHERE cv."Origin" = h."ContractID");`,
     };
+}
+
+/** What clearing a template would orphan: modifications on the contract itself, and below it. */
+export interface TemplateClearCounts {
+    Hits: number;
+    ChildHits: number;
+}
+
+/** One row of {@link modificationsAgainstTemplateSQL}; PostgreSQL returns the sums as strings. */
+export interface TemplateClearRow {
+    Hits: number | string | null;
+    ChildHits: number | string | null;
+}
+
+/**
+ * Runs {@link modificationsAgainstTemplateSQL} through `run` and reads both counts.
+ *
+ * `run` is the provider's `ExecuteSQL` in production and a stub in tests, so the parsing and the ID
+ * guard are exercised without a database.
+ */
+export async function CountModificationsAgainstTemplate(
+    contractID: string,
+    templateID: string,
+    run: (sql: PlatformSQL) => Promise<TemplateClearRow[] | undefined>,
+): Promise<TemplateClearCounts> {
+    if (!UUID_SHAPE.test(templateID) || !UUID_SHAPE.test(contractID)) {
+        throw new Error(`Refusing to count modifications: '${templateID}' or '${contractID}' is not a UUID.`);
+    }
+    const row = (await run(modificationsAgainstTemplateSQL(contractID, templateID)))?.[0];
+    return { Hits: Number(row?.Hits ?? 0), ChildHits: Number(row?.ChildHits ?? 0) };
+}
+
+/**
+ * The refusal for clearing a template, or `null` when nothing would be orphaned.
+ *
+ * Own modifications keep the original wording; modifications on child contracts are named separately,
+ * because the user editing this contract cannot see them on its form and needs to know where to look.
+ */
+export function TemplateClearRefusalMessage(counts: TemplateClearCounts): string | null {
+    const { Hits, ChildHits } = counts;
+    if (Hits === 0 && ChildHits === 0) return null;
+    const consequence =
+        'those modifications would be left describing deviations from terms no contract above them claims to incorporate.';
+    if (ChildHits === 0) {
+        return (
+            `This contract records ${Hits} modification(s) to provisions of the agreement version it ` +
+            `currently references, so the reference cannot be removed — ${consequence} Remove the ` +
+            `modifications first, or point the contract at a different version instead of clearing it.`
+        );
+    }
+    const own = Hits > 0 ? `This contract records ${Hits} modification(s), and its ` : 'This contract\'s ';
+    return (
+        `${own}child contracts record ${ChildHits} modification(s), to provisions of the agreement version ` +
+        `this contract currently references, so the reference cannot be removed — ${consequence} Remove ` +
+        `those modifications first (open the child contracts to find them), or point this contract at a ` +
+        `different version instead of clearing it.`
+    );
 }
 
 @RegisterClass(BaseEntity, 'MJ_BizApps_Contracts: Contracts')
@@ -1007,20 +1138,21 @@ export class ContractEntityServer extends ContractEntity {
     }
 
     /**
-     * R-4 (certain half) — do not clear `ContractTemplateID` while modifications on THIS contract point
-     * at provisions of THAT template.
+     * R-4 (contract side) — do not clear `ContractTemplateID` while a modification anywhere in this
+     * contract's tree cites a provision of that template and no other contract at or above the
+     * modification still references it.
      *
-     * Clearing it would leave every one of those modifications comparing negotiated language against
-     * standard language the contract no longer claims to incorporate — the modification rows survive
-     * and quietly stop meaning anything, which is the app's worst failure shape.
+     * Clearing it would leave each such modification comparing negotiated language against standard
+     * language nothing above it claims to incorporate — the rows survive and quietly stop meaning
+     * anything, which is the app's worst failure shape. The walk covers this contract and every
+     * contract below it; a child that references the same template itself, or sits under another
+     * contract that does, keeps its modifications reachable and does not block the clear. The
+     * modification-side rule (`ContractTemplateModificationEntityServer`) is the same ancestor set
+     * read from the other end: it refuses to save a modification whose provision's template is not
+     * at or above it.
      *
-     * ⚠ THIS IS THE NARROW HALF ON PURPOSE. The full rule is *"reject clearing when a modification
-     * ANYWHERE IN THE TREE references that template and it is not reachable elsewhere in the tree"*,
-     * which the plan DEFERS to ride with R-14 — not on cost (it is the same walk, and chains are 1–3
-     * deep) but on sequencing, so the ancestor walk is written once against a settled tree model. This
-     * half covers modifications on this contract only. A modification on a CHILD contract pointing at
-     * the template this contract is clearing is **not yet caught here**; the modification-side rule
-     * below refuses to SAVE such a row, so the gap is the pre-existing row, not a new one.
+     * Scope is clearing only. Repointing to a different template, or re-parenting a child, can orphan
+     * modifications the same way and is not checked here.
      */
     private async refuseClearingAReferencedTemplate(result: ValidationResult): Promise<void> {
         if (!this.IsSaved) return;
@@ -1031,35 +1163,25 @@ export class ContractEntityServer extends ContractEntity {
         const previousTemplateID = field?.OldValue ? String(field.OldValue) : null;
         if (!previousTemplateID) return;
 
-        const affected = await this.modificationsAgainstTemplate(previousTemplateID);
-        if (affected === 0) return;
+        const message = TemplateClearRefusalMessage(await this.modificationsAgainstTemplate(previousTemplateID));
+        if (!message) return;
 
         result.Success = false;
         result.Errors.push(
-            new ValidationErrorInfo(
-                'ContractTemplateID',
-                `This contract records ${affected} modification(s) to provisions of the agreement version it ` +
-                    `currently references, so the reference cannot be removed — those modifications would be left ` +
-                    `describing deviations from terms the contract no longer claims to incorporate. Remove the ` +
-                    `modifications first, or point the contract at a different version instead of clearing it.`,
-                this.ContractTemplateID,
-                ValidationErrorType.Failure,
-            ),
+            new ValidationErrorInfo('ContractTemplateID', message, this.ContractTemplateID, ValidationErrorType.Failure),
         );
     }
 
-    /** How many of THIS contract's modifications cite a provision of the given template. */
-    private async modificationsAgainstTemplate(templateID: string): Promise<number> {
-        if (!UUID_SHAPE.test(templateID) || !UUID_SHAPE.test(this.ID)) {
-            throw new Error(`Refusing to count modifications: '${templateID}' or '${this.ID}' is not a UUID.`);
-        }
-        const rows = await this.db.ExecuteSQL<{ Hits: number | string }>(
-            this.db.ResolveSQL(modificationsAgainstTemplateSQL(this.ID, templateID)),
-            undefined,
-            { isMutation: false, description: 'R-4 modifications-against-template count' },
-            this.ContextCurrentUser,
+    /** How many modifications in this contract's tree would be orphaned by clearing the given template. */
+    private async modificationsAgainstTemplate(templateID: string): Promise<TemplateClearCounts> {
+        return CountModificationsAgainstTemplate(this.ID, templateID, (sql) =>
+            this.db.ExecuteSQL<TemplateClearRow>(
+                this.db.ResolveSQL(sql),
+                undefined,
+                { isMutation: false, description: 'R-4 modifications-against-template count' },
+                this.ContextCurrentUser,
+            ),
         );
-        return Number(rows?.[0]?.Hits ?? 0);
     }
 
     /**
