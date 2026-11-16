@@ -1,0 +1,17 @@
+{
+  "entity": "MJ: File Categories",
+  "filePattern": "**/.*.json",
+  "defaults": {},
+  "pull": {
+    "createNewFileIfNotFound": true,
+    "newFileName": ".file-categories.json",
+    "appendRecordsToExistingFile": true,
+    "updateExistingRecords": true,
+    "ignoreNullFields": true,
+    "ignoreVirtualFields": true,
+    "lookupFields": {
+      "ParentID": { "entity": "MJ: File Categories", "field": "ID" }
+    },
+    "relatedEntities": {}
+  }
+}

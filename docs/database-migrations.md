@@ -114,7 +114,9 @@ consumer's database. So the test for anything added there is not "is it correct?
 
 - **`metadata/`, the install seed:** structural metadata and configuration (`entities`,
   `entity-fields`, `entity-relationships`, `entity-settings`, `applications`, `queries`,
-  `query-categories`, `user-views`) and genuine vocabulary: contract types, template types.
+  `query-categories`, `user-views`) and genuine vocabulary: contract types, template types,
+  file categories (`file-categories`; `Executed Agreement` predates the rule and stays in its
+  migration).
   `schema-info` holds no records; the baseline registers the schema.
 - **`demo-data/`, never shipped:** any particular organisation's records, *including their
   agreement text*. It holds invented organisations, contracts and modifications, the selling

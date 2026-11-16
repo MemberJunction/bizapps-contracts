@@ -25,6 +25,7 @@ dot-prefixed `.json` files are records (`filePattern: **/.*.json`), so don't par
 | `entity-fields` | `MJ: Entity Fields` |
 | `entity-relationships` | `MJ: Entity Relationships` |
 | `entity-settings` | `MJ: Entity Settings` |
+| `file-categories` | `MJ: File Categories` — `Termination Agreement` only; `Executed Agreement` was seeded by migration `V202609010100` and is not repeated here |
 | `queries` | `MJ: Queries` |
 | `query-categories` | `MJ: Query Categories` |
 | `schema-info` | `MJ: Schema Info` — no records; see [`schema-info/README.md`](schema-info/README.md) |
