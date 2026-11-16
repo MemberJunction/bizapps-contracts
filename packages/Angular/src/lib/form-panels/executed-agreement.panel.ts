@@ -11,6 +11,13 @@
  * was attached. This panel closes exactly that gap and nothing else: attach, remove and open stay
  * with the stock panel.
  *
+ * UPLOAD AND MARK IN ONE STEP (golive #490). People attached the signed PDF from the toolbar and never
+ * found the mark, so the contract stayed "awaiting". "Upload executed agreement" opens MJ's own
+ * attachments component with `Config.DefaultCategoryID` set to the Executed Agreement category, which
+ * makes MJ create the file already carrying it: no second step. MJ's component owns the upload, its
+ * storage-account choice and its create permissions on MJ: Files and MJ: File Entity Record Links.
+ * Closing it re-reads the record, because the upload may have cleared `IsAwaitingDocument`.
+ *
  * THE RE-PAPERING RULE, adopted deliberately (supersede.panel.ts): ALWAYS VISIBLE, not gated on
  * EditMode. Marking writes the FILE, not this record, in its own save — it is not one of the form's
  * fields, so it is available in read mode and shown read-only while the form is editing or the
@@ -26,13 +33,6 @@
  * (a previous category, if any, is not restored — the stock panel shows and never sets one, so there
  * is nothing to restore in practice). After either write the form re-reads the record, because the
  * header chip and the Overview health line read the PERSISTED view column rather than re-deriving it.
- *
- * UPLOAD AND MARK IN ONE STEP (golive #490). People attached the signed PDF from the toolbar and never
- * found the mark, so the contract stayed "awaiting". "Upload executed agreement" opens MJ's own
- * attachments component with `Config.DefaultCategoryID` set to the Executed Agreement category, which
- * makes MJ create the file already carrying it: no second step. MJ's component owns the upload, its
- * storage-account choice and its create permissions on MJ: Files and MJ: File Entity Record Links.
- * Closing it re-reads the record, because the upload may have cleared `IsAwaitingDocument`.
  *
  * @module @mj-biz-apps/contracts-ng
  */
