@@ -307,6 +307,14 @@
         <mj-form-field 
             [Record]="record"
             [ShowLabel]="true"
+            FieldName="CarryDiscountOnRenewal"
+            Type="checkbox"
+            [EditMode]="EditMode"
+            [FormContext]="formContext"
+        ></mj-form-field>
+        <mj-form-field 
+            [Record]="record"
+            [ShowLabel]="true"
             FieldName="TermLengthDays"
             Type="textbox"
             [EditMode]="EditMode"
@@ -464,6 +472,31 @@
                 [ShowToolbar]="true"
                 (Navigate)="OnFormNavigate($event)"
                 (AfterDataLoad)="SetSectionRowCount('mJBizAppsContractsContractsParentContractID', $event.totalRowCount)"
+                >
+            </mj-explorer-entity-data-grid>
+        </div>
+        }
+    </mj-collapsible-panel>
+
+    <!-- Contract Orders Section -->
+    <mj-collapsible-panel
+        SectionKey="mJBizAppsContractsContractOrders"
+        SectionName="Contract Orders"
+        Icon="fa fa-table"
+        Variant="related-entity"
+        [Form]="this"
+        [FormContext]="formContext"
+        [BadgeCount]="GetSectionRowCount('mJBizAppsContractsContractOrders')"
+        [DefaultExpanded]="false">
+        @if (record.IsSaved) {
+        <div>
+            <mj-explorer-entity-data-grid
+                [Params]="BuildRelationshipViewParamsByEntityName('MJ_BizApps_Contracts: Contract Orders','ContractID')"
+                [NewRecordValues]="NewRecordValues('MJ_BizApps_Contracts: Contract Orders','ContractID')"
+                [AllowLoad]="IsSectionExpanded('mJBizAppsContractsContractOrders')"
+                [ShowToolbar]="true"
+                (Navigate)="OnFormNavigate($event)"
+                (AfterDataLoad)="SetSectionRowCount('mJBizAppsContractsContractOrders', $event.totalRowCount)"
                 >
             </mj-explorer-entity-data-grid>
         </div>

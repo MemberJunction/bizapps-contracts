@@ -55,9 +55,10 @@ try {
     const entities = entitiesRes.recordset ?? [];
     console.log(`Auditing ${entities.length} entities in schema [${contractsSchema}]...`);
 
-    if (entities.length !== 6) {
+    // Seven since V202611121200 added ContractOrder (issue #77).
+    if (entities.length !== 7) {
         failures++;
-        console.log(`  ✖ Expected 6 entities in [${contractsSchema}], found ${entities.length}`);
+        console.log(`  ✖ Expected 7 entities in [${contractsSchema}], found ${entities.length}`);
     }
 
     const beforeRes = await pool.request()

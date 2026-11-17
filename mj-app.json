@@ -22,6 +22,10 @@
     "mj-bizapps-tasks": {
       "version": ">=1.4.0 <2.0.0",
       "repository": "https://github.com/MemberJunction/bizapps-tasks"
+    },
+    "mj-bizapps-orders": {
+      "version": ">=5.28.0 <6.0.0",
+      "repository": "https://github.com/MemberJunction/bizapps-orders"
     }
   },
   "schema": {
