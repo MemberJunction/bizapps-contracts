@@ -166,8 +166,8 @@ function isExecutedAgreementCategory(categoryName: string | null | undefined): b
                     } @else {
                         @if (!CanUpdateFiles) {
                             <div class="mjc-hint">
-                                Marking a file changes its category on MJ: Files, which your roles cannot update.
-                                Ask an administrator to grant update permission on MJ: Files.
+                                You don't have permission to mark a file as the executed agreement.
+                                Please contact your administrator if you need access.
                             </div>
                         } @else if (CategoryMissing) {
                             <mj-alert Variant="warning" Size="sm"
