@@ -67,7 +67,11 @@ interface LinkedFile {
         entity: MJC_ENTITIES.Contract,
         // `after-fields` puts this in the FIELD-panel band, which the left-nav chrome collapses into the
         // single "Details" rail item, next to Re-papering (sortKey 40; higher sorts earlier).
-        slot: 'after-fields',
+        // After-related, not after-fields: MJ 6.2 files every before/after-fields panel, and every
+        // panel that replaces a field section, inside the Details rail item. After-related keeps this
+        // a rail item of its own after Details, where it sat before 6.2; the related band sorts by
+        // sortKey, descending.
+        slot: 'after-related',
         sortKey: 45,
         // MUST equal the panel's SectionKey — the container resolves chrome by this and builds rail
         // groups from that (see metadata/entities/.entities.json).
@@ -169,8 +173,8 @@ interface LinkedFile {
                     } @else {
                         @if (!CanUpdateFiles) {
                             <div class="mjc-hint">
-                                Marking a file changes its category on MJ: Files, which your roles cannot update.
-                                Ask an administrator to grant update permission on MJ: Files.
+                                You don't have permission to mark a file as the executed agreement.
+                                Please contact your administrator if you need access.
                             </div>
                         } @else if (CategoryMissing) {
                             <mj-alert Variant="warning" Size="sm"

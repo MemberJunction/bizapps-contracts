@@ -195,22 +195,26 @@ sequence:
 
 ## Install-order dependency
 
-`mj-app.json` declares two app dependencies:
+`mj-app.json` declares three app dependencies:
 
 | app | range | why |
 | --- | --- | --- |
-| `mj-bizapps-common` | `>=5.43.0 <6.0.0` | the baseline's FKs to `__mj_BizAppsCommon.Organization` and `__mj_BizAppsCommon.Person`; `V202609211200` reads `[__mj_BizAppsCommon].[fnBusinessToday]()` |
+| `mj-bizapps-common` | `>=5.51.0 <6.0.0` | the baseline's FKs to `__mj_BizAppsCommon.Organization` and `__mj_BizAppsCommon.Person`; `V202609211200` reads `[__mj_BizAppsCommon].[fnBusinessToday]()`; the overdue-task filter calls `[__mj_BizAppsCommon].[fnBusinessDayOf]()` at runtime |
 | `mj-bizapps-tasks` | `>=1.4.0 <2.0.0` | the dashboard's "To process" tile and the "Has open task" pill read Tasks views at runtime; no migration references Tasks |
+| `mj-bizapps-orders` | `>=5.28.0 <6.0.0` | `V202611121200`'s FK from `ContractOrder` to `__mj_BizAppsOrders.OrderHeader`; a contract's renewal terms are written to Orders subscriptions, whose `RenewalIncreasePercent` and `CarryDiscountOnRenewal` first shipped in 5.28 |
 
 `fnBusinessToday()` first shipped in bizapps-common **5.43.0** (its
-`V202609160900__v5.43.x__Business_Time_Zone` migration), so the manifest's floor is 5.43.0 and the
-installer refuses an older bizapps-common before any migration runs. A database migrated outside
-the installer still has `V202609211200`'s guard, which fails with a message naming the missing
-function. Apply bizapps-common 5.43.0 or later first.
+`V202609160900__v5.43.x__Business_Time_Zone` migration); a database migrated outside the
+installer without it still has `V202609211200`'s guard, which fails with a message naming the
+missing function. `fnBusinessDayOf()` first shipped in **5.51.0**
+(`V202610062305__v5.51.x__Business_Day_Of`); no migration needs it, but without it the dashboard's
+"Overdue tasks" tile and the overdue-task pill fail at query time. The manifest's floor is 5.51.0
+for that reason, and the installer refuses an older bizapps-common before any migration runs.
 
 Beyond those, the migrations touch only MJ core (`__mj.Company`, `__mj.Entity`, …). A clean host
-carrying MJ core + bizapps-common 5.43.0 or later is enough to apply this whole train, which is
-how it is verified.
+carrying MJ core, bizapps-common 5.43.0 or later and bizapps-orders 5.28.0 or later (with the apps
+Orders itself depends on: tasks and accounting) is enough to apply this whole train, which is how
+it is verified. Install order: common, tasks, accounting, orders, then contracts.
 
 ## Cross-app reference hardness
 
@@ -325,3 +329,7 @@ reference. Neither was true of the flattened schema: there is no `ContractAmendm
 v2 rebuild replaced it with `ParentContractID` on `Contract` itself), no soft reference, and no
 FK into accounting, orders or tasks. An earlier rule also kept cross-app references soft until
 CodeGen had an include mode; it was withdrawn on 2026-08-03 in favour of hard FKs.
+
+That held until `V202611121200` (issue #77), whose `ContractOrder` table has an FK into
+`__mj_BizAppsOrders.OrderHeader`. Orders now installs before Contracts again, this time because a
+migration needs it.

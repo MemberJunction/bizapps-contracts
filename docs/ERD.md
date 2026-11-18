@@ -7,7 +7,7 @@
 > answers "why".
 >
 > **TAKEN FROM THE FULL MIGRATION CHAIN.** Every table, column, nullability, foreign key, `CHECK` and
-> index below is the end state of `migrations/B202608040001…` through `V202611021400…`, each later
+> index below is the end state of `migrations/B202608040001…` through `V202611121200…`, each later
 > file applied over the earlier ones. Later migrations redefine `vwContracts`; §4 describes the
 > latest definition (`V202609211200`).
 >
@@ -16,7 +16,7 @@
 > migration. A previous revision of this file described the **v1** schema for a day after v1 was
 > retired, and nothing about reading it revealed that — which is why the check exists.
 
-**6 tables** · 9 internal relationships · 4 cross-app foreign keys · 17 CHECK constraints · 7 unique indexes.
+**7 tables** · 10 internal relationships · 5 cross-app foreign keys · 18 CHECK constraints · 8 unique indexes.
 
 Schema: `__mj_BizAppsContracts`. Entity name prefix: `MJ_BizApps_Contracts: `.
 
@@ -98,6 +98,14 @@ erDiagram
         decimal PredictedNonRenewalRisk "nullable · predicted probability of non-renewal, 0 to 1"
         nvarchar PredictedRenewalRiskBand "nullable · Low, Medium, High or Critical"
         datetimeoffset PredictedRenewalScoredAt "nullable · when the contract was last scored"
+        int NonRenewalOutcome "nullable · 0 or 1 · the renewal-risk label, recorded by the database"
+        bit CarryDiscountOnRenewal "default 0 · copied to linked orders' subscriptions"
+    }
+
+    ContractOrder {
+        uuid ID PK
+        uuid ContractID FK "Contract"
+        uuid OrderID FK "__mj_BizAppsOrders.OrderHeader"
     }
 
     ContractTemplateModification {
@@ -127,6 +135,7 @@ erDiagram
     ContractTemplate ||--o{ Contract : "ContractTemplateID · nullable"
     ContractType ||--o{ Contract : "ContractTypeID"
     Contract ||--o{ ContractTemplateModification : "ContractID"
+    Contract ||--o{ ContractOrder : "ContractID"
     ContractTemplateProvision ||--o{ ContractTemplateModification : "ContractTemplateProvisionID"
     Contract ||--o{ Contract : "ParentContractID · change orders"
     Contract ||--o{ Contract : "SupersededByContractID · re-papering"
@@ -135,11 +144,18 @@ erDiagram
     Organization ||--o{ Contract : "CustomerOrganizationID · __mj_BizAppsCommon"
     Person ||--o{ Contract : "PrimaryContactPersonID · __mj_BizAppsCommon"
     Entity ||--o{ Contract : "CreatingEntityID · __mj"
+    OrderHeader ||--o{ ContractOrder : "OrderID · __mj_BizAppsOrders"
 ```
 
-**9 internal foreign keys** (the first nine above) and **4 cross-app** (the last four). No FK leaves
-this schema except those four, and none points into `bizapps-sales` — sales depends on contracts, so
+**10 internal foreign keys** (the first ten above) and **5 cross-app** (the last five). No FK leaves
+this schema except those five, and none points into `bizapps-sales` — sales depends on contracts, so
 the deal reference is the soft `CreatingEntityID` + `CreatingRecordID` pair rather than a hard FK.
+
+`ContractOrder` links a contract to the orders it governs (`V202611121200`, issue #77). A contract's
+`AnnualIncreasePercent` (when set) and `CarryDiscountOnRenewal` are copied to every subscription those
+orders' lines created, on the contract's save, on the link's save, and daily by the
+*Contracts — Copy Renewal Terms to Subscriptions* scheduled job. Its FK into Orders is why
+bizapps-orders installs before this app.
 
 `ContractNumber` is minted by `spAssignNextContractNumber` from the schema-owned SQL sequence
 `seq_ContractNumber` (`NO CACHE`, so a restart cannot make the numbers jump), which
@@ -152,7 +168,7 @@ counter; a sequence has no such surface.
 
 ## 3. Constraints
 
-### 3.1 CHECK — 17
+### 3.1 CHECK — 18
 
 | Table | Constraint | Rule |
 |---|---|---|
@@ -164,6 +180,7 @@ counter; a sequence has no such surface.
 | `Contract` | `CK_Contract_CancellationWindow` | null or `>= 0` |
 | `Contract` | `CK_Contract_AnnualIncrease` | null or `>= 0` |
 | `Contract` | `CK_Contract_PredictedRenewalRiskBand` | null or `IN ('Low','Medium','High','Critical')` |
+| `Contract` | `CK_Contract_NonRenewalOutcome` | null or `IN (0, 1)` — no code counterpart: the database writes the column, and no save can set it |
 | `ContractType` | `CK_ContractType_Status` | `IN ('Active','Inactive')` |
 | `ContractType` | `CK_ContractType_RootOrChild` | `NOT (MustBeRoot = 1 AND MustBeChild = 1)` — a type cannot be both |
 | `ContractType` | `CK_ContractType_DefaultRenewalNoticeDays` | null or `>= 0` |
@@ -187,7 +204,7 @@ value lists — filed as [MJ#3969](https://github.com/MemberJunction/MJ/issues/3
 themselves (`value-list-validation.ts`). Nothing checks `PredictedRenewalRiskBand` before SQL Server
 does; its value list ships in `V202610092200__…__Risk_band_value_list.sql`.
 
-### 3.2 Unique — 7
+### 3.2 Unique — 8
 
 | Table | Index | Columns |
 |---|---|---|
@@ -198,6 +215,7 @@ does; its value list ships in `V202610092200__…__Risk_band_value_list.sql`.
 | `ContractType` | `UQ_ContractType_Name` | `Name` |
 | `ContractType` | `UQ_ContractType_Code` | `Code` |
 | `ContractTemplateType` | `UQ_ContractTemplateType_Name` | `Name` |
+| `ContractOrder` | `UQ_ContractOrder_ContractOrder` | `ContractID, OrderID` |
 
 `UQ_ContractTemplateModification_Contract_Provision` is the one a user can reach by ordinary use: it
 says a contract records **at most one** modification per provision.
@@ -206,13 +224,14 @@ says a contract records **at most one** modification per provision.
 
 `IX_Contract_CreatingRecord` on `(CreatingEntityID, CreatingRecordID)` — the reverse lookup "which
 contract came from this deal?". `IX_ContractTemplateProvision_SortKey` on
-`(ContractTemplateID, ProvisionSortKey)` — a template's clauses in document order. CodeGen
+`(ContractTemplateID, ProvisionSortKey)` — a template's clauses in document order.
+`IX_ContractOrder_OrderID` on `(OrderID)` — the contracts that govern an order. CodeGen
 additionally creates an `IDX_AUTO_MJ_FKEY_*` index on every foreign key column.
 
 ## 4. Derived columns — not in any table
 
 `vwContracts` is an **app-owned layered base view**: it wraps the CodeGen-generated
-`vwContractsGenerated` and adds thirteen columns computed at read time. They appear on the
+`vwContractsGenerated` and adds twelve columns computed at read time. They appear on the
 `Contracts` entity as read-only virtual fields, and they are the only place these facts exist.
 
 **"Today" is the business day:** `bt.Today` from bizapps-common's
@@ -227,7 +246,6 @@ state) — cross-joined once per query, so every column in a row uses the same d
 | `DaysToEnd` | `DATEDIFF(day, today, EndDate)` — signed |
 | `RenewalNoticeDeadline` | `EndDate - RenewalNoticeDays` |
 | `IsInCancellationWindow` | today falls within `CancellationWindowDays` of `EndDate`, `EndDate` included |
-| `NonRenewalOutcome` | The renewal-risk model's label. First match wins: superseded → `0`; `TerminatedDate <= today` → `1`; `EndDate < today` → `1`; otherwise null |
 | `TermLengthDays` | `DATEDIFF(day, EffectiveDate, EndDate)` |
 | `DaysUntilNoticeDeadline` | `DATEDIFF(day, today, RenewalNoticeDeadline)` |
 | `HasModificationsFlag` | `HasModifications` as `1` / `0` |
@@ -236,13 +254,22 @@ state) — cross-joined once per query, so every column in a row uses the same d
 | `HasCancellationWindow` | `CancellationWindowDays > 0` as `1` / `0` |
 | `HasAnnualIncrease` | `AnnualIncreasePercent > 0` as `1` / `0` |
 
-The last eight were added for the renewal-risk model (`V202609202354`). `NonRenewalOutcome` checks
-supersession *before* termination, the reverse of `State`: a renewal normally both terminates the old
-contract and points it at its successor, and for training that counts as renewed.
+The last seven were added for the renewal-risk model (`V202609202354`).
 
-Five of the columns depend on **today** — `State`, `DaysToEnd`, `IsInCancellationWindow`,
-`NonRenewalOutcome` and `DaysUntilNoticeDeadline` — so they cannot be stored: nothing writes the row
-when the clock crosses a boundary. `plans/ERD-planned.md` §7.2 records the reasoning, as history.
+Four of the columns depend on **today** — `State`, `DaysToEnd`, `IsInCancellationWindow` and
+`DaysUntilNoticeDeadline` — so they cannot be stored: nothing writes the row when the clock crosses a
+boundary. `plans/ERD-planned.md` §7.2 records the reasoning, as history.
+
+**`NonRenewalOutcome` is the exception, because it is a training label** (`V202611031700`, issue #159).
+Computed in the view, the same unchanged contract read null one day and `1` the next, so two training
+runs over identical rows labelled different sets. It is now a stored column on `Contract`, and the
+database writes it: `fnContractNonRenewalOutcome` holds the rule once, with the day as an argument
+(first match wins: superseded → `0`; `TerminatedDate <=` the day → `1`; `EndDate <` the day → `1`;
+otherwise null). `trgContract_RecordNonRenewalOutcome` applies it to every inserted or updated row, and
+`spRecordContractNonRenewalOutcomes` applies it to rows whose end date has passed, run hourly by the
+*Contracts — Record Renewal Outcomes* scheduled job. The rule checks supersession *before* termination,
+the reverse of `State`: a renewal normally both terminates the old contract and points it at its
+successor, and for training that counts as renewed.
 
 `vwContractsGenerated` also carries CodeGen's joined name columns: `ContractType`, `Company`,
 `CustomerOrganization`, `PrimaryContactPerson`, `ContractTemplate`, `CreatingEntity`,
@@ -256,5 +283,5 @@ when the clock crosses a boundary. `plans/ERD-planned.md` §7.2 records the reas
 No `Status` column on `Contract` (derived as `State`), no named document FK (documents attach through
 `__mj.FileEntityRecordLink`), no `ContractTemplateID` on a modification (its provision derives the
 template), no line items, no billing schedule, no pricing, no commitment tracking and no amendment
-workflow. The v1 schema had all of those across 10 tables; v2 is 6. `plans/ERD-planned.md` §9 records
+workflow. The v1 schema had all of those across 10 tables; v2 has 7. `plans/ERD-planned.md` §9 records
 each removal and who ruled it, as history.

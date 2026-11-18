@@ -125,10 +125,25 @@ function mayRedefineUnseen(code: string, view: string): boolean {
     return false;
 }
 
+/**
+ * The hand-written half of a migration: the text above its first run of 50 or more blank lines, the
+ * separator `migration-conventions.test.ts` requires before a CodeGen capture. A file without one is
+ * returned whole.
+ */
+export function handWritten(sql: string): string {
+    const separator = /\r?\n(?:[ \t]*\r?\n){50,}/.exec(sql);
+    return separator ? sql.slice(0, separator.index) : sql;
+}
+
 export interface ViewDefiner {
     /** The migration the database runs last for this view. */
     file: string;
-    /** That file's SQL, comments stripped. */
+    /**
+     * That file's hand-written SQL, comments stripped: everything above the 50-blank-line separator
+     * when the file carries a CodeGen capture, the whole file otherwise. The capture is generated
+     * for every entity it touches (the `__mj_UpdatedAt` trigger reads `GETUTCDATE()`, for one), so an
+     * assertion about what the view says must not read it.
+     */
     code: string;
     /** The same, whitespace normalised — what predicate assertions should match against. */
     flat: string;
@@ -166,6 +181,6 @@ export function newestViewDefiner(migrationsDir: string, view: string): ViewDefi
             `match — in which case teach it that form — or the guard is now pointed at stale SQL.`,
         );
     }
-    const code = read(file);
+    const code = sqlCode(handWritten(readFileSync(dir + file, 'utf8')));
     return { file, code, flat: squash(code), chain };
 }

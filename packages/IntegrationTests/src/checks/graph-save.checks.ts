@@ -255,7 +255,62 @@ export const GraphSaveChecks: NamedCheck[] = [
             });
         },
     },
+    {
+        Id: 'contracts-graph-save.GS12',
+        Name: "GS12 — clearing a template is refused while a child contract's modification still cites it",
+        RequiresMutation: true,
+        Fn: async (ctx: Ctx) => {
+            const f = await ResolveContractsFixture(ctx);
+            await InRolledBackTransaction(ctx, async () => {
+                const parentID = await templatedParentWithChildModification(ctx, f, null);
+                const parent = await Reopen(ctx, parentID);
+                parent.ContractTemplateID = null;
+                await RefuseSave(parent, 'GS12 clearing a template a child modification cites', /child contracts record 1 modification/i);
+            });
+        },
+    },
+    {
+        Id: 'contracts-graph-save.GS13',
+        Name: 'GS13 — clearing a template is allowed when the child that cites it references the template itself',
+        RequiresMutation: true,
+        Fn: async (ctx: Ctx) => {
+            const f = await ResolveContractsFixture(ctx);
+            await InRolledBackTransaction(ctx, async () => {
+                const parentID = await templatedParentWithChildModification(ctx, f, f.TemplateID);
+                const parent = await Reopen(ctx, parentID);
+                parent.ContractTemplateID = null;
+                await RequireSave(parent, 'GS13 clearing a template the child still references');
+            });
+        },
+    },
 ];
+
+/**
+ * A saved root contract (a type with no template requirement, so clearing is not refused for that
+ * reason) on the fixture template, and a saved Change Order under it carrying one modification of the
+ * fixture template's first provision. `childTemplateID` is the child's own template: null for GS12,
+ * the same template for GS13. Returns the parent's ID.
+ */
+async function templatedParentWithChildModification(
+    ctx: Ctx,
+    f: ContractsFixture,
+    childTemplateID: string | null,
+): Promise<string> {
+    const parent = await NewContract(ctx, f, (c) => {
+        c.ContractTypeID = f.RootTypeID;
+    });
+    await RequireSave(parent, 'templated parent');
+
+    const child = await NewContract(ctx, f, (c) => {
+        c.ContractTypeID = f.ChangeOrderTypeID;
+        c.ParentContractID = parent.ID;
+        c.ContractTemplateID = childTemplateID;
+        c.HasModifications = true;
+    });
+    await addMod(child, f.ProvisionIDs[0], 'Negotiated on the change order.');
+    await RequireSave(child, 'child with a modification');
+    return parent.ID;
+}
 
 async function createDraftTemplate(ctx: Ctx, f: ContractsFixture, name: string): Promise<string> {
     const template = await ProviderOf(ctx).GetEntityObject<ContractTemplateEntity>(E_TEMPLATE, ctx.User);

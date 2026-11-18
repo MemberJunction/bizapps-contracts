@@ -1,0 +1,27 @@
+[
+  {
+    "_comments": [
+      "Issue #159. Contract.NonRenewalOutcome is stored. A save records it through a trigger; an expiry",
+      "has no save behind it, so this action applies the same rule to every contract whose stored value",
+      "differs from it today. The rule lives in fnContractNonRenewalOutcome; the action only calls it."
+    ],
+    "fields": {
+      "Name": "Record Contract Renewal Outcomes",
+      "CategoryID": "@lookup:MJ: Action Categories.Name=Contracts",
+      "Description": "Record the renewal-risk label (NonRenewalOutcome) on every contract whose stored value no longer matches its dates, such as a contract whose end date has passed. Contracts already labelled correctly are left alone.",
+      "Type": "Custom",
+      "DriverClass": "Contracts.RecordNonRenewalOutcomes",
+      "IconClass": "fa-solid fa-flag-checkered",
+      "UserPrompt": "Record the renewal outcome on contracts that have concluded.",
+      "CodeApprovalStatus": "Approved",
+      "Status": "Active"
+    },
+    "primaryKey": {
+      "ID": "B830ACF2-62F7-44BC-85D4-17AEA0769FBE"
+    },
+    "sync": {
+      "lastModified": "2026-11-03T23:43:05.770Z",
+      "checksum": "2edad255a96efd34b17a68e12225703095a47f77e4ed0dd6c2f529581c558512"
+    }
+  }
+]

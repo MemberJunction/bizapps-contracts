@@ -1,0 +1,36 @@
+[
+  {
+    "_comments": [
+      "Runs Record Contract Renewal Outcomes hourly at five past. Hourly rather than daily because the",
+      "label turns over at midnight in the BUSINESS time zone, which is a different UTC hour per host and",
+      "per season; an hourly run records an expiry within an hour of it, whatever the zone.",
+      "  · ConcurrencyMode Skip: two runs would update the same rows.",
+      "  · MissedRunPolicy RunOnce: each run compares every contract, so one catch-up covers any gap.",
+      "Seeded Active: it writes only the label column, and only where the label is out of date."
+    ],
+    "fields": {
+      "Name": "Contracts — Record Renewal Outcomes (hourly)",
+      "Description": "Records NonRenewalOutcome on contracts whose end date has passed, so the renewal-risk label is stored rather than computed on every read.",
+      "JobTypeID": "3B94DD43-E961-4D85-B7F4-B6783D748766",
+      "CronExpression": "0 5 * * * *",
+      "Timezone": "UTC",
+      "Status": "Active",
+      "ConcurrencyMode": "Skip",
+      "MissedRunPolicy": "RunOnce",
+      "RunImmediatelyIfNeverRun": true,
+      "MaxRuntimeMinutes": 15,
+      "NotifyOnSuccess": false,
+      "NotifyOnFailure": false,
+      "NotifyViaEmail": false,
+      "NotifyViaInApp": false,
+      "Configuration": "{\"ActionID\":\"B830ACF2-62F7-44BC-85D4-17AEA0769FBE\",\"Params\":[]}"
+    },
+    "primaryKey": {
+      "ID": "8177872B-5C9D-4654-85A1-2A62D1545055"
+    },
+    "sync": {
+      "lastModified": "2026-11-03T23:43:05.810Z",
+      "checksum": "b608709313390b0da8dc23afc04110e12f4f28a0d9b7aab485112084318d035b"
+    }
+  }
+]

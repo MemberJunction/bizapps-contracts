@@ -20,6 +20,11 @@
  * below now asserts BOTH columns, which is what stops the label drifting away from a rule that has
  * already drifted from itself twice.
  *
+ * SINCE V202611031700 (#159) THE LABEL IS STORED. `fnContractNonRenewalOutcome` holds its rule and
+ * `trgContract_RecordNonRenewalOutcome` writes it on every insert and update, including the raw INSERTs
+ * below, so reading it back through the view still proves the rule at every boundary: the fixtures did
+ * not change, only where the answer is computed.
+ *
  * THE TWO CASES DISAGREE ON PURPOSE, AND THE LAST FIXTURE IS THAT DISAGREEMENT. Their precedence is
  * INVERTED: `State` tests Terminated before Superseded, the label tests Superseded before Terminated.
  * A renewal normally terminates the old paper AND points it at the successor, so such a contract is

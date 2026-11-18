@@ -1,5 +1,50 @@
 # @mj-biz-apps/contracts-ng
 
+## 0.12.3
+
+### Patch Changes
+
+- @mj-biz-apps/contracts-entities@0.12.3
+
+## 0.12.2
+
+### Patch Changes
+
+- 3172606: Restore the declarative `[mjRecordLink]` directive (removed while the app built against MJ 6.1 LTS) now that MJ pins are on the 6.2 LTS line, which ships it.
+  - @mj-biz-apps/contracts-entities@0.12.2
+
+## 0.12.1
+
+### Patch Changes
+
+- 0c50d3e: Fix the dashboard's "Overdue tasks" tile and the All Contracts overdue-task pill on MJ 6.2.
+
+  MJ 6.2's GraphQL boundary refuses a client `ExtraFilter` whose FROM names anything but an entity
+  base view. The overdue-task filter read the business day with a subquery on bizapps-common's
+  `fnBusinessToday()` inside its `EXISTS`, so both surfaces raised an error.
+
+  - `BUSINESS_TODAY_SQL` is now `[__mj_BizAppsCommon].[fnBusinessDayOf](SYSDATETIMEOFFSET())`, a scalar
+    call the screen accepts. It resolves the zone through the same `fnBusinessToday()` `vwContracts`
+    uses and runs when the query runs.
+  - `mj-app.json` raises its bizapps-common floor to 5.51.0, the release that added `fnBusinessDayOf`.
+  - @mj-biz-apps/contracts-entities@0.12.1
+
+## 0.12.0
+
+### Patch Changes
+
+- 70e858a: The Contract form's side rail shows the same items, in the same order, as before MJ 6.2: Overview, Details, Agreement, Parties, Dates, Renewal terms, Modifications, Lineage, Change orders, Executed agreement, Re-papering. MJ 6.2 folded the Contract panels into one Details item, because it files any panel at a field slot, and any panel that replaces a generated section, inside Details. The hero now holds every generated-section claim, and the panels shown after Details mount after related.
+- Updated dependencies [aacad4e]
+- Updated dependencies [2e69097]
+  - @mj-biz-apps/contracts-entities@0.12.0
+
+## 0.11.0
+
+### Patch Changes
+
+- Updated dependencies [21860cd]
+  - @mj-biz-apps/contracts-entities@0.11.0
+
 ## 0.10.0
 
 ### Minor Changes

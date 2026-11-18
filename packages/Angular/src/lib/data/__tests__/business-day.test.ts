@@ -76,24 +76,13 @@ describe('the notice-window predicates', () => {
 });
 
 describe('BUSINESS_TODAY_SQL', () => {
-    it('resolves the day from the same function the view joins', () => {
-        expect(BUSINESS_TODAY_SQL).toContain('[__mj_BizAppsCommon].[fnBusinessToday]()');
-        expect(BUSINESS_TODAY_SQL).toContain('[Today]');
+    it('resolves the day in SQL, from bizapps-common, at query time', () => {
+        expect(BUSINESS_TODAY_SQL).toBe('[__mj_BizAppsCommon].[fnBusinessDayOf](SYSDATETIMEOFFSET())');
         expect(BUSINESS_TODAY_SQL).not.toMatch(/GETUTCDATE|GETDATE/i);
     });
 
-    it('is a scalar subquery, so it can stand where a date did', () => {
-        expect(BUSINESS_TODAY_SQL.startsWith('(')).toBe(true);
-        expect(BUSINESS_TODAY_SQL.endsWith(')')).toBe(true);
-    });
-
-    it('trips none of the ExtraFilter keyword denylist', () => {
-        // MJ screens ExtraFilter with a denylist covering `insert / update / delete / exec / drop /
-        // -- / union / xp_ / ; / waitfor` (DatabaseProviderBase.ValidateUserProvidedSQLClause). A
-        // predicate that trips it surfaces as an unreadable grid, not as a message about the filter.
-        expect(BUSINESS_TODAY_SQL).not.toMatch(
-            /--|;|\bunion\b|\bexec\b|\bdrop\b|\bwaitfor\b|\binsert\b|\bupdate\b|\bdelete\b|xp_/i,
-        );
+    it('reads no FROM, so MJ 6.2’s screen has no table function to refuse', () => {
+        expect(BUSINESS_TODAY_SQL).not.toMatch(/\bselect\b|\bfrom\b|fnBusinessToday/i);
     });
 });
 
@@ -147,7 +136,7 @@ describe('every consumer of "today" in this package', () => {
         }
     });
 
-    it('resolves the overdue-task day in SQL, from the function the view joins', async () => {
+    it('resolves the overdue-task day in SQL, from bizapps-common', async () => {
         const tasks = await read('../task-filters.ts');
         expect(tasks).toContain('t.DueAt < ${BUSINESS_TODAY_SQL}');
     });

@@ -51,7 +51,11 @@ interface Candidate {
         // `after-fields` puts this in the FIELD-panel band, which the left-nav chrome collapses into
         // the single "Details" rail item (FORMS_ARCHITECTURE_GUIDE §7d). That is deliberate: it is a
         // property of this agreement, and it avoids the related-entity variant entirely.
-        slot: 'after-fields',
+        // After-related, not after-fields: MJ 6.2 files every before/after-fields panel, and every
+        // panel that replaces a field section, inside the Details rail item. After-related keeps this
+        // a rail item of its own after Details, where it sat before 6.2; the related band sorts by
+        // sortKey, descending.
+        slot: 'after-related',
         sortKey: 40,
         contributionKey: 'supersede',
         relatedEntity: MJC_ENTITIES.Contract,

@@ -135,7 +135,6 @@ function termEndsText(days: number | null | undefined): string {
         sortKey: 200,
         contributionKey: 'overview',
         inclusion: 'Primary',
-        replacesSectionKey: 'contractDetails',
     },
 })
 @Component({
@@ -198,7 +197,7 @@ function termEndsText(days: number | null | undefined): string {
                                 <div class="l">Customer</div>
                                 <div class="v">
                                     @if (Record.CustomerOrganizationID && CustomerName) {
-                                        <button type="button" class="mjc-ov-link" (click)="OpenCustomer($event)">{{ CustomerName }}</button>
+                                        <button type="button" class="mjc-ov-link" [mjRecordLink]="Record" FieldName="CustomerOrganizationID" [HandleClick]="false" (click)="OpenCustomer($event)">{{ CustomerName }}</button>
                                     } @else { {{ CustomerName || '—' }} }
                                 </div>
                             </div>
@@ -206,7 +205,7 @@ function termEndsText(days: number | null | undefined): string {
                                 <div class="l">Contact</div>
                                 <div class="v">
                                     @if (Record.PrimaryContactPersonID && ContactName) {
-                                        <button type="button" class="mjc-ov-link" (click)="OpenContact($event)">{{ ContactName }}</button>
+                                        <button type="button" class="mjc-ov-link" [mjRecordLink]="Record" FieldName="PrimaryContactPersonID" [HandleClick]="false" (click)="OpenContact($event)">{{ ContactName }}</button>
                                     } @else { {{ ContactName || '—' }} }
                                 </div>
                             </div>
@@ -226,7 +225,7 @@ function termEndsText(days: number | null | undefined): string {
                                 <div><div class="l">Created from</div>
                                     <div class="v">
                                         @if (CanOpenSource) {
-                                            <button type="button" class="mjc-ov-link" (click)="OpenSource($event)">{{ SourceLabel }}</button>
+                                            <button type="button" class="mjc-ov-link" [mjRecordLink]="Record" FieldName="CreatingRecordID" [EntityName]="Record.CreatingEntity" [RecordID]="Record.CreatingRecordID" [DisplayName]="SourceLabel" [HandleClick]="false" (click)="OpenSource($event)">{{ SourceLabel }}</button>
                                         } @else { {{ SourceLabel }} }
                                     </div>
                                 </div>
@@ -458,7 +457,13 @@ function noticeDays(record: ContractEntity | null | undefined): number | null {
 @RegisterClassEx(BaseFormPanel, {
     key: 'contracts:agreement',
     skipNullKeyWarning: true,
-    metadata: { entity: E, slot: 'after-fields', sortKey: 95, contributionKey: 'agreement' },
+    metadata: {
+        // After-related, not after-fields: MJ 6.2 files every before/after-fields panel, and every
+        // panel that replaces a field section, inside the Details rail item. After-related keeps this
+        // a rail item of its own after Details, where it sat before 6.2; the related band sorts by
+        // sortKey, descending.
+        entity: E, slot: 'after-related', sortKey: 95, contributionKey: 'agreement',
+    },
 })
 @Component({
     selector: 'mjc-contract-agreement-panel',
@@ -635,8 +640,11 @@ export class MJCContractAgreementPanel extends BaseFormPanel<ContractEntity> imp
     key: 'contracts:parties',
     skipNullKeyWarning: true,
     metadata: {
-        entity: E, slot: 'after-fields', sortKey: 92, contributionKey: 'parties',
-        replacesSectionKey: 'stakeholders',
+        // After-related, not after-fields: MJ 6.2 files every before/after-fields panel, and every
+        // panel that replaces a field section, inside the Details rail item. After-related keeps this
+        // a rail item of its own after Details, where it sat before 6.2; the related band sorts by
+        // sortKey, descending. The generated section it stands in for is claimed by the hero.
+        entity: E, slot: 'after-related', sortKey: 92, contributionKey: 'parties',
     },
 })
 @Component({
@@ -685,8 +693,11 @@ export class MJCContractPartiesPanel extends BaseFormPanel<ContractEntity> {
     key: 'contracts:notes',
     skipNullKeyWarning: true,
     metadata: {
-        entity: E, slot: 'after-fields', sortKey: 80, contributionKey: 'notes',
-        replacesSectionKey: 'notesAndMetadata',
+        // After-related, not after-fields: MJ 6.2 files every before/after-fields panel, and every
+        // panel that replaces a field section, inside the Details rail item. After-related keeps this
+        // a rail item of its own after Details, where it sat before 6.2; the related band sorts by
+        // sortKey, descending. The generated section it stands in for is claimed by the hero.
+        entity: E, slot: 'after-related', sortKey: 80, contributionKey: 'notes',
     },
 })
 @Component({
@@ -721,8 +732,11 @@ export class MJCContractNotesPanel extends BaseFormPanel<ContractEntity> {
     key: 'contracts:provenance',
     skipNullKeyWarning: true,
     metadata: {
-        entity: E, slot: 'after-fields', sortKey: 35, contributionKey: 'origin',
-        replacesSectionKey: 'provenance',
+        // After-related, not after-fields: MJ 6.2 files every before/after-fields panel, and every
+        // panel that replaces a field section, inside the Details rail item. After-related keeps this
+        // a rail item of its own after Details, where it sat before 6.2; the related band sorts by
+        // sortKey, descending. The generated section it stands in for is claimed by the hero.
+        entity: E, slot: 'after-related', sortKey: 35, contributionKey: 'origin',
     },
 })
 @Component({
@@ -1072,8 +1086,11 @@ export class MJCContractProvenanceFieldsPanel extends BaseFormPanel<ContractEnti
     key: 'contracts:lifecycle-fields',
     skipNullKeyWarning: true,
     metadata: {
-        entity: E, slot: 'after-fields', sortKey: 50, contributionKey: 'lifecycle',
-        replacesSectionKey: 'contractLifecycle',
+        // After-related, not after-fields: MJ 6.2 files every before/after-fields panel, and every
+        // panel that replaces a field section, inside the Details rail item. After-related keeps this
+        // a rail item of its own after Details, where it sat before 6.2; the related band sorts by
+        // sortKey, descending. The generated section it stands in for is claimed by the hero.
+        entity: E, slot: 'after-related', sortKey: 50, contributionKey: 'lifecycle',
     },
 })
 @Component({
