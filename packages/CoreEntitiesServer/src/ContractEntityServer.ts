@@ -26,6 +26,7 @@ import {
     MayWriteDefaultTemplate,
 } from '@mj-biz-apps/contracts-entities';
 import { GuardedDelete, plural } from './delete-guard.js';
+import { ApplyContractRenewalTerms, E_CONTRACT_ORDER, type RenewalTermsOutcome, ReportRenewalTermsOutcome } from './renewal-terms.js';
 
 /**
  * The template a contract being CREATED should carry when its creator named none, or null to leave
@@ -351,6 +352,9 @@ export function TemplateClearRefusalMessage(counts: TemplateClearCounts): string
 
 @RegisterClass(BaseEntity, 'MJ_BizApps_Contracts: Contracts')
 export class ContractEntityServer extends ContractEntity {
+    /** What the last save's copy to subscriptions did (issue #77). Null when no copy ran. */
+    public LastRenewalTermsOutcome: RenewalTermsOutcome | null = null;
+
     /**
      * Mint `ContractNumber` on first save, default an empty `ContractTemplateID` when the type requires
      * one (see {@link ResolveServerDefaultTemplate}), then persist.
@@ -362,6 +366,11 @@ export class ContractEntityServer extends ContractEntity {
      *
      * Contracts needs no `SkipRelatedCollections` dance, unlike orders: nothing here prepares child
      * rows before the graph executor runs, so the plain save carries `Modifications` with it.
+     *
+     * After the save, a change to the annual increase or the carry-discount flag is copied to the
+     * subscriptions of every linked order (issue #77, `renewal-terms.ts`). A subscription that refuses
+     * the value is logged and reported on {@link LastRenewalTermsOutcome}; the contract save still
+     * succeeds, because the contract records the paper whatever Orders accepts.
      */
     public override async Save(): Promise<boolean> {
         try {
@@ -392,7 +401,19 @@ export class ContractEntityServer extends ContractEntity {
             if (template) {
                 this.ContractTemplateID = template;
             }
-            return await super.Save();
+            // Read before the save clears the dirty flags. A new contract has no linked orders yet, so
+            // only an edit to a saved one can have subscriptions to update.
+            const termsChanged =
+                this.IsSaved &&
+                (!!this.GetFieldByName('AnnualIncreasePercent')?.Dirty ||
+                    !!this.GetFieldByName('CarryDiscountOnRenewal')?.Dirty);
+            if (!(await super.Save())) return false;
+
+            this.LastRenewalTermsOutcome = null;
+            if (termsChanged) {
+                await this.copyRenewalTerms();
+            }
+            return true;
         } catch (err) {
             LogError(`ContractEntityServer.Save failed for contract ${this.ContractNumber ?? this.ID}: ${err}`);
             throw err;
@@ -548,6 +569,13 @@ export class ContractEntityServer extends ContractEntity {
                         `negotiated. Remove ${n === 1 ? 'it' : 'them'} first if this contract really should go.`,
                 },
                 {
+                    EntityName: E_CONTRACT_ORDER,
+                    Filter: `ContractID = '${this.ID}'`,
+                    Describe: (n) =>
+                        `It governs ${plural(n, 'order')}, whose subscriptions take their renewal terms from it. ` +
+                        `Remove the order ${n === 1 ? 'link' : 'links'} first if this contract really should go.`,
+                },
+                {
                     EntityName: 'MJ_BizApps_Contracts: Contracts',
                     Filter: `ParentContractID = '${this.ID}'`,
                     Describe: (n) =>
@@ -564,6 +592,18 @@ export class ContractEntityServer extends ContractEntity {
             ],
             (o) => super.Delete(o),
         );
+    }
+
+    /** Copy this contract's renewal terms to the subscriptions of its linked orders. */
+    private async copyRenewalTerms(): Promise<void> {
+        const terms = {
+            ContractID: this.ID,
+            ContractNumber: this.ContractNumber,
+            AnnualIncreasePercent: this.AnnualIncreasePercent,
+            CarryDiscountOnRenewal: this.CarryDiscountOnRenewal,
+        };
+        this.LastRenewalTermsOutcome = await ApplyContractRenewalTerms(this.RunViewProviderToUse, terms, this.ContextCurrentUser);
+        ReportRenewalTermsOutcome(terms, this.LastRenewalTermsOutcome);
     }
 
     /**

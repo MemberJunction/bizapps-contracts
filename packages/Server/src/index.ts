@@ -28,6 +28,7 @@ import { resolve } from 'node:path';
 
 import { LoadMjBizappsContractsEntitiesServer } from '@mj-biz-apps/contracts-core-entities-server';
 import { LoadMjBizappsContractsActions } from '@mj-biz-apps/contracts-actions';
+import { LoadSweepRenewalTermsAction } from './custom/renewal-terms-sweep.action.js';
 
 // Generated GraphQL resolvers — the import fires their registrations.
 import './generated/generated.js';
@@ -49,4 +50,6 @@ export function LoadMjBizappsContractsServer(): void {
     // everything. Importing the modules is what triggers @RegisterClass.
     LoadMjBizappsContractsEntitiesServer();
     LoadMjBizappsContractsActions();
+    // The daily copy of contract renewal terms to subscriptions (issue #77).
+    LoadSweepRenewalTermsAction();
 }

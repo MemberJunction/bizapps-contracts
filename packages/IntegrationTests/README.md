@@ -83,6 +83,7 @@ tested machinery the rebuild deleted and stay gone.
 | `contracts-numbering` | `ContractNumber` CTR sequence, uniqueness under concurrency, reserved `CTR-` namespace |
 | `contracts-provisions` | seed completeness incl. text, natural order via `ProvisionSortKey` (`1.9` before `1.10`); the published-provision guard returns its own error, not 3915, when reached through INSERT-EXEC |
 | `contracts-watchlist` | derived column **values** (`IsAwaitingDocument`, `DaysToEnd`, `RenewalNoticeDeadline`, `IsInCancellationWindow`, `State`). `IsChangeOrder` was removed from the view — W8 asserts `ParentContractID` instead |
+| `contracts-renewal-terms` | a contract's increase and carry-discount flag reach its linked orders' subscriptions: on link (RT1), on edit (RT2), by the daily sweep (RT3); a linked contract cannot be deleted (RT4). Needs bizapps-orders and one subscription an order line created; skips with the reason otherwise |
 
 `contracts-world` is the only bundle that leaves rows. Re-running it updates dates so the watchlist does not drift. The rest wrap each check in a provider transaction and roll it back.
 
