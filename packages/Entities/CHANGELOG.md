@@ -1,5 +1,12 @@
 # @mj-biz-apps/contracts-entities
 
+## 0.13.0
+
+### Minor Changes
+
+- 47c1140: Ship v0.13's metadata and the Postgres side of its schema change. A `Metadata_Sync` migration creates the Sweep Contract Renewal Terms action and its daily scheduled job on install and upgrade (create-only, so a host that pauses the job or edits the action keeps its change), and the ContractOrder / CarryDiscountOnRenewal migration gains its PostgreSQL counterpart.
+- ea8e85a: Copy a contract's renewal terms to the Orders subscriptions it governs (issue #77). New `ContractOrder` table links a contract to the orders it governs, and `Contract.CarryDiscountOnRenewal` records whether a first-term discount continues at renewal. Saving a contract whose annual increase or carry-discount flag changed, or linking an order to a contract, writes `RenewalIncreasePercent` (only when the contract states an increase) and `CarryDiscountOnRenewal` to every subscription the linked orders created. A daily `Contracts.SweepRenewalTerms` scheduled job re-applies every linked contract's terms, so subscriptions created after the link receive them. The renewal terms panel gains a "Discount continues at renewal" field. A contract with linked orders can't be deleted until the links are removed. The app now requires bizapps-orders 5.28.0 or later, installed before Contracts.
+
 ## 0.12.3
 
 ## 0.12.2
