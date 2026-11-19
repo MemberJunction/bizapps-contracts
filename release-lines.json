@@ -8,7 +8,7 @@
       "branch": "lts/6.2",
       "status": "open",
       "mjVersion": "6.2.1",
-      "appMajor": 0,
+      "appMajor": 1,
       "releasesThrough": "main"
     }
   }
