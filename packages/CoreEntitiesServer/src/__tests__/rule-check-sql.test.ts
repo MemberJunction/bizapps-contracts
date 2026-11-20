@@ -21,7 +21,7 @@ function resolveFor(platform: 'sqlserver' | 'postgresql', sql: PlatformSQL): str
 const cases: { name: string; sql: PlatformSQL; aliases: string[] }[] = [
     { name: 'R-3 parent cycle probe', sql: lineageProbeSQL('ParentContractID', A, B), aliases: ['Chain', 'Depth'] },
     { name: 'R-3 successor cycle probe', sql: lineageProbeSQL('SupersededByContractID', A, B), aliases: ['Chain', 'Depth'] },
-    { name: 'R-4 modifications count', sql: modificationsAgainstTemplateSQL(A, B), aliases: ['Hits'] },
+    { name: 'R-4 modifications count', sql: modificationsAgainstTemplateSQL(A, B), aliases: ['Hits', 'ChildHits'] },
     {
         name: 'template ancestry check',
         sql: provisionTemplateCheckSQL(A, B),
@@ -58,9 +58,13 @@ describe.each(cases)('$name — one form per database', ({ sql, aliases }) => {
 
 describe('recursive walks', () => {
     it('PostgreSQL declares the CTE RECURSIVE; SQL Server does not need to', () => {
-        for (const sql of [lineageProbeSQL('ParentContractID', A, B), provisionTemplateCheckSQL(A, B)]) {
+        for (const sql of [
+            lineageProbeSQL('ParentContractID', A, B),
+            provisionTemplateCheckSQL(A, B),
+            modificationsAgainstTemplateSQL(A, B),
+        ]) {
             expect(resolveFor('postgresql', sql)).toMatch(/^WITH RECURSIVE /);
-            expect(resolveFor('sqlserver', sql)).toMatch(/^WITH (lineage|ancestry) AS/);
+            expect(resolveFor('sqlserver', sql)).toMatch(/^WITH (lineage|ancestry|subtree) AS/);
         }
     });
 
@@ -68,5 +72,23 @@ describe('recursive walks', () => {
         const resolved = resolveFor('postgresql', lineageProbeSQL('SupersededByContractID', A, B));
         expect(resolved).toContain('JOIN lineage l ON c."ID" = l."SupersededByContractID"');
         expect(resolved).not.toContain('ParentContractID');
+    });
+});
+
+describe('R-4 tree-wide modifications count', () => {
+    it('walks down the tree from the saving contract and back up from each hit', () => {
+        for (const platform of ['sqlserver', 'postgresql'] as const) {
+            const resolved = resolveFor(platform, modificationsAgainstTemplateSQL(A, B));
+            expect(resolved).toMatch(/JOIN subtree s ON c\.\W?ParentContractID\W? = s\.\W?ID/);
+            expect(resolved).toMatch(/JOIN ancestry a ON c\.\W?ID\W? = a\.\W?ParentContractID/);
+            expect(resolved).toMatch(/Depth\W? < 50/);
+        }
+    });
+
+    it('excludes the saving contract from the ancestors that keep a template reachable', () => {
+        for (const platform of ['sqlserver', 'postgresql'] as const) {
+            const resolved = resolveFor(platform, modificationsAgainstTemplateSQL(A, B));
+            expect(resolved).toMatch(new RegExp(`a\\.\\W?ID\\W? <> '${A}'`));
+        }
     });
 });

@@ -137,9 +137,12 @@ describe('every server entity registration is classified', () => {
 
     /**
      * Server classes with NO hand-written shared sibling, for which extending the generated class is
-     * correct. Empty today: every entity class this package registers has a shared counterpart.
+     * correct.
+     *
+     * - Contract Orders: the link row has no rule a browser could check; its only behaviour is the
+     *   server-side copy of the contract's renewal terms to Orders subscriptions (issue #77).
      */
-    const NO_SHARED_SIBLING: ReadonlySet<string> = new Set<string>();
+    const NO_SHARED_SIBLING: ReadonlySet<string> = new Set<string>(["'MJ_BizApps_Contracts: Contract Orders'"]);
 
     /** The second argument of every `@RegisterClass(BaseEntity, ...)` in the package, as written. */
     const registeredKeys = (): string[] => {

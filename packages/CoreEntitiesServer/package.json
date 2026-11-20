@@ -1,7 +1,7 @@
 {
   "mjdevManaged": "MJDEV-MANAGED: mjdev owns parts of this file — the \"packages/dev-apps/*\" workspaces glob, any dev-linked open-app dependencies (e.g. \"@mj-biz-apps/*\"), and the Angular \"overrides\" pin set. Do not hand-edit those; the tool wires and reverts them. They are left visible in git status, but the git-tree guard blocks committing them. See .mjdev-docs/MANAGED-FILES.md; revert with `mjdev git:stage-clean <slug> package.json`.",
   "name": "@mj-biz-apps/contracts-core-entities-server",
-  "version": "0.12.1",
+  "version": "0.13.0",
   "type": "module",
   "description": "Server-side entity subclass overrides (validation, computed fields, and save hooks) for the MemberJunction Contracts application.",
   "main": "dist/index.js",
@@ -16,19 +16,22 @@
   },
   "license": "BUSL-1.1",
   "dependencies": {
-    "@mj-biz-apps/contracts-entities": "^0.12.1"
+    "@mj-biz-apps/contracts-entities": "^0.13.0"
   },
   "peerDependencies": {
     "@memberjunction/core": "^6.2.1",
     "@memberjunction/core-entities": "^6.2.1",
     "@memberjunction/global": "^6.2.1",
-    "@memberjunction/sqlserver-dataprovider": "^6.2.1"
+    "@memberjunction/sqlserver-dataprovider": "^6.2.1",
+    "@mj-biz-apps/orders-entities": "^5.28.0"
   },
   "devDependencies": {
     "@memberjunction/core": "^6.2.1",
     "@memberjunction/core-entities": "^6.2.1",
     "@memberjunction/global": "^6.2.1",
     "@memberjunction/sqlserver-dataprovider": "^6.2.1",
+    "@mj-biz-apps/common-entities": "5.65.0",
+    "@mj-biz-apps/orders-entities": "5.49.0",
     "typescript": "^5.9.3",
     "vitest": "^4.0.18"
   },
