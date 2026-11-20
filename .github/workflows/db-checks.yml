@@ -11,7 +11,7 @@ name: Database Checks
 on:
   workflow_dispatch:
   push:
-    branches: [next]
+    branches: [next, 'lts/**']
     paths:
       - 'migrations/**'
       - 'metadata/**'
@@ -20,7 +20,7 @@ on:
       - '.github/workflows/db-checks.yml'
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
-    branches: [next, main]
+    branches: [next, main, 'lts/**']
     paths:
       - 'migrations/**'
       - 'metadata/**'
