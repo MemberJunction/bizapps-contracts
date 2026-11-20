@@ -71,6 +71,10 @@ export * from './renewal-defaults';
  * the view, the migration seed and the form panel that marks a file. */
 export * from './executed-agreement';
 
+/* The Overview's wording while the executed agreement is missing: upload and mark, or mark only when
+ * files are already linked (golive #490). */
+export * from './executed-agreement-prompt';
+
 /* NOTE on `src/generated/remote_operations.ts`: CodeGen writes it, and it is deliberately NOT
  * re-exported. v2 ships zero remote operations (plan §6.3), so every symbol in that file is an
  * MJ-CORE operation (AISkill, PredictiveStudio, TaskGraph, …) emitted into every app's file

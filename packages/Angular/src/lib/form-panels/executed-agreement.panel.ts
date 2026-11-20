@@ -11,6 +11,13 @@
  * was attached. This panel closes exactly that gap and nothing else: attach, remove and open stay
  * with the stock panel.
  *
+ * UPLOAD AND MARK IN ONE STEP (golive #490). People attached the signed PDF from the toolbar and never
+ * found the mark, so the contract stayed "awaiting". "Upload executed agreement" opens MJ's own
+ * attachments component with `Config.DefaultCategoryID` set to the Executed Agreement category, which
+ * makes MJ create the file already carrying it: no second step. MJ's component owns the upload, its
+ * storage-account choice and its create permissions on MJ: Files and MJ: File Entity Record Links.
+ * Closing it re-reads the record, because the upload may have cleared `IsAwaitingDocument`.
+ *
  * THE RE-PAPERING RULE, adopted deliberately (supersede.panel.ts): ALWAYS VISIBLE, not gated on
  * EditMode. Marking writes the FILE, not this record, in its own save — it is not one of the form's
  * fields, so it is available in read mode and shown read-only while the form is editing or the
@@ -35,6 +42,7 @@ import { EscapeSQLString, RegisterClassEx } from '@memberjunction/global';
 import { Metadata, type IMetadataProvider, type RunView } from '@memberjunction/core';
 import type { MJFileEntity } from '@memberjunction/core-entities';
 import { BaseFormPanel, BaseFormsModule } from '@memberjunction/ng-base-forms';
+import { FileStorageModule, type RecordAttachmentsConfig } from '@memberjunction/ng-file-storage';
 import { MJAlertComponent, MJButtonDirective, MJRefreshButtonComponent } from '@memberjunction/ng-ui-components';
 import { ContractEntity, EXECUTED_AGREEMENT_FILE_CATEGORY } from '@mj-biz-apps/contracts-entities';
 import { MJC_ENTITIES, MJC_FOREIGN_ENTITIES } from '../data/entity-names';
@@ -75,7 +83,7 @@ function isExecutedAgreementCategory(categoryName: string | null | undefined): b
     selector: 'mjc-contract-executed-agreement-panel',
     standalone: true,
     encapsulation: ViewEncapsulation.None,
-    imports: [CommonModule, BaseFormsModule, MJButtonDirective, MJAlertComponent, MJRefreshButtonComponent],
+    imports: [CommonModule, BaseFormsModule, FileStorageModule, MJButtonDirective, MJAlertComponent, MJRefreshButtonComponent],
     template: `
         <mj-collapsible-panel
             SectionKey="executedAgreement"
@@ -92,6 +100,12 @@ function isExecutedAgreementCategory(categoryName: string | null | undefined): b
                     <!-- Files attach through the toolbar's Attachments panel, which tells this panel nothing:
                          closing it refreshes only the toolbar count. Without this, a file attached a moment
                          ago is not listed until the record is reloaded. -->
+                    @if (CanUpload) {
+                        <button mjButton variant="primary" size="sm" type="button" [disabled]="Busy"
+                                (click)="OpenUpload()">
+                            <i class="fa-solid fa-upload" aria-hidden="true"></i> Upload executed agreement
+                        </button>
+                    }
                     @if (Record.IsSaved) {
                         <mj-refresh-button Variant="flat" Size="sm" [ShowLabel]="false"
                                            Title="Reload the linked files"
@@ -102,6 +116,10 @@ function isExecutedAgreementCategory(categoryName: string | null | undefined): b
                 <div class="mj-forms-field-control">
                     @let files = Files;
 
+                    @if (CanUpload) {
+                        <div class="mjc-hint">Upload the signed agreement here, or attach it from the toolbar and mark it below.</div>
+                    }
+
                     @if (Loading) {
                         <div class="mjc-hint">Loading linked files…</div>
                     } @else if (LoadError) {
@@ -109,10 +127,7 @@ function isExecutedAgreementCategory(categoryName: string | null | undefined): b
                     } @else if (!files.length) {
                         <span class="mj-forms-field-value">—</span>
                         @if (Record.IsSaved) {
-                            <div class="mjc-hint">
-                                No files are linked to this contract. Attach the signed PDF with the Attachments
-                                button on the toolbar, then mark it here.
-                            </div>
+                            <div class="mjc-hint">No files are linked to this contract.</div>
                         }
                     } @else {
                         <table class="mjc-grid">
@@ -184,15 +199,27 @@ function isExecutedAgreementCategory(categoryName: string | null | undefined): b
                     }
 
                     <div class="mjc-hint">
-                        “Awaiting document” clears when a linked file is marked as the executed agreement. Attaching,
-                        removing and opening files stays with the Attachments button on the toolbar.
+                        “Awaiting document” clears when a linked file is marked as the executed agreement. Removing
+                        and opening files stays with the Attachments button on the toolbar.
                     </div>
                 </div>
             </div>
         </mj-collapsible-panel>
+
+        <!-- MJ's attachments component, opened by "Upload executed agreement": every file uploaded
+             through it is created in the Executed Agreement category. -->
+        @if (UploadOpen && Record.IsSaved) {
+            <mj-record-attachments
+                [Record]="Record"
+                [Visible]="true"
+                [Config]="UploadConfig"
+                Title="Upload executed agreement"
+                (PanelClosed)="OnUploadClosed()" />
+        }
     `,
     styles: [`
         .mjc-exec-head { display: flex; align-items: center; justify-content: space-between; gap: var(--mj-space-2); }
+        .mjc-exec-head > .mj-forms-field-label { margin-right: auto; }
     `],
 })
 export class MJCContractExecutedAgreementPanel extends BaseFormPanel<ContractEntity> {
@@ -214,6 +241,10 @@ export class MJCContractExecutedAgreementPanel extends BaseFormPanel<ContractEnt
     public ActionOk = '';
     /** Links whose file row did not come back — most likely no read permission on MJ: Files. */
     public Unreadable = 0;
+    /** Whether MJ's attachments component is open for an executed-agreement upload. */
+    public UploadOpen = false;
+    /** Set when the upload opens, so the component's input does not change identity on every check. */
+    public UploadConfig: RecordAttachmentsConfig = {};
 
     private _files: LinkedFile[] = [];
     /**
@@ -254,6 +285,29 @@ export class MJCContractExecutedAgreementPanel extends BaseFormPanel<ContractEnt
         if (!user) return false;
         const files = provider.EntityByName(MJC_FOREIGN_ENTITIES.File);
         return files?.GetUserPermisions(user).CanUpdate === true;
+    }
+
+    /**
+     * Whether "Upload executed agreement" shows: a saved contract outside edit mode, and a category row
+     * to put the upload in. Create permission is MJ's component's to check; it disables its uploader.
+     */
+    public get CanUpload(): boolean {
+        return !this.ReadOnly && !!this.CategoryID && !this.LoadError;
+    }
+
+    public OpenUpload(): void {
+        if (!this.CategoryID) return;
+        this.ActionOk = '';
+        this.ActionError = '';
+        this.UploadConfig = { DefaultCategoryID: this.CategoryID };
+        this.UploadOpen = true;
+    }
+
+    /** The upload may have cleared `IsAwaitingDocument`: re-read the record, which reloads this list too. */
+    public async OnUploadClosed(): Promise<void> {
+        this.UploadOpen = false;
+        await this.reReadRecord();
+        this.cdr.detectChanges();
     }
 
     public IsExecutedAgreement(file: LinkedFile): boolean {

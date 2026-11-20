@@ -17,13 +17,14 @@ import { ChangeDetectorRef, Component, ViewEncapsulation, inject, type OnInit } 
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { CompositeKey } from '@memberjunction/core';
-import { RegisterClassEx } from '@memberjunction/global';
+import { EscapeSQLString, RegisterClassEx } from '@memberjunction/global';
 import { BaseFormPanel, BaseFormsModule } from '@memberjunction/ng-base-forms';
 import { MJAlertComponent, MJButtonDirective, MJComboboxComponent } from '@memberjunction/ng-ui-components';
 import type { AfterDataLoadEventArgs } from '@memberjunction/ng-entity-viewer';
 import {
     BuildCurrentTemplateFilter,
     ContractEntity,
+    ExecutedAgreementPrompt,
     CurrentTemplateOrderBy,
     DealIDClause,
     DealOptionLabel,
@@ -304,7 +305,52 @@ function termEndsText(days: number | null | undefined): string {
     `],
 })
 export class MJCContractOverviewPanel extends BaseFormPanel<ContractEntity> {
+    private readonly cdr = inject(ChangeDetectorRef);
     public dateLabel = dateLabel;
+
+    /**
+     * How many files are linked to this contract, read only while it is awaiting its executed agreement:
+     * with files linked the missing step is the mark, not the upload (golive #490). Null until read, or
+     * when the read fails, which gets the wording that names both steps.
+     */
+    private linkedFileCount: number | null = null;
+    /** WHICH record the count was read for: the form reuses this instance across contracts. */
+    private countedFor: string | null = null;
+
+    /** The executed-agreement health line and next step, or null when the agreement is not missing. */
+    public get ExecutedAgreement(): ReturnType<typeof ExecutedAgreementPrompt> {
+        const awaiting = this.Record?.IsAwaitingDocument === true;
+        const id = this.Record?.ID;
+        if (awaiting && id && this.countedFor !== id) {
+            this.countedFor = id;
+            this.linkedFileCount = null;
+            void this.countLinkedFiles(id);
+        }
+        return ExecutedAgreementPrompt(awaiting, this.linkedFileCount);
+    }
+
+    /** A mark or an upload elsewhere on the form re-reads the record; count again with it. */
+    public override OnRecordRefreshed(): void {
+        this.countedFor = null;
+    }
+
+    private async countLinkedFiles(recordID: string): Promise<void> {
+        try {
+            const { ScopedRunView } = await import('../data/provider');
+            const r = await ScopedRunView(this.FormComponent?.ProviderToUse).RunView({
+                EntityName: MJC_FOREIGN_ENTITIES.FileEntityRecordLink,
+                ExtraFilter: `EntityID = '${EscapeSQLString(this.Record.EntityInfo.ID)}' AND RecordID = '${EscapeSQLString(recordID)}'`,
+                ResultType: 'count_only',
+            });
+            if (this.countedFor !== recordID) return; // the form moved to another contract meanwhile
+            this.linkedFileCount = r?.Success ? (r.TotalRowCount ?? 0) : null;
+        } catch {
+            // The upload-and-mark wording names both steps, so a failed count still says something true.
+            if (this.countedFor === recordID) this.linkedFileCount = null;
+        } finally {
+            this.cdr.markForCheck();
+        }
+    }
     public get State(): ContractState { return (this.Record?.State as ContractState) || 'Draft'; }
     public get TypeName(): string { return this.Record?.ContractType ?? ''; }
     public get CustomerName(): string { return this.Record?.CustomerOrganization ?? ''; }
@@ -369,8 +415,9 @@ export class MJCContractOverviewPanel extends BaseFormPanel<ContractEntity> {
     public get Health(): string[] {
         const out: string[] = [];
         if (!this.Record) return out;
-        if (this.Record.IsAwaitingDocument) {
-            out.push('Executed agreement not attached.');
+        const executed = this.ExecutedAgreement;
+        if (executed) {
+            out.push(executed.Health);
         }
         if (this.Record.IsInCancellationWindow) {
             out.push('Cancellation window is open.');
@@ -396,7 +443,8 @@ export class MJCContractOverviewPanel extends BaseFormPanel<ContractEntity> {
         return out;
     }
     public get NextMove(): string | null {
-        if (this.Record?.IsAwaitingDocument) return 'Attach the executed agreement.';
+        const executed = this.ExecutedAgreement;
+        if (executed) return executed.NextMove;
         if (this.Record?.IsInCancellationWindow) return 'Cancellation window is open. Confirm whether the customer is renewing.';
         const notice = noticeDays(this.Record);
         if (notice != null && notice <= 30) {
