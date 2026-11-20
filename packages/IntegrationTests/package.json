@@ -33,9 +33,9 @@
     "@mj-biz-apps/contracts-core-entities-server": "^0.13.0"
   },
   "peerDependencies": {
-    "@memberjunction/core": "^6.2.1",
-    "@memberjunction/global": "^6.2.1",
-    "@memberjunction/testing-integration": "^6.2.1",
+    "@memberjunction/core": ">=6.2.1 <6.3.0",
+    "@memberjunction/global": ">=6.2.1 <6.3.0",
+    "@memberjunction/testing-integration": ">=6.2.1 <6.3.0",
     "@mj-biz-apps/orders-entities": "^5.28.0"
   }
 }
