@@ -27,6 +27,11 @@
  * is nothing to restore in practice). After either write the form re-reads the record, because the
  * header chip and the Overview health line read the PERSISTED view column rather than re-deriving it.
  *
+ * THE TERMINATION AGREEMENT is a second category on the same list: the signed agreement that ends a
+ * contract before its term. A file in it is always shown with its own chip; marking one is offered
+ * only when the contract has a Terminated Date or already holds such a file, because no other
+ * contract has a termination agreement to mark. It does not affect `IsAwaitingDocument`.
+ *
  * @module @mj-biz-apps/contracts-ng
  */
 import { ChangeDetectorRef, Component, ViewEncapsulation, inject } from '@angular/core';
@@ -36,7 +41,7 @@ import { Metadata, type IMetadataProvider, type RunView } from '@memberjunction/
 import type { MJFileEntity } from '@memberjunction/core-entities';
 import { BaseFormPanel, BaseFormsModule } from '@memberjunction/ng-base-forms';
 import { MJAlertComponent, MJButtonDirective, MJRefreshButtonComponent } from '@memberjunction/ng-ui-components';
-import { ContractEntity, EXECUTED_AGREEMENT_FILE_CATEGORY } from '@mj-biz-apps/contracts-entities';
+import { ContractEntity, EXECUTED_AGREEMENT_FILE_CATEGORY, TERMINATION_AGREEMENT_FILE_CATEGORY } from '@mj-biz-apps/contracts-entities';
 import { MJC_ENTITIES, MJC_FOREIGN_ENTITIES } from '../data/entity-names';
 import { ScopedRunView } from '../data/provider';
 
@@ -51,6 +56,11 @@ interface LinkedFile {
 /** The view's predicate, in TypeScript: `fc.Name = 'Executed Agreement'` under a case-insensitive collation. */
 function isExecutedAgreementCategory(categoryName: string | null | undefined): boolean {
     return (categoryName ?? '').trim().toLowerCase() === EXECUTED_AGREEMENT_FILE_CATEGORY.toLowerCase();
+}
+
+/** The same comparison for the termination-agreement category. */
+function isTerminationAgreementCategory(categoryName: string | null | undefined): boolean {
+    return (categoryName ?? '').trim().toLowerCase() === TERMINATION_AGREEMENT_FILE_CATEGORY.toLowerCase();
 }
 
 @RegisterClassEx(BaseFormPanel, {
@@ -128,6 +138,10 @@ function isExecutedAgreementCategory(categoryName: string | null | undefined): b
                                                 <span class="mjc-chip mjc-chip--ok">
                                                     <i class="fa-solid fa-file-circle-check" aria-hidden="true"></i> Executed agreement
                                                 </span>
+                                            } @else if (IsTerminationAgreement(f)) {
+                                                <span class="mjc-chip mjc-chip--ok">
+                                                    <i class="fa-solid fa-file-circle-xmark" aria-hidden="true"></i> Termination agreement
+                                                </span>
                                             } @else if (f.CategoryName) {
                                                 <span class="mjc-chip mjc-chip--muted">{{ f.CategoryName }}</span>
                                             } @else {
@@ -142,6 +156,12 @@ function isExecutedAgreementCategory(categoryName: string | null | undefined): b
                                                             [attr.aria-label]="'Unmark ' + f.Name + ' as the executed agreement'">
                                                         Unmark
                                                     </button>
+                                                } @else if (IsTerminationAgreement(f)) {
+                                                    <button mjButton variant="flat" size="sm" type="button" [disabled]="Busy"
+                                                            (click)="UnmarkTermination(f)"
+                                                            [attr.aria-label]="'Unmark ' + f.Name + ' as the termination agreement'">
+                                                        Unmark
+                                                    </button>
                                                 } @else {
                                                     <button mjButton variant="primary" size="sm" type="button"
                                                             [disabled]="Busy || !CategoryID"
@@ -149,6 +169,14 @@ function isExecutedAgreementCategory(categoryName: string | null | undefined): b
                                                             [attr.aria-label]="'Mark ' + f.Name + ' as the executed agreement'">
                                                         Mark as executed agreement
                                                     </button>
+                                                    @if (ShowTermination) {
+                                                        <button mjButton variant="flat" size="sm" type="button"
+                                                                [disabled]="Busy || !TerminationCategoryID"
+                                                                (click)="MarkTermination(f)"
+                                                                [attr.aria-label]="'Mark ' + f.Name + ' as the termination agreement'">
+                                                            Mark as termination agreement
+                                                        </button>
+                                                    }
                                                 }
                                             }
                                         </td>
@@ -173,6 +201,10 @@ function isExecutedAgreementCategory(categoryName: string | null | undefined): b
                             <mj-alert Variant="warning" Size="sm"
                                       [Message]="'The file category named ' + CategoryName + ' does not exist on this database, so nothing can be marked. The contracts migration V202609010100 seeds it.'" />
                         }
+                        @if (ShowTermination && CanUpdateFiles && !LoadError && !Loading && !TerminationCategoryID) {
+                            <mj-alert Variant="warning" Size="sm"
+                                      [Message]="'The file category named ' + TerminationCategoryName + ' does not exist on this database, so no file can be marked as the termination agreement. It ships in the contracts metadata.'" />
+                        }
                         @if (Unreadable) {
                             <div class="mjc-hint">
                                 {{ Unreadable }} linked file(s) could not be read and are not listed — reading MJ: Files needs
@@ -187,6 +219,12 @@ function isExecutedAgreementCategory(categoryName: string | null | undefined): b
                         “Awaiting document” clears when a linked file is marked as the executed agreement. Attaching,
                         removing and opening files stays with the Attachments button on the toolbar.
                     </div>
+                    @if (ShowTermination) {
+                        <div class="mjc-hint">
+                            This contract has a Terminated Date or a termination agreement on file: the signed
+                            early-termination agreement is the linked file marked as the termination agreement.
+                        </div>
+                    }
                 </div>
             </div>
         </mj-collapsible-panel>
@@ -204,6 +242,9 @@ export class MJCContractExecutedAgreementPanel extends BaseFormPanel<ContractEnt
     public CategoryID: string | null = null;
     /** True after a successful load that found no category row — a database the migration has not reached. */
     public CategoryMissing = false;
+    public readonly TerminationCategoryName = TERMINATION_AGREEMENT_FILE_CATEGORY;
+    /** The `MJ: File Categories` row named {@link TERMINATION_AGREEMENT_FILE_CATEGORY}, resolved per load; null when absent. */
+    public TerminationCategoryID: string | null = null;
     public Loading = false;
     /** True while a Mark/Unmark is in flight, so a button cannot be double-fired. */
     public Busy = false;
@@ -260,6 +301,18 @@ export class MJCContractExecutedAgreementPanel extends BaseFormPanel<ContractEnt
         return isExecutedAgreementCategory(file.CategoryName);
     }
 
+    public IsTerminationAgreement(file: LinkedFile): boolean {
+        return isTerminationAgreementCategory(file.CategoryName);
+    }
+
+    /**
+     * Whether the termination-agreement controls and copy show: only a contract with a Terminated Date,
+     * or one that already holds a file in that category, has a termination agreement to point at.
+     */
+    public get ShowTermination(): boolean {
+        return this.Record?.TerminatedDate != null || this._files.some((f) => this.IsTerminationAgreement(f));
+    }
+
     /** The form's toolbar Refresh, or a refresh this panel triggered after a write: re-read the list. */
     public override OnRecordRefreshed(): void {
         void this.load();
@@ -279,6 +332,15 @@ export class MJCContractExecutedAgreementPanel extends BaseFormPanel<ContractEnt
 
     public async Unmark(file: LinkedFile): Promise<void> {
         await this.setCategory(file, null, `Unmarked — ${file.Name} is no longer the executed agreement.`);
+    }
+
+    public async MarkTermination(file: LinkedFile): Promise<void> {
+        if (!this.TerminationCategoryID) return;
+        await this.setCategory(file, this.TerminationCategoryID, `Marked — ${file.Name} is the termination agreement.`);
+    }
+
+    public async UnmarkTermination(file: LinkedFile): Promise<void> {
+        await this.setCategory(file, null, `Unmarked — ${file.Name} is no longer the termination agreement.`);
     }
 
     /** The host form's provider, so this panel reads and writes wherever the record it is showing came from. */
@@ -356,6 +418,15 @@ export class MJCContractExecutedAgreementPanel extends BaseFormPanel<ContractEnt
         if (!r?.Success) throw new Error(r?.ErrorMessage || 'file categories could not be read');
         this.CategoryID = r.Results[0]?.ID ?? null;
         this.CategoryMissing = !this.CategoryID;
+
+        const t = await rv.RunView<{ ID: string; Name: string }>({
+            EntityName: MJC_FOREIGN_ENTITIES.FileCategory,
+            Fields: ['ID', 'Name'],
+            ExtraFilter: `Name = '${EscapeSQLString(TERMINATION_AGREEMENT_FILE_CATEGORY)}'`,
+            ResultType: 'simple',
+        });
+        if (!t?.Success) throw new Error(t?.ErrorMessage || 'file categories could not be read');
+        this.TerminationCategoryID = t.Results[0]?.ID ?? null;
     }
 
     /**
