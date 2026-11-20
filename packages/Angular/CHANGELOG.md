@@ -1,5 +1,15 @@
 # @mj-biz-apps/contracts-ng
 
+## 0.14.0
+
+### Minor Changes
+
+- 6fb6723: Batch contract filter-pill, section-badge, and dashboard-tile count queries into single `RunViews` calls with `ResultType: 'count_only'`, and avoid recounting existing pills when the async open-task pill attaches.
+
+### Patch Changes
+
+- @mj-biz-apps/contracts-entities@0.14.0
+
 ## 0.13.0
 
 ### Minor Changes

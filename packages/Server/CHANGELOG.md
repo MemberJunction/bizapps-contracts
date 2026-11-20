@@ -1,5 +1,13 @@
 # @mj-biz-apps/contracts-server
 
+## 0.14.0
+
+### Patch Changes
+
+- @mj-biz-apps/contracts-actions@0.14.0
+- @mj-biz-apps/contracts-core-entities-server@0.14.0
+- @mj-biz-apps/contracts-entities@0.14.0
+
 ## 0.13.0
 
 ### Minor Changes
