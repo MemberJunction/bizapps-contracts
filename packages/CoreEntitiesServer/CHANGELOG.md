@@ -1,5 +1,16 @@
 # @mj-biz-apps/contracts-core-entities-server
 
+## 1.0.0
+
+### Major Changes
+
+- 71dd812: Contracts leaves 0.x with its first release-line release: the `lts/6.2` line publishes 1.0.0. Dependents must accept 1.x (for example `>=0.13.0 <2.0.0`); a `^0.13.0` range does not match 1.0.0.
+
+### Patch Changes
+
+- Updated dependencies [71dd812]
+  - @mj-biz-apps/contracts-entities@1.0.0
+
 ## 0.13.0
 
 ### Minor Changes

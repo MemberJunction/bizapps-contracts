@@ -1,5 +1,13 @@
 # @mj-biz-apps/contracts-integration-tests
 
+## 1.0.0
+
+### Patch Changes
+
+- Updated dependencies [71dd812]
+  - @mj-biz-apps/contracts-core-entities-server@1.0.0
+  - @mj-biz-apps/contracts-entities@1.0.0
+
 ## 0.13.0
 
 ### Patch Changes

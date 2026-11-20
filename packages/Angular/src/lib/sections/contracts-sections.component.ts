@@ -44,6 +44,7 @@ import {
 } from './section-nav.model';
 import { MJC_ENTITIES } from '../data/entity-names';
 import { ScopedRunView } from '../data/provider';
+import { RunContractCounts } from '../data/contract-counts';
 import { NoticeWindowWithin } from '../data/business-day';
 
 import {
@@ -359,27 +360,21 @@ export class ContractsSectionResource extends MJCSectionBaseComponent {
      * so an unreadable count renders no badge at all instead of a "0" that says "nothing to do here".
      */
     protected override async refreshBadges(): Promise<void> {
-        const rv = ScopedRunView();
-        const count = async (filter: string): Promise<number | undefined> => {
-            try {
-                const r = await rv.RunView({ EntityName: MJC_ENTITIES.Contract, ExtraFilter: filter, MaxRows: 1 });
-                return r?.TotalRowCount ?? 0;
-            } catch {
-                return undefined;
-            }
-        };
-
-        const [renewals, awaiting, modified] = await Promise.all([
+        const { Counts } = await RunContractCounts(ScopedRunView(), [
             // The view's own day-count, so the badge counts the same rows the Renewals page then
             // shows (bc-aidp-next-golive#168). On `CAST(GETUTCDATE() AS date)` the badge lost a
             // contract every American evening while the page it links to still listed it, because
             // `vwContracts` judges the deadline on `bt.Today` and this judged it on the UTC day.
-            count(`State IN ('Active','Executed') AND ${NoticeWindowWithin(120)}`),
-            count('IsAwaitingDocument = 1'),
-            count('HasModifications = 1'),
+            { Key: 'RenewalsDue', ExtraFilter: `State IN ('Active','Executed') AND ${NoticeWindowWithin(120)}` },
+            { Key: 'AwaitingDocuments', ExtraFilter: 'IsAwaitingDocument = 1' },
+            { Key: 'Modified', ExtraFilter: 'HasModifications = 1' },
         ]);
 
-        this.badges = { RenewalsDue: renewals, AwaitingDocuments: awaiting, Modified: modified };
+        this.badges = {
+            RenewalsDue: Counts['RenewalsDue'] ?? undefined,
+            AwaitingDocuments: Counts['AwaitingDocuments'] ?? undefined,
+            Modified: Counts['Modified'] ?? undefined,
+        };
         this.NavSections = BuildLeftNavSections(this.subPages, this.badges);
     }
 }
