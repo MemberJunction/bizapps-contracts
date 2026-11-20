@@ -79,7 +79,11 @@ const after = (await pool.request().query(`
     SELECT ISNULL(CAST(SupersededByContractID AS VARCHAR(50)),'(null)') AS S
       FROM __mj_BizAppsContracts.Contract WHERE ID = '${predRow.ID}'`)).recordset[0].S;
 console.log(`DB now says SupersededByContractID = ${after}`);
-console.log(after.toLowerCase() === succRow.ID.toLowerCase() ? '\n✔ PERSISTED' : '\n✖ NOT PERSISTED');
+const persisted = after.toLowerCase() === succRow.ID.toLowerCase();
+console.log(persisted ? '\n✔ PERSISTED' : '\n✖ NOT PERSISTED');
+// A failed Save() or a link that did not persist is a failure; set the code here so the cleanup
+// below still runs before the process exits.
+if (!ok || !persisted) process.exitCode = 1;
 
 // leave the data as we found it
 await pool.request().query(`UPDATE __mj_BizAppsContracts.Contract SET SupersededByContractID = NULL WHERE ID = '${predRow.ID}'`);

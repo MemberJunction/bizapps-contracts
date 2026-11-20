@@ -204,11 +204,12 @@ sequence:
 | `mj-bizapps-orders` | `>=5.28.0 <6.0.0` | `V202611121200`'s FK from `ContractOrder` to `__mj_BizAppsOrders.OrderHeader`; a contract's renewal terms are written to Orders subscriptions, whose `RenewalIncreasePercent` and `CarryDiscountOnRenewal` first shipped in 5.28 |
 
 `fnBusinessToday()` first shipped in bizapps-common **5.43.0** (its
-`V202609160900__v5.43.x__Business_Time_Zone` migration); on a database without it
-`V202609211200` fails with a message naming the missing function. `fnBusinessDayOf()` first shipped
-in **5.51.0** (`V202610062305__v5.51.x__Business_Day_Of`); no migration needs it, but without it the
-dashboard's "Overdue tasks" tile and the overdue-task pill fail at query time. The manifest's floor
-is 5.51.0 for that reason.
+`V202609160900__v5.43.x__Business_Time_Zone` migration); a database migrated outside the
+installer without it still has `V202609211200`'s guard, which fails with a message naming the
+missing function. `fnBusinessDayOf()` first shipped in **5.51.0**
+(`V202610062305__v5.51.x__Business_Day_Of`); no migration needs it, but without it the dashboard's
+"Overdue tasks" tile and the overdue-task pill fail at query time. The manifest's floor is 5.51.0
+for that reason, and the installer refuses an older bizapps-common before any migration runs.
 
 Beyond those, the migrations touch only MJ core (`__mj.Company`, `__mj.Entity`, …). A clean host
 carrying MJ core, bizapps-common 5.43.0 or later and bizapps-orders 5.28.0 or later (with the apps
@@ -297,6 +298,28 @@ applied the old `B202608040001` refuses to migrate — reporting a checksum mism
 has no way to reconcile. The 22 collapsed V files are also gone from disk while their history
 rows remain. Such a database is rebuilt from zero. There is no supported upgrade path from the
 old train, and there did not need to be: nothing had shipped.
+
+### A dev database that ran CodeGen before `V202610092200` has two risk-band value lists
+
+`V202610092200` inserts the four `PredictedRenewalRiskBand` values (Low, Medium, High, Critical)
+under fixed IDs. A dev database whose own CodeGen run already derived them from
+`CK_Contract_PredictedRenewalRiskBand` holds them under other IDs, and nothing is unique on
+(field, value), so the migration succeeds and the field ends up with eight values (issue #145).
+Hosts are unaffected: they never run CodeGen for this schema.
+
+No corrective migration ships for this. It would be a hand-written `__mj.*` change that is a no-op
+on every host and exists only to repair dev databases, which this repo fixes by rebuilding from
+zero (see [Writing a migration](#writing-a-migration)). Rebuild the database, or delete the rows
+CodeGen created and keep the fixed-ID set the migration ships:
+
+```sql
+DELETE FROM [__mj].[EntityFieldValue]
+WHERE EntityFieldID = 'E25C8E07-F5DC-4D15-9EF4-56F51111575E'
+  AND ID NOT IN ('f9404ebe-5434-4725-bedd-397ca8acf877', '1158e600-d245-47b2-96a6-2a11261d0645',
+                 '6ef178b2-0cbf-4472-bb56-35ae9278d500', 'd3f12a28-83c7-4464-989e-6dfb25532fb4');
+```
+
+Check first with the same `WHERE` in a `SELECT`: it should return exactly the four CodeGen rows.
 
 ### Earlier dependency rules
 

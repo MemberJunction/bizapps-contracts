@@ -39,6 +39,10 @@ function stub(templateTypeID: string | null) {
                     const projected = Object.fromEntries((params.Fields ?? Object.keys(row)).map((f) => [f, row[f]]));
                     return { Success: true, Results: [projected] };
                 }
+                // No retired template types (#138), so the template read carries only the type scope.
+                if (params.EntityName === 'MJ_BizApps_Contracts: Contract Template Types') {
+                    return { Success: true, Results: [] };
+                }
                 return { Success: true, Results: [{ ID: TEMPLATE_ID }] };
             },
         },
