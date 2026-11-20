@@ -77,6 +77,8 @@ The line cut is coordinated across apps: bizapps-common first, then the apps tha
    adds `"line"`. Set the line's `.github/CODEOWNERS` to `* <the line's reviewers>`; protect-lts
    requires code-owner review, so every change to the line needs one of them. From the 6.3 line on, also add a `major` changeset (each line has its own app
    major) and re-stamp edge-only migrations to the cut date on SQL Server and PostgreSQL together.
+   Because `next` stays on `0.13.0` after `lts/6.2` publishes `1.0.0`, bump `next` (or the 6.3 cut
+   branch) to `1.0.0` first so that a `major` changeset produces `2.0.0` rather than `1.0.0` again.
    Open it into `lts/X.Y` with the `line-cut` label (a maintainer or admin adds it).
 4. The first release of a new newest line has to replace `main`'s history with the line's. That
    step is not automated yet; it is written up when the 6.3 line is cut.
