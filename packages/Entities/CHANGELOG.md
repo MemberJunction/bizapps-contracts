@@ -1,5 +1,15 @@
 # @mj-biz-apps/contracts-entities
 
+## 1.0.0
+
+### Major Changes
+
+- 71dd812: Contracts leaves 0.x with its first release-line release: the `lts/6.2` line publishes 1.0.0. Dependents must accept 1.x (for example `>=0.13.0 <2.0.0`); a `^0.13.0` range does not match 1.0.0.
+
+### Minor Changes
+
+- 47f4e84: Adds the PostgreSQL counterpart of the single-write `__mj_UpdatedAt` migration (V202611201235). It changes nothing on PostgreSQL, where the `__mj_UpdatedAt` trigger already stamps the row in place before the update, so a save is already one write.
+
 ## 0.13.0
 
 ### Minor Changes
