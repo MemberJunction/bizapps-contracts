@@ -1,5 +1,21 @@
 # @mj-biz-apps/contracts-ng
 
+## 1.0.0
+
+### Major Changes
+
+- 71dd812: Contracts leaves 0.x with its first release-line release: the `lts/6.2` line publishes 1.0.0. Dependents must accept 1.x (for example `>=0.13.0 <2.0.0`); a `^0.13.0` range does not match 1.0.0.
+
+### Minor Changes
+
+- 6fb6723: Batch contract filter-pill, section-badge, and dashboard-tile count queries into single `RunViews` calls with `ResultType: 'count_only'`, and avoid recounting existing pills when the async open-task pill attaches.
+
+### Patch Changes
+
+- Updated dependencies [71dd812]
+- Updated dependencies [47f4e84]
+  - @mj-biz-apps/contracts-entities@1.0.0
+
 ## 0.13.0
 
 ### Minor Changes

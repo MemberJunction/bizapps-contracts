@@ -1,0 +1,36 @@
+-- =============================================================================
+-- PostgreSQL counterpart of V202611201235__v0.13.x__Single_Write_spUpdate_And_Trigger_Guard.sql
+-- =============================================================================
+-- Nothing to change on PostgreSQL. PostgreSQL already saves a record in one
+-- write; this file only keeps the two migration sets in step.
+--
+-- WHAT THE T-SQL FILE DOES
+--
+-- It regenerates spUpdate* for Contract, ContractTemplate,
+-- ContractTemplateModification, ContractTemplateProvision, ContractTemplateType
+-- and ContractType so they set [__mj_UpdatedAt] in the UPDATE itself, and wraps
+-- each table's trgUpdate* trigger in IF NOT UPDATE([__mj_UpdatedAt]). On SQL
+-- Server trgUpdate* is an AFTER UPDATE trigger that runs a second UPDATE on the
+-- row to stamp __mj_UpdatedAt, so every BaseEntity.Save() wrote the row twice.
+-- With the change, a save writes once and the trigger stamps only UPDATEs that
+-- leave __mj_UpdatedAt out.
+--
+-- WHY POSTGRESQL NEEDS NONE OF IT
+--
+-- The baseline (B202609211300) gives each of those six tables a BEFORE UPDATE
+-- row trigger, trg_update_<table>, that assigns NEW."__mj_UpdatedAt" in place
+-- and returns NEW, as MJ's PostgreSQL CodeGen emits it
+-- (PostgreSQLCodeGenProvider.generateTimestampTrigger). Later files that
+-- re-create trg_update_contract and trg_update_contract_type keep them BEFORE
+-- UPDATE triggers. There is no second UPDATE, so every UPDATE, through spUpdate* or direct
+-- SQL, is already one write, with or without __mj_UpdatedAt in its SET list.
+-- Regenerating the spUpdate* functions to set the column would change nothing,
+-- since the BEFORE trigger overwrites the value. MJ core's PostgreSQL
+-- counterpart of its own single-write migration (V202611121645__v6.3.x) is
+-- empty for the same reason. The GRANT EXECUTE statements in the T-SQL file
+-- re-grant what the earlier PostgreSQL files already grant.
+--
+-- Runs once, in order, after V202611182210.
+-- =============================================================================
+
+SET search_path TO __mj_bizappscontracts, public;
