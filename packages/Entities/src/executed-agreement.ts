@@ -20,3 +20,11 @@
  * `IsAwaitingDocument`. Must equal the Name seeded by V202609010100.
  */
 export const EXECUTED_AGREEMENT_FILE_CATEGORY = 'Executed Agreement';
+
+/**
+ * The `MJ: File Categories` Name that marks the signed early-termination agreement among a contract's
+ * linked files. Must equal the Name in `metadata/file-categories/.file-categories.json`, which is how
+ * the row ships: MJ metadata rows are authored as metadata, never inserted by a migration. Shared so
+ * that any flow that terminates a contract files the document under the same name the form reads.
+ */
+export const TERMINATION_AGREEMENT_FILE_CATEGORY = 'Termination Agreement';
