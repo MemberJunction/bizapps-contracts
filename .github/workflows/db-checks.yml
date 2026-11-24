@@ -200,3 +200,6 @@ jobs:
 
       - name: Audit __mj.EntityField rows after migration replay (#113)
         run: pnpm run test:entity-fields
+
+      - name: Check every spUpdate* takes every updatable field
+        run: pnpm run test:spupdate-params
