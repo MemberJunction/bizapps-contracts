@@ -1,7 +1,7 @@
 {
   "name": "@mj-biz-apps/contracts-integration-tests",
   "type": "module",
-  "version": "0.13.0",
+  "version": "6.3.0-edge.1",
   "private": true,
   "description": "Integration check bundles for BizApps Contracts, dispatched by `mj test` via MJ's testing framework.",
   "main": "dist/index.js",
@@ -29,13 +29,13 @@
     "@mj-biz-apps/orders-entities": "5.49.0"
   },
   "dependencies": {
-    "@mj-biz-apps/contracts-entities": "^0.13.0",
-    "@mj-biz-apps/contracts-core-entities-server": "^0.13.0"
+    "@mj-biz-apps/contracts-entities": "^6.3.0-edge.1",
+    "@mj-biz-apps/contracts-core-entities-server": "^6.3.0-edge.1"
   },
   "peerDependencies": {
     "@memberjunction/core": "^6.3.0-edge.1",
     "@memberjunction/global": "^6.3.0-edge.1",
     "@memberjunction/testing-integration": "^6.3.0-edge.1",
-    "@mj-biz-apps/orders-entities": "^5.28.0"
+    "@mj-biz-apps/orders-entities": ">=5.28.0 <7.0.0"
   }
 }
