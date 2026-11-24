@@ -1,0 +1,15 @@
+[
+  {
+    "_comments": [
+      "Publishes the Master Agreement after its provisions are pushed. Two steps because the server",
+      "refuses a new contract on a Draft template and refuses a new provision on a Published one, so",
+      "the template must be Draft while contract-provisions/ loads and Published before contracts/ (#140)."
+    ],
+    "fields": {
+      "Status": "Published"
+    },
+    "primaryKey": {
+      "ID": "33333333-0000-4000-8000-000000003001"
+    }
+  }
+]

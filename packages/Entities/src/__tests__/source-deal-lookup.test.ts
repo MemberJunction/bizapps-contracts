@@ -93,7 +93,8 @@ describe('contracts does not gain a dependency on sales', () => {
          * panel offers a control whose query can only ever return nothing.
          */
         expect(CODE).toContain('public get DealLookupAvailable(): boolean');
-        expect(CODE).toContain('@if (EditMode && ShowLookup)');
+        expect(CODE).toContain('@if (LookupShown)');
+        expect(CODE).toContain('return this.ShowLookup;');
         expect(CODE).toContain('if (!this.DealLookupAvailable) return false;');
         expect(CODE).toContain('if (!this.DealLookupAvailable) return;');
     });
@@ -161,7 +162,7 @@ describe('the candidate list belongs to the record on screen', () => {
          */
         expect(CODE).toContain('private loadedFor: string | null = null;');
         expect(CODE).toContain("const key = this.Record?.ID ?? 'new';");
-        expect(CODE).toContain('if (this.loadedFor !== key)');
+        expect(CODE).toContain('if (this.loadedFor !== key || !this.syncedThisEdit)');
     });
 
     it('triggers the per-record load from the gate, not from the options', () => {
