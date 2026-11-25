@@ -1,0 +1,290 @@
+[
+  {
+    "fields": {
+      "Name": "Contract Worklists, Executed Paper & Lineage",
+      "TourKey": "contracts.lifecycle",
+      "Description": "Navigate contract worklists driven by derived SQL lifecycle columns, track awaiting executed agreements, and trace parent/amendment lineage.",
+      "ApplicationID": "@lookup:MJ: Applications.Name=Contracts",
+      "RunInAuthenticatedHosts": true,
+      "Status": "Draft",
+      "EstimatedMinutes": 3,
+      "Priority": 100,
+      "DefaultGuideMode": "Visual",
+      "AllowAgentActions": false,
+      "Goal": {
+        "Type": "Navigation",
+        "AppName": "Contracts",
+        "Description": "User understands ContractsSectionResource worklists, derived lifecycle dates, executed documents, and contract lineage."
+      },
+      "StartLocation": {
+        "Application": "Contracts",
+        "NavItem": "ContractsSectionResource"
+      }
+    },
+    "primaryKey": {
+      "ID": "A1AD7A99-8882-45EE-8E3D-E70F990F8E67"
+    },
+    "relatedEntities": {
+      "MJ: Tour Steps": [
+        {
+          "fields": {
+            "TourID": "@parent:ID",
+            "StepKey": "contracts-lifecycle-welcome",
+            "Sequence": 1,
+            "StepTypeID": "@lookup:MJ: Tour Step Types.Name=Modal",
+            "Title": "Agreement Obligations & Paper in Contracts",
+            "Body": "Contracts is the record of what was agreed: standard terms, negotiated deviations, executed paper, and renewal windows. Sales sells and Orders bills — Contracts governs the legal commitment.",
+            "Configuration": {
+              "Variant": "welcome",
+              "PrimaryButtonText": "Explore Contracts",
+              "ShowProgress": true
+            },
+            "Placement": "Center",
+            "Mode": "Show",
+            "Completion": {
+              "Type": "NextButton"
+            },
+            "OnMissing": "Center",
+            "IsOptional": false
+          },
+          "primaryKey": {
+            "ID": "7AAC3608-C15F-4E2A-A9F7-0999A45CF573"
+          }
+        },
+        {
+          "fields": {
+            "TourID": "@parent:ID",
+            "StepKey": "contracts-worklists-dates",
+            "Sequence": 2,
+            "StepTypeID": "@lookup:MJ: Tour Step Types.Name=Spotlight",
+            "Title": "Dashboard Tiles & Derived Lifecycle Worklists",
+            "Body": "In **Contracts** (`ContractsSectionResource`), four live tiles — **To process**, **Awaiting executed document**, **Notice deadlines — next 60 days**, and **Clients with special terms** — jump straight into worklists backed by SQL-derived columns (`State`, `RenewalNoticeDeadline`, `DaysToEnd`, `IsAwaitingDocument`).",
+            "Configuration": {
+              "ShowProgress": true
+            },
+            "Anchor": {
+              "Strategy": "NavItem",
+              "DriverClass": "ContractsSectionResource"
+            },
+            "Placement": "Bottom",
+            "Mode": "Guide",
+            "Completion": {
+              "Type": "NextButton"
+            },
+            "OnMissing": "Center",
+            "IsOptional": false
+          },
+          "primaryKey": {
+            "ID": "71DACB15-0CFD-48C5-9484-5309DBEFC5B9"
+          }
+        },
+        {
+          "fields": {
+            "TourID": "@parent:ID",
+            "StepKey": "contracts-executed-lineage",
+            "Sequence": 3,
+            "StepTypeID": "@lookup:MJ: Tour Step Types.Name=Spotlight",
+            "Title": "Executed Paper & Parent / Amendment Lineage",
+            "Body": "On any Contract form, record **Signing Provider URL** or attach the signed **Executed Agreement**, inspect **Provenance** (`CreatingEntityID` / `CreatingRecordID` back to Sales deals), and trace **Parent Contract** and **Superseded By Contract** amendment lineage.",
+            "Configuration": {
+              "ShowProgress": true
+            },
+            "Anchor": {
+              "Strategy": "Registered",
+              "Key": "contracts.contract.lineage"
+            },
+            "Placement": "Bottom",
+            "Mode": "Guide",
+            "Completion": {
+              "Type": "NextButton"
+            },
+            "OnMissing": "Center",
+            "IsOptional": false
+          },
+          "primaryKey": {
+            "ID": "0D773715-8FC3-47BD-99D5-BF4B1BE88073"
+          }
+        },
+        {
+          "fields": {
+            "TourID": "@parent:ID",
+            "StepKey": "contracts-lifecycle-summary",
+            "Sequence": 4,
+            "StepTypeID": "@lookup:MJ: Tour Step Types.Name=Modal",
+            "Title": "Next: Templates, Provisions & Modifications",
+            "Body": "Next, explore how versioned **Agreement Templates**, numbered **Provisions**, and recorded **Modifications** keep standard terms immutable while surfacing negotiated deviations.",
+            "Configuration": {
+              "Variant": "summary",
+              "PrimaryButtonText": "Finish",
+              "NextTourKey": "contracts.templates-provisions",
+              "ShowProgress": true
+            },
+            "Placement": "Center",
+            "Mode": "Show",
+            "Completion": {
+              "Type": "NextButton"
+            },
+            "OnMissing": "Center",
+            "IsOptional": false
+          },
+          "primaryKey": {
+            "ID": "8D969974-D2F3-41E3-95A8-4B895F35C75E"
+          }
+        }
+      ],
+      "MJ: Tour Triggers": [
+        {
+          "fields": {
+            "TourID": "@parent:ID",
+            "TriggerType": "FirstVisit",
+            "Configuration": {
+              "Application": "Contracts"
+            },
+            "Delivery": "Offer",
+            "CooldownDays": 30,
+            "Priority": 100,
+            "Status": "Active"
+          },
+          "primaryKey": {
+            "ID": "FF77988F-CF45-4FAD-8F70-D1A0CE12B89D"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "fields": {
+      "Name": "Contract Templates, Provisions & Modifications",
+      "TourKey": "contracts.templates-provisions",
+      "Description": "Inspect immutable Agreement Versions, ordered Provisions, and cross-contract Modifications before handing off to Orders billing.",
+      "ApplicationID": "@lookup:MJ: Applications.Name=Contracts",
+      "RunInAuthenticatedHosts": true,
+      "Status": "Draft",
+      "EstimatedMinutes": 3,
+      "Priority": 90,
+      "DefaultGuideMode": "Visual",
+      "AllowAgentActions": false,
+      "Goal": {
+        "Type": "Navigation",
+        "AppName": "Contracts",
+        "Description": "User understands Agreement Versions, Provisions ordering, and cross-contract Modifications analysis."
+      },
+      "StartLocation": {
+        "Application": "Contracts",
+        "NavItem": "ContractsTemplatesSectionResource"
+      }
+    },
+    "primaryKey": {
+      "ID": "BC602D00-D66E-4579-80F9-00A354B88BB0"
+    },
+    "relatedEntities": {
+      "MJ: Tour Steps": [
+        {
+          "fields": {
+            "TourID": "@parent:ID",
+            "StepKey": "templates-welcome",
+            "Sequence": 1,
+            "StepTypeID": "@lookup:MJ: Tour Step Types.Name=Modal",
+            "Title": "Standard Terms, Versions & Negotiated Deviations",
+            "Body": "Every signed contract incorporates a specific dated **Agreement Version**. New editions create a new template row so historical agreements stay auditable.",
+            "Configuration": {
+              "Variant": "welcome",
+              "PrimaryButtonText": "Explore Templates",
+              "ShowProgress": true
+            },
+            "Placement": "Center",
+            "Mode": "Show",
+            "Completion": {
+              "Type": "NextButton"
+            },
+            "OnMissing": "Center",
+            "IsOptional": false
+          },
+          "primaryKey": {
+            "ID": "C2C31DF4-C67B-4636-99E6-FFABD1AE88D1"
+          }
+        },
+        {
+          "fields": {
+            "TourID": "@parent:ID",
+            "StepKey": "templates-versions-provisions",
+            "Sequence": 2,
+            "StepTypeID": "@lookup:MJ: Tour Step Types.Name=Spotlight",
+            "Title": "Immutable Agreement Versions & Provisions",
+            "Body": "Under **Templates** (`ContractsTemplatesSectionResource`), browse **Agreement Versions** and **All Provisions**. Each clause's collation order derives directly from its `ProvisionNumber` (`ProvisionSortKey`), keeping clause numbering authoritative across editions.",
+            "Configuration": {
+              "ShowProgress": true
+            },
+            "Anchor": {
+              "Strategy": "Registered",
+              "Key": "contracts.template.details"
+            },
+            "Placement": "Bottom",
+            "Mode": "Guide",
+            "Completion": {
+              "Type": "NextButton"
+            },
+            "OnMissing": "Center",
+            "IsOptional": false
+          },
+          "primaryKey": {
+            "ID": "7E535B0D-452F-4852-8A70-BF2F8E01ECBC"
+          }
+        },
+        {
+          "fields": {
+            "TourID": "@parent:ID",
+            "StepKey": "templates-modifications",
+            "Sequence": 3,
+            "StepTypeID": "@lookup:MJ: Tour Step Types.Name=Spotlight",
+            "Title": "Track Clause Modifications Across Agreements",
+            "Body": "Open **Modifications** to see **Most-modified provisions** across the entire contract portfolio, and record contract-specific **Modification Text** and **Notes** on individual provisions.",
+            "Configuration": {
+              "ShowProgress": true
+            },
+            "Anchor": {
+              "Strategy": "Registered",
+              "Key": "contracts.modification.details"
+            },
+            "Placement": "Bottom",
+            "Mode": "Guide",
+            "Completion": {
+              "Type": "NextButton"
+            },
+            "OnMissing": "Center",
+            "IsOptional": false
+          },
+          "primaryKey": {
+            "ID": "3CDA71A4-9457-48B1-8A8C-6860B468CEA6"
+          }
+        },
+        {
+          "fields": {
+            "TourID": "@parent:ID",
+            "StepKey": "templates-summary",
+            "Sequence": 4,
+            "StepTypeID": "@lookup:MJ: Tour Step Types.Name=Modal",
+            "Title": "Next: Orders Fulfillment & Billing",
+            "Body": "Once terms are executed in Contracts, **BizApps Orders** handles line pricing, fulfillment, billing schedules, and A/R collection. Continue to Orders to trace the downstream ledger.",
+            "Configuration": {
+              "Variant": "summary",
+              "PrimaryButtonText": "Finish",
+              "NextTourKey": "orders.order-to-cash",
+              "ShowProgress": true
+            },
+            "Placement": "Center",
+            "Mode": "Show",
+            "Completion": {
+              "Type": "NextButton"
+            },
+            "OnMissing": "Center",
+            "IsOptional": false
+          },
+          "primaryKey": {
+            "ID": "EB875813-A9EB-4E02-971E-F767E13C7387"
+          }
+        }
+      ]
+    }
+  }
+]

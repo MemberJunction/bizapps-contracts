@@ -1,0 +1,44 @@
+[
+  {
+    "fields": {
+      "Name": "Contract Lifecycle Management",
+      "PathKey": "contracts.essentials",
+      "Description": "Master contract worklists, executed documents, amendment lineage, immutable agreement versions, and provision modifications.",
+      "ApplicationID": "@lookup:MJ: Applications.Name=Contracts",
+      "Status": "Active",
+      "Configuration": {
+        "AllowSkipOptional": true,
+        "ShowNextConcreteStep": true
+      }
+    },
+    "primaryKey": {
+      "ID": "3150DD02-D4CA-44A8-AA51-B4AADCEDFBA6"
+    },
+    "relatedEntities": {
+      "MJ: Learning Path Tours": [
+        {
+          "fields": {
+            "LearningPathID": "@parent:ID",
+            "TourID": "@lookup:MJ: Tours.TourKey=contracts.lifecycle",
+            "Sequence": 1,
+            "IsRequired": true
+          },
+          "primaryKey": {
+            "ID": "E8BAADA8-9455-49C0-B50C-1F16E5D8BD3D"
+          }
+        },
+        {
+          "fields": {
+            "LearningPathID": "@parent:ID",
+            "TourID": "@lookup:MJ: Tours.TourKey=contracts.templates-provisions",
+            "Sequence": 2,
+            "IsRequired": true
+          },
+          "primaryKey": {
+            "ID": "E5B1E532-37F9-4243-A2FF-C98028B40778"
+          }
+        }
+      ]
+    }
+  }
+]

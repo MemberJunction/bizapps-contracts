@@ -60,7 +60,10 @@
     "action-categories",
     "actions",
     "scheduled-jobs",
-    "applications"
+    "applications",
+    "tours",
+    "learning-paths",
+    "tour-publications"
   ],
   "sqlLogging": {
     "enabled": true,
