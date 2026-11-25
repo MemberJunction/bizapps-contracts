@@ -1,6 +1,6 @@
 {
   "name": "@mj-biz-apps/contracts-entities",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "type": "module",
   "description": "Entity subclasses and shared domain helpers for the MemberJunction Contracts application (__mj_BizAppsContracts).",
   "main": "dist/index.js",

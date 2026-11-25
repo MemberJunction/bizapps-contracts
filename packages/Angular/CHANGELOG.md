@@ -1,5 +1,12 @@
 # @mj-biz-apps/contracts-ng
 
+## 1.1.0
+
+### Patch Changes
+
+- Updated dependencies [46a9b9b]
+  - @mj-biz-apps/contracts-entities@1.1.0
+
 ## 1.0.0
 
 ### Major Changes
