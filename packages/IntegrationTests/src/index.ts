@@ -42,6 +42,7 @@ import {
 } from '@mj-biz-apps/contracts-entities';
 import { LoadMjBizappsContractsEntitiesServer } from '@mj-biz-apps/contracts-core-entities-server';
 import './checks/world.checks.js';
+import './checks/contract-document-artifact-integration.check.js';
 import './checks/graph-save.checks.js';
 import './checks/numbering.checks.js';
 import './checks/provisions.checks.js';
@@ -56,6 +57,7 @@ LoadContractTypeEntities();
 LoadMjBizappsContractsEntitiesServer();
 
 export { ContractsWorldChecks } from './checks/world.checks.js';
+export { ContractDocumentArtifactChecks } from './checks/contract-document-artifact-integration.check.js';
 export { GraphSaveChecks } from './checks/graph-save.checks.js';
 export { NumberingChecks } from './checks/numbering.checks.js';
 export { ProvisionsChecks } from './checks/provisions.checks.js';
@@ -64,3 +66,4 @@ export { RenewalTermsChecks } from './checks/renewal-terms.checks.js';
 export * from './fixture.js';
 export * from './world/world.js';
 export * from './world/load-world.js';
+export * from './world/contracts-mj-docs-world.js';

@@ -79,6 +79,7 @@ tested machinery the rebuild deleted and stay gone.
 | Bundle | Covers |
 |---|---|
 | `contracts-world` | COMMITS CTR-WORLD: a published template, four customers, and a contract in every derived `State`, with relative dates and minted `CTR-` numbers |
+| `contracts-mj-docs` | COMMITS the 40-record multi-domain MJ Docs world (`DOC1`) and exercises functional + adversarial `Contract.DocumentArtifactID` flows (`DOC2`–`DOC7`): multi-version `MJ: Artifacts` / `MJ: Artifact Versions` linking, relational `ContractTemplateProvision` / `ContractTemplateModification` / `Contract.Notes` coexistence across set/swap/clear-to-null, `IsAwaitingDocument` boundary separation from `MJ: Files`, `FK_Contract_DocumentArtifact` invalid UUID rejection, backward-compatible `null` contracts, zero-version fallback, and `ContractsEngineBase` non-caching / permission gating across both SQL Server and PostgreSQL |
 | `contracts-graph-save` | header + modifications atomicity, rollback on invalid, `HasModifications` monotonic, duplicate provisions, type/template rules — the D-15 acceptance test |
 | `contracts-numbering` | `ContractNumber` CTR sequence, uniqueness under concurrency, reserved `CTR-` namespace |
 | `contracts-provisions` | seed completeness incl. text, natural order via `ProvisionSortKey` (`1.9` before `1.10`); the published-provision guard returns its own error, not 3915, when reached through INSERT-EXEC |

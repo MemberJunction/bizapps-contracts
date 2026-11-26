@@ -20,6 +20,8 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
@@ -43,3 +45,39 @@ jobs:
             exit 1
           fi
           echo "outOfOrder is not enabled"
+
+      # Enforce deterministic PostgreSQL parity on every newly added T-SQL migration:
+      #   1. Matching migrations-pg/<stem>.pg.sql counterpart must exist (error, not warning).
+      #   2. Line 1 of every newly added migrations-pg/*.pg.sql must carry the split-bake v1
+      #      provenance header (`-- @mj-pg-provenance: split-bake v1 ...`) with matching source SHA-256.
+      - name: PostgreSQL migration parity and split-bake provenance
+        run: |
+          git fetch --no-tags origin "${{ github.base_ref }}"
+          BASE_SHA=$(git merge-base FETCH_HEAD HEAD)
+          PG_COUNTERPART_LEVEL=error ./.github/scripts/check-pg-counterpart.sh "$BASE_SHA" HEAD
+          ADDED_PG=$(git diff --name-only --diff-filter=A "$BASE_SHA" HEAD -- 'migrations-pg/*.pg.sql' || true)
+          if [ -z "$ADDED_PG" ]; then
+            echo "No new PostgreSQL migrations added — provenance check skipped"
+            exit 0
+          fi
+          while IFS= read -r pgfile; do
+            [ -z "$pgfile" ] && continue
+            HEADER=$(head -n 1 "$pgfile")
+            if ! echo "$HEADER" | grep -qE '^-- @mj-pg-provenance: split-bake v1 source=[^[:space:]]+\.sql source-sha256=[0-9a-f]{64} mode=(baked|needs-hand-rebaked)$'; then
+              echo "::error file=${pgfile}::Missing or malformed line-1 split-bake provenance header. Expected: -- @mj-pg-provenance: split-bake v1 source=<file.sql> source-sha256=<64hex> mode=<baked|needs-hand-rebaked>"
+              exit 1
+            fi
+            SRC_NAME=$(echo "$HEADER" | sed -E 's/.*source=([^[:space:]]+).*/\1/')
+            EXPECTED_SHA=$(echo "$HEADER" | sed -E 's/.*source-sha256=([0-9a-f]{64}).*/\1/')
+            SRC_PATH="migrations/${SRC_NAME}"
+            if [ ! -f "$SRC_PATH" ]; then
+              echo "::error file=${pgfile}::Provenance header references missing source migration ${SRC_PATH}"
+              exit 1
+            fi
+            ACTUAL_SHA=$(node -e "const fs=require('node:fs'),c=require('node:crypto');console.log(c.createHash('sha256').update(fs.readFileSync(process.argv[1])).digest('hex'))" "$SRC_PATH")
+            if [ "$ACTUAL_SHA" != "$EXPECTED_SHA" ]; then
+              echo "::error file=${pgfile}::Provenance source-sha256 mismatch for ${SRC_PATH} (header=${EXPECTED_SHA}, actual=${ACTUAL_SHA}). Re-run mj migrate convert --split --bake-codegen and re-stamp."
+              exit 1
+            fi
+            echo "  ok       $pgfile (split-bake v1 verified against $SRC_PATH)"
+          done <<< "$ADDED_PG"
