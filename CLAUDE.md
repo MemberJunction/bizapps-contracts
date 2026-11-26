@@ -36,6 +36,17 @@ it is in the wrong place.
 The review test: *could a non-Angular host do this same work with the same objects?* If yes, the
 logic belongs on the entity, its shared or server subclass, or a Remote Operation.
 
+## Performance & caching — 5-Rule BizApps Standard
+
+**[`docs/claude/04-performance.md`](docs/claude/04-performance.md) is binding for this repo.**
+
+1. **`BaseEngine` taxonomy & config caching:** Bounded lookup/registry tables (`Contract Types`, `Contract Template Types`, `Contract Templates`) are cached once per session in `ContractsEngineBase` (`BaseSingleton` + `@RegisterForStartup()`, `AutoRefresh: true`) in `packages/Entities`. Always call `await ContractsEngineBase.Instance.Config(false, contextUser, provider)` before reading — never re-query taxonomy tables per component mount.
+2. **Multi-provider, impersonation & RLS `CacheLocal` safety:** Override `ProviderToUse` to follow the active provider (`this._activeProvider ?? Metadata.Provider`), auto-evict caches and force-refresh on user/provider switch, expose `InvalidateCache()`, gate every entity load on `CanRead`, and set `CacheLocal: false` on any RLS-scoped entity or view with cross-entity virtual columns (`CacheLocal: true` ONLY on shared non-RLS lookup tables).
+3. **`rv.RunViews([...])` batching:** Collapse `Promise.all([new RunView().RunView(...), ...])` and sequential independent `await rv.RunView(...)` waterfalls into a single `RunView.FromMetadataProvider(provider).RunViews([...])` call. Use `ResultType: 'simple'` + narrow `Fields` for read-only projections and `ResultType: 'count_only'` for counts.
+4. **`ConversationEngine`-style bounded container caching (NO arbitrary filtered list caching):** Cache bounded per-container bundles (e.g., `ContractsEngineBase.GetTemplateProvisions(templateID)` with LRU cap + `BaseEntity` event invalidation + `InvalidateTemplateProvisionsCache()` + user/provider-switch eviction). Never cache unbounded transactional tables (`Contracts`, `Contract Orders`, `Contract Template Modifications`) or arbitrary `ExtraFilter` search queries in global singletons.
+5. **RLS-safe two-step entity reads:** Never write raw SQL subqueries against RLS-filtered `vw*` base views inside `ExtraFilter`. Read the RLS-scoped entity via `RunView` first (checking `CanRead`), then pass `ID IN (...)` to the dependent read.
+
+
 
 ## Database changes — INCREMENTAL MIGRATIONS ONLY
 

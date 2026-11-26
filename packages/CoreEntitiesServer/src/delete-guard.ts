@@ -37,7 +37,7 @@
  *
  * @module @mj-biz-apps/contracts-core-entities-server
  */
-import { BaseEntity, BaseEntityResult, type EntityDeleteOptions } from '@memberjunction/core';
+import { BaseEntity, BaseEntityResult, type EntityDeleteOptions, type RunViewParams, type RunViewResult } from '@memberjunction/core';
 
 /**
  * One thing that can block a delete: the rows to look for, and how to describe them once counted.
@@ -69,17 +69,26 @@ export type DeleteDependency = {
  * still the floor, but a guard that fails open is worse than no guard because it looks like one.
  */
 export async function DescribeDeleteBlockers(entity: BaseEntity, dependencies: readonly DeleteDependency[]): Promise<string | null> {
-    const blockers: string[] = [];
+    if (dependencies.length === 0) return null;
 
-    for (const dependency of dependencies) {
-        const result = await entity.RunViewProviderToUse.RunView(
-            {
-                EntityName: dependency.EntityName,
-                ExtraFilter: dependency.Filter,
-                ResultType: 'count_only',
-            },
-            entity.ContextCurrentUser,
-        );
+    const params: RunViewParams[] = dependencies.map((dependency) => ({
+        EntityName: dependency.EntityName,
+        ExtraFilter: dependency.Filter,
+        ResultType: 'count_only',
+    }));
+
+    const provider = entity.RunViewProviderToUse;
+    let results: RunViewResult[];
+    if (dependencies.length > 1 && typeof provider.RunViews === 'function') {
+        results = await provider.RunViews(params, entity.ContextCurrentUser);
+    } else {
+        results = await Promise.all(params.map((p) => provider.RunView(p, entity.ContextCurrentUser)));
+    }
+
+    const blockers: string[] = [];
+    for (let i = 0; i < dependencies.length; i++) {
+        const dependency = dependencies[i];
+        const result = results?.[i];
         if (!result?.Success) {
             throw new Error(
                 `Could not check whether ${dependency.EntityName} still references this record: ` +

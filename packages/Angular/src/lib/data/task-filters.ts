@@ -128,13 +128,26 @@ export async function BuildOpenTaskFilters(
 }
 
 /**
- * Code → id, once.
+ * Per-provider cache of the resolved `CONTRACT_PROCESSING` Task Type ID so repeated dashboard
+ * refreshes (e.g. toggling company chips) and grid mounts do not re-query `Task Types` every time.
+ * Keyed by `IMetadataProvider` in a `WeakMap` so multi-provider hosts and unit tests stay isolated.
+ */
+const taskTypeIdByProvider = new WeakMap<IMetadataProvider, string>();
+
+/**
+ * Code → id, once per provider.
  *
  * The Tasks base view exposes the type's NAME but not its CODE, so the id cannot be reached by
  * filtering Tasks directly — it takes a read against Task Types. Comparing on the name instead would
  * make an editable label load-bearing.
  */
 async function resolveContractProcessingTypeID(provider?: IMetadataProvider | null): Promise<string | null> {
+    const cacheKey = provider ?? Metadata.Provider;
+    if (cacheKey) {
+        const cached = taskTypeIdByProvider.get(cacheKey);
+        if (cached) return cached;
+    }
+
     try {
         const result = await ScopedRunView(provider).RunView<{ ID: string }>({
             EntityName: MJC_FOREIGN_ENTITIES.TaskType,
@@ -143,7 +156,11 @@ async function resolveContractProcessingTypeID(provider?: IMetadataProvider | nu
             Fields: ['ID'],
             MaxRows: 1,
         });
-        return result?.Success ? (result.Results?.[0]?.ID ?? null) : null;
+        const id = result?.Success ? (result.Results?.[0]?.ID ?? null) : null;
+        if (id && cacheKey) {
+            taskTypeIdByProvider.set(cacheKey, id);
+        }
+        return id;
     } catch {
         // The entity exists but could not be read — same answer as "not installed" from here, and the
         // caller renders "—" either way.

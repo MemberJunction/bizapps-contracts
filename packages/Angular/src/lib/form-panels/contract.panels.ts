@@ -46,6 +46,7 @@ import { HierarchyTreeComponent, type HierarchyTreeConfig, type HierarchyNodeEve
 import { RelatedChipsComponent, type BizAppsRelatedLink } from '@mj-biz-apps/common-ng';
 import { ContractEntity, type ContractRenewalField, type ContractState } from '@mj-biz-apps/contracts-entities';
 import { MJC_ENTITIES, MJC_FOREIGN_ENTITIES } from '../data/entity-names';
+import { ScopedRunView } from '../data/provider';
 import { DateAsInput, DateAsText, InputAsDate, type ContractDateField } from './contract-dates';
 
 const COLLAPSE_SETTING = 'mj.identityHeader.collapsed.contract';
@@ -1014,17 +1015,16 @@ export class MJCContractLineagePanel extends BaseFormPanel<ContractEntity> {
 
     private async load(): Promise<void> {
         const me = this.Record!.ID;
-        const rv = await this.scopedRunView();
+        const rv = ScopedRunView(this.FormComponent?.ProviderToUse);
         // Only the COUNT, for the badge and the empty state — mj-hierarchy-tree reads the hierarchy
         // itself from TreeConfig, so duplicating that read here would be a second source of truth.
         try {
-            const r = await rv.RunView<{ ID: string }>({
+            const r = await rv.RunView({
                 EntityName: MJC_ENTITIES.Contract,
-                Fields: ['ID'],
                 ExtraFilter: `ParentContractID = '${me}'`,
-                ResultType: 'simple',
+                ResultType: 'count_only',
             });
-            this.ChildCount = r?.Success ? r.Results.length : 0;
+            this.ChildCount = r?.Success ? (r.TotalRowCount ?? 0) : 0;
             this.HasChildren = this.ChildCount > 0;
         } catch {
             this.ChildCount = 0;
@@ -1032,11 +1032,6 @@ export class MJCContractLineagePanel extends BaseFormPanel<ContractEntity> {
         }
 
         this.cdr.detectChanges();
-    }
-
-    private async scopedRunView() {
-        const { ScopedRunView } = await import('../data/provider');
-        return ScopedRunView(this.FormComponent?.ProviderToUse);
     }
 }
 

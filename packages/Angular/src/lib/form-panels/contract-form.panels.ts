@@ -24,6 +24,7 @@ import type { AfterDataLoadEventArgs } from '@memberjunction/ng-entity-viewer';
 import {
     BuildCurrentTemplateFilter,
     ContractEntity,
+    ContractsEngineBase,
     CurrentTemplateOrderBy,
     DealIDClause,
     DealOptionLabel,
@@ -36,6 +37,7 @@ import {
     type DealOption,
 } from '@mj-biz-apps/contracts-entities';
 import { MJC_ENTITIES, MJC_FOREIGN_ENTITIES } from '../data/entity-names';
+import { ScopedRunView } from '../data/provider';
 import { PartyFieldComponent, type PartyKind } from '@mj-biz-apps/common-ng';
 import { DateAsText } from './contract-dates';
 
@@ -608,14 +610,21 @@ export class MJCContractAgreementPanel extends BaseFormPanel<ContractEntity> imp
         if (!id) return { templateRequired: false, contractTemplateTypeID: null };
 
         try {
+            const provider = this.FormComponent?.ProviderToUse;
+            await ContractsEngineBase.Instance.Config(false, undefined, provider);
+            const cachedType = ContractsEngineBase.Instance.GetContractTypeByID(id);
+            if (cachedType) {
+                return {
+                    templateRequired: cachedType.TemplateRequired === true,
+                    contractTemplateTypeID: cachedType.ContractTemplateTypeID ?? null,
+                };
+            }
+
             const record = this.Record;
             const row =
                 typeof record?.ReadSelectedContractType === 'function'
                     ? await record.ReadSelectedContractType()
-                    : await ReadContractTypeByID(
-                          (await import('../data/provider')).ScopedRunView(this.FormComponent?.ProviderToUse),
-                          id,
-                      );
+                    : await ReadContractTypeByID(ScopedRunView(provider), id);
             if (!row) return null;
             return {
                 templateRequired: row.TemplateRequired === true,
@@ -629,13 +638,27 @@ export class MJCContractAgreementPanel extends BaseFormPanel<ContractEntity> imp
     /**
      * The newest Published, usable template matching the type's `ContractTemplateTypeID` (#114).
      *
+     * Reads from {@link ContractsEngineBase} once loaded so repeated type changes on a new contract
+     * issue zero `RunView` round-trips; falls back to a scoped `RunView` when the engine has not
+     * cached templates (for example in permission-constrained sessions).
+     *
      * A FAILED OR EMPTY READ IS SILENT, and deliberately so. This is a convenience: the field stays
      * empty, the picker still works, and the server still refuses a save with no template when the
      * type demands one — which is the message the user needs and the one they would already get.
      */
     private async currentTemplateID(contractTemplateTypeID?: string | null): Promise<string | null> {
-        const { ScopedRunView } = await import('../data/provider');
-        const rv = ScopedRunView(this.FormComponent?.ProviderToUse);
+        const provider = this.FormComponent?.ProviderToUse;
+        try {
+            await ContractsEngineBase.Instance.Config(false, undefined, provider);
+            if (ContractsEngineBase.Instance.IsLoaded) {
+                const cached = ContractsEngineBase.Instance.GetCurrentUsableTemplate(contractTemplateTypeID);
+                if (cached?.ID) return cached.ID;
+            }
+        } catch {
+            /* fall through to direct RunView */
+        }
+
+        const rv = ScopedRunView(provider);
         try {
             const r = await rv.RunView<{ ID: string }>({
                 EntityName: MJC_ENTITIES.ContractTemplate,
@@ -1048,7 +1071,6 @@ export class MJCContractProvenanceFieldsPanel extends BaseFormPanel<ContractEnti
         this.Loading = true;
         this.LoadError = '';
         try {
-            const { ScopedRunView } = await import('../data/provider');
             const rv = ScopedRunView(this.FormComponent?.ProviderToUse);
             const search = (searchText ?? '').trim();
             const filter = search

@@ -17,6 +17,7 @@
  * loaded below (the contract number, server-side defaults, and the rules that need cross-entity
  * reads) and ONE remote operation, `Contracts.Supersede` (`SupersedeOperation.ts`).
  */
+import { LoadContractsEngine } from '@mj-biz-apps/contracts-entities';
 import { LoadContractEntityServer } from './ContractEntityServer.js';
 import { LoadContractOrderEntityServer } from './ContractOrderEntityServer.js';
 import { LoadContractTemplateEntityServer } from './ContractTemplateEntityServer.js';
@@ -51,6 +52,7 @@ export * from './delete-guard.js';
  * subclasses silently never register, so every invariant in them stops existing with no error.
  */
 export function LoadMjBizappsContractsEntitiesServer(): void {
+    LoadContractsEngine();
     LoadContractEntityServer();
     // Copies the contract's renewal terms to a newly linked order's subscriptions (issue #77).
     LoadContractOrderEntityServer();

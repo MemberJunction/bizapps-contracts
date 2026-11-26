@@ -21,6 +21,7 @@ import { RegisterClass, UUIDsEqual } from '@memberjunction/global';
 import {
     BuildCurrentTemplateFilter,
     ContractEntity,
+    ContractsEngineBase,
     CurrentTemplateOrderBy,
     IsSameContractLevel,
     MayWriteDefaultTemplate,
@@ -691,19 +692,19 @@ export class ContractEntityServer extends ContractEntity {
      * actionable where "invalid template" sends the user back to the same picker.
      */
     private async retiredTemplateType(): Promise<string | null> {
-        const template = await this.RunViewProviderToUse.RunView<{ ContractTemplateTypeID: string }>(
-            {
-                EntityName: 'MJ_BizApps_Contracts: Contract Templates',
-                ExtraFilter: `ID = '${this.ContractTemplateID}'`,
-                Fields: ['ContractTemplateTypeID'],
-                ResultType: 'simple',
-            },
-            this.ContextCurrentUser,
-        );
-        const typeID = template?.Results?.[0]?.ContractTemplateTypeID;
+        const template = await this.selectedTemplate();
+        const typeID = template?.ContractTemplateTypeID;
         // A template we cannot read is not a template we can call retired. Staying silent leaves the
         // FK constraint as the floor, which is the right failure for a missing row.
         if (!typeID) return null;
+
+        const engine = ContractsEngineBase.Instance;
+        if (engine.MatchesProvider(this.ProviderToUse)) {
+            const cachedType = engine.GetContractTemplateTypeByID(typeID);
+            if (cachedType) {
+                return cachedType.Status === RETIRED ? cachedType.Name : null;
+            }
+        }
 
         const type = await this.RunViewProviderToUse.RunView<{ Name: string; Status: string | null }>(
             {
@@ -876,19 +877,7 @@ export class ContractEntityServer extends ContractEntity {
         if (!this.isNewlySelected('SupersededByContractID')) return;
         if (UUIDsEqual(this.SupersededByContractID, this.ID)) return;
 
-        const target = await this.RunViewProviderToUse.RunView<{
-            ContractNumber: string;
-            CustomerOrganizationID: string;
-        }>(
-            {
-                EntityName: 'MJ_BizApps_Contracts: Contracts',
-                ExtraFilter: `ID = '${this.SupersededByContractID}'`,
-                Fields: ['ContractNumber', 'CustomerOrganizationID'],
-                ResultType: 'simple',
-            },
-            this.ContextCurrentUser,
-        );
-        const row = target?.Results?.[0];
+        const row = await this.supersededTarget();
         // Not-found is refuseCrossLevelSupersession's to report — see the note above.
         if (!row) return;
 
@@ -918,16 +907,7 @@ export class ContractEntityServer extends ContractEntity {
         // not the same thing as trusting another layer to catch it.
         if (UUIDsEqual(this.SupersededByContractID, this.ID)) return;
 
-        const target = await this.RunViewProviderToUse.RunView<{ ContractNumber: string; ParentContractID: string | null }>(
-            {
-                EntityName: 'MJ_BizApps_Contracts: Contracts',
-                ExtraFilter: `ID = '${this.SupersededByContractID}'`,
-                Fields: ['ContractNumber', 'ParentContractID'],
-                ResultType: 'simple',
-            },
-            this.ContextCurrentUser,
-        );
-        const row = target?.Results?.[0];
+        const row = await this.supersededTarget();
         if (!row) {
             // A contract cannot be superseded by one that does not exist — the successor must be saved
             // before anything can point at it. `FK_Contract_SupersededBy` would refuse this too, but it
@@ -1122,20 +1102,92 @@ export class ContractEntityServer extends ContractEntity {
      * same `isNewlySelected` gate as R-5, which also means an ordinary re-save of an existing contract
      * costs nothing.
      */
-    private async refuseUnusableTemplate(result: ValidationResult): Promise<void> {
-        if (!this.ContractTemplateID) return;
-        if (!this.isNewlySelected('ContractTemplateID')) return;
-
-        const template = await this.RunViewProviderToUse.RunView<{ Name: string; IsUsable: boolean; Status: string }>(
+    /**
+     * Single memoized read of the superseded target contract shared by
+     * `refuseCrossLevelSupersession` and `refuseCrossCustomerSupersession`, avoiding two separate
+     * `RunView` round-trips against the same row during one validation pass.
+     */
+    private async supersededTarget(): Promise<{
+        ContractNumber: string;
+        ParentContractID: string | null;
+        CustomerOrganizationID: string;
+    } | null> {
+        const id = this.SupersededByContractID;
+        if (!id) return null;
+        if (this.cachedSupersededTarget?.id === id) {
+            return this.cachedSupersededTarget.row;
+        }
+        const target = await this.RunViewProviderToUse.RunView<{
+            ContractNumber: string;
+            ParentContractID: string | null;
+            CustomerOrganizationID: string;
+        }>(
             {
-                EntityName: 'MJ_BizApps_Contracts: Contract Templates',
-                ExtraFilter: `ID = '${this.ContractTemplateID}'`,
-                Fields: ['Name', 'IsUsable', 'Status'],
+                EntityName: 'MJ_BizApps_Contracts: Contracts',
+                ExtraFilter: `ID = '${id}'`,
+                Fields: ['ContractNumber', 'ParentContractID', 'CustomerOrganizationID'],
                 ResultType: 'simple',
             },
             this.ContextCurrentUser,
         );
-        const row = template?.Results?.[0];
+        const row = target?.Results?.[0] ?? null;
+        this.cachedSupersededTarget = { id, row };
+        return row;
+    }
+
+    private cachedSupersededTarget:
+        | {
+              id: string;
+              row: { ContractNumber: string; ParentContractID: string | null; CustomerOrganizationID: string } | null;
+          }
+        | undefined = undefined;
+
+    /**
+     * Single memoized read of the newly selected template shared by `refuseUnusableTemplate` and
+     * `retiredTemplateType`, avoiding two separate `RunView` round-trips against the same row.
+     */
+    private async selectedTemplate(): Promise<{
+        Name: string;
+        IsUsable: boolean;
+        Status: string;
+        ContractTemplateTypeID: string;
+    } | null> {
+        const id = this.ContractTemplateID;
+        if (!id) return null;
+        if (this.cachedSelectedTemplate?.id === id) {
+            return this.cachedSelectedTemplate.row;
+        }
+        const template = await this.RunViewProviderToUse.RunView<{
+            Name: string;
+            IsUsable: boolean;
+            Status: string;
+            ContractTemplateTypeID: string;
+        }>(
+            {
+                EntityName: 'MJ_BizApps_Contracts: Contract Templates',
+                ExtraFilter: `ID = '${id}'`,
+                Fields: ['Name', 'IsUsable', 'Status', 'ContractTemplateTypeID'],
+                ResultType: 'simple',
+            },
+            this.ContextCurrentUser,
+        );
+        const row = template?.Results?.[0] ?? null;
+        this.cachedSelectedTemplate = { id, row };
+        return row;
+    }
+
+    private cachedSelectedTemplate:
+        | {
+              id: string;
+              row: { Name: string; IsUsable: boolean; Status: string; ContractTemplateTypeID: string } | null;
+          }
+        | undefined = undefined;
+
+    private async refuseUnusableTemplate(result: ValidationResult): Promise<void> {
+        if (!this.ContractTemplateID) return;
+        if (!this.isNewlySelected('ContractTemplateID')) return;
+
+        const row = await this.selectedTemplate();
         // A template we cannot read is not one we can call unusable — the FK stays the floor.
         if (!row) return;
 

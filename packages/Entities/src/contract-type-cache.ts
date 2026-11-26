@@ -22,6 +22,7 @@
  * @module @mj-biz-apps/contracts-entities
  */
 import type { IRunViewProvider, UserInfo } from '@memberjunction/core';
+import { ContractsEngineBase } from './ContractsEngineBase';
 import { RENEWAL_SEED_FIELDS, type ContractTypeRenewalDefaults } from './renewal-defaults';
 
 const UUID_SHAPE = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
@@ -98,6 +99,27 @@ export async function ReadContractTypeByID(
     if (!UUID_SHAPE.test(id)) return null;
 
     const normalizedKey = id.toLowerCase();
+
+    // Fast path: when ContractsEngineBase is already loaded on this provider, serve from the
+    // shared taxonomy cache with zero RunView round-trips.
+    const engine = ContractsEngineBase.Instance;
+    if (engine.MatchesProvider(provider)) {
+        const cached = engine.GetContractTypeByID(id);
+        if (cached) {
+            return {
+                ID: cached.ID,
+                Name: cached.Name,
+                TemplateRequired: cached.TemplateRequired,
+                ContractTemplateTypeID: cached.ContractTemplateTypeID,
+                Status: cached.Status,
+                DefaultAutoRenew: cached.DefaultAutoRenew,
+                DefaultRenewalNoticeDays: cached.DefaultRenewalNoticeDays,
+                DefaultCancellationWindowDays: cached.DefaultCancellationWindowDays,
+                DefaultAnnualIncreasePercent: cached.DefaultAnnualIncreasePercent,
+            };
+        }
+    }
+
     const map = cacheFor(provider);
     const existing = map.get(normalizedKey);
     if (existing && existing.expiresAt > Date.now()) return existing.row;
