@@ -52,7 +52,7 @@ call.
 | Filtered read over an entity | `RunView` | `ScopedRunView(...)`, the worklist grids |
 | Named, parameterised query | `RunQuery` | `Contracts Special Terms` (dashboard tile) |
 | Server work that is not a save of the record in hand | Remote Operation | `Contracts.Supersede` |
-| Cached lookup data used across components | `BaseEngine` | none yet |
+| Cached lookup data used across components | `BaseEngine` | `ContractsEngineBase` |
 | Per-user UI preference | `UserInfoEngine` settings | the hero panel's collapsed state |
 
 ## The patterns
@@ -227,11 +227,13 @@ if (!(await predecessor.Save())) {       // ContractEntityServer.ValidateAsync()
 
 **Lookups and per-user state**
 
-This app has no engine of its own. Lookups are read where needed through a scoped `RunView`
-(`typeRequiresTemplate` in `MJCContractAgreementPanel`, `loadRenewalDefaults` in `ContractEntity`).
-When several components need the same lookup set, add a `BaseEngine` subclass, not an Angular
-service. Per-user UI preferences go through `UserInfoEngine` settings: `MJCContractHeroPanel` keeps
-its collapsed state with `GetSetting` and `SetSettingDebounced`.
+Bounded taxonomy and template metadata (`Contract Types`, `Contract Template Types`, `Contract Templates`)
+is cached once per session in `ContractsEngineBase` (`packages/Entities/src/ContractsEngineBase.ts`)
+and warmed via `await ContractsEngineBase.Instance.Config(false, contextUser, provider)`.
+`ReadContractTypeByID` automatically serves from `ContractsEngineBase` when loaded on the matching
+provider, avoiding duplicate `RunView` calls across `MJCContractAgreementPanel` and
+`ContractEntity.SeedRenewalDefaultsFromType()`. Per-user UI preferences go through `UserInfoEngine`
+settings: `MJCContractHeroPanel` keeps its collapsed state with `GetSetting` and `SetSettingDebounced`.
 
 ## Provider scoping
 

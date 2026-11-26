@@ -23,7 +23,7 @@
  * what MJExplorer's class-registration manifest imports BY NAME. Without these exports the Explorer
  * bundle fails to compile with TS2305 'has no exported member'.
  * ========================================================================== */
-import '@mj-biz-apps/contracts-entities';
+import { LoadContractsEngine } from '@mj-biz-apps/contracts-entities';
 import './lib/generated/generated-forms.module';
 import { GeneratedFormsModule } from './lib/generated/generated-forms.module';
 export { GeneratedFormsModule } from './lib/generated/generated-forms.module';
@@ -158,6 +158,7 @@ export function LoadMjBizappsContractsClient(): void {
     // never referenced — and a dropped registration is a nav tab that mounts nothing, or a panel that
     // silently never appears, with no error either way. One anchor per registration, every time.
     void GeneratedFormsModule;
+    LoadContractsEngine();
 
     // Sections — each is a nav tab.
     void ContractsSectionResource;

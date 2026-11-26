@@ -22,7 +22,7 @@
  *
  * @module @mj-biz-apps/contracts-core-entities-server
  */
-import { BaseEntity, LogError, LogStatus, type UserInfo } from '@memberjunction/core';
+import { BaseEntity, LogError, LogStatus, type RunViewParams, type RunViewResult, type UserInfo } from '@memberjunction/core';
 import { MJGlobal } from '@memberjunction/global';
 import { mjBizAppsOrdersOrderLineEntity, mjBizAppsOrdersSubscriptionEntity } from '@mj-biz-apps/orders-entities';
 
@@ -82,7 +82,8 @@ export interface RenewalTermsOutcome {
 }
 
 /** The slice of an MJ provider this needs, so tests can pass a fake. */
-export type RenewalTermsProvider = Pick<BaseEntity['RunViewProviderToUse'], 'RunView'>;
+export type RenewalTermsProvider = Pick<BaseEntity['RunViewProviderToUse'], 'RunView'> &
+    Partial<Pick<BaseEntity['RunViewProviderToUse'], 'RunViews'>>;
 
 /**
  * Copy `terms` to every subscription created by an order linked to the contract.
@@ -116,7 +117,19 @@ export async function ApplyContractRenewalTerms(
         throw new Error(`Could not load the subscriptions governed by contract ${label(terms)}: ${subs.ErrorMessage}`);
     }
 
-    for (const sub of subs.Results) {
+    return applyTermsToSubscriptions(terms, subs.Results);
+}
+
+/**
+ * Apply `terms` to an already-loaded list of governed subscriptions, saving only those that change.
+ */
+async function applyTermsToSubscriptions(
+    terms: ContractRenewalTerms,
+    subscriptions: readonly mjBizAppsOrdersSubscriptionEntity[],
+): Promise<RenewalTermsOutcome> {
+    const outcome: RenewalTermsOutcome = { Updated: [], Unchanged: 0, Failed: [] };
+
+    for (const sub of subscriptions) {
         const increase = terms.AnnualIncreasePercent;
         if (increase != null && increase > SUBSCRIPTION_MAX_INCREASE_PERCENT) {
             outcome.Failed.push({
@@ -167,8 +180,11 @@ export interface RenewalTermsSweepOutcome {
  * subscription would otherwise wait for someone to edit the contract. Run daily, ahead of the renewal
  * pass. Safe to repeat: a subscription already carrying the terms is not saved.
  *
- * One contract failing to load its subscriptions stops the sweep rather than skipping it, for the
- * same reason a single copy throws: a quiet skip would read as "nothing to do".
+ * Uses batched reads across all linked contracts (Contract Orders -> batched `[Contracts, Order Lines]`
+ * via `RunViews` -> Subscriptions) instead of a per-contract `3*N` `RunView` waterfall.
+ *
+ * One lookup failure stops the sweep rather than skipping it, for the same reason a single copy
+ * throws: a quiet skip would read as "nothing to do".
  */
 export async function SweepContractRenewalTerms(
     provider: RenewalTermsProvider,
@@ -176,42 +192,143 @@ export async function SweepContractRenewalTerms(
 ): Promise<RenewalTermsSweepOutcome> {
     const sweep: RenewalTermsSweepOutcome = { Contracts: 0, Updated: 0, Unchanged: 0, Failed: [] };
 
-    const contractIDs = [...new Set(await ids(provider, E_CONTRACT_ORDER, '', 'ContractID', user))];
-    if (contractIDs.length === 0) return sweep;
-
-    const contracts = await provider.RunView<{
-        ID: string;
-        ContractNumber: string | null;
-        AnnualIncreasePercent: number | null;
-        CarryDiscountOnRenewal: boolean;
-    }>(
+    const linksResult = await provider.RunView<{ ContractID: string; OrderID: string }>(
         {
-            EntityName: E_CONTRACT,
-            ExtraFilter: `ID IN (${quoted(contractIDs)})`,
-            Fields: ['ID', 'ContractNumber', 'AnnualIncreasePercent', 'CarryDiscountOnRenewal'],
+            EntityName: E_CONTRACT_ORDER,
+            Fields: ['ContractID', 'OrderID'],
             ResultType: 'simple',
             IgnoreMaxRows: true,
         },
         user,
     );
-    if (!contracts.Success) {
-        throw new Error(`Could not read the linked contracts: ${contracts.ErrorMessage}`);
+    if (!linksResult.Success) {
+        throw new Error(`Could not read ${E_CONTRACT_ORDER} (): ${linksResult.ErrorMessage}`);
+    }
+    if (linksResult.Results.length === 0) return sweep;
+
+    const orderIDsByContract = new Map<string, Set<string>>();
+    const allContractIDs = new Set<string>();
+    const allOrderIDs = new Set<string>();
+    for (const link of linksResult.Results) {
+        const contractID = String(link.ContractID);
+        const orderID = String(link.OrderID);
+        allContractIDs.add(contractID);
+        allOrderIDs.add(orderID);
+        let orderSet = orderIDsByContract.get(contractID.toLowerCase());
+        if (!orderSet) {
+            orderSet = new Set<string>();
+            orderIDsByContract.set(contractID.toLowerCase(), orderSet);
+        }
+        orderSet.add(orderID.toLowerCase());
     }
 
-    for (const row of contracts.Results) {
+    const contractParams: RunViewParams = {
+        EntityName: E_CONTRACT,
+        ExtraFilter: `ID IN (${quoted([...allContractIDs])})`,
+        Fields: ['ID', 'ContractNumber', 'AnnualIncreasePercent', 'CarryDiscountOnRenewal'],
+        ResultType: 'simple',
+        IgnoreMaxRows: true,
+    };
+    const lineParams: RunViewParams = {
+        EntityName: OrderLineEntityName(),
+        ExtraFilter: `OrderHeaderID IN (${quoted([...allOrderIDs])})`,
+        Fields: ['ID', 'OrderHeaderID'],
+        ResultType: 'simple',
+        IgnoreMaxRows: true,
+    };
+
+    const [contractsRes, linesRes] = await runViewBatch(provider, [contractParams, lineParams], user);
+    if (!contractsRes?.Success) {
+        throw new Error(`Could not read the linked contracts: ${contractsRes?.ErrorMessage ?? 'unknown error'}`);
+    }
+    if (!linesRes?.Success) {
+        throw new Error(`Could not read ${OrderLineEntityName()}: ${linesRes?.ErrorMessage ?? 'unknown error'}`);
+    }
+
+    const contractRows = contractsRes.Results as Array<{
+        ID: string;
+        ContractNumber: string | null;
+        AnnualIncreasePercent: number | null;
+        CarryDiscountOnRenewal: boolean;
+    }>;
+    const lineRows = linesRes.Results as Array<{ ID: string; OrderHeaderID: string }>;
+
+    const lineIDsByOrder = new Map<string, Set<string>>();
+    const allLineIDs = new Set<string>();
+    for (const line of lineRows) {
+        const lineID = String(line.ID);
+        const orderID = String(line.OrderHeaderID).toLowerCase();
+        allLineIDs.add(lineID);
+        let lineSet = lineIDsByOrder.get(orderID);
+        if (!lineSet) {
+            lineSet = new Set<string>();
+            lineIDsByOrder.set(orderID, lineSet);
+        }
+        lineSet.add(lineID.toLowerCase());
+    }
+
+    const subsByLine = new Map<string, mjBizAppsOrdersSubscriptionEntity[]>();
+    if (allLineIDs.size > 0) {
+        const subsRes = await provider.RunView<mjBizAppsOrdersSubscriptionEntity>(
+            {
+                EntityName: SubscriptionEntityName(),
+                ExtraFilter: `OrderLineID IN (${quoted([...allLineIDs])})`,
+                ResultType: 'entity_object',
+                IgnoreMaxRows: true,
+            },
+            user,
+        );
+        if (!subsRes.Success) {
+            throw new Error(`Could not load the subscriptions governed by linked contracts: ${subsRes.ErrorMessage}`);
+        }
+        for (const sub of subsRes.Results) {
+            const lineKey = String(sub.OrderLineID).toLowerCase();
+            let bucket = subsByLine.get(lineKey);
+            if (!bucket) {
+                bucket = [];
+                subsByLine.set(lineKey, bucket);
+            }
+            bucket.push(sub);
+        }
+    }
+
+    for (const row of contractRows) {
         const terms: ContractRenewalTerms = {
             ContractID: row.ID,
             ContractNumber: row.ContractNumber,
             AnnualIncreasePercent: row.AnnualIncreasePercent == null ? null : Number(row.AnnualIncreasePercent),
             CarryDiscountOnRenewal: !!row.CarryDiscountOnRenewal,
         };
-        const outcome = await ApplyContractRenewalTerms(provider, terms, user);
+        const governedOrders = orderIDsByContract.get(row.ID.toLowerCase());
+        const governedSubs: mjBizAppsOrdersSubscriptionEntity[] = [];
+        if (governedOrders) {
+            for (const orderKey of governedOrders) {
+                const orderLines = lineIDsByOrder.get(orderKey);
+                if (!orderLines) continue;
+                for (const lineKey of orderLines) {
+                    const lineSubs = subsByLine.get(lineKey);
+                    if (lineSubs) governedSubs.push(...lineSubs);
+                }
+            }
+        }
+        const outcome = await applyTermsToSubscriptions(terms, governedSubs);
         sweep.Contracts++;
         sweep.Updated += outcome.Updated.length;
         sweep.Unchanged += outcome.Unchanged;
         for (const f of outcome.Failed) sweep.Failed.push({ ContractNumber: label(terms), ...f });
     }
     return sweep;
+}
+
+async function runViewBatch(
+    provider: RenewalTermsProvider,
+    params: RunViewParams[],
+    user: UserInfo | undefined,
+): Promise<RunViewResult[]> {
+    if (typeof provider.RunViews === 'function') {
+        return provider.RunViews(params, user);
+    }
+    return Promise.all(params.map((p) => provider.RunView(p, user)));
 }
 
 /** One sentence for a log line or a caller's message. */

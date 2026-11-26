@@ -37,6 +37,7 @@ function makeWorld(opts: {
     const subEntity = (row: SubRow) => {
         const original = { ...row };
         return {
+            get OrderLineID() { return row.OrderLineID; },
             get SubscriptionNumber() { return row.SubscriptionNumber; },
             get RenewalIncreasePercent() { return row.RenewalIncreasePercent; },
             set RenewalIncreasePercent(v: number | null) { row.RenewalIncreasePercent = v; },
@@ -64,34 +65,41 @@ function makeWorld(opts: {
         return (m?.[1] ?? '').split(',').map((v) => v.replace(/'/g, '').trim()).filter(Boolean);
     };
 
-    const provider = {
-        async RunView(params: { EntityName: string; ExtraFilter: string; IgnoreMaxRows?: boolean }) {
-            views.push({ EntityName: params.EntityName, IgnoreMaxRows: params.IgnoreMaxRows });
-            switch (params.EntityName) {
-                case E_CONTRACT: {
-                    const ids = inList(params.ExtraFilter, 'ID');
-                    return { Success: true, Results: (opts.contracts ?? []).filter((c) => ids.includes(c.ID)) };
-                }
-                case E_CONTRACT_ORDER: {
-                    if (!params.ExtraFilter) return { Success: true, Results: opts.links };
-                    const ids = inList(params.ExtraFilter, 'ContractID');
-                    return { Success: true, Results: opts.links.filter((l) => ids.includes(l.ContractID)) };
-                }
-                case OrderLineEntityName(): {
-                    const ids = inList(params.ExtraFilter, 'OrderHeaderID');
-                    return { Success: true, Results: opts.lines.filter((l) => ids.includes(l.OrderHeaderID)) };
-                }
-                case SubscriptionEntityName(): {
-                    const ids = inList(params.ExtraFilter, 'OrderLineID');
-                    return { Success: true, Results: opts.subs.filter((s) => ids.includes(s.OrderLineID)).map(subEntity) };
-                }
-                default:
-                    return { Success: false, ErrorMessage: `unexpected entity ${params.EntityName}`, Results: [] };
+    const batches: number[] = [];
+    const runView = async (params: { EntityName: string; ExtraFilter: string; IgnoreMaxRows?: boolean }) => {
+        views.push({ EntityName: params.EntityName, IgnoreMaxRows: params.IgnoreMaxRows });
+        switch (params.EntityName) {
+            case E_CONTRACT: {
+                const ids = inList(params.ExtraFilter, 'ID');
+                return { Success: true, Results: (opts.contracts ?? []).filter((c) => ids.includes(c.ID)) };
             }
+            case E_CONTRACT_ORDER: {
+                if (!params.ExtraFilter) return { Success: true, Results: opts.links };
+                const ids = inList(params.ExtraFilter, 'ContractID');
+                return { Success: true, Results: opts.links.filter((l) => ids.includes(l.ContractID)) };
+            }
+            case OrderLineEntityName(): {
+                const ids = inList(params.ExtraFilter, 'OrderHeaderID');
+                return { Success: true, Results: opts.lines.filter((l) => ids.includes(l.OrderHeaderID)) };
+            }
+            case SubscriptionEntityName(): {
+                const ids = inList(params.ExtraFilter, 'OrderLineID');
+                return { Success: true, Results: opts.subs.filter((s) => ids.includes(s.OrderLineID)).map(subEntity) };
+            }
+            default:
+                return { Success: false, ErrorMessage: `unexpected entity ${params.EntityName}`, Results: [] };
+        }
+    };
+
+    const provider = {
+        RunView: runView,
+        async RunViews(paramsList: Array<{ EntityName: string; ExtraFilter: string; IgnoreMaxRows?: boolean }>) {
+            batches.push(paramsList.length);
+            return Promise.all(paramsList.map((p) => runView(p)));
         },
     } as unknown as RenewalTermsProvider;
 
-    return { provider, saves, views };
+    return { provider, saves, views, batches };
 }
 
 const TERMS = (over: Partial<ContractRenewalTerms> = {}): ContractRenewalTerms => ({
@@ -235,6 +243,14 @@ describe('SweepContractRenewalTerms', () => {
         await SweepContractRenewalTerms(provider, undefined);
         expect(views.length).toBeGreaterThan(0);
         expect(views.filter((v) => v.IgnoreMaxRows !== true)).toEqual([]);
+    });
+
+    it('batches Contracts + Order Lines via RunViews and avoids per-contract N+1 RunView waterfalls', async () => {
+        const { provider, views, batches } = world();
+        await SweepContractRenewalTerms(provider, undefined);
+        // 1 Contract Orders + 1 batched RunViews([Contracts, Order Lines]) + 1 Subscriptions = 4 entity views total (constant, not 2 + 3N)
+        expect(batches).toEqual([2]);
+        expect(views).toHaveLength(4);
     });
 
     it('does nothing when no contract is linked to an order', async () => {

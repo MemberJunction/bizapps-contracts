@@ -182,24 +182,29 @@ export class MJCModificationsPageComponent implements OnInit {
      */
     private async loadTally(): Promise<void> {
         try {
-            const result = await ScopedRunView().RunView({
+            const result = await ScopedRunView().RunView<{
+                ContractTemplateProvisionID: string;
+                ContractTemplateProvision: string | null;
+            }>({
                 EntityName: MJC_ENTITIES.ContractTemplateModification,
-                // The base view already joins the provision's name columns (D-23), so no second read.
+                // Narrow Fields skips ModificationText / Notes (nvarchar(max)) while keeping the
+                // base view's joined provision name column (D-23).
+                Fields: ['ContractTemplateProvisionID', 'ContractTemplateProvision'],
                 ResultType: 'simple',
             });
-            const rows = (result?.Results ?? []) as Array<Record<string, unknown>>;
+            const rows = result?.Results ?? [];
             const counts = new Map<string, ProvisionTally>();
             for (const row of rows) {
-                const id = String(row['ContractTemplateProvisionID'] ?? '');
+                const id = String(row.ContractTemplateProvisionID ?? '');
                 if (!id) continue;
                 const existing = counts.get(id);
                 if (existing) {
                     existing.Count += 1;
                     continue;
                 }
-                // The joined name column is the provision's name field; fall back to the number so a
+                // The joined name column is the provision's name field; fall back cleanly so a
                 // tally never shows a blank pill.
-                const label = String(row['ContractTemplateProvision'] ?? row['ProvisionNumber'] ?? 'provision');
+                const label = String(row.ContractTemplateProvision ?? 'provision');
                 counts.set(id, { ProvisionID: id, Label: label, Count: 1 });
             }
             this.TopProvisions = [...counts.values()].sort((a, b) => b.Count - a.Count).slice(0, 8);

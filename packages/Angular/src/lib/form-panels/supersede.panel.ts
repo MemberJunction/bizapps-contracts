@@ -26,10 +26,11 @@ import { FormsModule } from '@angular/forms';
 import { RegisterClassEx } from '@memberjunction/global';
 import { BaseFormPanel, BaseFormsModule } from '@memberjunction/ng-base-forms';
 import { MJComboboxComponent, MJButtonDirective, MJAlertComponent } from '@memberjunction/ng-ui-components';
-import type { IRemoteOperationProvider } from '@memberjunction/core';
+import { Metadata, type IRemoteOperationProvider, type RunViewParams } from '@memberjunction/core';
 import { ContractEntity } from '@mj-biz-apps/contracts-entities';
 import { ContractOptionLabel, SameCustomerClause } from '@mj-biz-apps/contracts-entities';
 import { MJC_ENTITIES } from '../data/entity-names';
+import { ScopedRunView } from '../data/provider';
 
 /** The server-side operation key. One place, because RouteOperation is stringly typed. */
 const SUPERSEDE_OP = 'Contracts.Supersede';
@@ -243,7 +244,6 @@ export class MJCContractSupersedePanel extends BaseFormPanel<ContractEntity> {
         this.LinkError = '';
         this.LinkOk = '';
         try {
-            const { Metadata } = await import('@memberjunction/core');
             // RouteOperation is declared on IRemoteOperationProvider, not IMetadataProvider — the same
             // narrowing BaseRemotableOperation.Execute() does before calling it.
             const provider = (this.FormComponent?.ProviderToUse ?? Metadata.Provider) as unknown as IRemoteOperationProvider;
@@ -279,7 +279,7 @@ export class MJCContractSupersedePanel extends BaseFormPanel<ContractEntity> {
     }
 
     /**
-     * What this contract already replaces, and what it may replace.
+     * What this contract already replaces, and what it may replace — batched in one `RunViews` call.
      *
      * The same-level predicate is written two ways because `ParentContractID = NULL` matches nothing in
      * SQL: a top-level contract's peers need `IS NULL`, a child's need an equality. Getting that wrong
@@ -289,69 +289,94 @@ export class MJCContractSupersedePanel extends BaseFormPanel<ContractEntity> {
      * what to OFFER, the server decides what is ALLOWED, and if they disagree the server wins.
      */
     private async load(): Promise<void> {
-        await this.loadSupersedes();
-        await this.loadCandidates();
-    }
-
-    /** What this contract already replaces. Read live; the operation also returns it after a write. */
-    private async loadSupersedes(): Promise<void> {
         const me = this.Record!.ID;
-        const { ScopedRunView } = await import('../data/provider');
         const rv = ScopedRunView(this.FormComponent?.ProviderToUse);
         this.CandidatesLoading = true;
         try {
-            const mine = await rv.RunView<{ ID: string; ContractNumber: string }>({
-                EntityName: MJC_ENTITIES.Contract,
-                Fields: ['ID', 'ContractNumber'],
-                ExtraFilter: `SupersededByContractID = '${me}'`,
-                OrderBy: 'ContractNumber ASC',
-                ResultType: 'simple',
-            });
-            this.Supersedes = mine?.Success ? mine.Results : [];
-        } catch {
+            const [mine, candidatesResult] = await rv.RunViews([
+                this.buildSupersedesParams(me),
+                this.buildCandidatesParams(me),
+            ]);
+            this.Supersedes = mine?.Success
+                ? (mine.Results as Array<{ ID: string; ContractNumber: string }>)
+                : [];
+            if (!candidatesResult?.Success) {
+                throw new Error(candidatesResult?.ErrorMessage || 'Could not read eligible contracts.');
+            }
+            const rows = candidatesResult.Results as Array<{
+                ID: string;
+                ContractNumber: string;
+                ContractType: string;
+                Description: string | null;
+            }>;
+            this._candidates = rows.map((c) => ({
+                ...c,
+                Label: ContractOptionLabel(c),
+            }));
+            this.LoadError = '';
+        } catch (e) {
             this.Supersedes = [];
+            this._candidates = [];
+            this.LoadError = `Could not read eligible contracts: ${e instanceof Error ? e.message : String(e)}`;
+            this.loadedFor = null; // let the next read retry
+        } finally {
+            this.CandidatesLoading = false;
+            this.cdr.detectChanges();
         }
+    }
+
+    private buildSupersedesParams(me: string): RunViewParams {
+        return {
+            EntityName: MJC_ENTITIES.Contract,
+            Fields: ['ID', 'ContractNumber'],
+            ExtraFilter: `SupersededByContractID = '${me}'`,
+            OrderBy: 'ContractNumber ASC',
+            ResultType: 'simple',
+        };
+    }
+
+    private buildCandidatesParams(me: string): RunViewParams {
+        const parentID = this.Record?.ParentContractID ?? null;
+        const sameLevel = parentID === null ? 'ParentContractID IS NULL' : `ParentContractID = '${parentID}'`;
+
+        /**
+         * SAME CUSTOMER, and this is the rule the picker was missing (#28 item 4).
+         *
+         * Re-papering replaces one customer's agreement with another agreement for THAT customer.
+         * Offering another customer's contract is not merely untidy: linking it would point one
+         * organisation's lineage at another's, and the successor's terms would read as governing a
+         * party that never signed them.
+         *
+         * `CustomerOrganizationID` is NOT NULL on this table, so there is no "customer unknown" case
+         * to widen for — an absent value here means the record could not be read, and offering the
+         * whole book because of that is exactly the failure this rule exists to stop. So a missing
+         * value yields NO candidates rather than all of them.
+         */
+        const sameCustomer = SameCustomerClause(this.Record?.CustomerOrganizationID);
+
+        return {
+            EntityName: MJC_ENTITIES.Contract,
+            Fields: ['ID', 'ContractNumber', 'ContractType', 'Description'],
+            ExtraFilter:
+                `${sameCustomer} AND ${sameLevel} ` +
+                `AND SupersededByContractID IS NULL AND ID <> '${me}'`,
+            OrderBy: 'ContractNumber ASC',
+            ResultType: 'simple',
+        };
     }
 
     /** Eligible predecessors: same level, not already superseded, not this contract. */
     private async loadCandidates(): Promise<void> {
         const me = this.Record!.ID;
-        const { ScopedRunView } = await import('../data/provider');
         const rv = ScopedRunView(this.FormComponent?.ProviderToUse);
         this.CandidatesLoading = true;
         try {
-            const parentID = this.Record?.ParentContractID ?? null;
-            const sameLevel = parentID === null ? 'ParentContractID IS NULL' : `ParentContractID = '${parentID}'`;
-
-            /**
-             * SAME CUSTOMER, and this is the rule the picker was missing (#28 item 4).
-             *
-             * Re-papering replaces one customer's agreement with another agreement for THAT customer.
-             * Offering another customer's contract is not merely untidy: linking it would point one
-             * organisation's lineage at another's, and the successor's terms would read as governing a
-             * party that never signed them.
-             *
-             * `CustomerOrganizationID` is NOT NULL on this table, so there is no "customer unknown" case
-             * to widen for — an absent value here means the record could not be read, and offering the
-             * whole book because of that is exactly the failure this rule exists to stop. So a missing
-             * value yields NO candidates rather than all of them.
-             */
-            const sameCustomer = SameCustomerClause(this.Record?.CustomerOrganizationID);
-
             const r = await rv.RunView<{
                 ID: string;
                 ContractNumber: string;
                 ContractType: string;
                 Description: string | null;
-            }>({
-                EntityName: MJC_ENTITIES.Contract,
-                Fields: ['ID', 'ContractNumber', 'ContractType', 'Description'],
-                ExtraFilter:
-                    `${sameCustomer} AND ${sameLevel} ` +
-                    `AND SupersededByContractID IS NULL AND ID <> '${me}'`,
-                OrderBy: 'ContractNumber ASC',
-                ResultType: 'simple',
-            });
+            }>(this.buildCandidatesParams(me));
             this._candidates = (r?.Success ? r.Results : []).map((c) => ({
                 ...c,
                 Label: ContractOptionLabel(c),

@@ -322,14 +322,39 @@ export class MJCContractExecutedAgreementPanel extends BaseFormPanel<ContractEnt
         if (!refreshed) await this.load();
     }
 
-    /** Category row, then links, then the files they name — three reads, the last two skipped when nothing is linked. */
+    /** Category row + record links batched in one `RunViews` call, then the files they name (skipped when nothing is linked). */
     private async load(): Promise<void> {
         if (!this.Record?.IsSaved) return;
         this.Loading = true;
         try {
             const rv = ScopedRunView(this.FormComponent?.ProviderToUse);
-            await this.resolveCategory(rv);
-            this._files = await this.loadLinkedFiles(rv);
+            const entityID = this.Record.EntityInfo.ID;
+            const [categoryResult, linksResult] = await rv.RunViews([
+                {
+                    EntityName: MJC_FOREIGN_ENTITIES.FileCategory,
+                    Fields: ['ID', 'Name'],
+                    ExtraFilter: `Name = '${EscapeSQLString(EXECUTED_AGREEMENT_FILE_CATEGORY)}'`,
+                    ResultType: 'simple',
+                },
+                {
+                    EntityName: MJC_FOREIGN_ENTITIES.FileEntityRecordLink,
+                    Fields: ['ID', 'FileID'],
+                    ExtraFilter: `EntityID = '${EscapeSQLString(entityID)}' AND RecordID = '${EscapeSQLString(this.Record.ID)}'`,
+                    ResultType: 'simple',
+                },
+            ]);
+            if (!categoryResult?.Success) {
+                throw new Error(categoryResult?.ErrorMessage || 'file categories could not be read');
+            }
+            const categoryRows = categoryResult.Results as Array<{ ID: string; Name: string }>;
+            this.CategoryID = categoryRows[0]?.ID ?? null;
+            this.CategoryMissing = !this.CategoryID;
+
+            if (!linksResult?.Success) {
+                throw new Error(linksResult?.ErrorMessage || 'file links could not be read');
+            }
+            const linkRows = linksResult.Results as Array<{ ID: string; FileID: string }>;
+            this._files = await this.loadFilesByLinks(rv, linkRows);
             // A later success clears an earlier failure, and clears it HERE rather than at the top of the
             // try, so a reload does not blank the explanation while it is in flight.
             this.LoadError = '';
@@ -345,37 +370,18 @@ export class MJCContractExecutedAgreementPanel extends BaseFormPanel<ContractEnt
         }
     }
 
-    /** The category the view resolves on, looked up the way the view does it: by Name. */
-    private async resolveCategory(rv: RunView): Promise<void> {
-        const r = await rv.RunView<{ ID: string; Name: string }>({
-            EntityName: MJC_FOREIGN_ENTITIES.FileCategory,
-            Fields: ['ID', 'Name'],
-            ExtraFilter: `Name = '${EscapeSQLString(EXECUTED_AGREEMENT_FILE_CATEGORY)}'`,
-            ResultType: 'simple',
-        });
-        if (!r?.Success) throw new Error(r?.ErrorMessage || 'file categories could not be read');
-        this.CategoryID = r.Results[0]?.ID ?? null;
-        this.CategoryMissing = !this.CategoryID;
-    }
-
     /**
-     * The links for THIS record, then the files they name — through MJ's polymorphic
-     * `MJ: File Entity Record Links` (EntityID + RecordID), which is where the view looks too.
+     * Load the `MJ: Files` entities named by `links`.
      * `entity_object` on the files is load-bearing: Mark/Unmark save the very entity that was read.
      */
-    private async loadLinkedFiles(rv: RunView): Promise<LinkedFile[]> {
-        const entityID = this.Record.EntityInfo.ID;
-        const links = await rv.RunView<{ ID: string; FileID: string }>({
-            EntityName: MJC_FOREIGN_ENTITIES.FileEntityRecordLink,
-            Fields: ['ID', 'FileID'],
-            ExtraFilter: `EntityID = '${EscapeSQLString(entityID)}' AND RecordID = '${EscapeSQLString(this.Record.ID)}'`,
-            ResultType: 'simple',
-        });
-        if (!links?.Success) throw new Error(links?.ErrorMessage || 'file links could not be read');
+    private async loadFilesByLinks(
+        rv: RunView,
+        linkRows: ReadonlyArray<{ ID: string; FileID: string }>,
+    ): Promise<LinkedFile[]> {
         this.Unreadable = 0;
-        if (!links.Results.length) return [];
+        if (!linkRows.length) return [];
 
-        const ids = links.Results.map((l) => `'${EscapeSQLString(l.FileID)}'`).join(',');
+        const ids = linkRows.map((l) => `'${EscapeSQLString(l.FileID)}'`).join(',');
         const files = await rv.RunView<MJFileEntity>({
             EntityName: MJC_FOREIGN_ENTITIES.File,
             ExtraFilter: `ID IN (${ids})`,
@@ -383,7 +389,7 @@ export class MJCContractExecutedAgreementPanel extends BaseFormPanel<ContractEnt
             ResultType: 'entity_object',
         });
         if (!files?.Success) throw new Error(files?.ErrorMessage || 'file details could not be read');
-        this.Unreadable = Math.max(0, links.Results.length - files.Results.length);
+        this.Unreadable = Math.max(0, linkRows.length - files.Results.length);
         return files.Results.map((f) => ({ FileID: f.ID, Name: f.Name, CategoryName: f.Category, Entity: f }));
     }
 }
