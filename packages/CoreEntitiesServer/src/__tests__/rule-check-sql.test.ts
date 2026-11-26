@@ -39,7 +39,7 @@ describe.each(cases)('$name — one form per database', ({ sql, aliases }) => {
     it('PostgreSQL gets no T-SQL', () => {
         const resolved = resolveFor('postgresql', sql);
         expect(resolved).not.toMatch(/\[|\]|\bTOP\b|NVARCHAR|N'/);
-        expect(resolved).toContain('__mj_BizAppsContracts."');
+        expect(resolved).toContain('__mj_bizappscontracts."');
     });
 
     it('PostgreSQL quotes every alias the caller reads, so none folds to lowercase', () => {
