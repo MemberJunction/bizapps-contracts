@@ -39,7 +39,7 @@
  *
  * @module @mj-biz-apps/contracts-ng
  */
-import { Component, EventEmitter, Input, Output, ViewEncapsulation } from '@angular/core';
+import { ChangeDetectionStrategy, Component, EventEmitter, Input, Output, ViewEncapsulation } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import {
     MJLeftNavComponent,
@@ -47,7 +47,6 @@ import {
     MJPageBodyComponent,
     MJPageBodyInteriorComponent,
     MJPageHeaderComponent,
-    MJPageLayoutComponent,
     type MJLeftNavItem,
     type MJLeftNavSection,
 } from '@memberjunction/ng-ui-components';
@@ -55,11 +54,11 @@ import {
 @Component({
     selector: 'mjc-section-shell',
     standalone: true,
+    changeDetection: ChangeDetectionStrategy.OnPush,
     encapsulation: ViewEncapsulation.None,
     styleUrls: ['../styles/contracts-kit.css'],
     imports: [
         CommonModule,
-        MJPageLayoutComponent,
         MJPageHeaderComponent,
         MJPageBodyComponent,
         MJLeftNavComponent,
@@ -67,29 +66,27 @@ import {
         MJPageBodyInteriorComponent,
     ],
     template: `
-        <mj-page-layout>
-            <mj-page-header [Title]="Title" [Icon]="Icon" [Subtitle]="Subtitle">
-                <div meta><ng-content select="[meta]"></ng-content></div>
-                <div actions><ng-content select="[actions]"></ng-content></div>
-                <!-- No toolbar slot — see trap 1 in the file header. -->
-            </mj-page-header>
+        <mj-page-header [Title]="Title" [Icon]="Icon" [Subtitle]="Subtitle">
+            <div meta><ng-content select="[meta]"></ng-content></div>
+            <div actions><ng-content select="[actions]"></ng-content></div>
+            <!-- No toolbar slot — see trap 1 in the file header. -->
+        </mj-page-header>
 
-            <mj-page-body [Flex]="true" [Padding]="false" Direction="row">
-                <mj-left-nav
-                    [Sections]="NavSections"
-                    [ActiveId]="ActivePageId"
-                    [Width]="RailWidth"
-                    [MobileTitle]="Title"
-                    (ItemClicked)="onItemClicked($event)" />
+        <mj-page-body [Flex]="true" [Padding]="false" Direction="row">
+            <mj-left-nav
+                [Sections]="NavSections"
+                [ActiveId]="ActivePageId"
+                [Width]="RailWidth"
+                [MobileTitle]="Title"
+                (ItemClicked)="onItemClicked($event)" />
 
-                <mj-left-nav-content [Loading]="Loading" [Error]="Error">
-                    <!-- Required for scrolling — see trap 2. Padding off; each page supplies its own. -->
-                    <mj-page-body-interior [Padding]="false">
-                        <ng-content></ng-content>
-                    </mj-page-body-interior>
-                </mj-left-nav-content>
-            </mj-page-body>
-        </mj-page-layout>
+            <mj-left-nav-content [Loading]="Loading" [Error]="Error">
+                <!-- Required for scrolling — see trap 2. Padding off; each page supplies its own. -->
+                <mj-page-body-interior [Padding]="false">
+                    <ng-content></ng-content>
+                </mj-page-body-interior>
+            </mj-left-nav-content>
+        </mj-page-body>
     `,
 })
 export class MJCSectionShellComponent {

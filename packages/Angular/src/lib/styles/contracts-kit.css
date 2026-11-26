@@ -36,6 +36,12 @@
 
 /* ── Page frame ─────────────────────────────────────────────────────────────── */
 
+/* Keep <mj-page-header> and <mj-page-body> inside <mjc-section-shell> participating directly
+   in the hosting <mj-page-layout> flex column declared on each BaseResourceComponent section. */
+mjc-section-shell {
+  display: contents;
+}
+
 .mjc-page {
   display: flex;
   flex-direction: column;

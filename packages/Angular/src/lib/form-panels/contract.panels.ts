@@ -221,7 +221,7 @@ function chipClassFor(state: ContractState): string {
             background: var(--mj-bg-surface-card);
             border: 1px solid var(--mj-border-default);
             border-radius: var(--mj-radius-xl, 16px);
-            box-shadow: var(--mj-shadow-md, 0 4px 16px rgba(0, 0, 0, .08));
+            box-shadow: var(--mj-shadow-md);
             position: relative; overflow: hidden;
             /* Never shrinks: MJ mounts this panel through display:contents hosts, so this div is a
                flex item in the form's fixed-height column, out of reach of MJ's no-shrink rule. With
@@ -231,13 +231,13 @@ function chipClassFor(state: ContractState): string {
         }
         .mjc-hero::before {
             content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3.5px;
-            background: linear-gradient(90deg, #38bdf8 0%, #6366f1 50%, #10b981 100%);
+            background: linear-gradient(90deg, var(--mj-status-info) 0%, var(--mj-brand-primary) 50%, var(--mj-status-success) 100%);
         }
         .mjc-hero__identity { display: flex; align-items: center; gap: var(--mj-space-4); min-width: 0; }
         .mjc-hero__avatar {
             flex: none; width: 60px; height: 60px; border-radius: var(--mj-radius-lg, 14px);
             position: relative; display: flex; align-items: center; justify-content: center;
-            background: linear-gradient(135deg, color-mix(in srgb, var(--mj-brand-primary) 30%, var(--mj-bg-surface)) 0%, color-mix(in srgb, var(--mj-brand-accent, #6366f1) 25%, var(--mj-bg-surface)) 100%);
+            background: linear-gradient(135deg, color-mix(in srgb, var(--mj-brand-primary) 30%, var(--mj-bg-surface)) 0%, color-mix(in srgb, var(--mj-brand-accent, var(--mj-brand-primary)) 25%, var(--mj-bg-surface)) 100%);
             color: var(--mj-brand-primary); font-size: 1.35rem;
             box-shadow: 0 4px 14px color-mix(in srgb, var(--mj-brand-primary) 25%, transparent);
             border: 2px solid color-mix(in srgb, var(--mj-brand-primary) 35%, transparent);
@@ -245,10 +245,10 @@ function chipClassFor(state: ContractState): string {
         .mjc-hero__presence {
             position: absolute; bottom: -2px; right: -2px; width: 13px; height: 13px;
             border-radius: 50%; border: 2.5px solid var(--mj-bg-surface-card);
-            background: var(--mj-text-muted, #94a3b8);
+            background: var(--mj-text-muted);
         }
-        .mjc-hero__presence[data-tone='success'] { background: var(--mj-status-success, #10b981); }
-        .mjc-hero__presence[data-tone='warning'] { background: var(--mj-status-warning, #f59e0b); }
+        .mjc-hero__presence[data-tone='success'] { background: var(--mj-status-success); }
+        .mjc-hero__presence[data-tone='warning'] { background: var(--mj-status-warning); }
         .mjc-hero__copy { min-width: 0; flex: 1; }
         .mjc-hero__title {
             margin: 0; font-size: var(--mj-text-lg, 18px); font-weight: 800;
@@ -270,11 +270,11 @@ function chipClassFor(state: ContractState): string {
             display: inline-flex; align-items: center; justify-content: center;
             flex: none; width: 32px; height: 32px; margin-left: auto; padding: 0;
             border: 1px solid var(--mj-border-default); border-radius: var(--mj-radius-md, 8px);
-            background: var(--mj-bg-surface-sunken, rgba(255,255,255,.04));
+            background: var(--mj-bg-surface-sunken);
             color: var(--mj-text-secondary); cursor: pointer; font-size: 12px;
         }
         .mjc-hero__toggle:hover {
-            background: var(--mj-bg-surface-hover, rgba(255,255,255,.08));
+            background: var(--mj-bg-surface-hover);
             color: var(--mj-text-primary); border-color: var(--mj-brand-primary);
         }
         .mjc-hero__summary {

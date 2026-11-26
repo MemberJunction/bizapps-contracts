@@ -18,6 +18,7 @@
  * @module @mj-biz-apps/contracts-ng
  */
 import {
+    ChangeDetectionStrategy,
     ChangeDetectorRef,
     Component,
     OnInit,
@@ -30,8 +31,8 @@ import {
 import { CommonModule } from '@angular/common';
 import { RegisterClass } from '@memberjunction/global';
 import { BaseResourceComponent } from '@memberjunction/ng-shared';
-import type { MJLeftNavSection } from '@memberjunction/ng-ui-components';
-import type { ResourceData } from '@memberjunction/core-entities';
+import { MJPageLayoutComponent, type MJLeftNavSection } from '@memberjunction/ng-ui-components';
+import { UserInfoEngine, type ResourceData } from '@memberjunction/core-entities';
 
 import { MJCSectionShellComponent } from './section-shell.component';
 import {
@@ -129,6 +130,7 @@ export abstract class MJCSectionBaseComponent extends BaseResourceComponent impl
         // rather than a bug. Orders debugged exactly this; inheriting the fix is cheaper than
         // rediscovering it.
         setTimeout(async () => {
+            queueMicrotask(() => this.NotifyLoadStarted());
             try {
                 await this.showPage(this.ActivePageId!);
                 await this.refreshBadges();
@@ -261,17 +263,17 @@ export abstract class MJCSectionBaseComponent extends BaseResourceComponent impl
      */
     protected restorePageId(): string {
         try {
-            const saved = globalThis.localStorage?.getItem(this.preferenceKey);
+            const saved = UserInfoEngine.Instance.GetSetting(this.preferenceKey);
             if (saved && this.subPages.some((p) => p.Id === saved)) return saved;
         } catch {
-            /* storage unavailable — the default is a fine answer */
+            /* UserInfoEngine not yet configured — the default is a fine answer */
         }
         return this.defaultPageId;
     }
 
     protected persistPageId(pageId: string): void {
         try {
-            globalThis.localStorage?.setItem(this.preferenceKey, pageId);
+            UserInfoEngine.Instance.SetSettingDebounced(this.preferenceKey, pageId);
         } catch {
             /* preferences simply do not persist */
         }
@@ -306,19 +308,22 @@ export abstract class MJCSectionBaseComponent extends BaseResourceComponent impl
 @Component({
     selector: 'mjc-contracts-section',
     standalone: true,
-    imports: [CommonModule, MJCSectionShellComponent],
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    imports: [CommonModule, MJPageLayoutComponent, MJCSectionShellComponent],
     template: `
-        <mjc-section-shell
-            Title="Contracts"
-            Icon="fa-solid fa-file-signature"
-            Subtitle="What we agreed, and where the paper is"
-            [NavSections]="NavSections"
-            [ActivePageId]="ActivePageId"
-            [Loading]="IsLoading"
-            [Error]="LoadError"
-            (PageSelected)="OnPageSelected($event)">
-            <ng-container #pageHost />
-        </mjc-section-shell>
+        <mj-page-layout>
+            <mjc-section-shell
+                Title="Contracts"
+                Icon="fa-solid fa-file-signature"
+                Subtitle="What we agreed, and where the paper is"
+                [NavSections]="NavSections"
+                [ActivePageId]="ActivePageId"
+                [Loading]="IsLoading"
+                [Error]="LoadError"
+                (PageSelected)="OnPageSelected($event)">
+                <ng-container #pageHost />
+            </mjc-section-shell>
+        </mj-page-layout>
     `,
 })
 export class ContractsSectionResource extends MJCSectionBaseComponent {
@@ -387,19 +392,22 @@ export class ContractsSectionResource extends MJCSectionBaseComponent {
 @Component({
     selector: 'mjc-templates-section',
     standalone: true,
-    imports: [CommonModule, MJCSectionShellComponent],
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    imports: [CommonModule, MJPageLayoutComponent, MJCSectionShellComponent],
     template: `
-        <mjc-section-shell
-            Title="Templates"
-            Icon="fa-solid fa-file-lines"
-            Subtitle="The standard terms, version by version"
-            [NavSections]="NavSections"
-            [ActivePageId]="ActivePageId"
-            [Loading]="IsLoading"
-            [Error]="LoadError"
-            (PageSelected)="OnPageSelected($event)">
-            <ng-container #pageHost />
-        </mjc-section-shell>
+        <mj-page-layout>
+            <mjc-section-shell
+                Title="Templates"
+                Icon="fa-solid fa-file-lines"
+                Subtitle="The standard terms, version by version"
+                [NavSections]="NavSections"
+                [ActivePageId]="ActivePageId"
+                [Loading]="IsLoading"
+                [Error]="LoadError"
+                (PageSelected)="OnPageSelected($event)">
+                <ng-container #pageHost />
+            </mjc-section-shell>
+        </mj-page-layout>
     `,
 })
 export class ContractsTemplatesSectionResource extends MJCSectionBaseComponent {
@@ -436,19 +444,22 @@ export class ContractsTemplatesSectionResource extends MJCSectionBaseComponent {
 @Component({
     selector: 'mjc-configuration-section',
     standalone: true,
-    imports: [CommonModule, MJCSectionShellComponent],
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    imports: [CommonModule, MJPageLayoutComponent, MJCSectionShellComponent],
     template: `
-        <mjc-section-shell
-            Title="Configuration"
-            Icon="fa-solid fa-sliders"
-            Subtitle="The vocabularies every contract inherits"
-            [NavSections]="NavSections"
-            [ActivePageId]="ActivePageId"
-            [Loading]="IsLoading"
-            [Error]="LoadError"
-            (PageSelected)="OnPageSelected($event)">
-            <ng-container #pageHost />
-        </mjc-section-shell>
+        <mj-page-layout>
+            <mjc-section-shell
+                Title="Configuration"
+                Icon="fa-solid fa-sliders"
+                Subtitle="The vocabularies every contract inherits"
+                [NavSections]="NavSections"
+                [ActivePageId]="ActivePageId"
+                [Loading]="IsLoading"
+                [Error]="LoadError"
+                (PageSelected)="OnPageSelected($event)">
+                <ng-container #pageHost />
+            </mjc-section-shell>
+        </mj-page-layout>
     `,
 })
 export class ContractsConfigurationSectionResource extends MJCSectionBaseComponent {
