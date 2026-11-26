@@ -136,17 +136,17 @@ PostgreSQL counterparts in `migrations-pg/` (implemented for `DocumentArtifactID
 ## 6. Angular UI, Performance & `@memberjunction/*@6.3.0-edge.1` Guardrails
 
 1. **Published Dependency Model (`@memberjunction/*@6.3.0-edge.1`):**
-   - `@memberjunction/ng-artifacts` (and every `@memberjunction/*` package) is declared in `peerDependencies` and `devDependencies` with `"^6.3.0-edge.1"` — never in `dependencies` (enforced by `.github/scripts/check-dependency-model.mjs`).
+   - `@memberjunction/ng-artifacts` (and every `@memberjunction/*` package) is declared in `peerDependencies` with `"^6.3.0-edge.1"` and anchored in `devDependencies` (`"6.3.0-edge.1"`) — never in `dependencies` (enforced by `.github/scripts/check-dependency-model.mjs`).
    - Workspace lockfile must resolve exactly **one** copy of `@memberjunction/core` and `@memberjunction/global`.
 2. **Dual Form Registration Parity:**
-   - Retain `@RegisterClass(BaseFormComponent, 'MJ_BizApps_Contracts: Contracts')` (`mjBizAppsContractsContractFormComponent`) untouched and anchored in `LoadMjBizappsContractsClient()`.
-   - Contribute the optional MJ Doc preview strictly as a `@RegisterClassEx(BaseFormPanel, ...)` slot panel anchored in `LoadMjBizappsContractsClient()` — never replace the generated Contract form.
+   - Retain `@RegisterClass(BaseFormComponent, 'MJ_BizApps_Contracts: Contracts')` (`mjBizAppsContractsContractFormComponent`) and all other generated entity forms untouched and anchored in `LoadMjBizappsContractsClient()`.
+   - Contribute the optional MJ Doc preview strictly as `@RegisterClassEx(BaseFormPanel, ...)` (`MJCContractDocumentPreviewPanel` wrapping reusable `ContractDocumentPreviewComponent` in `packages/Angular/src/lib/form-panels/contract-document-preview.panel.ts`) anchored in `LoadMjBizappsContractsClient()` — never replace the generated Contract form.
 3. **Component & Token Hygiene:**
    - Use `ChangeDetectionStrategy.OnPush`, modern Angular control flow (`@if` / `@for` / `@switch`), and `inject()`.
-   - Use semantic `--mj-*` CSS design tokens exclusively — **zero** raw `#hex`, `rgb()`, `rgba()`, or `hsl()` literals in Angular CSS/HTML.
-   - Persist any user UI preferences via `UserInfoEngine.Instance` (never `localStorage` or `sessionStorage`).
+   - Use semantic `--mj-*` CSS design tokens exclusively — **zero** raw `#hex`, `rgb()`, `rgba()`, or `hsl()` literals in Angular CSS/HTML (enforced by `packages/Angular/src/__tests__/ContractOpenAppParity.spec.ts`).
+   - Persist all user UI preferences via `UserInfoEngine.Instance` (never `localStorage` or `sessionStorage`).
    - **Zero `window.print()`** in Angular code.
-   - Defer `NotifyLoadStarted()` via `queueMicrotask` where applicable to avoid `NG0100`.
+   - Wrap every top-level `BaseResourceComponent` Explorer section (`ContractsSectionResource`, `ContractsTemplatesSectionResource`, `ContractsConfigurationSectionResource`) directly in `<mj-page-layout>`, defer `NotifyLoadStarted()` via `queueMicrotask`, and signal `NotifyLoadComplete()` in `finally`.
 4. **Data Loading, RLS & Rapid-Switch Safety:**
    - Follow [`docs/ui-architecture.md`](../ui-architecture.md) (no data-access service layer) and [`docs/claude/04-performance.md`](../claude/04-performance.md) (5-Rule Performance Standard): use provider-scoped `RunView` / `RunViews` with narrow `Fields` and `ResultType: 'simple'` where mutation is not needed; never globally cache unbounded `MJ: Artifacts` / `MJ: Artifact Versions` rows in `ContractsEngineBase`.
    - Handle all four runtime states gracefully:
