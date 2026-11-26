@@ -26,8 +26,17 @@
 import { LoadContractsEngine } from '@mj-biz-apps/contracts-entities';
 import './lib/generated/generated-forms.module';
 import { GeneratedFormsModule } from './lib/generated/generated-forms.module';
+import { mjBizAppsContractsContractFormComponent } from './lib/generated/Entities/mjBizAppsContractsContract/mjbizappscontractscontract.form.component';
+import { mjBizAppsContractsContractOrderFormComponent } from './lib/generated/Entities/mjBizAppsContractsContractOrder/mjbizappscontractscontractorder.form.component';
+import { mjBizAppsContractsContractTemplateFormComponent } from './lib/generated/Entities/mjBizAppsContractsContractTemplate/mjbizappscontractscontracttemplate.form.component';
+import { mjBizAppsContractsContractTemplateModificationFormComponent } from './lib/generated/Entities/mjBizAppsContractsContractTemplateModification/mjbizappscontractscontracttemplatemodification.form.component';
+import { mjBizAppsContractsContractTemplateProvisionFormComponent } from './lib/generated/Entities/mjBizAppsContractsContractTemplateProvision/mjbizappscontractscontracttemplateprovision.form.component';
+import { mjBizAppsContractsContractTemplateTypeFormComponent } from './lib/generated/Entities/mjBizAppsContractsContractTemplateType/mjbizappscontractscontracttemplatetype.form.component';
+import { mjBizAppsContractsContractTypeFormComponent } from './lib/generated/Entities/mjBizAppsContractsContractType/mjbizappscontractscontracttype.form.component';
+
 export { GeneratedFormsModule } from './lib/generated/generated-forms.module';
 export { mjBizAppsContractsContractFormComponent } from './lib/generated/Entities/mjBizAppsContractsContract/mjbizappscontractscontract.form.component';
+export { mjBizAppsContractsContractOrderFormComponent } from './lib/generated/Entities/mjBizAppsContractsContractOrder/mjbizappscontractscontractorder.form.component';
 export { mjBizAppsContractsContractTemplateFormComponent } from './lib/generated/Entities/mjBizAppsContractsContractTemplate/mjbizappscontractscontracttemplate.form.component';
 export { mjBizAppsContractsContractTemplateModificationFormComponent } from './lib/generated/Entities/mjBizAppsContractsContractTemplateModification/mjbizappscontractscontracttemplatemodification.form.component';
 export { mjBizAppsContractsContractTemplateProvisionFormComponent } from './lib/generated/Entities/mjBizAppsContractsContractTemplateProvision/mjbizappscontractscontracttemplateprovision.form.component';
@@ -70,6 +79,10 @@ import {
 } from './lib/form-panels/contract.panels';
 import { MJCContractSupersedePanel } from './lib/form-panels/supersede.panel';
 import { MJCContractExecutedAgreementPanel } from './lib/form-panels/executed-agreement.panel';
+import {
+    ContractDocumentPreviewComponent,
+    MJCContractDocumentPreviewPanel,
+} from './lib/form-panels/contract-document-preview.panel';
 import { ContractFormPolicy } from './lib/form-panels/contract-form.policy';
 import {
     MJCContractAgreementPanel,
@@ -100,6 +113,20 @@ export {
 } from './lib/form-panels/contract.panels';
 export { MJCContractSupersedePanel } from './lib/form-panels/supersede.panel';
 export { MJCContractExecutedAgreementPanel } from './lib/form-panels/executed-agreement.panel';
+export {
+    CONTRACT_DOC_PREVIEW_EXPANDED_PREF_KEY,
+    BuildUnlinkedDocumentPreviewState,
+    ContractDocumentPreviewComponent,
+    LoadContractDocumentPreviewState,
+    MJCContractDocumentPreviewPanel,
+    ReadOwnProperty,
+    ResolveContractDocumentIconClass,
+    StripMarkdownToPlainText,
+    type ContractDocumentArtifactSummary,
+    type ContractDocumentArtifactVersionSummary,
+    type ContractDocumentPreviewState,
+    type ContractDocumentPreviewStatus,
+} from './lib/form-panels/contract-document-preview.panel';
 export { ContractFormPolicy } from './lib/form-panels/contract-form.policy';
 export {
     MJCContractOverviewPanel,
@@ -158,6 +185,13 @@ export function LoadMjBizappsContractsClient(): void {
     // never referenced — and a dropped registration is a nav tab that mounts nothing, or a panel that
     // silently never appears, with no error either way. One anchor per registration, every time.
     void GeneratedFormsModule;
+    void mjBizAppsContractsContractFormComponent;
+    void mjBizAppsContractsContractOrderFormComponent;
+    void mjBizAppsContractsContractTemplateFormComponent;
+    void mjBizAppsContractsContractTemplateModificationFormComponent;
+    void mjBizAppsContractsContractTemplateProvisionFormComponent;
+    void mjBizAppsContractsContractTemplateTypeFormComponent;
+    void mjBizAppsContractsContractTypeFormComponent;
     LoadContractsEngine();
 
     // Sections — each is a nav tab.
@@ -180,6 +214,8 @@ export function LoadMjBizappsContractsClient(): void {
     void MJCContractLineagePanel;
     void MJCContractSupersedePanel;
     void MJCContractExecutedAgreementPanel;
+    void ContractDocumentPreviewComponent;
+    void MJCContractDocumentPreviewPanel;
     void MJCOrganizationAgreementsPanel;
     void MJCPersonAgreementsPanel;
     void MJCContractTypeDefaultsPanel;

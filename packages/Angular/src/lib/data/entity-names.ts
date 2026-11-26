@@ -31,6 +31,9 @@ export const MJC_FOREIGN_ENTITIES = {
     File: 'MJ: Files',
     FileCategory: 'MJ: File Categories',
     FileEntityRecordLink: 'MJ: File Entity Record Links',
+    /** MJ CORE's MJ Docs store for versioned Assembled Contract Drafts, AI Review Memos, and Executive Summaries. */
+    Artifact: 'MJ: Artifacts',
+    ArtifactVersion: 'MJ: Artifact Versions',
     /**
      * bizapps-SALES, and read SOFTLY — no manifest dependency, deliberately (golive #219).
      *
