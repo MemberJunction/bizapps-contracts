@@ -4,7 +4,7 @@
  * WHY IT LIVES HERE AND NOT ON LINEAGE. It started on the Lineage panel, which is where the
  * supersession FACTS belong. But Lineage has to be a rail item, a rail item needs
  * `Variant="related-entity"`, and that variant renders any non-AG-Grid child completely blank
- * (MJ#3999) — so the picker was present in the DOM and invisible. Rather than fight the variant,
+ * (MJ issue 3999) — so the picker was present in the DOM and invisible. Rather than fight the variant,
  * the control moved to a plain field panel in the Details group, which has no such constraint.
  * Lineage keeps the tree and the read-only facts.
  *
@@ -201,7 +201,7 @@ export class MJCContractSupersedePanel extends BaseFormPanel<ContractEntity> {
      * lives on the predecessor — so this panel used to load and save a foreign contract itself, which
      * is server work done in the client. It also could not work: in the browser MJ resolves the
      * CodeGen-generated entity class rather than the app subclass, so `ContractEntity.Supersede()` is
-     * absent client-side (MJ#4002). Server-side the app subclass resolves correctly and every rule in
+     * absent client-side (MJ issue 4002). Server-side the app subclass resolves correctly and every rule in
      * `ContractEntityServer.ValidateAsync()` actually runs.
      *
      * `RouteOperation` rather than a generated typed client: the server resolves an operation purely

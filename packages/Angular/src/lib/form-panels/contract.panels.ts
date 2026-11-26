@@ -182,7 +182,7 @@ function chipClassFor(state: ContractState): string {
                     </div>
                 </div>
                 <!--
-                    THE RELATED ROW IS SHARED, NOT OURS (golive#225).
+                    THE RELATED ROW IS SHARED, NOT OURS (golive issue 225).
 
                     The source link used to be a seventh stat in the grid above, resolved by ~90 lines
                     of this panel. Sales and orders each needed the same thing and had either a
@@ -226,7 +226,7 @@ function chipClassFor(state: ContractState): string {
             /* Never shrinks: MJ mounts this panel through display:contents hosts, so this div is a
                flex item in the form's fixed-height column, out of reach of MJ's no-shrink rule. With
                overflow hidden its minimum height is 0, and tall panels below would clip it to its
-               title row (bc-aidp-next-golive#287). */
+               title row (bc-aidp-next-golive issue 287). */
             flex-shrink: 0;
         }
         .mjc-hero::before {
@@ -327,7 +327,7 @@ function chipClassFor(state: ContractState): string {
 export class MJCContractHeroPanel extends BaseFormPanel<ContractEntity> {
 
     /**
-     * A stored `DATE` column rendered from its UTC parts (bc-aidp-next-golive#168).
+     * A stored `DATE` column rendered from its UTC parts (bc-aidp-next-golive issue 168).
      *
      * A field rather than a method so the template binds the shared implementation directly: the
      * defect this replaces was a second, local-zone rendering of the same column, and a wrapper
@@ -387,7 +387,7 @@ export class MJCContractHeroPanel extends BaseFormPanel<ContractEntity> {
     public get CompanyName(): string { return this.Record?.Company ?? ''; }
     public get ContactName(): string { return this.Record?.PrimaryContactPerson ?? ''; }
     public get TemplateName(): string { return this.Record?.ContractTemplate ?? ''; }
-    /* ── Related records — what this contract came from (golive#225, #28 item 1) ────────────────
+    /* ── Related records — what this contract came from (golive issue 225, issue 28 item 1) ────────────────
      *
      * WHAT THIS PANEL STILL DECIDES, AND WHAT IT NO LONGER DOES. It decides that a contract's one
      * relationship worth a chip is the record that created it. Resolving that record's NAME, and
@@ -600,7 +600,7 @@ export class MJCContractRenewalPanel extends BaseFormPanel<ContractEntity> imple
     private readonly cdr = inject(ChangeDetectorRef);
 
     /**
-     * A stored `DATE` column rendered from its UTC parts (bc-aidp-next-golive#168).
+     * A stored `DATE` column rendered from its UTC parts (bc-aidp-next-golive issue 168).
      *
      * A field rather than a method so the template binds the shared implementation directly: the
      * defect this replaces was a second, local-zone rendering of the same column, and a wrapper
@@ -611,7 +611,7 @@ export class MJCContractRenewalPanel extends BaseFormPanel<ContractEntity> imple
 
     /**
      * Seed the four fields from the Contract Type whenever the type changes on an UNSAVED contract
-     * (golive #217 / C-US1). The rule itself is `ContractEntity.SeedRenewalDefaultsFromType()`; this
+     * (golive issue 217 / C-US1). The rule itself is `ContractEntity.SeedRenewalDefaultsFromType()`; this
      * is only the trigger.
      *
      * WHY `ngDoCheck` AND NOT A CHANGE EVENT. `mj-form-field` emits `ValueChange`, so the Agreement
@@ -630,7 +630,7 @@ export class MJCContractRenewalPanel extends BaseFormPanel<ContractEntity> imple
      * once per distinct type rather than once per pass, and `seedInFlight` stops a second read
      * starting while the first is in the air. A failed read leaves `seededFromTypeID` SET on purpose —
      * retrying from a change-detection pass would turn one unreachable database into a request storm,
-     * and the fields simply stay as the user left them, which is the pre-#217 behaviour.
+     * and the fields simply stay as the user left them, which is the pre-issue-217 behaviour.
      */
     public ngDoCheck(): void {
         const record = this.Record;
@@ -699,7 +699,7 @@ export class MJCContractRenewalPanel extends BaseFormPanel<ContractEntity> imple
      */
     public Set(field: ContractRenewalField, value: unknown): void {
         (this.Record as unknown as Record<string, unknown>)[field] = value;
-        // The user has now answered this field, so no later type change may overwrite it (#217). Said
+        // The user has now answered this field, so no later type change may overwrite it (issue 217). Said
         // explicitly rather than inferred from the entity's dirty state: `AutoRenew` starts at No, so a
         // deliberate No is byte-identical to a field nobody has touched.
         this.Record?.MarkRenewalFieldEdited(field);
@@ -808,7 +808,7 @@ export class MJCContractRenewalPanel extends BaseFormPanel<ContractEntity> imple
 })
 export class MJCContractDatesPanel extends BaseFormPanel<ContractEntity> {
     /**
-     * A stored `DATE` column rendered from its UTC parts (bc-aidp-next-golive#168).
+     * A stored `DATE` column rendered from its UTC parts (bc-aidp-next-golive issue 168).
      *
      * A field rather than a method so the template binds the shared implementation directly: the
      * defect this replaces was a second, local-zone rendering of the same column, and a wrapper
@@ -868,7 +868,7 @@ export class MJCContractDatesPanel extends BaseFormPanel<ContractEntity> {
     standalone: true,
     encapsulation: ViewEncapsulation.None,
     // The tree needs a usable height of its own: it is an SVG canvas, not flow content, so with no
-    // intrinsic height it draws into a zero box (and logs translate(NaN,NaN) — MJ#3997).
+    // intrinsic height it draws into a zero box (and logs translate(NaN,NaN) — MJ issue 3997).
     // WHY THESE RULES EXIST — measured, not guessed, after reading FORMS_ARCHITECTURE_GUIDE §7d.
     //
     // `Variant="related-entity"` is what puts this section on the left-nav RAIL; removing it drops the

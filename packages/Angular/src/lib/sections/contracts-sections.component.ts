@@ -80,9 +80,9 @@ interface MJCHostedPage {
     Error?: { subscribe: (fn: (err: Error) => void) => void };
     /** `BaseResourceComponent` hook the error guard uses to tell the initial load from a refresh. */
     LoadCompleteEvent?: (() => void) | null;
-    /** Hosting `BaseResourceComponent` so hosted sub-pages can publish agent context & client tools (#154). */
+    /** Hosting `BaseResourceComponent` so hosted sub-pages can publish agent context & client tools (issue 154). */
     HostResource?: BaseResourceComponent | null;
-    /** Re-publishes agent context & client tools when a cached sub-page is re-inserted (#154). */
+    /** Re-publishes agent context & client tools when a cached sub-page is re-inserted (issue 154). */
     PublishAgentState?: () => void;
 }
 
@@ -367,7 +367,7 @@ export class ContractsSectionResource extends MJCSectionBaseComponent {
     protected override async refreshBadges(): Promise<void> {
         const { Counts } = await RunContractCounts(ScopedRunView(), [
             // The view's own day-count, so the badge counts the same rows the Renewals page then
-            // shows (bc-aidp-next-golive#168). On `CAST(GETUTCDATE() AS date)` the badge lost a
+            // shows (bc-aidp-next-golive issue 168). On `CAST(GETUTCDATE() AS date)` the badge lost a
             // contract every American evening while the page it links to still listed it, because
             // `vwContracts` judges the deadline on `bt.Today` and this judged it on the UTC day.
             { Key: 'RenewalsDue', ExtraFilter: `State IN ('Active','Executed') AND ${NoticeWindowWithin(120)}` },

@@ -71,7 +71,7 @@ function walkAngularSourceFiles(dir: string): string[] {
     return results;
 }
 
-/** Strips block and line comments so comment references like `golive#225` are not mistaken for CSS colors. */
+/** Strips block and line comments so issue references in comments are not mistaken for CSS colors. */
 function stripComments(source: string): string {
     return source
         .replace(/\/\*[\s\S]*?\*\//g, '')

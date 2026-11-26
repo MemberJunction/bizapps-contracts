@@ -1,5 +1,5 @@
 /**
- * @fileoverview Custom form panel for `ContractType`'s "Default Contract Terms" section (#149).
+ * @fileoverview Custom form panel for `ContractType`'s "Default Contract Terms" section (issue 149).
  *
  * WHY THIS PANEL REPLACES THE GENERATED `defaultContractTerms` SECTION:
  * `ContractType.DefaultAutoRenew` is a nullable `BIT` whose three states each have distinct meaning

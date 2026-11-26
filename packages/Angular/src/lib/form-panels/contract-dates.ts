@@ -4,7 +4,7 @@
  * `ExecutedDate`, `EffectiveDate`, `EndDate` and `TerminatedDate` are SQL `DATE` columns: calendar
  * days with no time and no zone. The driver hands one back as a `Date` at UTC midnight, so it is
  * read from its UTC parts and written back as UTC midnight — anything local-parts-shaped files the
- * day into the previous one for every user west of Greenwich (bc-aidp-next-golive#168).
+ * day into the previous one for every user west of Greenwich (bc-aidp-next-golive issue 168).
  *
  * These are free functions rather than methods on `MJCContractDatesPanel` for one reason: the panel
  * is an Angular component and cannot be constructed outside a JIT/AOT host, so the rule that matters

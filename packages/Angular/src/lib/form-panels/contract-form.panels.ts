@@ -44,7 +44,7 @@ import { DateAsText } from './contract-dates';
 const E = MJC_ENTITIES.Contract;
 
 /**
- * A deal option with its rendered label attached (golive #219).
+ * A deal option with its rendered label attached (golive issue 219).
  *
  * The label is computed ONCE per row, on load, rather than from a template call: `mj-combobox` reads
  * `TextField` on every change-detection pass and for every option, so a function there re-renders the
@@ -73,7 +73,7 @@ interface ContractFieldSpec {
      * SUCCESSOR — editing it here would set the opposite direction from the Re-papering panel.
      */
     readOnly?: boolean;
-    /** A Person/Organization FK: rendered with common's search-as-you-type picker (golive #372). */
+    /** A Person/Organization FK: rendered with common's search-as-you-type picker (golive issue 372). */
     kind?: PartyKind;
 }
 
@@ -437,7 +437,7 @@ export class MJCContractOverviewPanel extends BaseFormPanel<ContractEntity> {
 }
 
 /**
- * Days until the renewal-notice deadline, TAKEN FROM THE VIEW (bc-aidp-next-golive#168).
+ * Days until the renewal-notice deadline, TAKEN FROM THE VIEW (bc-aidp-next-golive issue 168).
  *
  * This used to be `daysUntil(Record.RenewalNoticeDeadline)`, a local re-derivation that read the
  * stored day from UTC parts — right — and then took "today" from the SERVER'S UTC clock, which is
@@ -524,7 +524,7 @@ export class MJCContractAgreementPanel extends BaseFormPanel<ContractEntity> imp
     }
 
     /**
-     * Re-decide the template whenever the CONTRACT TYPE changes (golive #218).
+     * Re-decide the template whenever the CONTRACT TYPE changes (golive issue 218).
      *
      * `mj-form-field` emits this from its value setter, so it fires for a person's edit and NOT for
      * the programmatic assignment below — writing `Record.ContractTemplateID` directly bypasses the
@@ -590,13 +590,13 @@ export class MJCContractAgreementPanel extends BaseFormPanel<ContractEntity> imp
     }
 
     /**
-     * Read the contract type's `TemplateRequired` flag and `ContractTemplateTypeID` (#114, #150).
+     * Read the contract type's `TemplateRequired` flag and `ContractTemplateTypeID` (issues 114, 150).
      *
      * READ FROM THE FLAGS, NEVER FROM THE TYPE'S NAME. The columns on `ContractType` exist precisely
      * so no code branches on a name someone can rename; `ContractEntityServer` reads the same columns
      * to decide whether to REQUIRE the template this defaults.
      *
-     * Shares `ContractEntity.ReadSelectedContractType()` (#150) so picking a type on a new contract
+     * Shares `ContractEntity.ReadSelectedContractType()` (issue 150) so picking a type on a new contract
      * issues one `RunView` for both renewal-default seeding and template defaulting.
      *
      * THREE-WAY, AND THE THIRD CASE IS LOAD-BEARING. `templateRequired: false` means "this type does
@@ -636,7 +636,7 @@ export class MJCContractAgreementPanel extends BaseFormPanel<ContractEntity> imp
     }
 
     /**
-     * The newest Published, usable template matching the type's `ContractTemplateTypeID` (#114).
+     * The newest Published, usable template matching the type's `ContractTemplateTypeID` (issue 114).
      *
      * Reads from {@link ContractsEngineBase} once loaded so repeated type changes on a new contract
      * issue zero `RunView` round-trips; falls back to a scoped `RunView` when the engine has not
@@ -867,18 +867,18 @@ export class MJCContractProvenanceFieldsPanel extends BaseFormPanel<ContractEnti
     private readonly cdr = inject(ChangeDetectorRef);
 
     /**
-     * THE RAW IDS STAY, AND STAY READ-ONLY. The lookup above is what WRITES them (golive #219).
+     * THE RAW IDS STAY, AND STAY READ-ONLY. The lookup above is what WRITES them (golive issue 219).
      *
      * ── WHY THEY WERE READ-ONLY, WHICH HAS NOT CHANGED ────────────────────────────────────────
      *
      * `CreatingEntityID` is a real FK to `__mj.Entity` and `CreatingRecordID` is the row it names, under
      * `CK_Contract_CreatingPairBothOrNeither` — both or neither. Rendered as two ordinary inputs
-     * (contracts#28 item 18) they produced exactly the two failures the shape invites: editing one
+     * (contracts issue 28 item 18) they produced exactly the two failures the shape invites: editing one
      * alone is a save the constraint refuses, and editing both silently re-points a contract's
      * provenance at an unrelated record. `CTR-000026` still carries the evidence — a hand-typed pair
      * naming `MJ: Explorer Navigation Items` with a record id that is not a UUID.
      *
-     * ── WHAT #219 ADDS, AND WHY IT IS NOT A REVERSAL ──────────────────────────────────────────
+     * ── WHAT ISSUE 219 ADDS, AND WHY IT IS NOT A REVERSAL ─────────────────────────────────────
      *
      * Story C-US1 says finance may attach a MANUALLY created contract to an existing deal. Item 18's
      * read-only made that impossible: the Close Won seam became not just the preferred writer but the
@@ -888,9 +888,9 @@ export class MJCContractProvenanceFieldsPanel extends BaseFormPanel<ContractEnti
      * in item 18, a read-only audit of what the pair actually holds, sitting under a human-readable name.
      *
      * The SECTION is likewise kept rather than hidden (item 18 asked for it gone, on the premise that
-     * the hero's Source Deal stat replaces it). With #219 that premise becomes true for deals — but the
+     * the hero's Source Deal stat replaces it). With issue 219 that premise becomes true for deals — but the
      * pair is polymorphic and the stat renders only what it can resolve, so the ids stay as the one
-     * place a reader can see the provenance verbatim, which is item 3 of #219.
+     * place a reader can see the provenance verbatim, which is item 3 of issue 219.
      */
     public readonly Fields: ContractFieldSpec[] = [
         { name: 'CreatingEntityID', type: 'textbox', link: 'Record', readOnly: true },
@@ -1004,7 +1004,7 @@ export class MJCContractProvenanceFieldsPanel extends BaseFormPanel<ContractEnti
         this.SelectedLabel = this._deals.find((d) => d.ID === id)?.Label ?? '';
     }
 
-    /** Empty BOTH halves. The constraint's other legal state, and #219's third acceptance criterion. */
+    /** Empty BOTH halves. The constraint's other legal state, and issue 219's third acceptance criterion. */
     public ClearSource(): void {
         if (!this.Record) return;
         this.Record.CreatingEntityID = null;
@@ -1060,7 +1060,7 @@ export class MJCContractProvenanceFieldsPanel extends BaseFormPanel<ContractEnti
     /**
      * Load the options.
      *
-     * With nothing typed this is the contract's customer's deals — #219 item 2's "prefer deals for the
+     * With nothing typed this is the contract's customer's deals — issue 219 item 2's "prefer deals for the
      * contract's customer organization" — ORed with the deal already linked, so a contract pointed at
      * a deal outside its customer still shows what it is pointed AT rather than a blank box. Typing
      * widens the search to every deal by name, number or customer. The clauses themselves live in
