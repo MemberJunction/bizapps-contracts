@@ -13,10 +13,10 @@ Generated entity classes, shared `BaseEntity` subclasses, `ContractsEngineBase`,
 
 Per [`docs/architecture/mj-docs-rubric.md`](../../docs/architecture/mj-docs-rubric.md) and [`.mj/specs/mj-docs-contract-draft-integration.md`](../../.mj/specs/mj-docs-contract-draft-integration.md):
 
-- **MJ Docs (`MJ: Artifacts`):** Versioned, rich long-form documents — **Assembled Contract Drafts**, **AI Contract Review Memos**, and **Executive Summaries** — are linked from `Contract` via optional nullable `Contract.DocumentArtifactID` (`UNIQUEIDENTIFIER NULL`, `FK -> [__mj].[Artifact]([ID])`), typed strictly as `string | null` on the generated entity class.
+- **MJ Docs (`MJ: Artifacts`):** Versioned, rich long-form documents — **Assembled Contract Drafts**, **AI Contract Review Memos**, and **Executive Summaries** — are linked from `Contract` via optional nullable `Contract.DocumentArtifactID` (`UNIQUEIDENTIFIER NULL`, `FK -> [__mj].[Artifact]([ID])`), introduced in `migrations/V202611261520__v1.2.x__Contract_DocumentArtifactID.sql` (with its deterministic `split-bake v1` PostgreSQL counterpart in `migrations-pg/V202611261520__v1.2.x__Contract_DocumentArtifactID.pg.sql`) and typed strictly as `string | null` alongside joined display name `DocumentArtifact: string | null` on `mjBizAppsContractsContractEntity` / `ContractEntity`.
 - **Strictly Relational Clauses & Quick Notes:** `ContractTemplateProvision`, `ContractTemplateModification`, and `Contract.Notes` stay strictly relational so clause-assembly rules, obligation reporting, and approval routing remain SQL-queryable.
 - **No Global Artifact Caching:** `MJ: Artifacts` and `MJ: Artifact Versions` are unbounded transactional records and are **never** cached inside `ContractsEngineBase`.
-- **Additive-Only Policy:** `Contract.DocumentArtifactID` obeys `PUBLISH_NO_BREAK_POLICY.md` (nullable FK, zero breaking drops/renames) and compiles cleanly against published `@memberjunction/*@6.3.0-edge.1` peer dependencies with zero `any`, zero lazy `unknown`, and zero `.Get()`/`.Set()` calls.
+- **Additive-Only Policy & Unit Coverage:** `Contract.DocumentArtifactID` obeys `PUBLISH_NO_BREAK_POLICY.md` (nullable FK, zero breaking drops/renames), compiles cleanly against published `@memberjunction/*@6.3.0-edge.1` peer dependencies with zero `any`, zero lazy `unknown`, and zero `.Get()`/`.Set()` calls, and is verified by `src/__tests__/ContractDocumentArtifact.test.ts`.
 
 ## Build & Test
 

@@ -48,7 +48,7 @@ export class mjBizAppsContractsContractOrder_ {
     Contract?: string;
         
     @Field({nullable: true}) 
-    @MaxLength(40)
+    @MaxLength(50)
     Order?: string;
         
     @Field(() => [String], { nullable: true, description: `Field-level security: when non-null, the fields on this entity the calling user may read. Any other field arriving as null was withheld by the server rather than genuinely empty. Null for callers with no field restrictions.` })
@@ -1291,6 +1291,10 @@ export class mjBizAppsContractsContract_ {
     @Field(() => Boolean, {nullable: true, description: "Whether the paper says a first-term discount continues into renewal terms, for example a multi-year concession. Off by default: a discount lapses at renewal. Copied to the subscriptions of every order linked to this contract, where the renewal pass reads it."}) 
     CarryDiscountOnRenewal?: boolean;
         
+    @Field({nullable: true, description: "Optional link to an MJ Doc ([__mj].[Artifact]) holding a versioned long-form document such as an Assembled Contract Draft, AI Contract Review Memo, or Executive Summary. Distinct from signed final PDFs attached via MJ: Files (Executed Agreement category) and from relational ContractTemplateProvision / ContractTemplateModification clause rows."}) 
+    @MaxLength(36)
+    DocumentArtifactID?: string;
+        
     @Field({nullable: true}) 
     @MaxLength(100)
     ContractType?: string;
@@ -1322,6 +1326,10 @@ export class mjBizAppsContractsContract_ {
     @Field({nullable: true}) 
     @MaxLength(50)
     SupersededByContract?: string;
+        
+    @Field({nullable: true}) 
+    @MaxLength(255)
+    DocumentArtifact?: string;
         
     @Field({nullable: true}) 
     @MaxLength(10)
@@ -1451,6 +1459,9 @@ export class CreatemjBizAppsContractsContractInput {
     @Field(() => Boolean, { nullable: true })
     CarryDiscountOnRenewal?: boolean;
 
+    @Field({ nullable: true })
+    DocumentArtifactID: string | null;
+
     @Field(() => RestoreContextInput, { nullable: true })
     RestoreContext___?: RestoreContextInput;
 }
@@ -1541,6 +1552,9 @@ export class UpdatemjBizAppsContractsContractInput {
 
     @Field(() => Boolean, { nullable: true })
     CarryDiscountOnRenewal?: boolean;
+
+    @Field({ nullable: true })
+    DocumentArtifactID?: string | null;
 
     @Field(() => [KeyValuePairInput], { nullable: true })
     OldValues___?: KeyValuePairInput[];
