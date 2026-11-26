@@ -59,7 +59,7 @@ export abstract class MJCContractGridPageBase implements OnInit {
     protected readonly cdr = inject(ChangeDetectorRef);
     protected readonly navigation = inject(NavigationService);
 
-    /** Set by the hosting section so agent context and client tools attach to the cached resource (#154). */
+    /** Set by the hosting section so agent context and client tools attach to the cached resource (issue 154). */
     public HostResource: BaseResourceComponent | null = null;
 
 
@@ -147,7 +147,7 @@ export abstract class MJCContractGridPageBase implements OnInit {
 
     protected abstract get pills(): MJCFilterPill[];
 
-    /** Stable identifier for this grid surface in agent context (#154). */
+    /** Stable identifier for this grid surface in agent context (issue 154). */
     protected get agentPageKey(): string {
         return 'contracts-grid';
     }
@@ -292,7 +292,7 @@ export abstract class MJCContractGridPageBase implements OnInit {
         this.cdr.detectChanges();
     }
 
-    /** Re-publish agent context and client tools when this page is shown or reattached (#154). */
+    /** Re-publish agent context and client tools when this page is shown or reattached (issue 154). */
     public PublishAgentState(): void {
         this.registerAgentClientTools();
         this.publishAgentContext();
@@ -577,7 +577,7 @@ export class MJCRenewalsPageComponent extends MJCContractGridPageBase {
             {
                 Id: 'notice-open',
                 Label: 'Notice window open',
-                // THE VIEW'S OWN DAY-COUNT, like `next120` above it (bc-aidp-next-golive#168).
+                // THE VIEW'S OWN DAY-COUNT, like `next120` above it (bc-aidp-next-golive issue 168).
                 // This compared the deadline against `CAST(GETUTCDATE() AS date)` — the server's UTC
                 // day, already tomorrow for the whole American evening — so from 6 PM Central the pill
                 // dropped a contract whose record still said there was notice time left.

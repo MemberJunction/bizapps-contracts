@@ -1,5 +1,5 @@
 /**
- * Pure state-machine helpers for contract-grid filter-pill presets (#155).
+ * Pure state-machine helpers for contract-grid filter-pill presets (issue 155).
  *
  * Kept free of Angular imports so unit tests can exercise all three arrival timings directly:
  *   1. `ApplyPreset` called before `ngOnInit` (when `Pills` is still `[]`), flushed once synchronous
@@ -21,7 +21,7 @@ export interface GridPresetState {
 }
 
 /**
- * Apply a host-requested preset pill ID against the currently available `pills` (#155).
+ * Apply a host-requested preset pill ID against the currently available `pills` (issue 155).
  */
 export function ApplyGridPreset(
     pills: readonly GridPillIdentity[],
@@ -43,7 +43,7 @@ export function ApplyGridPreset(
 }
 
 /**
- * Flush a parked `pendingPresetId` once `pills` has been populated or extended (#155).
+ * Flush a parked `pendingPresetId` once `pills` has been populated or extended (issue 155).
  */
 export function FlushPendingGridPreset(
     pills: readonly GridPillIdentity[],

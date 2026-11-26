@@ -44,4 +44,11 @@ describe('Angular performance & batching wiring', () => {
         const src = await readPanel('../../pages/modifications.page.ts');
         expect(src).toContain("Fields: ['ContractTemplateProvisionID', 'ContractTemplateProvision']");
     });
+
+    it('contract-document-preview.panel.ts batches Artifact + Artifact Versions via RunViews with ResultType simple and static imports only', async () => {
+        const src = await readPanel('../contract-document-preview.panel.ts');
+        expect(src).toContain('await rv.RunViews([');
+        expect(src).toContain("ResultType: 'simple'");
+        expect(src).not.toMatch(/await import\(/);
+    });
 });

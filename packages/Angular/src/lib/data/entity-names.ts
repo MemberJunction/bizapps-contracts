@@ -27,12 +27,15 @@ export const MJC_FOREIGN_ENTITIES = {
     Person: 'MJ_BizApps_Common: People',
     /** MJ CORE's Company, not accounting's — verified against __mj.EntityRelationship. */
     Company: 'MJ: Companies',
-    /** MJ CORE's file storage: a file row, its category, and the polymorphic record↔file link (golive #213). */
+    /** MJ CORE's file storage: a file row, its category, and the polymorphic record↔file link (golive issue 213). */
     File: 'MJ: Files',
     FileCategory: 'MJ: File Categories',
     FileEntityRecordLink: 'MJ: File Entity Record Links',
+    /** MJ CORE's MJ Docs store for versioned Assembled Contract Drafts, AI Review Memos, and Executive Summaries. */
+    Artifact: 'MJ: Artifacts',
+    ArtifactVersion: 'MJ: Artifact Versions',
     /**
-     * bizapps-SALES, and read SOFTLY — no manifest dependency, deliberately (golive #219).
+     * bizapps-SALES, and read SOFTLY — no manifest dependency, deliberately (golive issue 219).
      *
      * Sales depends on THIS app: its Close-Won seam is what creates contracts. That is precisely why
      * a contract's provenance is the polymorphic `CreatingEntityID` / `CreatingRecordID` pair rather

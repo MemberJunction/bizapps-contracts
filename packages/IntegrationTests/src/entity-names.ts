@@ -8,5 +8,10 @@ export const E_PROVISION = 'MJ_BizApps_Contracts: Contract Template Provisions';
 export const E_MODIFICATION = 'MJ_BizApps_Contracts: Contract Template Modifications';
 export const E_COMPANY = 'MJ: Companies';
 export const E_ORGANIZATION = 'MJ_BizApps_Common: Organizations';
+export const E_PERSON = 'MJ_BizApps_Common: People';
+export const E_ARTIFACT = 'MJ: Artifacts';
+export const E_ARTIFACT_VERSION = 'MJ: Artifact Versions';
+export const E_ARTIFACT_TYPE = 'MJ: Artifact Types';
+export const E_ROLE = 'MJ: Roles';
 
 export const CONTRACTS_SCHEMA = '__mj_BizAppsContracts';

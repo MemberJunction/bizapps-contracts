@@ -170,7 +170,7 @@ export class MJCContractsDashboardPageComponent extends BaseDashboard {
     private readonly cdr = inject(ChangeDetectorRef);
     private readonly navigation = inject(NavigationService);
 
-    /** Set by the hosting section so agent context and client tools attach to the cached resource (#154). */
+    /** Set by the hosting section so agent context and client tools attach to the cached resource (issue 154). */
     public HostResource: BaseResourceComponent | null = null;
     private availableCompanies: Array<{ ID: string; Name: string }> = [];
 
@@ -269,7 +269,7 @@ export class MJCContractsDashboardPageComponent extends BaseDashboard {
         this.cdr.detectChanges();
     }
 
-    /** Re-publish agent context and client tools when this page is shown or reattached (#154). */
+    /** Re-publish agent context and client tools when this page is shown or reattached (issue 154). */
     public PublishAgentState(): void {
         this.registerAgentClientTools();
         this.publishAgentContext();

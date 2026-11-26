@@ -178,6 +178,21 @@ marking needs update permission on `MJ: Files`.
 
 The **Awaiting documents** worklist is a filter on that derived flag. It is not a second file UI.
 
+### Assembled contract drafts (MJ Docs / `MJ: Artifacts`)
+
+While executed signed agreements remain binary files in `MJ: Files` (category `Executed Agreement`),
+versioned long-form working documents — **Assembled Contract Drafts**, **AI Contract Review Memos**,
+and **Executive Summaries** — belong in **MJ Docs (`MJ: Artifacts`)**, linked via an optional nullable
+`Contract.DocumentArtifactID` (`FK -> [__mj].[Artifact]([ID])`) and previewed optionally inside the
+Contract form via `@memberjunction/ng-artifacts`.
+
+Threaded human and agent negotiation commentary belongs in **`MJ: Comments`**. Atomic
+`ContractTemplateProvision` and `ContractTemplateModification` clause rows and `Contract.Notes` stay
+strictly relational so clause-assembly rules, obligation reporting, and approval routing remain
+SQL-queryable. See [`docs/architecture/mj-docs-rubric.md`](docs/architecture/mj-docs-rubric.md) and
+[`.mj/specs/mj-docs-contract-draft-integration.md`](.mj/specs/mj-docs-contract-draft-integration.md)
+for the full rubric, schema guardrails, and critical user journeys.
+
 ---
 
 ## Predicted renewal risk
@@ -356,12 +371,12 @@ least `minor`, and CI checks it. The branch model and release steps are in
 
 | Package | Role |
 |---|---|
-| `contracts-entities` | Generated entity classes + the **shared** subclasses. Rules here run in both tiers |
+| `contracts-entities` ([README](packages/Entities/README.md)) | Generated entity classes (including optional `Contract.DocumentArtifactID`) + the **shared** subclasses and `ContractsEngineBase`. Rules here run in both tiers |
 | `contracts-core-entities-server` | Server-only rules: contract numbering, rules that read other records (tree placement, templates, lineage, supersession, duplicate modifications), delete guards, and the `Contracts.Supersede` remote operation |
 | `contracts-server` | Server bootstrap: generated GraphQL resolvers; loads the server subclasses and actions |
-| `contracts-ng` | Generated forms, plus Explorer sections, pages and form panels |
+| `contracts-ng` ([README](packages/Angular/README.md)) | Generated forms, plus Explorer sections, pages and `BaseFormPanel` contributions (including optional `@memberjunction/ng-artifacts` contract draft preview) |
 | `contracts-actions` | Action package; holds no actions yet |
-| `contracts-integration-tests` | Integration check bundles (private) |
+| `contracts-integration-tests` ([README](packages/IntegrationTests/README.md)) | Integration check bundles (private) |
 
 ### Where validation lives
 
@@ -379,6 +394,8 @@ Re-papering panel calls it through `RouteOperation`.
 | Document | What it covers |
 |---|---|
 | [`docs/ERD.md`](docs/ERD.md) | The schema as built: columns, keys, constraints, derived columns |
+| [`docs/architecture/mj-docs-rubric.md`](docs/architecture/mj-docs-rubric.md) | Architecture rubric: MJ Docs (`MJ: Artifacts`) vs. `MJ: Comments` vs. Quick Notes & relational clause tables, `PUBLISH_NO_BREAK_POLICY.md`, and PG parity guardrails |
+| [`.mj/specs/mj-docs-contract-draft-integration.md`](.mj/specs/mj-docs-contract-draft-integration.md) | Feature specification (EARS requirements, CUJs, non-goals, alternatives considered, and acceptance criteria) for MJ Docs contract draft integration |
 | [`docs/database-migrations.md`](docs/database-migrations.md) | Migration conventions, what `metadata/` and `demo-data/` hold, how to verify from zero |
 | [`docs/ui-architecture.md`](docs/ui-architecture.md) | UI and data-access rules: components use entities, `RunView`, `RunQuery` and remote operations directly; no data-access service layer |
 | [`docs/claude/`](docs/claude/README.md) | MemberJunction's development rules, adapted for this app and split by topic |

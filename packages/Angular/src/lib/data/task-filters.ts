@@ -111,7 +111,7 @@ export async function BuildOpenTaskFilters(
          * Date, not datetime: "overdue" is a whole-day judgement, and comparing against the current
          * instant would call a task due later today overdue all morning.
          *
-         * And the BUSINESS day, not the server's UTC day (bc-aidp-next-golive#168). `Task.DueAt` is
+         * And the BUSINESS day, not the server's UTC day (bc-aidp-next-golive issue 168). `Task.DueAt` is
          * written as UTC MIDNIGHT of a calendar day — bizapps-sales asserts it carries no time of
          * day, precisely so "due today" cannot depend on the reader's zone — so this is a comparison
          * between calendar days and the only open question is which day is today. On the UTC day

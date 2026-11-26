@@ -1,5 +1,5 @@
 /**
- * Pure agent-context and client-tool builders for the Contracts dashboard and worklist grids (#154).
+ * Pure agent-context and client-tool builders for the Contracts dashboard and worklist grids (issue 154).
  *
  * Kept free of `@angular/*` imports so unit tests can verify context shaping and tool handler
  * behavior directly in Node.
@@ -49,7 +49,7 @@ export interface AgentClientToolDefinition {
 }
 
 /**
- * Build the structured `SetAgentContext` payload for `MJCContractsDashboardPageComponent` (#154).
+ * Build the structured `SetAgentContext` payload for `MJCContractsDashboardPageComponent` (issue 154).
  */
 export function BuildDashboardAgentContext(input: DashboardAgentContextInput): Record<string, unknown> {
     return {
@@ -71,7 +71,7 @@ export function BuildDashboardAgentContext(input: DashboardAgentContextInput): R
 }
 
 /**
- * Build the structured `SetAgentContext` payload for `MJCContractGridPageBase` subclasses (#154).
+ * Build the structured `SetAgentContext` payload for `MJCContractGridPageBase` subclasses (issue 154).
  */
 export function BuildGridAgentContext(input: GridAgentContextInput): Record<string, unknown> {
     const activePill = input.Pills.find((p) => p.Id === input.ActivePillId) ?? null;

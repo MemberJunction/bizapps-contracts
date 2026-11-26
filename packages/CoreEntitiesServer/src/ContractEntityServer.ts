@@ -151,7 +151,7 @@ export const ASSIGN_CONTRACT_NUMBER_SQL: PlatformSQL = {
     default: `DECLARE @contractNumber NVARCHAR(50);
              EXEC __mj_BizAppsContracts.spAssignNextContractNumber @ContractNumber = @contractNumber OUTPUT;
              SELECT @contractNumber AS ContractNumber;`,
-    postgresql: `SELECT __mj_BizAppsContracts."spAssignNextContractNumber"() AS "ContractNumber";`,
+    postgresql: `SELECT __mj_bizappscontracts."spAssignNextContractNumber"() AS "ContractNumber";`,
 };
 
 /**
@@ -185,12 +185,12 @@ export function lineageProbeSQL(
         postgresql: `WITH RECURSIVE lineage AS (
                  SELECT "ID", "${column}", 1 AS "Depth",
                         "ContractNumber"::text AS "Chain"
-                   FROM __mj_BizAppsContracts."Contract"
+                   FROM __mj_bizappscontracts."Contract"
                   WHERE "ID" = '${startID}'
                  UNION ALL
                  SELECT c."ID", c."${column}", l."Depth" + 1,
                         l."Chain" || ' -> ' || c."ContractNumber"
-                   FROM __mj_BizAppsContracts."Contract" c
+                   FROM __mj_bizappscontracts."Contract" c
                    JOIN lineage l ON c."ID" = l."${column}"
                   WHERE l."Depth" < 50
              )
@@ -257,28 +257,28 @@ export function modificationsAgainstTemplateSQL(contractID: string, templateID: 
               WHERE NOT EXISTS (SELECT 1 FROM covered cv WHERE cv.Origin = h.[ContractID]);`,
         postgresql: `WITH RECURSIVE subtree AS (
                  SELECT "ID", 1 AS "Depth"
-                   FROM __mj_BizAppsContracts."Contract"
+                   FROM __mj_bizappscontracts."Contract"
                   WHERE "ID" = '${contractID}'
                  UNION ALL
                  SELECT c."ID", s."Depth" + 1
-                   FROM __mj_BizAppsContracts."Contract" c
+                   FROM __mj_bizappscontracts."Contract" c
                    JOIN subtree s ON c."ParentContractID" = s."ID"
                   WHERE s."Depth" < 50
              ),
              hits AS (
                  SELECT m."ContractID"
-                   FROM __mj_BizAppsContracts."ContractTemplateModification" m
-                   JOIN __mj_BizAppsContracts."ContractTemplateProvision" p ON p."ID" = m."ContractTemplateProvisionID"
+                   FROM __mj_bizappscontracts."ContractTemplateModification" m
+                   JOIN __mj_bizappscontracts."ContractTemplateProvision" p ON p."ID" = m."ContractTemplateProvisionID"
                    JOIN subtree s ON s."ID" = m."ContractID"
                   WHERE p."ContractTemplateID" = '${templateID}'
              ),
              ancestry AS (
                  SELECT o."ContractID" AS "Origin", c."ID", c."ParentContractID", c."ContractTemplateID", 1 AS "Depth"
                    FROM (SELECT DISTINCT "ContractID" FROM hits) o
-                   JOIN __mj_BizAppsContracts."Contract" c ON c."ID" = o."ContractID"
+                   JOIN __mj_bizappscontracts."Contract" c ON c."ID" = o."ContractID"
                  UNION ALL
                  SELECT a."Origin", c."ID", c."ParentContractID", c."ContractTemplateID", a."Depth" + 1
-                   FROM __mj_BizAppsContracts."Contract" c
+                   FROM __mj_bizappscontracts."Contract" c
                    JOIN ancestry a ON c."ID" = a."ParentContractID"
                   WHERE a."Depth" < 50
              ),

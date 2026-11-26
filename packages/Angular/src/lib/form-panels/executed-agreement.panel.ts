@@ -1,7 +1,7 @@
 /**
- * @fileoverview Executed agreement — mark WHICH linked file is the signed contract (golive #213).
+ * @fileoverview Executed agreement — mark WHICH linked file is the signed contract (golive issue 213).
  *
- * WHY THIS PANEL EXISTS. Since contracts #36 (golive #203 item 16) `vwContracts.IsAwaitingDocument`
+ * WHY THIS PANEL EXISTS. Since contracts issue 36 (golive issue 203 item 16) `vwContracts.IsAwaitingDocument`
  * clears only when a file linked to the contract carries MJ's file category named
  * 'Executed Agreement'. Files themselves attach through MJ's stock Attachments panel on the form
  * toolbar — but at 6.1.0-edge.4 that panel cannot set a file's category: its upload has no dialog to

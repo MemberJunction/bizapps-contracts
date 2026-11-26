@@ -6,28 +6,32 @@
  * driver, a stack trace on failure), and `mj test suite --name "BizApps Contracts Integration"` is
  * the one that records results as `MJ: Test Runs`.
  *
+ * Dual-DBMS: supports both SQL Server (`DB_PLATFORM=sqlserver`, default) and PostgreSQL
+ * (`DB_PLATFORM=postgresql`).
+ *
  * Usage:
  *   node test-harnesses/integration.mjs                          # every bundle
  *   node test-harnesses/integration.mjs contracts-graph-save     # one bundle
+ *   node test-harnesses/integration.mjs contracts-mj-docs        # MJ Docs integration bundle
  *   node test-harnesses/integration.mjs contracts-graph-save.GS3 # a single check
  *
  * Exit: 0 pass · 1 check failure · 2 bootstrap failure
  */
+import path from 'node:path';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import sql from 'mssql';
 import { loadEnvFrom } from './load-env.mjs';
 
-// Finds the instance .env by walking UP rather than counting directories. The fixed four-level path
-// this used to hard-code was correct only for the pre-6.x nested layout; under the parent-workspace
-// topology it resolved to ~/MJDev and silently loaded nothing, so DB_PORT stayed undefined and the
-// script died with "Failed to connect to localhost:1433". See load-env.mjs.
 loadEnvFrom(import.meta.url);
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const REPO_ROOT = path.resolve(__dirname, '..');
+
 /** Every bundle, in presentational order — each owns its own fixture. */
-// The v2 bundles (plan item 13), plus contracts-world which COMMITS a portfolio so Explorer
-// has rows. v1's contracts-composition / -save-contract / -billing / -amendment tested the draft
-// payload, the billing engine and term amendment — all deleted by the rebuild.
 const ALL_BUNDLES = [
     'contracts-world',
+    'contracts-mj-docs',
     'contracts-graph-save',
     'contracts-numbering',
     'contracts-provisions',
@@ -38,51 +42,85 @@ const ALL_BUNDLES = [
 const args = process.argv.slice(2);
 const only = args.filter((a) => !a.startsWith('-'));
 
-const { DB_HOST, DB_PORT, DB_DATABASE, DB_USERNAME, DB_PASSWORD } = process.env;
-const pool = await new sql.ConnectionPool({
-    server: DB_HOST ?? 'localhost',
-    port: Number(DB_PORT ?? 1433),
-    database: DB_DATABASE,
-    user: DB_USERNAME,
-    password: DB_PASSWORD,
-    options: { trustServerCertificate: true, encrypt: false },
-    pool: { max: 10, min: 1 },
-    // `mssql` defaults requestTimeout to 15s. A contract tree save writes the header, its terms and
-    // every term's coverage inside one transaction, each with its own async validation reads. On a
-    // laptop running SQL Server in Docker that occasionally crosses 15s, and the timeout surfaces
-    // as a save failure in a DIFFERENT check on every run — which reads exactly like an intermittent
-    // engine defect. 60s reflects what the write actually costs here and still fails loudly on
-    // anything genuinely hung.
-    requestTimeout: 60_000,
-}).connect();
+const platform = (process.env.DB_PLATFORM ?? 'sqlserver').trim().toLowerCase();
+const coreSchema = process.env.MJ_CORE_SCHEMA || '__mj';
 
-// UserCache moved to @memberjunction/generic-database-provider. It used to be re-exported from
-// @memberjunction/sqlserver-dataprovider, and importing it from there now yields `undefined` — so
-// `UserCache.Instance` throws "Cannot read properties of undefined (reading 'Instance')", which names
-// no package and reads like a broken provider. This is the same failure signature `mjdev app migrate`
-// and `mjdev app capture` produce on this instance (plans/WORKAROUNDS.md W-2), so it is very likely
-// the same moved export inside the mjdev-bundled engine.
-const { setupSQLServerClient, SQLServerProviderConfigData } = await import('@memberjunction/sqlserver-dataprovider');
-const { UserCache } = await import('@memberjunction/generic-database-provider');
-const provider = await setupSQLServerClient(
-    new SQLServerProviderConfigData(pool, process.env.MJ_CORE_SCHEMA || '__mj'),
-);
-await UserCache.Instance.Refresh(pool);
-const user = UserCache.Users.find((u) => u?.Type?.trim().toLowerCase() === 'owner') ?? UserCache.Users[0];
+let provider;
+let pool;
+let user;
+let closeConnection;
+
+if (platform === 'postgresql') {
+    const pgProviderUrl = pathToFileURL(
+        path.resolve(REPO_ROOT, '..', 'MJ', 'packages', 'PostgreSQLDataProvider', 'dist', 'index.js'),
+    ).href;
+    const mjCoreUrl = pathToFileURL(
+        path.resolve(REPO_ROOT, '..', 'MJ', 'packages', 'MJCore', 'dist', 'index.js'),
+    ).href;
+    const { PostgreSQLDataProvider, PostgreSQLProviderConfigData } = await import(pgProviderUrl);
+    const mjCoreFromWorkspace = await import(mjCoreUrl);
+    const { Metadata, RunView } = await import('@memberjunction/core');
+    const { UserCache } = await import('@memberjunction/generic-database-provider');
+
+    const pgConfig = {
+        Host: process.env.PG_HOST ?? process.env.DB_HOST ?? 'localhost',
+        Port: Number(process.env.PG_PORT ?? process.env.DB_PORT ?? 5432),
+        Database: process.env.PG_DATABASE ?? process.env.DB_DATABASE,
+        User: process.env.PG_USERNAME ?? process.env.DB_USERNAME ?? 'mj_admin',
+        Password: process.env.PG_PASSWORD ?? process.env.DB_PASSWORD ?? '',
+        SSL: false,
+        MJCoreSchemaName: coreSchema,
+    };
+
+    const pgProvider = new PostgreSQLDataProvider();
+    const ok = await pgProvider.Config(new PostgreSQLProviderConfigData(pgConfig, coreSchema, 0, undefined, undefined, true));
+    if (!ok) {
+        console.error('BOOTSTRAP: PostgreSQLDataProvider.Config returned false');
+        process.exit(2);
+    }
+    if (!pgProvider.Entities || pgProvider.Entities.length === 0) {
+        await pgProvider.ReloadMetadata(true);
+    }
+    pool = pgProvider.DatabaseConnection;
+    mjCoreFromWorkspace.SetProvider(pgProvider);
+    Metadata.Provider = pgProvider;
+    RunView.Provider = pgProvider;
+    await UserCache.Instance.Refresh(pgProvider);
+    provider = pgProvider;
+    user = UserCache.Users.find((u) => u?.Type?.trim().toLowerCase() === 'owner') ?? UserCache.Users[0];
+    closeConnection = async () => {
+        await pgProvider.Dispose?.().catch(() => undefined);
+    };
+} else {
+    const { DB_HOST, DB_PORT, DB_DATABASE, DB_USERNAME, DB_PASSWORD } = process.env;
+    pool = await new sql.ConnectionPool({
+        server: DB_HOST ?? 'localhost',
+        port: Number(DB_PORT ?? 1433),
+        database: DB_DATABASE,
+        user: DB_USERNAME,
+        password: DB_PASSWORD,
+        options: { trustServerCertificate: true, encrypt: false },
+        pool: { max: 10, min: 1 },
+        requestTimeout: 60_000,
+    }).connect();
+
+    const { setupSQLServerClient, SQLServerProviderConfigData } = await import('@memberjunction/sqlserver-dataprovider');
+    const { UserCache } = await import('@memberjunction/generic-database-provider');
+    provider = await setupSQLServerClient(new SQLServerProviderConfigData(pool, coreSchema));
+    await UserCache.Instance.Refresh(pool);
+    user = UserCache.Users.find((u) => u?.Type?.trim().toLowerCase() === 'owner') ?? UserCache.Users[0];
+    closeConnection = async () => {
+        // NEVER await pool.close() — the MJ provider's pool can hang forever and the process never exits.
+        void pool.close().catch(() => undefined);
+    };
+}
+
 if (!user) {
     console.error('BOOTSTRAP: no context user in UserCache');
     process.exit(2);
 }
 
 // The entity subclasses under test register as a side effect of importing the server package.
-// Without this the checks would exercise the plain generated entities and pass while proving
-// nothing — every invariant in this suite lives in a subclass.
-// NOT importing @memberjunction/server-bootstrap-lite, @mj-biz-apps/common-entities or
-// @mj-biz-apps/orders-entities: none is a declared dependency of this repo, so under pnpm's strict
-// node_modules all three are unresolvable and the FIRST of them killed this script at bootstrap with
-// ERR_MODULE_NOT_FOUND — before it ever reached the registry, which is what made the harness look
-// unwired. bootstrap-lite only preloads MJ CORE class registrations and nothing here touches a core
-// subclass; the other two belong to sibling apps. Same reasoning as parent-requirement.mjs.
 await import('@mj-biz-apps/contracts-entities');
 await import('@mj-biz-apps/contracts-core-entities-server');
 
@@ -91,16 +129,11 @@ await import('@mj-biz-apps/contracts-integration-tests'); // side effect: regist
 
 const registry = IntegrationCheckRegistry.Instance;
 
-/**
- * `Storage` is only read by MJ's own cache bundles, so leaving it undefined is honest — ours never
- * touch it, and fabricating an instrumented cache would mean claiming to own the process for no
- * benefit.
- */
 const baseContext = {
     User: user,
     Provider: provider,
     Pool: pool,
-    Schema: process.env.MJ_CORE_SCHEMA || '__mj',
+    Schema: coreSchema,
     Storage: undefined,
 };
 
@@ -109,6 +142,8 @@ let pass = 0;
 let fail = 0;
 let skipped = 0;
 const failures = [];
+
+console.log(`Running BizApps Contracts integration suite on platform=${platform}`);
 
 for (const request of requested) {
     const [bundle, localId] = request.includes('.') ? [request.split('.')[0], request] : [request, null];
@@ -133,8 +168,6 @@ for (const request of requested) {
                 pass++;
                 console.log(`  ✔ ${check.Name}  (${Date.now() - started}ms)`);
             } catch (e) {
-                // SkipCheck: a precondition is missing (an upstream app not installed, data not
-                // seeded). It verified nothing, so it is neither a pass nor a failure.
                 if (IsCheckSkip(e)) {
                     skipped++;
                     console.log(`  ○ ${check.Name}  SKIPPED: ${e.message}`);
@@ -144,8 +177,6 @@ for (const request of requested) {
                 const message = String(e?.message ?? e).split('\n')[0];
                 failures.push({ Id: check.Id, message });
                 console.log(`  ✖ ${check.Name}\n      ${message}`);
-                // mssql buries the useful text ('Invalid column name X') in a nested originalError,
-                // so surface it rather than making the reader open a debugger for it.
                 const nested = e?.originalError?.message ?? e?.precedingErrors?.[0]?.message;
                 if (nested && nested !== message) console.log(`      ↳ ${nested}`);
             }
@@ -158,14 +189,12 @@ for (const request of requested) {
         const nested = e?.originalError?.message;
         if (nested && nested !== message) console.log(`      ↳ ${nested}`);
     } finally {
-        // Best-effort — a check failure must still tear down.
         if (lifecycle) await lifecycle.Teardown(ctx).catch((e) => console.warn(`  teardown warn: ${e.message}`));
     }
 }
 
-console.log(`\n${fail === 0 ? 'PASS' : 'FAIL'} — ${pass} passed, ${fail} failed, ${skipped} skipped`);
+console.log(`\n${fail === 0 ? 'PASS' : 'FAIL'} (${platform}) — ${pass} passed, ${fail} failed, ${skipped} skipped`);
 if (fail) failures.forEach((f) => console.log(`  · ${f.Id}: ${f.message}`));
 
-// NEVER await pool.close() — the MJ provider's pool can hang forever and the process never exits.
-void pool.close().catch(() => undefined);
+void closeConnection();
 process.exit(fail === 0 ? 0 : 1);

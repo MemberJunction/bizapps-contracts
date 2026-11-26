@@ -1,5 +1,5 @@
 /**
- * Pure three-state helpers for `ContractType.DefaultAutoRenew` (#149).
+ * Pure three-state helpers for `ContractType.DefaultAutoRenew` (issue 149).
  *
  * Kept free of `@angular/*` imports so unit tests can exercise all three states (`null`, `true`,
  * `false`) directly in Node without triggering `@angular/common` JIT initialization.

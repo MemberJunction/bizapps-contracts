@@ -49,10 +49,20 @@ Full doctrine & examples live in [`docs/claude/04-performance.md`](docs/claude/0
 - Never write raw SQL subqueries against RLS-filtered `vw*` base views inside `ExtraFilter`.
 - Read the RLS-scoped entity first via a provider-scoped `RunView` (respecting `CanRead` permissions), then pass the resulting `ID IN (...)` into the dependent `RunView`. Never bypass RLS or read privileged entities unchecked.
 
+## MJ Docs (`MJ: Artifacts`) vs. `MJ: Comments` vs. Quick Notes Rubric
+
+Full rubric, entity boundary matrix, and Mermaid dataflow live in [`docs/architecture/mj-docs-rubric.md`](docs/architecture/mj-docs-rubric.md); formal EARS requirements and CUJs live in [`.mj/specs/mj-docs-contract-draft-integration.md`](.mj/specs/mj-docs-contract-draft-integration.md).
+
+- **MJ Docs (`MJ: Artifacts`):** Store versioned, rich long-form documents — **Assembled Contract Drafts**, **AI Contract Review Memos**, and **Executive Summaries** — linked via optional nullable `Contract.DocumentArtifactID` (`UNIQUEIDENTIFIER NULL`, `FK -> [__mj].[Artifact]([ID])`) and rendered optionally via `@memberjunction/ng-artifacts`. Do **not** conflate with signed executed PDFs (`MJ: Files` + `'Executed Agreement'` category).
+- **`MJ: Comments`:** Use for threaded human/agent discussion, review feedback, and negotiation commentary anchored to entities.
+- **Quick Notes & Relational Columns:** Keep atomic `ContractTemplateProvision` and `ContractTemplateModification` clause rows and `Contract.Notes` strictly relational so clause-assembly rules, obligation reporting, and approval routing stay SQL-queryable. Never globally cache unbounded `MJ: Artifacts` / `MJ: Artifact Versions` rows in `ContractsEngineBase`.
+- **`PUBLISH_NO_BREAK_POLICY.md` & `@memberjunction/*@6.3.0-edge.1` Guardrails:** Schema changes are strictly additive (nullable FK, zero breaking column drops/renames/narrowings). Declare `@memberjunction/ng-artifacts` as a `^6.3.0-edge.1` peer + devDependency (never in `dependencies`), preserve Dual Form Registration Parity (`BaseFormComponent` + contributed `BaseFormPanel`), use `ChangeDetectionStrategy.OnPush`, semantic `--mj-*` tokens (zero raw `#hex`/`rgb()`/`rgba()`/`hsl()`), `UserInfoEngine.Instance`, and zero `window.print()`.
+- **Deterministic PostgreSQL Parity:** Generate every `migrations-pg/*.pg.sql` counterpart strictly via `mj migrate convert --split --bake-codegen` (with line-1 `-- @mj-pg-provenance: split-bake v1` header; never freehand SQL or legacy `mj sql-convert`) and verify 6-category SQL Server <-> PostgreSQL schema-delta equivalence with zero deploy-time `mj codegen`.
+
 ## Key Packages
 
-- `packages/Entities` (`@mj-biz-apps/contracts-entities`): Generated entities, shared `BaseEntity` subclasses, `ContractsEngineBase`, `contract-type-cache`, pure domain helpers (`default-template`, `renewal-defaults`, `contract-state`, `supersede-candidates`, `source-record-candidates`).
+- `packages/Entities` (`@mj-biz-apps/contracts-entities`, [`README.md`](packages/Entities/README.md)): Generated entities (including optional `Contract.DocumentArtifactID`), shared `BaseEntity` subclasses, `ContractsEngineBase`, `contract-type-cache`, pure domain helpers (`default-template`, `renewal-defaults`, `contract-state`, `supersede-candidates`, `source-record-candidates`).
 - `packages/CoreEntitiesServer` (`@mj-biz-apps/contracts-core-entities-server`): Server-only `BaseEntity` subclasses, `SupersedeOperation`, `delete-guard`, `renewal-terms`.
-- `packages/Angular` (`@mj-biz-apps/contracts-ng`): Client bootstrap, generated forms, `BaseFormPanel` contributions, Explorer sections and dashboard/grid pages.
+- `packages/Angular` (`@mj-biz-apps/contracts-ng`, [`README.md`](packages/Angular/README.md)): Client bootstrap, generated forms, `BaseFormPanel` contributions (including optional `@memberjunction/ng-artifacts` contract draft preview), Explorer sections and dashboard/grid pages.
 - `packages/Server` (`@mj-biz-apps/contracts-server`): Generated GraphQL resolvers + `SweepRenewalTermsAction`.
-- `packages/IntegrationTests`: Live-DB integration test bundles.
+- `packages/IntegrationTests` ([`README.md`](packages/IntegrationTests/README.md)): Live-DB integration test bundles.

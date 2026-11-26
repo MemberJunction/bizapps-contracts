@@ -23,7 +23,7 @@ import { RegisterClass } from '@memberjunction/global';
  */
 export const RECORD_NON_RENEWAL_OUTCOMES_SQL: PlatformSQL = {
     default: `EXEC __mj_BizAppsContracts.spRecordContractNonRenewalOutcomes;`,
-    postgresql: `SELECT __mj_BizAppsContracts."spRecordContractNonRenewalOutcomes"() AS "Changed";`,
+    postgresql: `SELECT __mj_bizappscontracts."spRecordContractNonRenewalOutcomes"() AS "Changed";`,
 };
 
 function setOutput(params: RunActionParams, name: string, value: unknown): void {

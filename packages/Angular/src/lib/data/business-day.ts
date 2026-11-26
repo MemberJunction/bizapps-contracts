@@ -4,12 +4,12 @@
  * ## What was wrong
  *
  * `V202609211200` moved every date comparison in `vwContracts` onto the BUSINESS day — `bt.Today`,
- * from bizapps-common's `fnBusinessToday()` (bc-aidp-next-golive#168). Every OTHER consumer of
+ * from bizapps-common's `fnBusinessToday()` (bc-aidp-next-golive issue 168). Every OTHER consumer of
  * "today" in this package stayed on `CAST(GETUTCDATE() AS date)`, the SERVER'S UTC calendar day,
  * which is already tomorrow for the whole American evening.
  *
  * Before that migration both sides were wrong and AGREED, so nothing looked broken. Afterwards they
- * disagree for exactly the window #168 is about: at 6 PM Central `vwContracts` still reports notice
+ * disagree for exactly the window issue 168 is about: at 6 PM Central `vwContracts` still reports notice
  * time left on a contract that the "Notice window open" pill, the dashboard tile and the left-nav
  * badge have already dropped, because their `>=` compares the deadline against tomorrow. A row
  * visible in one place and absent from another reads as a stale page rather than as a defect.
