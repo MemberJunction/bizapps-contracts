@@ -108,14 +108,14 @@ MemberJunction's **Publish-Then-No-Breaking-Changes Policy** (`MJ/packages/OpenA
 - **Forbidden:** Dropping or renaming `Contract.Notes`, `ContractTemplateProvision`, `ContractTemplateModification`, or any existing column/constraint/SP parameter; narrowing column types; or adding a `NOT NULL` column without a database default.
 
 ### 5.2 4-Part T-SQL Migration Structure
-Every schema migration under `migrations/` obeys [`docs/database-migrations.md`](../database-migrations.md):
+Every schema migration under `migrations/` obeys [`docs/database-migrations.md`](../database-migrations.md) (implemented for `DocumentArtifactID` in `migrations/V202611261520__v1.2.x__Contract_DocumentArtifactID.sql`):
 1. **Part 1 — Hand-Written Additive DDL:** Single `ALTER TABLE [${flyway:defaultSchema}].[Contract] ADD [DocumentArtifactID] UNIQUEIDENTIFIER NULL CONSTRAINT [FK_Contract_DocumentArtifact] REFERENCES [${mjSchema}].[Artifact]([ID]);` plus `sp_addextendedproperty` (`MS_Description`). Zero idempotency guards (`IF NOT EXISTS` / `IF COL_LENGTH` are forbidden).
 2. **Part 2 — Separator:** Exactly **50 consecutive blank lines** separating hand DDL from generated output (enforced by `migration-conventions.test.ts`).
 3. **Part 3 — CodeGen Banner:** Standard MJ CodeGen SQL log header.
 4. **Part 4 — CodeGen Capture:** Regenerated `EntityField` metadata inserts/updates, `vwContracts` projection, `spCreateContract` / `spUpdateContract`, and FK index DDL so an install runs Skyway migrations and **nothing else** (zero deploy-time `mj codegen`).
 
 ### 5.3 Deterministic PostgreSQL Parity (`split-bake v1`)
-PostgreSQL counterparts in `migrations-pg/` are **never** hand-authored from scratch and **never** produced via legacy regex `mj sql-convert`:
+PostgreSQL counterparts in `migrations-pg/` (implemented for `DocumentArtifactID` in `migrations-pg/V202611261520__v1.2.x__Contract_DocumentArtifactID.pg.sql`) are **never** hand-authored from scratch and **never** produced via legacy regex `mj sql-convert`:
 
 - Generate deterministically via the workspace MJCLI:
   ```bash

@@ -8,7 +8,7 @@
 | **Target Repository** | `MemberJunction/bizapps-contracts` (default branch: `next`) |
 | **MJ Compatibility Target** | Published `@memberjunction/*@6.3.0-edge.1` (`>=6.3.0-edge.1 <7.0.0`) |
 | **Architecture Rubric** | [`docs/architecture/mj-docs-rubric.md`](../../docs/architecture/mj-docs-rubric.md) |
-| **Status** | Approved — Executing in 3 Incremental Slices (Slice 1: Docs & Spec Sync) |
+| **Status** | Approved — Executing in 3 Incremental Slices (Slice 1: Docs & Spec Sync ✓; Slice 2: Schema, PG Parity, CodeGen, Seed & Dual-DBMS Integration ✓) |
 
 ---
 

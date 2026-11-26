@@ -7,7 +7,7 @@
 > answers "why".
 >
 > **TAKEN FROM THE FULL MIGRATION CHAIN.** Every table, column, nullability, foreign key, `CHECK` and
-> index below is the end state of `migrations/B202608040001…` through `V202611121200…`, each later
+> index below is the end state of `migrations/B202608040001…` through `V202611261520…`, each later
 > file applied over the earlier ones. Later migrations redefine `vwContracts`; §4 describes the
 > latest definition (`V202609211200`).
 >
@@ -16,7 +16,7 @@
 > migration. A previous revision of this file described the **v1** schema for a day after v1 was
 > retired, and nothing about reading it revealed that — which is why the check exists.
 
-**7 tables** · 10 internal relationships · 5 cross-app foreign keys · 18 CHECK constraints · 8 unique indexes.
+**7 tables** · 10 internal relationships · 6 cross-app foreign keys · 18 CHECK constraints · 8 unique indexes.
 
 Schema: `__mj_BizAppsContracts`. Entity name prefix: `MJ_BizApps_Contracts: `.
 
@@ -100,6 +100,7 @@ erDiagram
         datetimeoffset PredictedRenewalScoredAt "nullable · when the contract was last scored"
         int NonRenewalOutcome "nullable · 0 or 1 · the renewal-risk label, recorded by the database"
         bit CarryDiscountOnRenewal "default 0 · copied to linked orders' subscriptions"
+        uuid DocumentArtifactID FK "__mj.Artifact · nullable · linked MJ Doc draft, review memo, or executive summary"
     }
 
     ContractOrder {
@@ -144,11 +145,12 @@ erDiagram
     Organization ||--o{ Contract : "CustomerOrganizationID · __mj_BizAppsCommon"
     Person ||--o{ Contract : "PrimaryContactPersonID · __mj_BizAppsCommon"
     Entity ||--o{ Contract : "CreatingEntityID · __mj"
+    Artifact ||--o{ Contract : "DocumentArtifactID · __mj · nullable"
     OrderHeader ||--o{ ContractOrder : "OrderID · __mj_BizAppsOrders"
 ```
 
-**10 internal foreign keys** (the first ten above) and **5 cross-app** (the last five). No FK leaves
-this schema except those five, and none points into `bizapps-sales` — sales depends on contracts, so
+**10 internal foreign keys** (the first ten above) and **6 cross-app** (the last six). No FK leaves
+this schema except those six, and none points into `bizapps-sales` — sales depends on contracts, so
 the deal reference is the soft `CreatingEntityID` + `CreatingRecordID` pair rather than a hard FK.
 
 `ContractOrder` links a contract to the orders it governs (`V202611121200`, issue #77). A contract's
@@ -273,15 +275,17 @@ successor, and for training that counts as renewed.
 
 `vwContractsGenerated` also carries CodeGen's joined name columns: `ContractType`, `Company`,
 `CustomerOrganization`, `PrimaryContactPerson`, `ContractTemplate`, `CreatingEntity`,
-`ParentContract` and `SupersededByContract`.
+`ParentContract`, `SupersededByContract`, and `DocumentArtifact`.
 
 `vwContractTemplates` wraps `vwContractTemplatesGenerated` the same way and adds one column,
 `IsUsable`: the template has a non-blank `SourceURL`, or a file is linked to it.
 
 ## 5. What this schema deliberately does not have
 
-No `Status` column on `Contract` (derived as `State`), no named document FK (documents attach through
-`__mj.FileEntityRecordLink`), no `ContractTemplateID` on a modification (its provision derives the
+No `Status` column on `Contract` (derived as `State`), no executed-PDF binary FK (countersigned final
+PDFs attach through `__mj.FileEntityRecordLink` with the `Executed Agreement` category; optional
+`DocumentArtifactID` links versioned MJ Docs in `__mj.Artifact` for assembled drafts, AI review memos,
+and executive summaries), no `ContractTemplateID` on a modification (its provision derives the
 template), no line items, no billing schedule, no pricing, no commitment tracking and no amendment
 workflow. The v1 schema had all of those across 10 tables; v2 has 7. `plans/ERD-planned.md` §9 records
 each removal and who ruled it, as history.
