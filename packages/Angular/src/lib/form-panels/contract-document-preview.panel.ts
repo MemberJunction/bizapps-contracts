@@ -49,6 +49,9 @@ const SUMMARY_EXCERPT_MAX_CHARS = 220;
 /** Maximum version metadata rows fetched per contract document preview (newest first). */
 const MAX_PREVIEW_VERSIONS = 25;
 
+/** Canonical RFC 4122 / SQL Server UNIQUEIDENTIFIER UUID pattern. */
+const UUID_PATTERN = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
+
 /** User preference key stored via `UserInfoEngine.Instance` (never `localStorage`). */
 export const CONTRACT_DOC_PREVIEW_EXPANDED_PREF_KEY = 'mjc.contract.docPreview.expanded';
 
@@ -196,6 +199,18 @@ export async function LoadContractDocumentPreviewState(
     const normalizedId = typeof documentArtifactId === 'string' ? documentArtifactId.trim() : '';
     if (!normalizedId) {
         return BuildUnlinkedDocumentPreviewState();
+    }
+
+    if (!UUID_PATTERN.test(normalizedId)) {
+        return {
+            Status: 'restricted',
+            ArtifactID: normalizedId,
+            Artifact: null,
+            Versions: [],
+            LatestVersion: null,
+            NoticeMessage:
+                'The linked MJ Doc identifier is malformed or invalid. Relational clauses, Contract Notes, and Executed Agreement attachments remain available.',
+        };
     }
 
     const effectiveProvider = provider ?? Metadata.Provider;

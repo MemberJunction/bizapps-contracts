@@ -320,6 +320,44 @@ describe('ContractDocumentPreviewComponent & LoadContractDocumentPreviewState', 
         }
     });
 
+    it('short-circuits malformed non-UUID DocumentArtifactID values to restricted without calling RunViews', async () => {
+        const provider = createPermissionProvider(true);
+        const { rvInstance, runViewsSpy } = createRunViewStub(async () => []);
+        const rvSpy = vi.spyOn(RunView, 'FromMetadataProvider').mockReturnValue(rvInstance);
+
+        try {
+            const malformedValues = [
+                'not-a-valid-uuid',
+                "' OR 1=1 --",
+                '12345',
+                'aaaaaaaa-1111-4111-8111-11111111111z',
+            ];
+
+            for (const malformedId of malformedValues) {
+                const state = await LoadContractDocumentPreviewState(provider, malformedId);
+                expect(state.Status).toBe('restricted');
+                expect(state.ArtifactID).toBe(malformedId);
+                expect(state.Artifact).toBeNull();
+                expect(state.Versions).toEqual([]);
+                expect(state.LatestVersion).toBeNull();
+                expect(state.NoticeMessage).toContain('malformed');
+            }
+
+            const { component } = createComponentInDi();
+            component.Provider = provider;
+            component.DocumentArtifactID = 'malformed-artifact-id';
+            component.IsSaved = true;
+
+            const componentState = await component.LoadPreview();
+            expect(componentState.Status).toBe('restricted');
+            expect(component.State.Status).toBe('restricted');
+            expect(component.StatusLabel).toBe('Restricted');
+            expect(runViewsSpy).not.toHaveBeenCalled();
+        } finally {
+            rvSpy.mockRestore();
+        }
+    });
+
     it('cancels/ignores stale async load completions when rapidly switching Contract records under OnPush', async () => {
         const firstArtifactID = '11111111-aaaa-4aaa-8aaa-111111111111';
         const secondArtifactID = '22222222-bbbb-4bbb-8bbb-222222222222';
