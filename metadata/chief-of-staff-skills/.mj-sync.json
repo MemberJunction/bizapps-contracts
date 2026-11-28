@@ -1,0 +1,14 @@
+{
+  "entity": "MJ: AI Skills",
+  "filePattern": "**/.*.json",
+  "ignoreFiles": [".mj-sync.json"],
+  "pull": {
+    "filter": "Name IN ('Contracts & Renewals')",
+    "relatedEntities": {
+      "MJ: AI Agent Skills": {
+        "entity": "MJ: AI Agent Skills",
+        "foreignKey": "SkillID"
+      }
+    }
+  }
+}

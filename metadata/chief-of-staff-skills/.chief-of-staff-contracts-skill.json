@@ -1,0 +1,31 @@
+[
+  {
+    "fields": {
+      "Name": "Contracts & Renewals",
+      "Description": "Track executed and active customer contracts, upcoming end dates, auto-renewal notice deadlines, cancellation windows, renewal-risk scores, template clause modifications, and linked orders through BizApps Contracts. Installed by the BizApps Contracts app.",
+      "Instructions": "@file:templates/contracts-chief-of-staff.skill.md",
+      "Status": "Active",
+      "ActivationMode": "Auto",
+      "Category": "Legal & Finance",
+      "IconClass": "fa-solid fa-file-contract",
+      "CreatedByUserID": "@lookup:MJ: Users.Name=System"
+    },
+    "relatedEntities": {
+      "MJ: AI Agent Skills": [
+        {
+          "fields": {
+            "AgentID": "@lookup:MJ: AI Agents.Name=Chief of Staff",
+            "SkillID": "@parent:ID",
+            "Status": "Active"
+          },
+          "primaryKey": {
+            "ID": "A6CF88BD-5E17-4B27-93D1-F2184C03A026"
+          }
+        }
+      ]
+    },
+    "primaryKey": {
+      "ID": "F3F92A61-1BE2-412D-A102-7127682A39B2"
+    }
+  }
+]
